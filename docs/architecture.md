@@ -34,7 +34,7 @@ study-kit/
 ├── .github/scripts/guard.sh        # the guard workflow's checks: `commits`, `courses`, `pdfs`
 ├── .github/scripts/test-hooks.sh   # tests of the git hooks and guard.sh in throwaway repositories (`just test`)
 ├── src/studykit/
-│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links, pdf, cheatsheet fit
+│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links, pdf, cheatsheet fit, calc, verify
 │   ├── tools.py                    # `tools install`: pandoc, typst and just → .tools/bin, sha256-checked
 │   ├── doctor.py                   # `doctor`: tool versions, site packages, Typst fonts, git hooks, courses/ ignored, port 4321
 │   ├── model.py                    # pydantic models: the single schema source
@@ -51,14 +51,15 @@ study-kit/
 │   ├── figures/                    # house.mplstyle palette.py core.py keypoints.py plot.py signals.py
 │   │                               # circuit.py block.py graph.py labels.py builtins.py
 │   │                               # finalize.py validate.py child.py runner.py
-│   ├── check.py  verify.py  blind.py   # (Phase 5) check-script API, runner + ledger, blind views
+│   ├── check.py  verify.py  blind.py   # check-script API; `verify`: runner, ledger, quarantine; `blind`: blind views
+│   ├── hook.py                     # `hook verifier-guard|pre-git`: Claude Code PreToolUse hooks (§5.1, §5.3)
 │   ├── pdf.py                      # `pdf`: assemble → pandoc → typst per document, digest cache, _build/pdf/manifest.json (§3.3)
 │   ├── cheatsheet.py               # `cheatsheet fit`: density loop 0–4, overflow measured with `typst eval` (§3.3)
 │   ├── ingest.py                   # (Phase 6) scan, copy, page text, chunk plan
 │   ├── plan.py                     # (Phase 5) deterministic scheduler
 │   ├── progress.py                 # (Phase 5) import browser export, examiner log, report and mastery
 │   ├── status.py                   # (Phase 6) pipeline state derived from outputs
-│   └── calc.py                     # (Phase 5) `studykit calc "<sympy>"` for tutor and examiner
+│   └── calc.py                     # `studykit calc "<sympy>"` for verifier, tutor and examiner (§5.3)
 ├── pandoc/
 │   ├── defaults/common.yaml web.yaml typst.yaml json.yaml
 │   ├── filters/studykit.lua + lib/{guard,blocks,mcq,math,figures,alttext,refs,meta,i18n,solutions,document}.lua
@@ -122,10 +123,10 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── cheatsheet.md
 ├── plan.yaml                       # written by `studykit plan` (Phase 5), never by an LLM; until then by hand
 ├── figures/<slug>.py
-├── checks/<item-id>.py | <item-id>.json    # (Phase 5) verifier output
+├── checks/<item-id>.py | <item-id>.json    # verifier output; <item-id>.<tag>.py a second method
 ├── sources/raw/*.pdf  manifest.yaml  text/<doc>/p0001.txt  notes/<chunk>.md  outline.md
 ├── analysis/exam-profile.yaml  notation.yaml
-├── state/verify/<item-id>.json     # (Phase 5) ledger, one file per item (no locking)
+├── state/verify/<item-id>.json     # ledger, one file per item (no locking); report.md
 ├── progress/browser/*.json  examiner.jsonl  mastery.json  report.md    # (Phase 5)
 ├── _history/<timestamp>/…          # (Phase 5) copies saved by /regenerate before overwriting
 └── _build/{index.json,figures,typ,pdf,blind,logs}   # typ: assembled .md/.typ and digests; pdf: PDFs and manifest.json; logs: pandoc logs
@@ -312,7 +313,7 @@ difficulty: 2                     # 1 worked-example level … 4 exam-hard
 kind: compute                     # compute | derive | concept | sketch | code
 minutes: 10
 source: {doc: uebung-04, page: 2, relation: adapted}    # original | adapted | inspired
-answers:                          # the key; the website's answer check and verify.py (Phase 5) both use it
+answers:                          # the key; the website's answer check and verify.py both use it
   - {key: fg,  label: '$f_\mathrm{g}$', value: 1591.55, unit: Hz, rtol: 1.0e-3}
   - {key: Hdb, label: '$|\underline{H}(f_\mathrm{g})|$', value: -3.0103, unit: dB, atol: 0.01}
 ---
@@ -341,7 +342,7 @@ Setzen Sie $R = \frac{1}{2\pi f_\mathrm{g} C}$ und lösen Sie nach $f_\mathrm{g}
 ```
 
 - Answer `label`, and the rubric text in exam tasks, are plain text plus inline `$…$` math only. They are linted for that and rendered by a 20-line splitter, the same way on the web and in the PDF.
-- Symbolic answers are written `{key: H, expr: '1/(1+s*R*C)', symbols: [s, R, C]}`. The website's answer check (`lib/answer.ts`) evaluates input and reference at random positive sample points with complex arithmetic; `verify.py` (Phase 5) adds SymPy simplification.
+- Symbolic answers are written `{key: H, expr: '1/(1+s*R*C)', symbols: [s, R, C]}`. The website's answer check (`lib/answer.ts`) evaluates input and reference at random positive sample points with complex arithmetic; `verify.py` compares with SymPy simplification, then at sample points.
 - The website reads numbers in German or English notation with an SI prefix and unit (`1,59 kHz`) and accepts them within `atol + rtol·|value|` in the answer's unit; `rad/s` and `1/s` count as the same unit.
 - The hint-leak lint (warning SK-MATH-HINT-LEAK) flags a number in a hint that matches an `answers` value within its tolerance.
 
@@ -476,8 +477,8 @@ Beurteilen Sie für den RC-Tiefpass:
 - Every option has a `why`, and there is exactly one explanation.
 - No "all of the above".
 - Explanations never refer to options by letter, because options are shuffled.
-- *(Phase 5)* Numeric questions require a check script. The verifier writes it after
-  authoring, so the Verification stage checks this, not lint.
+- Numeric questions require a check script. The verifier writes it after authoring, so
+  the Verification stage checks this, not lint (SK-VER-CHECK with `--release`).
 
 **Bank-level warnings** (SK-MCQ-BIAS, for banks with at least four single-choice questions):
 - the correct option is the strictly longest one in more than half of them
@@ -510,7 +511,7 @@ negative marking, when `course.exam.mc.negative_marking` is true (`examScore`):
 - any other answered question scores its normal score when that is above 0, else −1;
 - the MC part as a whole never goes below 0 (`examPartPoints`).
 
-**Check script for a numeric question** (*Phase 5*; `checks/mc-rc-filter-003.py`, written blind by the verifier):
+**Check script for a numeric question** (`checks/mc-rc-filter-003.py`, written blind by the verifier from `studykit blind`, whose options are in source order A–F):
 
 ```python
 from math import pi
@@ -532,7 +533,10 @@ The runner asserts four things:
 3. Every distractor differs from the correct value by more than 5%.
 4. Each option's text parses to its stated value. If the text can't be parsed, this is a warning.
 
-**Conceptual questions** (*Phase 5*): the verifier answers blind into `checks/<id>.json`:
+A failure of 1–3 disputes the question; a failure of 4 means the check misread an option,
+so the item stays unverified until the check is fixed.
+
+**Conceptual questions**: the verifier answers blind into `checks/<id>.json` (or a script ending with `mc_answer(...)`; Kprim takes `{"A": true, …}` or the list of true statements):
 
 ```json
 {"answer": ["A","C"], "confidence": "high", "ambiguous": false, "reason": "…"}
@@ -610,17 +614,51 @@ How the scheduler places sessions:
 `plan.pdf` lists the sessions week by week („Woche n · dates“), one row each with a box to
 tick, date, minutes, kind, goal, topics and tasks (§3.3).
 
-### 2.10 Verification ledger (`state/verify/<item-id>.json`, Phase 5)
+### 2.10 Verification ledger (`state/verify/<item-id>.json`)
+
+`studykit verify <course> [id|topic|exam|all]` runs each item's check (`checks/<id>.py` in a
+subprocess with a timeout and no shell, or `checks/<id>.json`), compares it with the key and
+writes one ledger file per exercise, exam task and MC question (`model.VerifyEntry`,
+`schemas/verify.schema.json`):
 
 ```json
-{"item":"ex-rc-tp-grenzfrequenz","content_sha256":"…","check_sha256":"…","method":"script",
- "result":"pass","answers":{"fg":{"claimed":1591.55,"computed":1591.549,"rel_err":3e-7}},
- "verified_at":"2026-10-30T10:12:00Z"}
+{"schema": 1, "item": "ex-rc-tp-grenzfrequenz", "kind": "exercise",
+ "path": "exercises/rc-filter/ex-rc-tp-grenzfrequenz.md", "content_sha256": "…",
+ "status": "verified", "method": "script", "check": "checks/ex-rc-tp-grenzfrequenz.py",
+ "check_sha256": "…", "rounds": 0,
+ "results": [{"key": "fg", "expected": 1591.55, "computed": 1591.549, "unit": "Hz",
+              "abs_err": 0.001, "rel_err": 6.3e-7, "tol": 1.59, "ok": true}],
+ "checked_at": "2026-10-30T10:12:00Z", "verified_at": "2026-10-30T10:12:00Z"}
 ```
 
-- `result` is one of `pass`, `fixed`, `disputed` or `quarantined`.
-- If the content hash no longer matches, the entry is stale and must be verified again.
-- Summary chapters and the cheat sheet get formula audits too, in `checks/sum-<topic>.py`.
+- A check script ends with one `studykit.check` call, which prints the JSON line the runner
+  reads: `answers(**values)` (numbers in the key's unit, `quantity(x, "kHz")` in another
+  unit of the same kind, SymPy expressions for symbolic keys), `mc_answer(letters)`,
+  `mc_numeric(…)` (§2.6) or `review(agree, reason)` for an item without keys.
+- Exercises and exam tasks compare every `answers` key: numbers within `atol + rtol·|value|`,
+  expressions by SymPy simplification, then at sample points. MC questions compare the set
+  of correct letters (single, multi), each statement (Kprim) or the `mc_numeric` assertions.
+- `status`: `unverified` (no check, a check that did not run to a result, or two methods
+  that disagree), `verified` (with earlier disputes it counts as fixed), `disputed`, or
+  `quarantined`. `method` is `script`, `blind` (a JSON answer) or `manual`.
+- `content_sha256` is the sha256 of the item's source: the whole file of an exercise or exam
+  task, the fenced block of an MC question. If it no longer matches, the entry is stale
+  (SK-VER-STALE) and the next run checks the new version.
+- `disputes` records each disagreement with the verifier's numbers and the key, per version
+  of the item; `rounds` counts the author fix rounds (versions disputed after the first).
+  The dispute after the second fix round quarantines the item. `--confirm checks/<id>.<tag>.py`
+  records a second method in `confirmations`: one that reproduces a dispute confirms it, one
+  that sides with the key (or contradicts a verified result) sends the item back to
+  unverified. `--dispute --note … --computed key=value` and `--quarantine --note …` record
+  either by hand; `--clear` deletes entries (also `stale` and `orphans`).
+- Quarantined items are hidden from the site and the PDFs (§0): the course index lists them
+  under `quarantined`, the render bridge skips their exercise and exam-task files, the filter
+  drops their MC questions from HTML and Typst and turns links to them into plain text, and
+  an exam loses their tasks and points (its pass mark keeps its share). `verify --report`
+  writes `state/verify/report.md` with the counts and every item that is not verified.
+- The text output never shows the key (the verifier reads it); `--json` and `--show-key` do.
+- Summary chapters and the cheat sheet get formula audits too, in `checks/sum-<topic>.py`
+  *(planned)*.
 
 ### 2.11 Progress
 
@@ -734,7 +772,7 @@ title: Überblick
   - `fail-if-warnings: true`
 - `web.yaml`: `to: html5`, `syntax-highlighting: default`. Code tokens come out as classes, and `code.css` colours them for light and dark.
 - `typst.yaml`: `to: typst`, `standalone: true`, `template: typst/pandoc-template.typ`, `syntax-highlighting: idiomatic`.
-- `json.yaml`: `to: json` and the reader with `+sourcepos`, so findings carry `file:line:col`; used by lint and validate (Phase 5: blind views and verification). The filter only checks and returns the AST unchanged.
+- `json.yaml`: `to: json` and the reader with `+sourcepos`, so findings carry `file:line:col`; used by lint and validate. The filter only checks and returns the AST unchanged.
 
 **Metadata.** `studykit.pandoc` builds the argv; the filter needs `-M sk-index` (the course's `_build/index.json`), `sk-course`, `sk-lang`, `sk-file` (the course-relative path, which decides the file kind), for Typst `sk-solutions` and `sk-figdir`, and optionally `sk-scope=course|file`; `studykit pdf` adds `sk-doc=<kind>` for an assembled document (`document` below). pandoc runs in the repository root on a temporary copy whose frontmatter is blanked.
 
@@ -1237,7 +1275,7 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
 | References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and MC file, `modeled_on` and frontmatter source documents, archetypes, `src:` pages | SK-REF |
 | Pandoc | the Lua filter set with the json target, on files the stages above left without errors; also with `--quick`, then at file scope (targets missing from the index are not reported). The filter reports family-plus-rule codes: the code validate uses for a rule both check (e.g. SK-REF-FIGURE), and SK-BLOCK-RAW, SK-BLOCK-MARKDOWN, SK-REF-LINK and SK-MATH-TYPST for rules only it checks; a failure without a finding is SK-PANDOC-FAIL | SK-* |
 | Figures | build (cached) plus SVG validation; unreferenced scripts (warning) | SK-FIG |
-| Verification | *(Phase 5; skipped)* ledger complete and fresh; disputed and quarantined items listed; numeric MC questions have a check script | SK-VER |
+| Verification | the ledger (§2.10): broken entries (error), disputed (warning, error with `--release`), quarantined and stale items, ledgers and checks of unknown ids (warnings); with `--release` every item without a fresh verified entry and every numeric MC question without `checks/<id>.py` (warnings) | SK-VER |
 | PDF | every full validate, not `--quick` or `lint`: builds the course's PDFs into `_build/pdf` as `studykit pdf` does, manifest included, but without building figures (the Figures stage did); cached, so only documents whose inputs changed rebuild; with `--paths` only the documents made from those files. Every document compiles with no Typst or pandoc warning, and the cheat sheet fits its limit; a filter finding in a document keeps its own code; the note reports how many PDFs are ready and the cheat sheet's pages and density. A Typst diagnostic is reported at the file and line of the course item (exercise, question, task, chapter) it points into, else at the file that defines the document, else `course.yaml`; an overflow at the cheat sheet's `max_pages`. Skipped with a note when PDF building is turned off (`Config.pdf`, for tests), pandoc or typst is missing, the course is outside the repository, or an earlier stage found errors | SK-PDF-COMPILE, SK-PDF-WARNING, SK-PDF-CHEATSHEET, SK-PDF-BUILD |
 | Site | `--release` only, for whole courses (not with `--paths`), and only when the stages above found no errors: strict `astro build` into a temporary `--outDir` with `STUDYKIT_COURSES_DIR` set to a temporary directory that holds one symlink to the course; Pagefind with `--force-language`; `pnpm -C site check` without `STUDYKIT_STRICT`; `check-links` over the course's own pages, reported as `dist/<page>` | SK-SITE |
 | Coverage | `--release` only: the overview links every topic; each topic has a summary, at least `targets.exercises_per_topic` (4 with `auto`) exercises over two or more difficulties, and at least `targets.mc_per_topic` MC questions (with `auto`: 10–25 by weight); a bank lacking a type of `course.exam.mc.types` (warning); at least `targets.mock_exams` mock exams, each within ±10% of the points and time in `course.yaml: exam` | SK-COV |
@@ -1255,8 +1293,16 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
   - YAML loading, the schemas, validate's stages, the render bridge, the Site stage, `check-links`, `doctor` and `tools`
   - `studykit pdf` on the sample course (`test_pdf.py`): every document builds without warnings, the manifest follows the contract with pypdfium2 page counts, a second run is cached, generated text is escaped, `mc.pdf` has an answer key for every question in the order validate and the site use, the exam has „Seite x von y“ and its points table but no solutions, the solutions PDF has every rubric, `exercises.pdf` has every solution and the blank sheet none, a failed compile keeps the previous PDF and leaves the manifest, a filter finding names the course file and line, unknown documents are refused, no course builds every course; `cheatsheet fit` (`test_cheatsheet.py`: the limit, the density loop, positions through the columns, the overflow JSON with section lines, exit code 3 keeping the previous PDF, the 3-page failure); validate's PDF stage (`test_validate_pdf.py`: built once and reused, `--paths`, the overflow at `max_pages`, a missing figure at the file that shows it, the skip reasons, where problems are reported)
   - *(planned)* key points of function plots (`cos x = x`, touching roots, poles) beyond the
-    gallery snapshot; *(Phase 5/6)* `mc_numeric`, the scheduler, `status`, and ingest of a
-    generated two-page PDF
+    gallery snapshot; *(Phase 5/6)* the scheduler, `status`, and ingest of a generated
+    two-page PDF
+  - verification on copies of the sample course: `calc` (exact, complex, units, a parser
+    that rejects Python), blind views without keys, solutions or marks (`test_blind.py`),
+    the runner and ledger (`test_verify.py`: a correct item verifies, a seeded wrong number
+    and a seeded wrong MC key are disputed, `mc_numeric`'s four assertions, an edit makes the
+    entry stale, two failed fix rounds quarantine, second methods, check failures), the
+    Verification stage (`test_validate_verify.py`), quarantine on the render bridge and in
+    `exercises.pdf`, `mc.pdf` and the exam (`test_quarantine.py`), and both hooks on sample
+    hook events (`test_hook.py`)
 - **node --test** (`site/tests/unit/`): the PDF and source manifests the site reads (`lib/pdf.ts`, with small test PDFs from `make-pdf.mjs`), scoring for every type and mode, shuffle determinism with `pin-last` (against values printed by Python), Leitner and the exam clamp, store migration and merge, the answer check (`lib/answer.ts`), the progress figures (`lib/stats.ts`), and text colour pairs of `tokens.css` at 4.5:1 or more in both themes.
 - **Git hooks and guard** (`.github/scripts/test-hooks.sh`): `commit-msg`, `pre-commit` and `guard.sh` in throwaway repositories.
 - **Schema drift:** `studykit schema export --check`.
@@ -1301,10 +1347,10 @@ characters or quotes are caught too.
 ## 5. Claude Code layer
 
 *Phase 5 and 6.* What exists: `.claude/settings.json` with `attribution` only, empty
-`.claude/agents/` and `.claude/skills/`, and `studykit lint --hook`, the command the
-PostToolUse hook below runs. The commands this section names besides `lint`, `validate`,
-`ls` and `fig build` (`calc`, `blind`, `verify`, `plan`, `progress`, `ingest`, `status`, `hook`)
-are planned.
+`.claude/agents/` and `.claude/skills/`, `studykit lint --hook`, the command the
+PostToolUse hook below runs, and the commands `calc`, `blind`, `verify` and `hook`
+(`verifier-guard`, `pre-git`). The commands `plan`, `progress`, `ingest` and `status` are
+planned.
 
 ### 5.1 Project configuration
 
@@ -1316,7 +1362,7 @@ are planned.
 - `permissions.deny`: `Bash(git add -f *)`, `Bash(git add --force *)`. There is no deny on `.claude/**`, so Claude can build Phase 5.
 - **Hooks:**
   - `PostToolUse`, matcher `Write|Edit`: `uv run --frozen --project "${CLAUDE_PROJECT_DIR}" studykit lint --hook`. It reads `tool_input.file_path` from stdin and ignores anything outside `courses/**` and `examples/**`. On findings it exits 2 with them on stderr, so Claude fixes them immediately.
-  - `PreToolUse`, matcher `Bash`, with `"if": "Bash(git *)"`: `studykit hook pre-git` blocks `git add` and `git commit` that touch course paths.
+  - `PreToolUse`, matcher `Bash`, with `"if": "Bash(git *)"`: `studykit hook pre-git` blocks `git add` and `git commit` that touch course paths (`courses/` except `courses/README.md`, also course files already staged), `git add -f`/`--force` and `git commit --no-verify`. It prints the documented deny JSON (`hookSpecificOutput.permissionDecision: "deny"`) and exits 0.
 - **No `memory:` field on any agent.** Course-specific state lives in `courses/<c>/progress` and `state`, and `.claude/agent-memory*/` is gitignored as a safety net.
 
 **`CLAUDE.md`:**
@@ -1368,9 +1414,16 @@ No agent has the `Agent` tool, so nothing spawns further agents.
 | `examiner` | opus | Read, Grep, Glob, Bash, AskUserQuestion | examine | `progress/examiner.jsonl` via `studykit progress log`; started via `just examine` (main thread) |
 
 **Verifier blindness** is enforced by an agent-scoped `PreToolUse` hook, `studykit hook verifier-guard`:
-- It denies Read, Grep and Glob on `exercises/`, `mc/` and `exams/`.
-- It denies Bash commands that mention those paths, except `studykit` and `python checks/…`.
-- The verifier works only from `studykit blind <c> <id>`, which writes `_build/blind/<id>.md`: the statement with no solution, answers or `[x]` marks, and MC options in source order labelled A–E.
+- It denies Read, Grep and Glob on `exercises/`, `mc/` and `exams/`, and on what else holds
+  keys or solutions: `state/`, `_history/`, `_build/` except `blind/` and the figure images,
+  figure facts, the built site and `.cache/`; Grep and Glob over a tree that contains a course.
+- It denies Bash commands that mention those paths, except `studykit` and `python checks/…`;
+  of `studykit` only `blind`, `calc`, `verify` (without `--json` and `--show-key`), `ls`,
+  `lint`, `validate`, `fig`, `index` and `doctor` are allowed.
+- It denies Write and Edit outside a course's `checks/`, and check code that names those paths.
+- The verifier works only from `studykit blind <c> <id>`, which writes `_build/blind/<id>.md`:
+  the statement with no solution, hints, rubric, answer values or `[x]` marks, the answer
+  keys to compute (key, label, unit or symbols), and MC options in source order labelled A–F.
 
 **Verifier protocol:**
 1. Compute in Python.
