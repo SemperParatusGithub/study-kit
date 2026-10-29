@@ -4,9 +4,9 @@ Practice exercises of one topic, one file each, with a machine-checkable answer 
 
 ## How many
 
-- `targets.exercises_per_topic: auto` means at least 4 per topic (more for heavy or focus
-  topics: about 4 + 8 × weight, focus × 1.5); a number means that many. `--add n` adds
-  n to what exists.
+- `targets.exercises_per_topic: auto` means at least 4 per topic, the minimum
+  SK-COV-EXERCISES enforces; aim for about 4 + 8 × weight (focus × 1.5) for heavy or
+  focus topics. A number means that many. `--add n` adds n to what exists.
 - At least two difficulties per topic (SK-COV-EXERCISES). A good spread for six exercises:
   one at 1, two at 2, two at 3, one at 4 (exam level).
 - Mix the kinds: mostly `compute`, some `derive` (symbolic answer), `concept` or `sketch`

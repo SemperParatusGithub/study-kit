@@ -27,7 +27,7 @@ cite, `notation.yaml`, the chapters of the prerequisite topics (link, do not rep
 
 - Derive the important formulas briefly; the cheat sheet later condenses them.
 - Use the same symbols as the exercises and the notation file; units with every number.
-- Length: 120-300 lines; a chapter that grows longer is split into clearer sections, not
+- Length: 120-300 lines without the frontmatter; a chapter that grows longer is split into clearer sections, not
   cut short.
 - Every chapter ends with the automatic "Test yourself" quiz from the MC bank; do not add
   your own quiz.
