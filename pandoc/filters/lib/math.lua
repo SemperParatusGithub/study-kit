@@ -6,9 +6,14 @@
 -- Tokens are TeX control sequences (a control word never matches a longer word, so \si
 -- does not match \sin), sequences of them, or environments written env:<name>.
 -- "silent" constructs pass KaTeX and pandoc→Typst but render wrong in the PDF, so only
--- this check stops them. unless_wrapped allows an environment that sits directly between
--- one of the listed \left…\right pairs. Beyond the list: non-ASCII outside \text{…}
--- (KaTeX strict rejects it) and `|` in an array column spec.
+-- this check stops them. unless_wrapped allows the environment when its \begin directly
+-- follows the first and its \end directly precedes the second element of a listed pair;
+-- only then does pandoc write a Typst matrix (env:matrix uses it for the determinant).
+--
+-- Environments are an allowlist (aligned, gathered, cases, pmatrix, bmatrix, Bmatrix):
+-- any other \begin{…} is a finding, with the hint of its env: entry (a starred name
+-- falls back to the unstarred one) or the allowlist. Beyond the list: non-ASCII outside
+-- \text{…} (KaTeX strict rejects it).
 --
 -- HTML:  <sk-math data-tex="<base64 of the UTF-8 TeX>" data-display="0|1"></sk-math>
 -- Typst: each node is converted on its own with pandoc.write, any conversion warning is a
@@ -19,6 +24,10 @@
 local M = {}
 
 local denylist -- loaded on first use
+
+-- docs/architecture.md §2.3: the only environments the PDF and the website agree on.
+M.ALLOWED_ENVS = { aligned = true, gathered = true, cases = true, pmatrix = true, bmatrix = true, Bmatrix = true }
+local FIX_ENV = 'use aligned, gathered, cases, pmatrix, bmatrix or Bmatrix'
 
 ---------------------------------------------------------------------------------------
 -- TeX tokens
@@ -34,9 +43,9 @@ function M.tokenize(tex)
       if word then
         i = i + #word
         if word == '\\begin' or word == '\\end' then
-          local ws, name = tex:match('^(%s*){([%a*]+)}', i)
+          local ws, name = tex:match('^(%s*){([^{}]*)}', i)
           if name then
-            table.insert(toks, word:sub(2) .. ':' .. name)
+            table.insert(toks, word:sub(2) .. ':' .. (name:gsub('%s+', '')))
             i = i + #ws + #name + 2
           else
             table.insert(toks, word)
@@ -62,9 +71,8 @@ function M.tokenize(tex)
 end
 
 local function token_seq(token)
-  local env = token:match('^env:(.+)$')
-  if env then
-    return { 'begin:' .. env }
+  if token:match('^env:') then
+    return nil -- environments are checked against the allowlist, see M.check
   end
   return M.tokenize(token)
 end
@@ -84,6 +92,7 @@ local function load_denylist(ctx)
   fh:close()
   for _, e in ipairs(entries) do
     local entry = { token = e.token, use = e.use, kind = e.kind, seq = token_seq(e.token) }
+    entry.env = e.token:match('^env:(.+)$')
     if type(e.unless_wrapped) == 'table' then
       entry.wrapped = {}
       for _, pair in ipairs(e.unless_wrapped) do
@@ -198,31 +207,40 @@ end
 --- Report every denied construct in one formula.
 function M.check(tex, ctx)
   local toks = M.tokenize(tex)
+  local entries = load_denylist(ctx)
   local reported = {}
-  for _, entry in ipairs(load_denylist(ctx)) do
-    for i = 1, #toks do
-      if not reported[entry.token] and seq_at(toks, i, entry.seq) then
-        if not (entry.wrapped and is_wrapped(toks, i, entry)) then
-          reported[entry.token] = true
-          local what = entry.token:match('^env:(.+)$')
-          what = what and ('environment ' .. what) or ('`' .. entry.token .. '`')
-          ctx:fail('SK-MATH', what .. ' is not allowed in ' .. excerpt(tex), entry.use)
-        end
-      end
+  local function report(key, what, fix)
+    if not reported[key] then
+      reported[key] = true
+      ctx:fail('SK-MATH', what .. ' is not allowed in ' .. excerpt(tex), fix)
     end
   end
-  for i = 1, #toks do
-    if toks[i] == 'begin:array' and toks[i + 1] == '{' then
-      local j = i + 2
-      while toks[j] and toks[j] ~= '}' do
-        if toks[j] == '|' then
-          ctx:fail('SK-MATH', '`|` in an array column spec in ' .. excerpt(tex), 'a Markdown table')
+
+  local env_entry = {}
+  for _, entry in ipairs(entries) do
+    if entry.env then
+      env_entry[entry.env] = entry
+    else
+      for i = 1, #toks do
+        if seq_at(toks, i, entry.seq) then
+          report(entry.token, '`' .. entry.token .. '`', entry.use)
           break
         end
-        j = j + 1
       end
     end
   end
+
+  for i, tok in ipairs(toks) do
+    local env = tok:match('^begin:(.*)$')
+    if env and not M.ALLOWED_ENVS[env] then
+      local entry = env_entry[env]
+      if not (entry and entry.wrapped and is_wrapped(toks, i, entry)) then
+        entry = entry or env_entry[(env:gsub('%*$', ''))]
+        report('env:' .. env, 'environment ' .. env, entry and entry.use or FIX_ENV)
+      end
+    end
+  end
+
   local ch = non_ascii(tex)
   if ch then
     ctx:fail(

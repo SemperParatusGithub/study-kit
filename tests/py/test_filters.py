@@ -718,17 +718,65 @@ def test_control_words_match_exactly(workdir):
     [
         r"\left|\begin{matrix} a & b \\ c & d \end{matrix}\right|",
         r"\left(\begin{matrix} a \\ b \end{matrix}\right)",
-        r"\left[\begin{array}{cc} a & b \\ c & d \end{array}\right]",
+        r"\left[\begin{matrix} a & b \\ c & d \end{matrix}\right]",
+        r"\left\{\begin{matrix} a & b \\ c & d \end{matrix}\right\}",
     ],
 )
 def test_wrapped_matrix_is_allowed(tex, workdir):
-    pandoc.convert(f"$${tex}$$\n", document("summary/02-rc-filter.md", workdir), "json")
+    """unless_wrapped lists pairs that pandoc turns into a Typst matrix (or a vector)."""
+    doc = document("summary/02-rc-filter.md", workdir)
+    pandoc.convert(f"$${tex}$$\n", doc, "json")
+    assert re.search(r"\b(mat|vec)\(", pandoc.convert(f"$${tex}$$\n", doc, "typst"))
 
 
-def test_matrix_wrapped_in_a_dot_is_still_bare(workdir):
-    tex = r"\left.\begin{matrix} a \\ b \end{matrix}\right\}"
-    with pytest.raises(pandoc.FilterError, match="environment matrix"):
+DENY_USE = {e["token"]: e["use"] for e in json.loads(DENYLIST.read_text(encoding="utf-8"))}
+MATRIX_FIX = DENY_USE["env:matrix"]
+VMATRIX_FIX = DENY_USE["env:vmatrix"]
+ALLOWLIST_FIX = "use aligned, gathered, cases, pmatrix, bmatrix or Bmatrix"
+
+
+@pytest.mark.parametrize(
+    ("tex", "env", "fix"),
+    [
+        # silently become alignment rows (or a stray "[r]") in Typst
+        (r"\begin{matrix*} a & b \\ c & d \end{matrix*}", "matrix*", MATRIX_FIX),
+        (r"\begin{matrix*}[r] a & b \\ c & d \end{matrix*}", "matrix*", MATRIX_FIX),
+        (r"\left(\begin{matrix*}[r] a & b \end{matrix*}\right)", "matrix*", MATRIX_FIX),
+        (r"\begin{smallmatrix} a & b \\ c & d \end{smallmatrix}", "smallmatrix", ALLOWLIST_FIX),
+        # pass the Typst conversion, then fail typst compile
+        (r"\begin{vmatrix*} a & b \\ c & d \end{vmatrix*}", "vmatrix*", VMATRIX_FIX),
+        (r"\begin{Vmatrix*} a & b \\ c & d \end{Vmatrix*}", "Vmatrix*", VMATRIX_FIX),
+        # outside the allowlist of docs/architecture.md §2.3
+        (r"\begin{align} a &= b \end{align}", "align", ALLOWLIST_FIX),
+        (r"\begin{gather} a \\ b \end{gather}", "gather", ALLOWLIST_FIX),
+        (r"\begin{alignat}{2} a &= b \end{alignat}", "alignat", ALLOWLIST_FIX),
+        (r"\begin{split} a &= b \end{split}", "split", ALLOWLIST_FIX),
+        (r"\begin{equation} a = b \end{equation}", "equation", ALLOWLIST_FIX),
+        (r"\begin { align } a &= b \end{align}", "align", ALLOWLIST_FIX),
+        # a matrix counts as wrapped only between a listed \left…\right pair
+        (r"\left.\begin{matrix} a \\ b \end{matrix}\right\}", "matrix", MATRIX_FIX),
+        (r"\left\langle\begin{matrix} a \\ b \end{matrix}\right\rangle", "matrix", MATRIX_FIX),
+        (r"\left[\begin{matrix} a \\ b \end{matrix}\right)", "matrix", MATRIX_FIX),
+        (r"\left( x + \begin{matrix} a \\ b \end{matrix}\right)", "matrix", MATRIX_FIX),
+        # an array drops its column spec in Typst, wrapped or not
+        (r"\left[\begin{array}{rl} 10 & 1 \\ 1 & 10 \end{array}\right]", "array", None),
+    ],
+)
+def test_environments_outside_the_allowlist_are_reported(tex, env, fix, workdir):
+    with pytest.raises(pandoc.FilterError) as info:
         pandoc.convert(f"$${tex}$$\n", document("summary/02-rc-filter.md", workdir), "json")
+    hits = [f for f in info.value.findings if f"environment {env} is not allowed in $" in f]
+    assert hits, info.value.findings
+    if fix is not None:
+        assert hits[0].endswith(f"(fix: {fix})"), hits[0]
+
+
+def test_allowed_environments_pass(workdir):
+    body = "\n\n".join(
+        f"$$\\begin{{{env}}} a & b \\\\ c & d \\end{{{env}}}$$"
+        for env in ("aligned", "gathered", "cases", "pmatrix", "bmatrix", "Bmatrix")
+    )
+    pandoc.convert(body + "\n", document("summary/02-rc-filter.md", workdir), "json")
 
 
 def typst_fails(tex: str, workdir: Path) -> bool:
