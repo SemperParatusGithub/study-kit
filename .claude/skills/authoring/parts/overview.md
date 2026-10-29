@@ -44,5 +44,8 @@ Prerequisites). Lint checks them by position and count (SK-STRUCT-SECTIONS).
   shares, minutes per point and sums with `studykit calc`. When the notes' course facts
   differ from `course.yaml` (another exam date, say), give the `course.yaml` value and
   name what the material states, with its `src:` link.
+- In the PDF a `topic:` link whose text is not the topic's title gets „(→ Thema: Titel)“
+  appended; in running prose use the title itself as the link text, and keep a `src:` link
+  out of parentheses (it gets its own).
 - No exercises, hints or solutions here; 60-120 lines of Markdown.
 - Template: the content-format skill's `templates/overview.md`.
