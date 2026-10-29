@@ -2,7 +2,7 @@
 
 A stage is a function over one course that adds findings. Stages are registered with
 `@stage(...)` in pipeline order; `--quick` runs only quick stages (up to and including
-Math, used by the lint hook), `--release` adds release-only ones (Coverage). A stage whose
+Math, used by the lint hook), `--release` adds the Site build and Coverage. A stage whose
 tools or inputs are not there yet (pandoc filters, figure builds, PDFs, the site) declares
 `requires=` and is reported as skipped with an info note instead of failing, so later
 phases plug in by registering a stage or by providing what `requires` looks for.
@@ -43,6 +43,7 @@ class Config:
     denylist: Path | None = None  # default: <root>/pandoc/math-denylist.json
     katex: bool = True
     figures: bool = True  # build the figure scripts in the Figures stage (cached)
+    site: bool = True  # build and check the website in the Site stage (--release only)
 
     @property
     def denylist_path(self) -> Path:
@@ -1522,14 +1523,41 @@ def check_pdf(ctx: Context) -> None:  # pragma: no cover - replaced in Phase 4
 
 
 def _site_ready(ctx: Context) -> str | None:
-    if not (ctx.config.root / "site" / "astro.config.mjs").is_file():
-        return "site/astro.config.mjs not found (the site is built in Phase 3)"
-    return "site build checks run in `just build`"
+    from studykit import sitecheck
+
+    if not ctx.release:
+        return "runs with --release (`just build` builds and checks the site)"
+    if not ctx.config.site:
+        return "site build is off (Config.site)"
+    if ctx.selected is not None:
+        return "the site is built for whole courses, not for --paths"
+    reason = sitecheck.missing(ctx.config.root)
+    if reason:
+        return reason
+    if any(f.is_error for f in ctx.prior):
+        return "fix the errors above first; the strict build would stop on them"
+    return None
 
 
 @stage("Site", "SK-SITE", 95, requires=_site_ready)
-def check_site(ctx: Context) -> None:  # pragma: no cover - replaced with the site
-    pass
+def check_site(ctx: Context) -> None:
+    """Strict site build, `astro check` and link check for the course (studykit.sitecheck)."""
+    from studykit import sitecheck
+
+    tree = ctx.tree
+    course_doc = tree.course_doc
+    assert course_doc is not None  # run_course stops earlier without course.yaml
+    lang = tree.model.lang if tree.model is not None else "de"
+    ctx.extend(
+        sitecheck.check(
+            ctx.config.root,
+            tree.root,
+            tree.id,
+            lang,
+            course_doc=course_doc.display,
+            notes=ctx.notes,
+        )
+    )
 
 
 # --- Coverage (SK-COV, --release only) -------------------------------------------------------

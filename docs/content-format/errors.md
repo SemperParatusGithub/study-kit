@@ -25,7 +25,7 @@ that owns the file:
 
 Stages: Structure, Schema, Fences, MC and Math run in `studykit lint` and
 `validate --quick`; References, Figures and the later stages run in `validate`;
-Coverage only with `validate --release`. Stages whose tools are not there yet
+Site and Coverage only with `validate --release`. Stages whose tools are not there yet
 (pandoc filters, figure build, verification, PDF, site) are reported as skipped.
 
 ## Structure (SK-STRUCT)
@@ -395,6 +395,37 @@ Fix: run `studykit fig build <course> --only <slug>`, fix the script and look at
 ### `SK-FIG-UNUSED`
 **warning.** A figure script is never embedded.
 Fix: embed it with `![Caption](fig:<slug>)` or delete the script.
+
+## Site (SK-SITE, `--release` only)
+
+With `--release`, validate builds the website as `just build` does, for the course's
+directory (`STUDYKIT_COURSES_DIR` is the course's parent, `STUDYKIT_STRICT=1`), into a
+temporary `--outDir` (so `site/dist` and `site/public` stay untouched), runs Pagefind over
+it, `pnpm -C site check`, and the link check. Content problems that only the build finds
+keep their own codes (`SK-FIG-BUILD`, `SK-MATH-KATEX`, …). The stage is skipped with a
+note when `pnpm`, `node` or `site/node_modules` is missing, for `--paths`, and while
+earlier stages report errors (the strict build would stop on them).
+
+### `SK-SITE-BUILD`
+**error.** The strict `astro build` (or Pagefind after it) failed without printing a
+content finding: a broken page template, a loader crash, a missing tool. Reported at the
+course's `course.yaml`, with the last lines of the build output.
+Fix: run `STUDYKIT_COURSES_DIR=<dir> just build <course>` and fix the first error it
+prints; a site bug goes to the site code, not the course.
+
+### `SK-SITE-CHECK`
+**error.** `astro check` reports a type error in the site code (path under `site/`).
+Course content cannot cause this; it is a bug in `site/src`.
+Fix: `pnpm -C site check` shows the context.
+
+### `SK-SITE-LINK`
+**error** (warning for a lecture PDF under `/c/<course>/src/` or `/pdf/` that the site
+serves from course files). A link or `#anchor` in a built page points nowhere. The path
+names the page in the built site: `dist/c/<course>/summary/<topic>/index.html` is the page
+`/c/<course>/summary/<topic>/`; pages of other courses in the same directory are left to
+their own run. `studykit check-links site/dist` reports the same after `just build`.
+Fix: fix the link in the source file of that page (`ex:`, `mc:`, `topic:`, `exam:`,
+heading anchors), or build the page it points to.
 
 ## Coverage (SK-COV, `--release` only)
 
