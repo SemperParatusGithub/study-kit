@@ -158,7 +158,7 @@ $trailer"
 done
 
 echo "guard: commits"
-rejected_by="::error::"
+rejected_by="violates the commit rules"
 zero=0000000000000000000000000000000000000000
 remote=$(new_remote)
 work="$remote/work"
@@ -181,8 +181,49 @@ expect pass "pull request of conventional commits" guard_in "$(checkout "$remote
   commits EVENT=pull_request PR_BASE="$b" PR_HEAD="$d" DEFAULT_BRANCH=main
 expect fail "pull request with a co-author trailer" guard_in "$(checkout "$remote" main)" \
   commits EVENT=pull_request PR_BASE="$a" PR_HEAD="$c" DEFAULT_BRANCH=main
+rejected_by="cannot list the commits"
+expect fail "pull request from an unknown base" guard_in "$(checkout "$remote" topic)" \
+  commits EVENT=pull_request PR_BASE=1234567890123456789012345678901234567890 PR_HEAD="$d" \
+  DEFAULT_BRANCH=main
+rejected_by="violates the commit rules"
+# A force push leaves the old tip (github.event.before) out of the checkout.
+git -C "$work" reset -q --hard "$b"
+e=$(commit_in "$work" "fix: add e")
+git -C "$work" push -q --force origin topic
+expect pass "force push of conventional commits to a branch" \
+  guard_in "$(checkout "$remote" topic)" commits \
+  EVENT=push PUSH_BEFORE="$d" PUSH_REF=refs/heads/topic DEFAULT_BRANCH=main
+git -C "$work" reset -q --hard "$b"
+commit_in "$work" "fix: add f" "$trailer" >/dev/null
+git -C "$work" push -q --force origin topic
+expect fail "force push of a co-author trailer to a branch" \
+  guard_in "$(checkout "$remote" topic)" commits \
+  EVENT=push PUSH_BEFORE="$e" PUSH_REF=refs/heads/topic DEFAULT_BRANCH=main
+# No branch tells which commits of a rewritten default branch are new, so the check fails.
+git -C "$work" checkout -q main
+git -C "$work" reset -q --hard "$a"
+commit_in "$work" "feat: add g" >/dev/null
+git -C "$work" push -q --force origin main
+rejected_by="rewrote the history of main"
+expect fail "force push to the default branch" guard_in "$(checkout "$remote" main)" commits \
+  EVENT=push PUSH_BEFORE="$c" PUSH_REF=refs/heads/main DEFAULT_BRANCH=main
+rejected_by="violates the commit rules"
+# When the default branch is created, all of its commits are new.
+remote=$(new_remote)
+commit_in "$remote/work" "feat: start" >/dev/null
+git -C "$remote/work" push -q origin main
+expect pass "first push of the default branch" guard_in "$(checkout "$remote" main)" commits \
+  EVENT=push PUSH_BEFORE="$zero" PUSH_REF=refs/heads/main DEFAULT_BRANCH=main
+remote=$(new_remote)
+commit_in "$remote/work" "feat: start" "$trailer" >/dev/null
+commit_in "$remote/work" "feat: add a" >/dev/null
+git -C "$remote/work" push -q origin main
+expect fail "first push of the default branch with a co-author trailer" \
+  guard_in "$(checkout "$remote" main)" commits \
+  EVENT=push PUSH_BEFORE="$zero" PUSH_REF=refs/heads/main DEFAULT_BRANCH=main
 
 echo "guard: courses"
+rejected_by="::error::"
 expect pass "only courses/README.md" guard_in "$(tracked courses/README.md docs/a.md)" courses
 expect fail "course file" guard_in "$(tracked courses/README.md courses/et1/a.md)" courses
 expect fail "course file with an umlaut" \

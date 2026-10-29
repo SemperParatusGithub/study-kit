@@ -2,7 +2,8 @@
 # The checks of the guard workflow (.github/workflows/guard.yml); they run in the checkout.
 # Usage: bash .github/scripts/guard.sh commits|courses|pdfs
 #   commits  every commit of the push or pull request passes .githooks/commit-msg; reads
-#            EVENT, PR_BASE, PR_HEAD, PUSH_BEFORE and DEFAULT_BRANCH from the environment
+#            EVENT, PR_BASE, PR_HEAD, PUSH_BEFORE, PUSH_REF and DEFAULT_BRANCH from the
+#            environment
 #   courses  only courses/README.md is tracked under courses/
 #   pdfs     no PDFs are tracked outside tests/fixtures/
 set -euo pipefail
@@ -10,17 +11,31 @@ set -euo pipefail
 hooks="$(cd "$(dirname "$0")/../.." && pwd)/.githooks"
 
 commits() {
-  local range msg sha status=0
+  local range shas msg sha status=0
   if [ "$EVENT" = pull_request ]; then
     range="$PR_BASE..$PR_HEAD"
-  elif [ -z "$PUSH_BEFORE" ] || [ "$PUSH_BEFORE" = 0000000000000000000000000000000000000000 ]; then
-    range="origin/$DEFAULT_BRANCH..HEAD"
-  else
+  elif git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
     range="$PUSH_BEFORE..HEAD"
+  elif [ "$PUSH_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+    # A new branch (before is all zeros), or a force push whose old tip no branch reaches
+    # any more, so the checkout lacks it: check what the branch adds to the default branch.
+    range="origin/$DEFAULT_BRANCH..HEAD"
+  elif [ "$PUSH_BEFORE" = 0000000000000000000000000000000000000000 ]; then
+    # The default branch was created: every commit on it is new.
+    range=HEAD
+  else
+    echo "::error::the push rewrote the history of $DEFAULT_BRANCH, so the commits it added" \
+      "are unknown; check them by hand"
+    return 1
   fi
   echo "checking $range"
+  # Not in the loop's word list, where a failure would go unnoticed and check nothing.
+  if ! shas=$(git rev-list --no-merges "$range"); then
+    echo "::error::cannot list the commits of $range"
+    return 1
+  fi
   msg=$(mktemp)
-  for sha in $(git rev-list --no-merges "$range"); do
+  for sha in $shas; do
     git log -1 --format=%B "$sha" >"$msg"
     if ! sh "$hooks/commit-msg" "$msg"; then
       echo "::error::commit $sha violates the commit rules"
