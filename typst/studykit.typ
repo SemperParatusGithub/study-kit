@@ -151,6 +151,9 @@
   )
   set columns(gutter: dens.gutter) if cs
   set text(font: "New Computer Modern", size: size, lang: lang, fill: sk-fg, hyphenate: true)
+  // the cheat sheet's lines are tight: a line measured by its glyphs, not the cap height,
+  // keeps a root or fraction at the start of a box clear of the title above it
+  set text(top-edge: "bounds") if cs
   show math.equation: set text(font: "New Computer Modern Math")
   show raw: set text(font: "DejaVu Sans Mono", size: 0.86em)
   set par(
