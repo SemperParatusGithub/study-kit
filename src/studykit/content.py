@@ -268,14 +268,28 @@ OPTIONISH_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s*\[.?\]")
 INLINE_CODE_RE = re.compile(r"(`+)(?:(?!\1).)+?\1")
 BLOCK_MARKER_RE = re.compile(r"^\s*(?:[=+\-*#>]|[0-9]+[.)])")
 HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]|$)")
-# The delimiter row of a pipe table (`|---|:--:|`); it needs a `|`, or `---` is a rule.
-TABLE_DELIMITER_RE = re.compile(r"^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$")
+# The delimiter row of a pipe table (`|---|:--:|`), without its container's prefix; it
+# needs a `|`, or `---` is a rule.
+TABLE_DELIMITER_RE = re.compile(r"^\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$")
+QUOTE_PREFIX_RE = re.compile(r"^(?: {0,3}>[ ]?)+")
+LIST_MARKER_RE = re.compile(r"^[ \t]*(?:[-+*]|[0-9]{1,9}[.)])(?:[ \t]+|$)")
 UNESCAPED_PIPE_RE = re.compile(r"(?<!\\)\|")
 # A word broken with a hyphen at the end of a line: `[RC-` + newline + `Tiefpass]`.
 LINE_END_HYPHEN_RE = re.compile(r"[^\W\d_]-$")
 LINE_START_LETTER_RE = re.compile(r"^[^\W\d_]")
 # Words after which a line-final hyphen is a suspended compound („Ein- und Ausgang“).
 SUSPENDED_HYPHEN_WORDS = {"und", "oder", "bzw.", "sowie", "bis", "wie", "noch", "and", "or", "to"}
+
+
+def _container(text: str) -> tuple[int, bool, str]:
+    """A line's block-quote depth, whether it opens a list item, and its text without both."""
+    quote = QUOTE_PREFIX_RE.match(text)
+    depth = quote.group().count(">") if quote else 0
+    rest = text[quote.end() :] if quote else text
+    item = LIST_MARKER_RE.match(rest)
+    if item:
+        rest = rest[item.end() :]
+    return depth, item is not None, rest.strip()
 
 
 def _mask(text: str, start: int, end: int) -> str:
@@ -1016,19 +1030,45 @@ class Body:
     def table_rows(self) -> set[int]:
         """File lines of pipe-table rows: the header row and the rows below the delimiter.
 
-        A table is a header line followed by a delimiter row (`|---|---|`); its body runs to
-        the end of the paragraph, as in pandoc's commonmark_x pipe tables.
+        As in pandoc's commonmark_x pipe tables: a table starts a paragraph in its
+        container (a block quote, a list item, also one indented four spaces or more), with
+        a header line and a delimiter row (`|---|---|`); it cannot interrupt a paragraph.
+        Its body is every following line of the same quote with a `|` in it.
         """
         rows: set[int] = set()
+        in_list = False  # the previous paragraph belongs to a list, so indented text is too
         for para in self.paragraphs:
-            for k in range(1, len(para.lines)):
-                ln = para.lines[k]
-                if para.display[k] or para.display[k - 1] or "|" not in ln.text:
+            parts = [_container(ln.text) for ln in para.lines]
+            depth, first = parts[0][0], para.lines[0].text
+            if not depth:
+                indent = len(first.expandtabs(4)) - len(first.expandtabs(4).lstrip(" "))
+                if LIST_MARKER_RE.match(first) and (indent < 4 or in_list):
+                    in_list = True
+                elif indent < 2:
+                    in_list = False
+                elif indent >= 4 and not in_list:
+                    continue  # an indented code block
+            k = 0
+            while k < len(para.lines) - 1:
+                (d0, item, head), (d1, _, delim) = parts[k], parts[k + 1]
+                # first line of the paragraph, of a list item, of a quote, or after a `>` line
+                starts = k == 0 or item or d0 != parts[k - 1][0] or not parts[k - 1][2]
+                if (
+                    starts
+                    and d0 == d1
+                    and "|" in head
+                    and not para.display[k]
+                    and not para.display[k + 1]
+                    and "|" in delim
+                    and TABLE_DELIMITER_RE.match(delim)
+                ):
+                    rows.add(para.lines[k].no)
+                    k += 2
+                    while k < len(para.lines) and parts[k][0] == d0 and "|" in parts[k][2]:
+                        rows.add(para.lines[k].no)
+                        k += 1
                     continue
-                if TABLE_DELIMITER_RE.match(ln.text):
-                    rows.add(para.lines[k - 1].no)
-                    rows.update(row.no for row in para.lines[k + 1 :])
-                    break
+                k += 1
         return rows
 
     def _check_table_code(self, ln: Line) -> None:

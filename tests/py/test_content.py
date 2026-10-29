@@ -176,6 +176,51 @@ def test_table_rows_end_with_the_paragraph():
     b = body("| a | b |\n|---|---|\n| 1 | 2 |\n\nDanach $|x|$.\n")
     assert b.table_rows == {1, 3}
     assert codes(b) == []
+    # the body ends at the first line without a '|'; pandoc reads the rest as a paragraph
+    b = body("| a | b |\n|---|---|\n| 1 | 2 |\nx $a$ y\n| 3 | $|Z|$ |\n")
+    assert b.table_rows == {1, 3}
+    assert codes(b) == []
+
+
+# Each case checked with pandoc 3.13 and the project reader: a table there shows the cut
+# cell `<td>$</td>`, or none is built at all.
+@pytest.mark.parametrize(
+    ("text", "line"),
+    [
+        ("> | z | b |\n> |---|---|\n> | 1 | $|Z|$ |\n", 3),  # in a block quote
+        ("> > | z | b |\n> > |---|---|\n> > | 1 | $|Z|$ |\n", 3),
+        ("> Text\n>\n> | z | b |\n> |---|---|\n> | 1 | $|Z|$ |\n", 5),
+        ("- Punkt\n\n  | x | y |\n  |---|---|\n  | 1 | $|Z|$ |\n", 5),  # in a list item
+        ("- Punkt\n\n    | x | y |\n    |---|---|\n    | 1 | $|Z|$ |\n", 5),
+        ("1. Eins\n   - Unter\n\n     | y | y |\n     |---|---|\n     | 1 | $|Z|$ |\n", 6),
+        ("- | x | y |\n  |---|---|\n  | 1 | $|Z|$ |\n", 3),  # the item starts with it
+        ("> - Punkt\n>\n>   | x | y |\n>   |---|---|\n>   | 1 | $|Z|$ |\n", 5),
+        ("- a\n\n| z | b |\n|---|---|\n| 1 | $|Z|$ |\n", 5),  # after a list
+        ("| z | b |\n|---|---|\nx $|Z|$ y\n", 3),  # a row needs no leading '|'
+    ],
+)
+def test_tables_in_quotes_and_list_items_are_checked(text, line):
+    b = body(text)
+    assert codes(b) == ["SK-BLOCK-TABLE"]
+    assert b.findings[0].line == line
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Tabelle F, siehe:\n| a | b |\n|---|---|\n| x | $\\left|Z\\right|$ |\n",
+        "> Text\n> | z | b |\n> |---|---|\n> | 1 | $|Z|$ |\n",
+        "- Punkt\n  | x | y |\n  |---|---|\n  | 1 | $|Z|$ |\n",
+        "- a\n| z | b |\n|---|---|\n| 1 | $|Z|$ |\n",  # lazy continuation of the item
+        "> | z | b |\n> |---|---|\n| 1 | $|Z|$ |\n",  # the row has left the quote
+        "    | z | b |\n    |---|---|\n    | 1 | $|Z|$ |\n",  # an indented code block
+    ],
+)
+def test_no_table_where_pandoc_builds_none(text):
+    """A table cannot interrupt a paragraph: pandoc keeps it as text, math intact."""
+    b = body(text)
+    assert text.count("\n") not in b.table_rows  # the line with the math is no table row
+    assert "SK-BLOCK-TABLE" not in codes(b)
 
 
 @pytest.mark.parametrize(

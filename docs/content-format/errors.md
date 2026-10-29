@@ -216,7 +216,9 @@ Fix: ```` ```python ````, or ```` ```text ```` for anything else.
 a row below the `|---|` delimiter). Pandoc splits a row at every `|` before it reads math
 or code, and nothing warns: `| $|\underline{Z}|$ | 1 |` becomes the cells `$` and
 `\underline{Z}`, and in the header row the whole table becomes a paragraph. `\|` is an
-escaped cell border there, so `$\|x\|$` turns into `|x|`.
+escaped cell border there, so `$\|x\|$` turns into `|x|`. Tables in block quotes and list
+items count too; lines right after a paragraph line (no blank line between) are no table
+for pandoc and are not reported.
 Fix: in math `\lvert\underline{Z}\rvert` (absolute value), `\lVert x \rVert` (norm),
 `P(A \mid B)`; in code escape it, `` `a\|b` ``, which shows `a|b`.
 
