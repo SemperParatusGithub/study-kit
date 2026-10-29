@@ -1,0 +1,327 @@
+# \frac{a+b}{c-d} \quad \tfrac{1}{2} \quad \dfrac{x}{y}
+$ frac(a + b, c - d) quad 1 / 2 quad x / y $
+
+# \sqrt{2} \quad \sqrt[3]{x^2+1} \quad \frac{1}{\sqrt{2}} \approx 0{,}707
+$ sqrt(2) quad root(3, x^2 + 1) quad 1 / sqrt(2) approx 0\,707 $
+
+# 3{,}3\,\mathrm{k\Omega} + 470\,\Omega = 3{,}77\,\mathrm{k\Omega}
+$ 3\,3 thin upright(k Omega) + 470 thin Omega = 3\,77 thin upright(k Omega) $
+
+# 1{,}5 \cdot 10^{-3}\,\mathrm{A} = 1{,}5\,\mathrm{mA}
+$ 1\,5 dot.op 10^(- 3) thin upright(A) = 1\,5 thin upright(m A) $
+
+# f_\mathrm{g} = \frac{1}{2\pi RC} \approx 1{,}59\,\mathrm{kHz}
+$ f_(upright(g)) = frac(1, 2 pi R C) approx 1\,59 thin upright(k H z) $
+
+# \binom{n}{k} = \frac{n!}{k!\,(n-k)!}
+$ binom(n, k) = frac(n !, k ! thin\(n - k\)!) $
+
+# a \pm b \quad a \mp b \quad a \times b \quad a \cdot b \quad a / b \quad a \div b
+$ a plus.minus b quad a minus.plus b quad a times b quad a dot.op b quad a\/b quad a div b $
+
+# a \approx b \quad a \neq b \quad a \leq b \quad a \geq b \quad a \ll b \quad a \gg b \quad a \propto b \quad a \equiv b \quad a \sim b
+$ a approx b quad a eq.not b quad a lt.eq b quad a gt.eq b quad a lt.double b quad a gt.double b quad a prop b quad a equiv b quad a tilde.op b $
+
+# A \Rightarrow B \quad A \Leftrightarrow B \quad x \to \infty \quad x \mapsto x^2 \quad A \Leftarrow B
+$ A arrow.r.double B quad A arrow.l.r.double B quad x arrow.r oo quad x mapsto x^2 quad A arrow.l.double B $
+
+# \forall x \in \mathbb{R}\colon\ \exists n \in \mathbb{N} \text{ mit } n > x
+$ forall x in bb(R) : med exists n in bb(N) upright(" mit ") n > x $
+
+# A \cup B \quad A \cap B \quad A \subset B \quad A \subseteq B \quad \emptyset \quad x \notin A
+$ A union B quad A inter B quad A subset B quad A subset.eq B quad nothing quad x in.not A $
+
+# f\colon \mathbb{R} \to \mathbb{C}, \quad \mathbb{Z} \subset \mathbb{Q} \subset \mathbb{R}
+$ f : bb(R) arrow.r bb(C)\,quad bb(Z) subset bb(Q) subset bb(R) $
+
+# \alpha\,\beta\,\gamma\,\delta\,\varepsilon\,\zeta\,\eta\,\vartheta\,\lambda\,\mu\,\nu\,\xi\,\pi\,\rho\,\sigma\,\tau\,\varphi\,\chi\,\psi\,\omega
+$ alpha thin beta thin gamma thin delta thin epsilon thin zeta thin eta thin theta.alt thin lambda thin mu thin nu thin xi thin pi thin rho thin sigma thin tau thin phi thin chi thin psi thin omega $
+
+# \Gamma\,\Delta\,\Theta\,\Lambda\,\Xi\,\Pi\,\Sigma\,\Phi\,\Psi\,\Omega
+$ Gamma thin Delta thin Theta thin Lambda thin Xi thin Pi thin Sigma thin Phi thin Psi thin Omega $
+
+# \hat{x} \quad \bar{x} \quad \tilde{x} \quad \dot{x} \quad \ddot{x} \quad \vec{F} \quad \overline{AB}
+$ hat(x) quad macron(x) quad tilde(x) quad dot(x) quad dot.double(x) quad arrow(F) quad overline(A B) $
+
+# \underline{U} = \hat{U}\,\mathrm{e}^{\mathrm{j}\varphi_u}
+$ underline(U) = hat(U) thin upright(e)^(upright(j) phi_u) $
+
+# \underline{Z}^* = R - \mathrm{j}X
+$ underline(Z)^(*) = R - upright(j) X $
+
+# \underline{Z}_C = \frac{1}{\mathrm{j}\omega C}, \qquad \underline{Z}_L = \mathrm{j}\omega L
+$ underline(Z)_C = frac(1, upright(j) omega C)\,#h(2em) underline(Z)_L = upright(j) omega L $
+
+# \underline{H}(\mathrm{j}\omega) = \frac{1}{1 + \mathrm{j}\omega RC}
+$ underline(H)\(upright(j) omega\)= frac(1, 1 + upright(j) omega R C) $
+
+# |\underline{H}(\mathrm{j}\omega)| = \frac{1}{\sqrt{1 + (\omega RC)^2}}, \qquad \arg \underline{H} = -\arctan(\omega RC)
+$ \|underline(H)\(upright(j) omega\)\|= 1 / sqrt(1 +\(omega R C\)^2)\,#h(2em) arg underline(H) = - arctan\(omega R C\) $
+
+# \underline{S} = \underline{U}\,\underline{I}^* = P + \mathrm{j}Q, \qquad |\underline{S}| = \sqrt{P^2 + Q^2}
+$ underline(S) = underline(U) thin underline(I)^(*) = P + upright(j) Q\,#h(2em)\|underline(S)\|= sqrt(P^2 + Q^2) $
+
+# \cos\varphi = \frac{P}{|\underline{S}|}
+$ cos phi = frac(P, \|underline(S)\|) $
+
+# U_\mathrm{eff} = \frac{\hat{u}}{\sqrt{2}} = \sqrt{\frac{1}{T}\int_0^T u^2(t)\,\mathrm{d}t}
+$ U_(upright(e f f)) = hat(u) / sqrt(2) = sqrt(1 / T integral_0^T u^2\(t\)thin upright(d) t) $
+
+# \mathrm{Re}\{\underline{Z}\} = R, \qquad \mathrm{Im}\{\underline{Z}\} = X
+$ upright(R e) { underline(Z) } = R\,#h(2em) upright(I m) { underline(Z) } = X $
+
+# \underline{Z} = |\underline{Z}|\,\mathrm{e}^{\mathrm{j}\varphi} = |\underline{Z}| \angle \varphi
+$ underline(Z) =\|underline(Z)\|thin upright(e)^(upright(j) phi) =\|underline(Z)\|angle phi $
+
+# R_\mathrm{ges} = R_1 \parallel R_2 = \frac{R_1 R_2}{R_1 + R_2}
+$ R_(upright(g e s)) = R_1 parallel R_2 = frac(R_1 R_2, R_1 + R_2) $
+
+# U_2 = U_0 \cdot \frac{R_2}{R_1 + R_2}
+$ U_2 = U_0 dot.op frac(R_2, R_1 + R_2) $
+
+# L_\mathrm{dB} = 20\log_{10}\left|\underline{H}\right|\,\mathrm{dB}, \qquad 20\log_{10}\frac{1}{\sqrt{2}} \approx -3{,}01\,\mathrm{dB}
+$ L_(upright(d B)) = 20 log_10 lr(|underline(H)|) thin upright(d B)\,#h(2em) 20 log_10 1 / sqrt(2) approx - 3\,01 thin upright(d B) $
+
+# \omega_0 = \frac{1}{\sqrt{LC}}, \qquad Q = \frac{1}{R}\sqrt{\frac{L}{C}}
+$ omega_0 = 1 / sqrt(L C)\,#h(2em) Q = 1 / R sqrt(L / C) $
+
+# \sum_{k=1}^{n} I_k = 0, \qquad \sum_{k=1}^{m} U_k = 0
+$ sum_(k = 1)^n I_k = 0\,#h(2em) sum_(k = 1)^m U_k = 0 $
+
+# P = U I = I^2 R = \frac{U^2}{R}
+$ P = U I = I^2 R = U^2 / R $
+
+# \eta = \frac{P_\mathrm{ab}}{P_\mathrm{zu}} \cdot 100\,\%
+$ eta = P_(upright(a b)) / P_(upright(z u)) dot.op 100 thin % $
+
+# \begin{pmatrix} G_{11} & -G_{12} \\ -G_{21} & G_{22} \end{pmatrix} \begin{pmatrix} \varphi_1 \\ \varphi_2 \end{pmatrix} = \begin{pmatrix} I_{q1} \\ I_{q2} \end{pmatrix}
+$ mat(delim: "(", G_11, - G_12; - G_21, G_22) vec(phi_1, phi_2) = vec(I_(q 1), I_(q 2)) $
+
+# \mathbf{G}\,\boldsymbol{\varphi} = \mathbf{i}_q
+$ upright(bold(G)) thin bold(phi) = upright(bold(i))_q $
+
+# \frac{\mathrm{d}}{\mathrm{d}t}\,u_C(t) = \frac{1}{C}\,i_C(t)
+$ frac(upright(d), upright(d) t) thin u_C\(t\)= 1 / C thin i_C\(t\) $
+
+# \frac{\partial f}{\partial x} \quad \frac{\partial^2 f}{\partial x\,\partial y} \quad \nabla f \quad \Delta f = \nabla^2 f
+$ frac(partial f, partial x) quad frac(partial^2 f, partial x thin partial y) quad nabla f quad Delta f = nabla^2 f $
+
+# \int_0^\infty \mathrm{e}^{-st}\,\mathrm{d}t = \frac{1}{s}, \qquad \operatorname{Re}\{s\} > 0
+$ integral_0^oo upright(e)^(- s t) thin upright(d) t = 1 / s\,#h(2em) "Re" { s } > 0 $
+
+# \oint_{\partial A} \vec{E} \cdot \mathrm{d}\vec{s} = -\frac{\mathrm{d}}{\mathrm{d}t}\iint_A \vec{B} \cdot \mathrm{d}\vec{A}
+$ integral.cont_(partial A) arrow(E) dot.op upright(d) arrow(s) = - frac(upright(d), upright(d) t) integral.double_A arrow(B) dot.op upright(d) arrow(A) $
+
+# \lim_{x \to 0} \frac{\sin x}{x} = 1
+$ lim_(x arrow.r 0) frac(sin x, x) = 1 $
+
+# \left.\frac{\mathrm{d}u}{\mathrm{d}t}\right|_{t=0} = \frac{U_0}{\tau}
+$ frac(upright(d) u, upright(d) t)\|_(t = 0) = U_0 / tau $
+
+# u_C(t) = U_0\left(1 - \mathrm{e}^{-t/\tau}\right), \qquad \tau = RC
+$ u_C\(t\)= U_0 (1 - upright(e)^(- t\/tau))\,#h(2em) tau = R C $
+
+# \prod_{k=1}^{n} k = n!, \qquad \sum_{n=0}^{\infty} \frac{x^n}{n!} = \mathrm{e}^x
+$ product_(k = 1)^n k = n !\,#h(2em) sum_(n = 0)^oo frac(x^n, n !) = upright(e)^x $
+
+# f(x) \approx f(x_0) + f'(x_0)(x - x_0) + \frac{f''(x_0)}{2}(x - x_0)^2
+$ f\(x\)approx f\(x_0\)+ f'\(x_0\)\(x - x_0\)+ frac(f''\(x_0\), 2)\(x - x_0\)^2 $
+
+# \nabla \times \vec{H} = \vec{J} + \frac{\partial \vec{D}}{\partial t}, \qquad \nabla \cdot \vec{B} = 0
+$ nabla times arrow(H) = arrow(J) + frac(partial arrow(D), partial t)\,#h(2em) nabla dot.op arrow(B) = 0 $
+
+# X(\mathrm{j}\omega) = \int_{-\infty}^{\infty} x(t)\,\mathrm{e}^{-\mathrm{j}\omega t}\,\mathrm{d}t
+$ X\(upright(j) omega\)= integral_(- oo)^oo x\(t\)thin upright(e)^(- upright(j) omega t) thin upright(d) t $
+
+# X(s) = \mathcal{L}\{x(t)\} = \int_0^\infty x(t)\,\mathrm{e}^{-st}\,\mathrm{d}t
+$ X\(s\)= cal(L) { x\(t\)} = integral_0^oo x\(t\)thin upright(e)^(- s t) thin upright(d) t $
+
+# x(t) \;\circ\!-\!\bullet\; X(s)
+$ x\(t\)thick compose #h(-0.167em) - #h(-0.167em) bullet thick X\(s\) $
+
+# y(t) = (x * h)(t) = \int_{-\infty}^{\infty} x(\tau)\,h(t - \tau)\,\mathrm{d}\tau
+$ y\(t\)=\(x * h\)\(t\)= integral_(- oo)^oo x\(tau\)thin h\(t - tau\)thin upright(d) tau $
+
+# X[k] = \sum_{n=0}^{N-1} x[n]\,\mathrm{e}^{-\mathrm{j}2\pi kn/N}
+$ X\[k\]= sum_(n = 0)^(N - 1) x\[n\]thin upright(e)^(- upright(j) 2 pi k n\/N) $
+
+# \varepsilon(t) = \begin{cases} 0 & t < 0 \\ 1 & t \geq 0 \end{cases}
+$ epsilon\(t\)= cases(delim: "{", 0 & t < 0, 1 & t gt.eq 0) $
+
+# \delta(t) = \frac{\mathrm{d}\varepsilon(t)}{\mathrm{d}t}, \qquad \int_{-\infty}^{\infty} \delta(t)\,\mathrm{d}t = 1
+$ delta\(t\)= frac(upright(d) epsilon\(t\), upright(d) t)\,#h(2em) integral_(- oo)^oo delta\(t\)thin upright(d) t = 1 $
+
+# G(s) = \frac{K}{(1 + sT_1)(1 + sT_2)}
+$ G\(s\)= frac(K, \(1 + s T_1\)\(1 + s T_2\)) $
+
+# H(z) = \frac{\sum_{k=0}^{M} b_k z^{-k}}{1 + \sum_{k=1}^{N} a_k z^{-k}}
+$ H\(z\)= frac(sum_(k = 0)^M b_k z^(- k), 1 + sum_(k = 1)^N a_k z^(- k)) $
+
+# T(s) = \frac{G(s)}{1 + G(s)H(s)}
+$ T\(s\)= frac(G\(s\), 1 + G\(s\)H\(s\)) $
+
+# x(t) = \sum_{k=-\infty}^{\infty} c_k\,\mathrm{e}^{\mathrm{j}k\omega_0 t}, \qquad c_k = \frac{1}{T}\int_{0}^{T} x(t)\,\mathrm{e}^{-\mathrm{j}k\omega_0 t}\,\mathrm{d}t
+$ x\(t\)= sum_(k = - oo)^oo c_k thin upright(e)^(upright(j) k omega_0 t)\,#h(2em) c_k = 1 / T integral_0^T x\(t\)thin upright(e)^(- upright(j) k omega_0 t) thin upright(d) t $
+
+# \mathrm{si}(x) = \frac{\sin x}{x}
+$ upright(s i)\(x\)= frac(sin x, x) $
+
+# \begin{aligned} \underline{Z} &= R + \mathrm{j}\omega L + \frac{1}{\mathrm{j}\omega C} \\ &= R + \mathrm{j}\left(\omega L - \frac{1}{\omega C}\right) \end{aligned}
+$ underline(Z) & = R + upright(j) omega L + frac(1, upright(j) omega C)\ & = R + upright(j) (omega L - frac(1, omega C)) $
+
+# \begin{aligned} I_1 + I_2 - I_3 &= 0 \\ R_1 I_1 - R_2 I_2 &= U_{q1} - U_{q2} \\ R_2 I_2 + R_3 I_3 &= U_{q2} \end{aligned}
+$ I_1 + I_2 - I_3 & = 0\ R_1 I_1 - R_2 I_2 & = U_(q 1) - U_(q 2)\ R_2 I_2 + R_3 I_3 & = U_(q 2) $
+
+# \begin{gathered} \nabla \cdot \vec{D} = \rho \\ \nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t} \end{gathered}
+$ nabla dot.op arrow(D) = rho\ nabla times arrow(E) = - frac(partial arrow(B), partial t) $
+
+# |x| = \begin{cases} x & \text{für } x \geq 0 \\ -x & \text{sonst} \end{cases}
+$ \|x\|= cases(delim: "{", x & upright("für ") x gt.eq 0, - x & upright("sonst")) $
+
+# \mathbf{A} = \begin{bmatrix} a_{11} & a_{12} \\ a_{21} & a_{22} \end{bmatrix}, \qquad \mathbf{A}^{-1} = \frac{1}{\det \mathbf{A}}\begin{bmatrix} a_{22} & -a_{12} \\ -a_{21} & a_{11} \end{bmatrix}
+$ upright(bold(A)) = mat(delim: "[", a_11, a_12; a_21, a_22)\,#h(2em) upright(bold(A))^(- 1) = frac(1, det upright(bold(A))) mat(delim: "[", a_22, - a_12; - a_21, a_11) $
+
+# \det \mathbf{A} = \left|\begin{matrix} a & b \\ c & d \end{matrix}\right| = ad - bc
+$ det upright(bold(A)) = mat(delim: "|", a, b; c, d) = a d - b c $
+
+# \begin{pmatrix} a_{11} & \cdots & a_{1n} \\ \vdots & \ddots & \vdots \\ a_{m1} & \cdots & a_{mn} \end{pmatrix}
+$ mat(delim: "(", a_11, dots.h.c, a_(1 n); dots.v, dots.down, dots.v; a_(m 1), dots.h.c, a_(m n)) $
+
+# \mathbf{v} = \begin{Bmatrix} x \\ y \end{Bmatrix}
+$ upright(bold(v)) = mat(delim: "{", x; y) $
+
+# \vec{a} \cdot \vec{b} = |\vec{a}|\,|\vec{b}| \cos\angle(\vec{a}, \vec{b}), \qquad \lVert \vec{x} \rVert_2 = \sqrt{\sum_i x_i^2}
+$ arrow(a) dot.op arrow(b) =\|arrow(a)\|thin\|arrow(b)\|cos angle\(arrow(a)\,arrow(b)\)\,#h(2em) lr(bar.v.double arrow(x) bar.v.double)_2 = sqrt(sum_i x_i^2) $
+
+# \mathbf{A}^\mathrm{T}, \qquad \mathbf{x}^\mathrm{T}\mathbf{A}\mathbf{x} > 0
+$ upright(bold(A))^(upright(T))\,#h(2em) upright(bold(x))^(upright(T)) upright(bold(A)) upright(bold(x)) > 0 $
+
+# \lambda_{1,2} = -\delta \pm \sqrt{\delta^2 - \omega_0^2}
+$ lambda_(1\,2) = - delta plus.minus sqrt(delta^2 - omega_0^2) $
+
+# \sin x \quad \cos x \quad \tan x \quad \arcsin x \quad \arccos x \quad \arctan x \quad \sinh x \quad \cosh x \quad \tanh x
+$ sin x quad cos x quad tan x quad arcsin x quad arccos x quad arctan x quad sinh x quad cosh x quad tanh x $
+
+# \ln x \quad \log x \quad \log_2 x \quad \exp(x) \quad \max_{t} u(t) \quad \min_{t} u(t) \quad \sup_n a_n
+$ ln x quad log x quad log_2 x quad exp\(x\)quad max_t u\(t\)quad min_t u\(t\)quad sup_n a_n $
+
+# \lfloor x \rfloor \quad \lceil x \rceil \quad a \bmod n \quad a \equiv b \pmod{n}
+$ floor.l x floor.r quad ceil.l x ceil.r quad a med mod med n quad a equiv b med\(mod med n\) $
+
+# \operatorname{sgn}(x) \quad \operatorname{rect}(t) \quad \operatorname{arg}(z)
+$ "sgn"\(x\)quad "rect"\(t\)quad arg\(z\) $
+
+# \left( \frac{a}{b} \right) \quad \left[ \frac{a}{b} \right] \quad \left\{ \frac{a}{b} \right\} \quad \left| \frac{a}{b} \right|
+$ (a / b) quad [a / b] quad {a / b} quad lr(|a / b|) $
+
+# \langle x, y \rangle \quad \lvert x \rvert \quad \lVert x \rVert
+$ chevron.l x\,y chevron.r quad\|x\|quad lr(bar.v.double x bar.v.double) $
+
+# F = q\,(\vec{E} + \vec{v} \times \vec{B})
+$ F = q thin\(arrow(E) + arrow(v) times arrow(B)\) $
+
+# \varepsilon_0 \approx 8{,}854 \cdot 10^{-12}\,\frac{\mathrm{A\,s}}{\mathrm{V\,m}}, \qquad \mu_0 = 4\pi \cdot 10^{-7}\,\frac{\mathrm{V\,s}}{\mathrm{A\,m}}
+$ epsilon_0 approx 8\,854 dot.op 10^(- 12) thin upright(A thin s) / upright(V thin m)\,#h(2em) mu_0 = 4 pi dot.op 10^(- 7) thin upright(V thin s) / upright(A thin m) $
+
+# C = \varepsilon_0 \varepsilon_\mathrm{r} \frac{A}{d}
+$ C = epsilon_0 epsilon_(upright(r)) A / d $
+
+# W = \frac{1}{2} C U^2 = \frac{1}{2} L I^2
+$ W = 1 / 2 C U^2 = 1 / 2 L I^2 $
+
+# \vartheta = 25\,^\circ\mathrm{C}, \qquad \varphi = 45^\circ
+$ theta.alt = 25 thin^compose upright(C)\,#h(2em) phi = 45^compose $
+
+# v = 3 \cdot 10^8\,\mathrm{m/s}, \qquad a = 9{,}81\,\mathrm{m\,s^{-2}}
+$ v = 3 dot.op 10^8 thin upright(m\/s)\,#h(2em) a = 9\,81 thin upright(m thin s^(- 2)) $
+
+# \sigma = \frac{F}{A}, \qquad \varepsilon = \frac{\Delta l}{l_0}, \qquad \sigma = E\,\varepsilon
+$ sigma = F / A\,#h(2em) epsilon = frac(Delta l, l_0)\,#h(2em) sigma = E thin epsilon $
+
+# M = F \cdot r \cdot \sin\alpha, \qquad P = M \cdot \omega = 2\pi n M
+$ M = F dot.op r dot.op sin alpha\,#h(2em) P = M dot.op omega = 2 pi n M $
+
+# Y = \overline{A \cdot B} = \overline{A} + \overline{B}
+$ Y = overline(A dot.op B) = overline(A) + overline(B) $
+
+# (1011)_2 = 1 \cdot 2^3 + 0 \cdot 2^2 + 1 \cdot 2^1 + 1 \cdot 2^0 = (11)_{10}
+$ \(1011\)_2 = 1 dot.op 2^3 + 0 dot.op 2^2 + 1 dot.op 2^1 + 1 dot.op 2^0 =\(11\)_10 $
+
+# P(A \mid B) = \frac{P(B \mid A)\,P(A)}{P(B)}
+$ P\(A divides B\)= frac(P\(B divides A\)thin P\(A\), P\(B\)) $
+
+# \mathrm{E}[X] = \sum_i x_i\,p_i, \qquad \mathrm{Var}(X) = \mathrm{E}[X^2] - \mathrm{E}[X]^2
+$ upright(E)\[X\]= sum_i x_i thin p_i\,#h(2em) upright(V a r)\(X\)= upright(E)\[X^2\]- upright(E)\[X\]^2 $
+
+# f(x) = \frac{1}{\sigma\sqrt{2\pi}}\,\mathrm{e}^{-\frac{(x-\mu)^2}{2\sigma^2}}
+$ f\(x\)= frac(1, sigma sqrt(2 pi)) thin upright(e)^(- frac(\(x - mu\)^2, 2 sigma^2)) $
+
+# a\,b \quad a\;b \quad a\!b \quad a\ b \quad a\quad b \quad a\qquad b
+$ a thin b quad a thick b quad a #h(-0.167em) b quad a med b quad a quad b quad a #h(2em) b $
+
+# U = R \cdot I \quad \text{(Ohmsches Gesetz)}
+$ U = R dot.op I quad upright("(Ohmsches Gesetz)") $
+
+# \text{Spannungsabfall über } R_2\text{: } U_2 = 4{,}5\,\mathrm{V}
+$ upright("Spannungsabfall über ") R_2 upright(": ") U_2 = 4\,5 thin upright(V) $
+
+# x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$ x_(1\,2) = frac(- b plus.minus sqrt(b^2 - 4 a c), 2 a) $
+
+# \underbrace{R_1 + R_2}_{R_\mathrm{s}} \cdot I
+$ underbrace(R_1 + R_2, R_(upright(s))) dot.op I $
+
+# \overbrace{a + b + c}^{3\ \text{Terme}}
+$ overbrace(a + b + c, 3 med upright("Terme")) $
+
+# \boxed{f_\mathrm{g} = \frac{1}{2\pi RC}}
+$ #box(stroke: black, inset: 3pt, [$ f_(upright(g)) = frac(1, 2 pi R C) $]) $
+
+# \mathcal{F}\{x(t)\} \quad \mathcal{O}(n \log n) \quad \mathbb{E} \quad \mathfrak{g}
+$ cal(F) { x\(t\)} quad cal(O)\(n log n\)quad bb(E) quad frak(g) $
+
+# \phantom{x} y \quad x^{2^{n}} \quad x_{i_j} \quad {}^{14}\mathrm{C}
+$ #hide[$x$] y quad x^(2^n) quad x_(i_j) quad zws^14 upright(C) $
+
+# f_\mathrm{g} = 1/(2\pi RC)
+$f_(upright(g)) = 1\/\(2 pi R C\)$
+
+# 1{,}59\,\mathrm{kHz}
+$1\,59 thin upright(k H z)$
+
+# -45^\circ
+$- 45^compose$
+
+# \omega \to \infty
+$omega arrow.r oo$
+
+# |\underline{H}| \to 0
+$\|underline(H)\|arrow.r 0$
+
+# R = 1\,\mathrm{k\Omega}
+$R = 1 thin upright(k Omega)$
+
+# C = 100\,\mathrm{nF}
+$C = 100 thin upright(n F)$
+
+# \tau = RC = 0{,}1\,\mathrm{ms}
+$tau = R C = 0\,1 thin upright(m s)$
+
+# 5\tau
+$5 tau$
+
+# \underline{U} = 230\,\mathrm{V} \angle 0^\circ
+$underline(U) = 230 thin upright(V) angle 0^compose$
+
+# \underline{I} = 2\,\mathrm{A} \angle -30^\circ
+$underline(I) = 2 thin upright(A) angle - 30^compose$
+
+# P = 398{,}4\,\mathrm{W}
+$P = 398\,4 thin upright(W)$
+
+# \mathbf{A} \in \mathbb{R}^{n \times n}
+$upright(bold(A)) in bb(R)^(n times n)$
+
+# \det \mathbf{A} \neq 0
+$det upright(bold(A)) eq.not 0$
+

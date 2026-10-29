@@ -1,0 +1,2 @@
+# Only install releases that have been public for at least 7 days (in minutes).
+minimumReleaseAge: 10080

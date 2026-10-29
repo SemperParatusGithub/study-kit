@@ -1,0 +1,68 @@
+# Single source of truth for the external toolchain.
+#
+# `studykit tools install` downloads the [binaries.*] into .tools/bin and verifies the
+# sha256 of every archive; `studykit doctor` asserts the exact versions below.
+# To bump a tool: change version, urls and sha256 together, then run `just setup` and
+# `just test` (the golden corpus must stay green).
+
+[binaries.pandoc]
+version = "3.13"
+version_args = ["--version"]
+version_regex = '^pandoc (\S+)'
+
+[binaries.pandoc.platforms.macos-arm64]
+url = "https://github.com/jgm/pandoc/releases/download/3.13/pandoc-3.13-arm64-macOS.zip"
+sha256 = "f436d18bebbfb3ddd326597686dacab9fac5dc23bd060495020f35a28a43a7c3"
+binary = "pandoc-3.13-arm64/bin/pandoc"
+
+[binaries.pandoc.platforms.linux-x86_64]
+url = "https://github.com/jgm/pandoc/releases/download/3.13/pandoc-3.13-linux-amd64.tar.gz"
+sha256 = "38aa33b325a2bc96a4c39409631212db55702f564250bcdbead180b3bf646389"
+binary = "pandoc-3.13/bin/pandoc"
+
+[binaries.typst]
+version = "0.15.1"
+version_args = ["--version"]
+version_regex = '^typst (\S+)'
+
+[binaries.typst.platforms.macos-arm64]
+url = "https://github.com/typst/typst/releases/download/v0.15.1/typst-aarch64-apple-darwin.tar.xz"
+sha256 = "48f62ed034aa3a7978309579ac6ca00045e2ef0da73114e8af27cfd8e74dc05a"
+binary = "typst-aarch64-apple-darwin/typst"
+
+[binaries.typst.platforms.linux-x86_64]
+url = "https://github.com/typst/typst/releases/download/v0.15.1/typst-x86_64-unknown-linux-musl.tar.xz"
+sha256 = "a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c"
+binary = "typst-x86_64-unknown-linux-musl/typst"
+
+[binaries.just]
+version = "1.59.0"
+version_args = ["--version"]
+version_regex = '^just (\S+)'
+
+[binaries.just.platforms.macos-arm64]
+url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-aarch64-apple-darwin.tar.gz"
+sha256 = "6574cea774ed4cae12e24b6aa11857de33e80dab4667cf628fd5840df96a2a9d"
+binary = "just"
+
+[binaries.just.platforms.linux-x86_64]
+url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-unknown-linux-musl.tar.gz"
+sha256 = "409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e"
+binary = "just"
+
+# Tools installed by the system (Homebrew, nvm, corepack, setup actions in CI).
+# `doctor` checks that they exist and meet the minimum version.
+[system.uv]
+min_version = "0.11.30"
+version_args = ["--version"]
+version_regex = '^uv (\S+)'
+
+[system.node]
+min_version = "24.17.0"
+version_args = ["--version"]
+version_regex = '^v(\S+)'
+
+[system.pnpm]
+min_version = "11.22.0"
+version_args = ["--version"]
+version_regex = '^(\S+)'
