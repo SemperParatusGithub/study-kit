@@ -30,6 +30,10 @@ setup:
 doctor *flags:
     {{sk}} doctor {{flags}}
 
+# fake lecture PDFs from examples/sample-materials (Typst sources) into its gitignored _build/materials
+sample-materials *args:
+    uv run --frozen python examples/sample-materials/build.py {{args}}
+
 # render the figure scripts of one course (or all)
 figures course="":
     {{sk}} fig build {{course}}
