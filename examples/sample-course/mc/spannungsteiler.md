@@ -137,15 +137,15 @@ auf?
 
 ::: explanation
 Die Ableitung von $P_\mathrm{L}(R_\mathrm{L})$ wird bei $R_\mathrm{L} = R_\mathrm{i}$ null.
-Dann gilt $P_\mathrm{max} = U_\mathrm{q}^2/(4R_\mathrm{i})$ bei einem Wirkungsgrad von
-$50\,\%$.
+Dann liegt an der Last die halbe Leerlaufspannung $U_\mathrm{q}/2$, und es gilt
+$P_\mathrm{max} = U_\mathrm{q}^2/(4R_\mathrm{i})$.
 :::
 ::::
 
 :::: {.mcq #mc-spannungsteiler-006 type="single" difficulty="3"}
-Eine Ersatzspannungsquelle hat $U_\mathrm{q} = 10\,\mathrm{V}$ und
-$R_\mathrm{i} = 50\,\Omega$. Wie groß ist die größte Leistung, die sie an eine Last
-abgeben kann?
+Eine reale Spannungsquelle besteht aus einer idealen Quelle mit
+$U_\mathrm{q} = 10\,\mathrm{V}$ und einem Innenwiderstand $R_\mathrm{i} = 50\,\Omega$ in
+Reihe. Wie groß ist die größte Leistung, die sie an eine Last abgeben kann?
 
 - [ ] $2\,\mathrm{W}$
 
@@ -157,12 +157,14 @@ abgeben kann?
 
 - [ ] $1\,\mathrm{W}$
 
-  $U_\mathrm{q}^2/(2R_\mathrm{i})$ ist die Leistung von Last und Innenwiderstand zusammen.
+  $U_\mathrm{q}^2/(2R_\mathrm{i})$ gibt die ideale Quelle insgesamt ab, an Last und
+  Innenwiderstand zusammen.
 
 ::: explanation
 Bei Leistungsanpassung ist $R_\mathrm{L} = 50\,\Omega$; an der Last liegen
 $5\,\mathrm{V}$, und es fließen $0{,}1\,\mathrm{A}$. Das ergibt $0{,}5\,\mathrm{W}$ in der
-Last und noch einmal so viel im Innenwiderstand.
+Last und, weil $R_\mathrm{i}$ hier ein realer Widerstand ist, noch einmal so viel im
+Innenwiderstand.
 :::
 ::::
 

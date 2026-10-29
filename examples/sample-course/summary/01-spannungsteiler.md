@@ -140,8 +140,12 @@ $$
 P_\mathrm{max} = \frac{U_\mathrm{q}^2}{4 R_\mathrm{i}}
 $$
 
-Dann wird im Innenwiderstand genauso viel Leistung umgesetzt wie in der Last; der
-Wirkungsgrad beträgt nur $50\,\%$.
+Im Ersatzmodell wird dann in $R_\mathrm{i}$ genauso viel Leistung umgesetzt wie in der
+Last. Einen Wirkungsgrad von $50\,\%$ hat aber nur eine Quelle, deren Verluste wirklich in
+einem Innenwiderstand entstehen, etwa eine Batterie. Die Ersatzspannungsquelle gibt nur
+das Verhalten an den Klemmen richtig wieder: Beim Teiler aus dem Beispiel setzen $R_1$ und
+$R_2$ bei $R_\mathrm{L} = 500\,\Omega$ zusammen $90\,\mathrm{mW}$ um, die Last nur
+$18\,\mathrm{mW}$. Der Wirkungsgrad beträgt dort also rund $17\,\%$.
 :::
 
 Übung: [Ersatzspannungsquelle eines Teilers](ex:ex-st-ersatzquelle)
