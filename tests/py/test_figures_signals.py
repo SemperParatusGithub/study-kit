@@ -400,3 +400,13 @@ def test_signals(locale):
     assert seq.facts["series"]["y"]["mean"] == pytest.approx(1)
     with pytest.raises(ValueError):
         signals.signals([0.0], {"x": [1.0]})
+    # Three-phase voltages leave no free spot: the legend sits above the axes.
+    tt = np.linspace(0, 0.04, 2001)
+    three = signals.signals(
+        tt,
+        {f"u_{k}": 325 * np.sin(2 * np.pi * 50 * tt - (k - 1) * 2 * np.pi / 3) for k in (1, 2, 3)},
+        y_label="u",
+        y_unit="V",
+    )
+    assert validate_svg(three.svg) == []
+    assert three.facts["series"]["u_2"]["rms"] == pytest.approx(325 / math.sqrt(2), rel=1e-6)

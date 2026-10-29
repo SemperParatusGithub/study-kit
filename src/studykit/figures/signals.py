@@ -2096,6 +2096,29 @@ def _signal_tex(name: str, stem: bool) -> str:
     return f"${name}[n]$" if stem else f"${name}(t)$"
 
 
+def _legend_above(ax, handles: list) -> None:
+    """Legend above the plot area, right-aligned, in as few rows as the width allows.
+
+    Stems and periodic signals (three-phase voltages) leave no free spot inside the axes,
+    and the house style draws legends without a frame, so the legend never goes inside.
+    """
+    fig = ax.figure
+    for ncol in range(len(handles), 0, -1):
+        leg = ax.legend(
+            handles=handles,
+            loc="lower right",
+            bbox_to_anchor=(1.0, 1.0),
+            ncol=ncol,
+            labelcolor=FG,
+            borderaxespad=0.2,
+        )
+        fig.draw_without_rendering()
+        renderer = fig.canvas.get_renderer()
+        room = ax.get_window_extent(renderer).x1 - fig.get_window_extent(renderer).x0
+        if leg.get_window_extent(renderer).width <= 0.98 * room:
+            return
+
+
 def signals(
     t: Sequence[float] | np.ndarray,
     series: Mapping[str, np.ndarray | Sequence[float] | Callable[[np.ndarray], np.ndarray]],
@@ -2160,18 +2183,8 @@ def signals(
     elif k == 1:
         quantity = _signal_tex(next(iter(data)), stem).strip("$")
         ax.set_ylabel(core.axis_label(quantity, y_unit))
-    if (legend if legend is not None else k > 1) and stem:
-        # Stems fill the whole plot area, so the legend goes above it in one row.
-        ax.legend(
-            handles=handles,
-            loc="lower right",
-            bbox_to_anchor=(1.0, 1.0),
-            ncol=k,
-            labelcolor=FG,
-            borderaxespad=0.2,
-        )
-    elif legend if legend is not None else k > 1:
-        ax.legend(handles=handles, loc="best", labelcolor=FG)
+    if legend if legend is not None else k > 1:
+        _legend_above(ax, handles)
     core.apply_locale(ax)
 
     facts: dict = {
