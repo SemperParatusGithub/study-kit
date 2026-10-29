@@ -23,8 +23,8 @@ def ids() -> list[str]:
         for num in range(1, 21):
             out.append(f"mc-{topic}-{num:03d}")
     out += [f"pk{e}-mc-{n:02d}" for e in range(1, 4) for n in range(1, 13)]
-    # Not valid ids, but the hash must agree on any UTF-8 input.
-    out += ["", "a", "mc-ä-001", "Übung–7", "µ∑€😀", "mc-rc-filter-003 "]
+    # Not valid ids, but the hash must agree on any UTF-8 input (the en dash is deliberate).
+    out += ["", "a", "mc-ä-001", "Übung–7", "µ∑€\U0001f600", "mc-rc-filter-003 "]  # noqa: RUF001
     return out
 
 
