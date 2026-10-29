@@ -284,13 +284,18 @@ to the user (exam date, weekly budget).
 
 ## 13. Publish
 
-1. `just pdf <c>`; a failed document is routed by its findings.
-2. `uv run --frozen studykit validate <c> --release`; route every error (table above), at
+1. The overview was written before any exercise or mock exam existed, so it could not link
+   them. When `overview.md` has no `exam:` link although `exams/` has a mock exam, or no
+   `ex:` link although exercises exist, start one `author`: "Course: `<dir>`. Part:
+   `overview`. Mode: replace. Link the mock exams (`exam:`) and the first exercises to
+   start with (`ex:`) that now exist." Its gate is step 7's.
+2. `just pdf <c>`; a failed document is routed by its findings.
+3. `uv run --frozen studykit validate <c> --release`; route every error (table above), at
    most 3 rounds, re-running the step whose files changed (figures, verify, plan).
-3. Only when it is green: Edit `course.yaml` `status: draft` → `status: ready`, then
+4. Only when it is green: Edit `course.yaml` `status: draft` → `status: ready`, then
    `just build <c>` (figures, validate, PDFs, the strict site build, links). If the build
    fails, set `status: draft` again and route its findings (a round of the 3).
-4. With scope core the Coverage stage still wants exercises, mock exams and the cheat
+5. With scope core the Coverage stage still wants exercises, mock exams and the cheat
    sheet: skip `--release`, run `just build <c>` with `status: draft`, and say that the
    course becomes ready after the deferred steps.
 

@@ -24,15 +24,20 @@ Prerequisites). Lint checks them by position and count (SK-STRUCT-SECTIONS).
 4. **Die Klausur auf einen Blick / Exam at a glance** - date, duration, points, aids, a
    table of the parts with points (archetypes and their shares from the profile, the MC part
    with question count, types, scoring and negative marking), the time per point and what
-   follows from it; link the mock exams with `exam:`. Say when the profile has low
-   confidence (no past exams).
+   follows from it; link the mock exams with `exam:` once they exist. Say when the profile
+   has low confidence (no past exams).
 5. **So lernst du dieses Fach / How to study this subject** - 3-6 concrete bullets: order,
-   which exercises to start with (`ex:` links), when to do MC, the cheat sheet, mock exams.
+   which exercises to start with (`ex:` links once they exist), when to do MC, the cheat
+   sheet, mock exams.
 6. **Voraussetzungen / Prerequisites** - bullets of what the course assumes.
 
 ## Rules
 
 - Every topic that is not skipped is linked at least once with `topic:` (SK-COV-OVERVIEW).
+- Link only ids that `uv run --frozen studykit index <course> --json` lists (anything else
+  is SK-REF-MISSING). In an author wave the overview comes first, before any exercise or
+  mock exam exists: name them in words without a link; /register-new-subject adds the
+  links before it publishes (its step 13), `/regenerate <course> overview` does too.
 - Numbers about the exam come from `course.yaml` and the profile, not from memory.
 - No exercises, hints or solutions here; 60-120 lines of Markdown.
 - Template: the content-format skill's `templates/overview.md`.
