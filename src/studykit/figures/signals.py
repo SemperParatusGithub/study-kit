@@ -32,6 +32,7 @@ from studykit.figures.palette import BG, FG, MUTED, color
 
 S = sp.Symbol("s")
 Z = sp.Symbol("z")
+ANNOTATIONS = ("final", "overshoot", "rise", "settling")
 TINY = 1e-9
 MARGIN_RTOL = 1e-5
 
@@ -1214,7 +1215,331 @@ def root_locus(
     return core.finish(fig, alt, facts)
 
 
+# --------------------------------------------------------------------------------------
+# Step response
+# --------------------------------------------------------------------------------------
+
+
+def _first_crossing(t: np.ndarray, r: np.ndarray, level: float) -> float | None:
+    idx = np.flatnonzero(r >= level)
+    if idx.size == 0:
+        return None
+    i = int(idx[0])
+    if i == 0:
+        return float(t[0])
+    return float(t[i - 1] + (t[i] - t[i - 1]) * (level - r[i - 1]) / (r[i] - r[i - 1]))
+
+
+def step_metrics(t: np.ndarray, y: np.ndarray, final: float, band: float = 0.02) -> dict:
+    """Overshoot (%), peak, 10-90 % rise time and settling time into +-band of `final`.
+
+    Crossings are linearly interpolated and the peak is refined with a parabola through
+    the three samples around the maximum.
+    """
+    r = y / final
+    t10, t90 = _first_crossing(t, r, 0.1), _first_crossing(t, r, 0.9)
+    i = int(np.argmax(r))
+    t_peak, r_peak = float(t[i]), float(r[i])
+    if 0 < i < len(r) - 1:
+        a, b, c = r[i - 1], r[i], r[i + 1]
+        denom = a - 2 * b + c
+        if denom < 0:
+            shift = 0.5 * (a - c) / denom
+            h = t[i + 1] - t[i]
+            t_peak = float(t[i] + shift * h)
+            r_peak = float(b - 0.25 * (a - c) * shift)
+    overshoot = max(0.0, (r_peak - 1) * 100)
+    err = np.abs(r - 1) - band
+    outside = np.flatnonzero(err > 0)
+    if outside.size == 0:
+        t_s: float | None = float(t[0])
+    elif outside[-1] == len(r) - 1:
+        t_s = None
+    else:
+        k = int(outside[-1])
+        t_s = float(t[k] + (t[k + 1] - t[k]) * err[k] / (err[k] - err[k + 1]))
+    return {
+        "final": final,
+        "overshoot_percent": overshoot,
+        "peak": r_peak * final if overshoot > 0 else None,
+        "peak_time": t_peak if overshoot > 0 else None,
+        "t10": t10,
+        "t90": t90,
+        "rise_time": (t90 - t10) if t10 is not None and t90 is not None else None,
+        "settling_time": t_s,
+        "settling_band": band,
+    }
+
+
+def _nice_ceil(x: float) -> float:
+    exp = math.floor(math.log10(x))
+    for m in (1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10):
+        if m * 10**exp >= x * (1 - 1e-12):
+            return m * 10**exp
+    return 10 ** (exp + 1)
+
+
+def step_response(
+    G: TransferFunctionLike,
+    t: Sequence[float] | np.ndarray | None = None,
+    annotate: Sequence[str] = ANNOTATIONS,
+    settling_band: float = 0.02,
+    unit: str = "s",
+    size: str = "col",
+    alt: str | None = None,
+) -> core.Figure:
+    """Step response h(t) with computed annotations.
+
+    t: time grid or (start, end); by default long enough to show settling.
+    annotate: any of 'final', 'overshoot', 'rise' (10-90 %), 'settling' (+-settling_band).
+    """
+    unknown = set(annotate) - set(ANNOTATIONS)
+    if unknown:
+        raise ValueError(f"unknown annotation {sorted(unknown)}; use {ANNOTATIONS}")
+    p = _continuous(G, "step_response", proper=True)
+    poles = p.poles()
+    stable = bool(all(q.real < 0 for q in poles))
+    final = float(np.real(ct.dcgain(p.tf))) if stable else None
+    use = final is not None and abs(final) > 1e-12
+
+    def simulate(tt):
+        resp = ct.step_response(p.tf, tt)
+        return np.asarray(resp.time, dtype=float), np.asarray(resp.outputs, dtype=float)
+
+    if t is None:
+        t_end = float(ct.step_response(p.tf).time[-1])
+        tt = np.linspace(0, t_end, 4001)
+        if use:
+            for _ in range(6):
+                info = step_metrics(*simulate(tt), final, settling_band)
+                ts = info["settling_time"]
+                if ts is not None and ts < 0.85 * t_end:
+                    break
+                t_end *= 2
+                tt = np.linspace(0, t_end, 4001)
+            ts = info["settling_time"] or 0.0
+            need = max(ts, info["peak_time"] or 0.0, info["t90"] or 0.0)
+            if need > 0:
+                tt = np.linspace(0, _nice_ceil(1.5 * need), 4001)
+    else:
+        tt = np.asarray(t, dtype=float)
+        if tt.size == 2:
+            tt = np.linspace(tt[0], tt[1], 4001)
+    time, y = simulate(tt)
+    info = step_metrics(time, y, final, settling_band) if use else None
+    _, y_scipy = sps.step((p.num, p.den), T=time)
+
+    scale, shown_unit = _time_display(float(np.max(np.abs(time))), unit)
+    fig, ax = core.new_figure(size)
+    ax.plot(time * scale, y, color=color(0), zorder=4)
+    de = core.locale() == "de"
+    hname = "h" if de else "y"
+    y_lo, y_hi = min(0.0, float(y.min())), max(0.0, float(y.max()))
+    if info is not None:
+        y_lo = min(y_lo, final * (1 - settling_band))
+        y_hi = max(y_hi, final * (1 + settling_band))
+    ax.set_xlim(time[0] * scale, time[-1] * scale)
+    pad = 0.12 * (y_hi - y_lo or 1)
+    ax.set_ylim(y_lo - (pad if y_lo < 0 else 0.03 * (y_hi - y_lo)), y_hi + pad)
+    ax.set_xlabel(core.axis_label("t", _unit_text(shown_unit)))
+    ax.set_ylabel(f"${hname}(t)$")
+    core.apply_locale(ax)
+    if info is not None:
+        _annotate_step(ax, info, annotate, scale, shown_unit, hname, (time * scale, y))
+
+    info_ctl = ct.step_info(p.tf, time, SettlingTimeThreshold=settling_band) if use else None
+    facts = {
+        "template": "signals.step_response",
+        "G": p.as_dict(),
+        "stable": stable,
+        "t_range": [float(time[0]), float(time[-1])],
+        "time_axis": {"unit": shown_unit, "scale": scale},
+        "metrics": info,
+        "final_sample": float(y[-1]),
+        "scipy_max_abs_diff": float(np.max(np.abs(y - y_scipy))),
+        "step_info": {k: float(v) for k, v in info_ctl.items()} if info_ctl else None,
+        "annotate": list(annotate) if info is not None else [],
+    }
+    if alt is None:
+        label = "µs" if shown_unit == "us" else (shown_unit or "")
+
+        def at(seconds: float) -> str:
+            return f"{seconds * scale:.3g} {label}".rstrip()
+
+        alt = f"Step response of G(s) = {_plain(p)} for t from {at(time[0])} to {at(time[-1])}"
+        if info is not None:
+            bits = [f"final value {final:.4g}"]
+            if info["overshoot_percent"] > 0:
+                os_ = info["overshoot_percent"]
+                bits.append(f"overshoot {os_:.3g} % at t = {at(info['peak_time'])}")
+            if info["rise_time"] is not None:
+                bits.append(f"10-90 % rise time {at(info['rise_time'])}")
+            if info["settling_time"] is not None:
+                ts = info["settling_time"]
+                bits.append(f"{settling_band * 100:g} % settling time {at(ts)}")
+            alt += ": " + ", ".join(bits)
+        elif not stable:
+            alt += "; the system is unstable"
+        alt += "."
+    return core.finish(fig, alt, facts)
+
+
+TIME_SCALES = ((1.0, "s"), (1e3, "ms"), (1e6, "us"), (1e9, "ns"))
+
+
+def _time_display(t_max: float, unit: str | None) -> tuple[float, str | None]:
+    """Times are given in seconds; show them in s, ms, us or ns, whichever reads best."""
+    if unit != "s" or t_max <= 0:
+        return 1.0, unit
+    for scale, name in TIME_SCALES:
+        if t_max * scale >= 0.2:
+            return scale, name
+    return TIME_SCALES[-1]
+
+
+def _unit_text(unit: str | None) -> str | None:
+    return r"$\mu$s" if unit == "us" else unit
+
+
+def _unit_math(unit: str | None) -> str:
+    if not unit:
+        return ""
+    return r"\,\mu\mathrm{s}" if unit == "us" else rf"\,\mathrm{{{unit}}}"
+
+
+def _place(ax, text: str, options: Sequence[dict], avoid: np.ndarray, placed: list, **style):
+    """Annotate at the first candidate whose text box misses the curve and other labels.
+
+    options: annotate() keyword sets (xy, xytext, ha, va, optional xycoords), best first.
+    avoid: curve points in display coordinates. The figure layout must be final (the
+    caller ran draw_without_rendering); labels are kept out of the layout so they cannot
+    move the axes afterwards. Falls back to the candidate with the fewest conflicts.
+    """
+    renderer = ax.figure.canvas.get_renderer()
+    frame = ax.get_window_extent(renderer)
+    best = None
+    for option in options:
+        ann = ax.annotate(text, textcoords="offset points", **option, **style)
+        ann.set_in_layout(False)
+        box = ann.get_window_extent(renderer).padded(1.5)
+        score = box.count_contains(avoid)
+        score += 100 * sum(box.overlaps(other) for other in placed)
+        inside = frame.x0 <= box.x0 and box.x1 <= frame.x1 and frame.y0 <= box.y0
+        score += 50 * (not (inside and box.y1 <= frame.y1))
+        if best is None or score < best[0]:
+            if best is not None:
+                best[1].remove()
+            best = (score, ann, box)
+        else:
+            ann.remove()
+        if score == 0:
+            break
+    placed.append(best[2])
+    return best[1]
+
+
+def _annotate_step(
+    ax,
+    info: dict,
+    annotate: Sequence[str],
+    scale: float,
+    unit: str | None,
+    hname: str,
+    curve: tuple[np.ndarray, np.ndarray],
+) -> None:
+    de = core.locale() == "de"
+    final = info["final"]
+    u = _unit_math(unit)
+    up = final > 0  # labels go below a level the response approaches from below
+    ax.figure.draw_without_rendering()
+    avoid = ax.transData.transform(np.column_stack(curve))
+    placed: list = []
+    small = {"fontsize": 7}
+
+    if "overshoot" in annotate and info["overshoot_percent"] > 0.05:
+        tp, yp = info["peak_time"] * scale, info["peak"]
+        ax.plot([tp], [yp], "o", ms=3, color=color(1), zorder=6)
+        _double_arrow(ax, (tp, final), (tp, yp), color(1), lw=0.9)
+        sym = r"\ddot{u}" if de else r"M_\mathrm{p}"
+        mid = (tp, (final + yp) / 2)
+        _place(
+            ax,
+            rf"${sym} = {_num_tex(info['overshoot_percent'])}\,\%$",
+            [  # beyond the peak first: nothing of the curve lies further out
+                {
+                    "xy": (tp, yp),
+                    "xytext": (4, 1 if up else -1),
+                    "ha": "left",
+                    "va": "bottom" if up else "top",
+                },
+                {"xy": mid, "xytext": (4, 0), "ha": "left", "va": "center"},
+                {"xy": mid, "xytext": (-4, 0), "ha": "right", "va": "center"},
+            ],
+            avoid,
+            placed,
+            color=color(1),
+            **small,
+        )
+    if "rise" in annotate and info["rise_time"] is not None:
+        t10, t90 = info["t10"] * scale, info["t90"] * scale
+        y10, y90 = 0.1 * final, 0.9 * final
+        ax.plot([t10, t90], [y10, y90], "o", ms=3, color=color(4), zorder=6)
+        ax.plot([t10, t10], [y10, y90], color=color(4), lw=0.8, ls=":", zorder=3)
+        _double_arrow(ax, (t10, y90), (t90, y90), color(4), lw=0.9)
+        va = "top" if up else "bottom"
+        _place(
+            ax,
+            rf"$t_\mathrm{{r}} = {_num_tex(info['rise_time'] * scale)}{u}$",
+            [
+                {"xy": (t90, y90), "xytext": (5, -1 if up else 1), "ha": "left", "va": va},
+                {"xy": (t90, 0.5 * final), "xytext": (5, 0), "ha": "left", "va": "center"},
+                {"xy": (t90, 0.3 * final), "xytext": (5, 0), "ha": "left", "va": "center"},
+                {"xy": (t10, y90), "xytext": (-4, 0), "ha": "right", "va": "center"},
+            ],
+            avoid,
+            placed,
+            color=color(4),
+            **small,
+        )
+    if "final" in annotate:
+        ax.axhline(final, color=MUTED, lw=0.9, ls=(0, (4, 2)), zorder=2)
+        right = {"xy": (1, final), "xycoords": ("axes fraction", "data"), "ha": "right"}
+        _place(
+            ax,
+            f"${hname}_\\infty = {_num_tex(final)}$",
+            [
+                {**right, "xytext": (-2, -4 if up else 4), "va": "top" if up else "bottom"},
+                {**right, "xytext": (-2, 4 if up else -4), "va": "bottom" if up else "top"},
+            ],
+            avoid,
+            placed,
+            color=MUTED,
+            **small,
+        )
+    if "settling" in annotate and info["settling_time"] is not None:
+        band = info["settling_band"]
+        lo, hi = sorted((final * (1 - band), final * (1 + band)))
+        ax.axhspan(lo, hi, color=color(2), alpha=0.15, lw=0, zorder=1)
+        ts = info["settling_time"] * scale
+        ax.axvline(ts, color=color(2), lw=0.9, ls=":", zorder=2)
+        sym = r"t_\mathrm{aus}" if de else r"t_\mathrm{s}"
+        _place(
+            ax,
+            f"${sym} = {_num_tex(ts)}{u}$",
+            [
+                {"xy": (ts, f * final), "xytext": (dx, 0), "ha": ha, "va": "center"}
+                for f in (0.25, 0.5, 0.1)
+                for dx, ha in ((3, "left"), (-3, "right"))
+            ],
+            avoid,
+            placed,
+            color=color(2),
+            **small,
+        )
+
+
 __all__ = [
+    "ANNOTATIONS",
     "Plant",
     "bode",
     "bode_asymptotes",
@@ -1224,5 +1549,7 @@ __all__ = [
     "pole_zero",
     "root_locus",
     "stability_margins",
+    "step_metrics",
+    "step_response",
     "structure",
 ]

@@ -161,6 +161,75 @@ def test_pole_zero(locale):
     assert not signals.pole_zero("1/((s-1)*(s+2))").facts["stable"]
 
 
+def second_order_step(zeta, wn):
+    wd = wn * math.sqrt(1 - zeta**2)
+
+    def y(t):
+        return 1 - math.exp(-zeta * wn * t) / math.sqrt(1 - zeta**2) * math.sin(
+            wd * t + math.acos(zeta)
+        )
+
+    return y, wd
+
+
+def test_step_response_second_order(locale):
+    zeta, wn = 0.5, 2.0
+    fig = signals.step_response(f"{wn**2}/(s**2+{2 * zeta * wn}*s+{wn**2})")
+    assert validate_svg(fig.svg) == []
+    m = fig.facts["metrics"]
+    y, wd = second_order_step(zeta, wn)
+    assert m["final"] == pytest.approx(1)
+    assert m["overshoot_percent"] == pytest.approx(
+        100 * math.exp(-math.pi * zeta / math.sqrt(1 - zeta**2)), abs=1e-4
+    )
+    assert m["peak_time"] == pytest.approx(math.pi / wd, abs=1e-4)
+    t10 = brentq(lambda t: y(t) - 0.1, 1e-9, math.pi / wd)
+    t90 = brentq(lambda t: y(t) - 0.9, 1e-9, math.pi / wd)
+    assert m["rise_time"] == pytest.approx(t90 - t10, abs=1e-4)
+    # Settling: last entry into the 2 % band, scanned backwards on the closed form.
+    ts_grid = np.linspace(20, 0, 200001)
+    out = np.array([abs(y(t) - 1) > 0.02 for t in ts_grid])
+    k = int(np.argmax(out))
+    t_s = brentq(lambda t: abs(y(t) - 1) - 0.02, ts_grid[k], ts_grid[k - 1])
+    assert m["settling_time"] == pytest.approx(t_s, abs=1e-3)
+    assert fig.facts["scipy_max_abs_diff"] < 1e-6
+    assert fig.facts["step_info"]["Overshoot"] == pytest.approx(m["overshoot_percent"], abs=0.05)
+    assert fig.facts["t_range"][1] > m["settling_time"]
+
+
+def test_step_response_first_order_in_ms():
+    tau = 1e-3
+    fig = signals.step_response("1/(1e-3*s+1)", annotate=("final", "rise", "settling"))
+    assert validate_svg(fig.svg) == []
+    m = fig.facts["metrics"]
+    assert fig.facts["time_axis"] == {"unit": "ms", "scale": 1000.0}
+    assert m["rise_time"] == pytest.approx(tau * math.log(9), rel=1e-4)
+    assert m["settling_time"] == pytest.approx(tau * math.log(50), rel=1e-4)
+    assert m["overshoot_percent"] == 0 and m["peak_time"] is None
+    assert "ms" in fig.alt
+
+
+def test_step_response_negative_gain():
+    fig = signals.step_response("-3/(s**2+2*s+4)")
+    assert validate_svg(fig.svg) == []
+    m = fig.facts["metrics"]
+    assert m["final"] == pytest.approx(-0.75)
+    assert m["peak"] == pytest.approx(-0.75 * (1 + m["overshoot_percent"] / 100))
+    assert m["overshoot_percent"] == pytest.approx(
+        100 * math.exp(-math.pi / math.sqrt(3)), abs=1e-4
+    )
+
+
+def test_step_response_unstable_and_bad_input():
+    fig = signals.step_response("1/(s-1)", t=(0, 2))
+    assert validate_svg(fig.svg) == []
+    assert not fig.facts["stable"] and fig.facts["metrics"] is None
+    with pytest.raises(ValueError, match="unknown annotation"):
+        signals.step_response("1/(s+1)", annotate=("delay",))
+    with pytest.raises(ValueError, match="proper"):
+        signals.step_response("s**2/(s+1)")
+
+
 def test_root_locus(locale):
     fig = signals.root_locus("1/(s*(s+1)*(s+2))")
     assert validate_svg(fig.svg) == []
