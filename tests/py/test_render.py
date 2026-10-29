@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -88,6 +90,21 @@ def test_index_change_invalidates_every_digest(mini: Path) -> None:
     course.write_text(text.replace("title: RC-Tiefpass,", "title: RC-Glied,"), "utf-8")
     second = by_rel(render.render_course(mini))
     assert all(second[rel]["digest"] != first[rel]["digest"] for rel in first)
+
+
+def test_every_module_the_bridge_loads_is_in_the_digest() -> None:
+    """A studykit module that render imports, even indirectly, shapes what it returns."""
+    script = (
+        "import json, sys, studykit.render; print(json.dumps(sorted("
+        "m.__file__ for n, m in sys.modules.items() if n.split('.')[0] == 'studykit')))"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-I", "-c", script], capture_output=True, text=True, check=True
+    )
+    loaded = {Path(p).resolve() for p in json.loads(proc.stdout)}
+    hashed = {p.resolve() for p in render.shaping_modules()}
+    assert loaded - hashed == set()
+    assert {"yamlio.py", "model.py", "content.py", "render.py"} <= {p.name for p in hashed}
 
 
 def test_filter_findings_are_returned_with_positions(mini: Path) -> None:
