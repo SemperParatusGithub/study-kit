@@ -47,9 +47,8 @@ an error card on the page.
 in an `exams/<exam-id>/` directory, or a file given to `lint`. A missing `overview.md`,
 `plan.yaml` or (when the exam allows one) `cheatsheet.md` is a warning while the course is
 being authored and an error with `--release`.
-Fix: create the file from its schema in `schemas/`, or remove the stray directory. Until
-`studykit plan` exists (Phase 5), write `plan.yaml` by hand against
-`schemas/plan.schema.json`.
+Fix: create the file from its schema in `schemas/`, or remove the stray directory;
+`plan.yaml` comes from `studykit plan <course>` (then write the session goals).
 
 ### `SK-STRUCT-PATH`
 **error.** A file is not where the layout (§2.1) expects it, its path disagrees with its
@@ -99,6 +98,13 @@ at a glance, how to study, prerequisites.
 **error.** In `exam.yaml`, task points plus MC questions × `points_each` do not add up to
 `points`.
 Fix: adjust task `points`, the number of questions in `mc.md`, `points_each` or the total.
+
+### `SK-STRUCT-PLAN`
+**error** (a session) or **warning** (the exam date). `plan.yaml` no longer fits the exam in
+`course.yaml`: a session is on or after the exam day (error), or the plan's `exam_date` is
+not the exam date (warning: the plan was made for another date).
+Fix: `studykit plan <course>` replans from today; done sessions and the goals of unchanged
+sessions are kept.
 
 ## Schema (SK-SCHEMA, SK-YAML)
 
@@ -628,3 +634,69 @@ Fix: `/regenerate <course> mc --topic <topic> --add <n>`.
 `duration_min` is more than 10 % away from the real exam in `course.yaml: exam`.
 Fix: `/regenerate <course> exams`, or lower the target; scale the mock exam's tasks to the
 real exam's points and time.
+
+## Progress (SK-PROGRESS, `studykit progress`)
+
+These codes are not validate stages: `studykit progress import` reports them for a browser
+export (and for `progress/state.json`, the merged state it keeps), `progress log` for an
+examiner result, and `progress report` and `studykit status` when the files under
+`progress/` do not read. Nothing is written while any is reported. For an import the
+position is the line of the entry's key in the file; for `progress log` it is the
+`--json-line` argument or the stdin line.
+
+### `SK-PROGRESS-FILE`
+**error.** The file cannot be read, is not JSON, or has no `items` object, so it is not a
+study-kit progress export.
+Fix: use the file the site's Export button downloads (progress page),
+`studykit-progress-<course>-<date>.json`.
+
+### `SK-PROGRESS-SCHEMA`
+**error.** The export's `schema` is not `studykit-progress/1`: a newer site wrote it (update
+study-kit), or it is an unversioned document from before the schema (import it on the site
+once and export it again; the site migrates it).
+Fix: `git pull && uv sync`, or re-export from the site.
+
+### `SK-PROGRESS-COURSE`
+**error.** The export names no course, or another course than the one it is imported into.
+Fix: import it into the course it names, or export the right course's progress page.
+
+### `SK-PROGRESS-ENTRY`
+**error.** An entry does not validate against `schemas/progress.schema.json`
+(`studykit.model.Progress`), or a timestamp is not ISO 8601 in the form the site writes
+(`Date.toISOString()`). The site drops such entries when it reads or imports a document, so
+an export it wrote never has one.
+Fix: export the progress again on the site instead of editing the file by hand.
+
+### `SK-PROGRESS-EXAMINER`
+**error.** An examiner result is not one JSON object per line, does not validate against
+`schemas/examiner.schema.json` (`studykit.model.ExaminerResult`: an MC result needs the
+question id, `conf` and `chosen`; a task or exercise its id; `points` come with
+`max_points`), names an item the course does not have, or a topic the item does not belong
+to.
+Fix: `studykit progress log <course> --json-line '{"mode": "mc", "kind": "mc", "topic":
+"rc-filter", "item": "mc-rc-filter-003", "chosen": ["A"], "conf": "sure", "score": 1}'`.
+
+## Plan (SK-PLAN, `studykit plan`)
+
+`studykit plan` reports these at `course.yaml`; errors write no plan. A plan it writes is
+read back and checked like validate checks it (schema, references), so the Structure and
+References codes never come from a fresh plan.
+
+### `SK-PLAN-STUDY`
+**error.** The plan has no time budget: `course.yaml` has no `study` settings, or
+`study.hours_per_week` is less than 15 minutes a week.
+Fix: `study: {start: YYYY-MM-DD, hours_per_week: 6, blocked: ['YYYY-MM-DD..YYYY-MM-DD']}`.
+
+### `SK-PLAN-DATE`
+**error** or **warning.** The first day to plan (`--from`, else today) is not before the
+exam, or there is no free study day left before it (error); or the exam date is unknown, so
+the plan runs 12 weeks and writes `exam_date: null` (warning).
+Fix: plan from an earlier day (`--from YYYY-MM-DD`), set `exam.date`, or shorten
+`study.blocked`.
+
+### `SK-PLAN-BUDGET`
+**warning.** The time does not cover the plan: too few sessions to learn every topic, a mock
+exam longer than the weekly budget, no session left for a mock exam, fewer mock exams than
+`targets.mock_exams`, or done sessions that already fill a week.
+Fix: start earlier, raise `study.hours_per_week`, skip topics, or write the missing mock
+exams; then plan again.

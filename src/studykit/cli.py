@@ -226,6 +226,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_hook.set_defaults(func=cmd_hook)
 
+    _add_study_commands(sub)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -235,6 +237,188 @@ def build_parser() -> argparse.ArgumentParser:
     p_fig_build.set_defaults(func=cmd_fig_build)
 
     return parser
+
+
+def _day(value: str) -> str:
+    from datetime import date
+
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"not a day YYYY-MM-DD: {value!r}") from exc
+
+
+def _add_study_commands(sub) -> None:
+    """progress, plan and status: the student's side of a course (§2.9, §2.11)."""
+    p_prog = sub.add_parser("progress", help="browser progress, examiner results, mastery")
+    prog_sub = p_prog.add_subparsers(dest="progress_command", metavar="<action>", required=True)
+
+    p_imp = prog_sub.add_parser(
+        "import", help="validate a browser export and merge it into progress/state.json"
+    )
+    p_imp.add_argument("course", help="course id or directory")
+    p_imp.add_argument("file", type=Path, help="studykit-progress-<course>-<date>.json")
+    p_imp.add_argument("--dry-run", action="store_true", help="report the changes, write nothing")
+    p_imp.add_argument("--json", action="store_true", help="machine-readable output")
+    p_imp.set_defaults(func=cmd_progress_import)
+
+    p_log = prog_sub.add_parser(
+        "log", help="append examiner results (JSON objects) to progress/examiner.jsonl"
+    )
+    p_log.add_argument("course", help="course id or directory")
+    p_log.add_argument(
+        "--json-line",
+        action="append",
+        metavar="JSON",
+        help="one result as a JSON object (repeatable); without it, JSON lines from stdin",
+    )
+    p_log.add_argument("--json", action="store_true", help="machine-readable output")
+    p_log.set_defaults(func=cmd_progress_log)
+
+    p_rep = prog_sub.add_parser("report", help="write progress/mastery.json and progress/report.md")
+    p_rep.add_argument("course", help="course id or directory")
+    p_rep.add_argument("--today", type=_day, help="the day to report for (default: today)")
+    p_rep.add_argument("--json", action="store_true", help="print mastery.json")
+    p_rep.set_defaults(func=cmd_progress_report)
+
+    p_plan = sub.add_parser("plan", help="schedule the study plan into plan.yaml (deterministic)")
+    p_plan.add_argument("course", help="course id or directory")
+    p_plan.add_argument(
+        "--from", dest="start", type=_day, help="first day to plan (default: today)"
+    )
+    p_plan.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
+    p_plan.add_argument("--json", action="store_true", help="machine-readable output")
+    p_plan.set_defaults(func=cmd_plan)
+
+    p_status = sub.add_parser(
+        "status", help="study status: days left, plan adherence, weak topics, reviews due"
+    )
+    p_status.add_argument("course", help="course id or directory")
+    p_status.add_argument("--today", type=_day, help="the day to report for (default: today)")
+    p_status.add_argument("--json", action="store_true", help="machine-readable output")
+    p_status.set_defaults(func=cmd_status)
+
+
+def _print_findings(found, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps({"ok": False, "findings": [f.to_dict() for f in found]}, indent=2))
+    else:
+        for f in found:
+            print(f.format(), file=sys.stderr)
+
+
+def cmd_progress_import(args: argparse.Namespace) -> int:
+    from studykit import progress
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    result, found = progress.import_file(tree.root, args.file, dry_run=args.dry_run)
+    if found:
+        _print_findings(found, args.json)
+        return 1
+    if args.json:
+        print(json.dumps({"ok": True, **result}, ensure_ascii=False, indent=2))
+    else:
+        print(progress.format_import(result))
+    return 0
+
+
+def cmd_progress_log(args: argparse.Namespace) -> int:
+    from studykit import content, progress
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    if tree.model is None:
+        print(f"error: {tree.id}: course.yaml does not validate", file=sys.stderr)
+        return 1
+    if args.json_line:
+        lines = [("--json-line", i, text) for i, text in enumerate(args.json_line, 1)]
+    else:
+        lines = [("<stdin>", i, text) for i, text in enumerate(sys.stdin.read().splitlines(), 1)]
+    results, found = progress.parse_examiner(lines, tree)
+    if found:
+        _print_findings(found, args.json)
+        return 1
+    if not results:
+        print("error: no examiner results given", file=sys.stderr)
+        return 2
+    path = progress.append_examiner(tree.root, results)
+    if args.json:
+        out = {"ok": True, "logged": len(results), "file": content.display_path(path)}
+        print(json.dumps(out, indent=2))
+    else:
+        print(f"logged {len(results)} result(s) to {content.display_path(path)}")
+    return 0
+
+
+def cmd_progress_report(args: argparse.Namespace) -> int:
+    from studykit import content, progress
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        snap = progress.snapshot(tree.root, args.today)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if snap.findings:
+        _print_findings(snap.findings, args.json)
+        return 1
+    report = progress.compute_report(snap)
+    mastery_path, report_path = progress.write_report(tree.root, report, snap.info)
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print(
+            f"mastery {progress.pct(report['overall'])}; "
+            f"{report['due']['mc']} MC and {report['due']['exercises']} exercise review(s) due; "
+            f"{len(report['misconceptions'])} misconception(s)\n"
+            f"wrote {content.display_path(mastery_path)} and {content.display_path(report_path)}"
+        )
+    return 0
+
+
+def cmd_plan(args: argparse.Namespace) -> int:
+    from studykit import plan
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    result, found = plan.run(tree.root, start=args.start, write=not args.dry_run)
+    errors = [f for f in found if f.is_error]
+    if args.json:
+        out = {"ok": not errors, "findings": [f.to_dict() for f in found], **result}
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        for f in found:
+            print(f.format(), file=sys.stderr)
+        if result:
+            print(plan.format_text(result, dry_run=args.dry_run))
+    return 1 if errors else 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    from studykit import status
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        result, found = status.study_status(tree.root, args.today)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if found:
+        _print_findings(found, args.json)
+        return 1
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(status.format_text(result))
+    return 0
 
 
 def _course_tree(arg: str):

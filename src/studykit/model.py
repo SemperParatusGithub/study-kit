@@ -802,6 +802,190 @@ class Progress(Strict):
         return {key: validated.get(key, value) for key, value in items.items()}
 
 
+# --- examiner results (§2.11, `progress/examiner.jsonl`) ----------------------------------
+
+Choice = Annotated[str, Field(pattern=r"^[A-F]$")]
+
+
+class ExaminerResult(Strict):
+    """One line of `progress/examiner.jsonl`, appended by `studykit progress log`.
+
+    `score` is the share of the item that was right (0 to 1): an MC question scored as the
+    site scores it, a task or exercise as points / max_points, an oral question as the
+    examiner judges it. `finding` names what went wrong in one line (a misconception,
+    a missing step) and is shown in the report.
+    """
+
+    t: IsoDateTime
+    mode: Literal["diagnostic", "topic", "mc", "weak", "misconceptions", "exam", "oral"]
+    kind: Literal["mc", "exercise", "exam-task", "oral"]
+    topic: TopicRef
+    item: Annotated[str, Field(pattern=rf"^{KEBAB}$")] | None = None
+    score: float = Field(ge=0, le=1)
+    conf: Literal["sure", "unsure"] | None = None
+    chosen: list[Choice] = []
+    points: float | None = Field(None, ge=0)
+    max_points: PositiveNumber | None = None
+    finding: Text | None = None
+
+    @model_validator(mode="after")
+    def _fields_for_kind(self) -> ExaminerResult:
+        pattern = {"mc": "mc", "exercise": "exercise", "exam-task": "task"}.get(self.kind)
+        if pattern and (self.item is None or not re.match(PATTERNS[pattern], self.item)):
+            raise sk_error(
+                "SK-SCHEMA-VALUE",
+                f"a '{self.kind}' result needs the {pattern} id in `item`",
+                f"set item to an id like '{EXAMPLES[pattern]}'",
+            )
+        if self.kind == "mc" and self.conf is None:
+            raise sk_error(
+                "SK-SCHEMA-VALUE",
+                "an MC result needs `conf` (sure or unsure), asked before the answer is shown",
+                'add "conf": "sure" or "conf": "unsure"',
+            )
+        if self.kind != "mc" and (self.chosen or self.conf is not None):
+            raise sk_error(
+                "SK-SCHEMA-VALUE",
+                "`chosen` and `conf` belong to MC results only",
+                "remove them, or set kind to mc",
+            )
+        if (self.points is None) != (self.max_points is None):
+            raise sk_error(
+                "SK-SCHEMA-VALUE",
+                "`points` and `max_points` come together",
+                "give both, or neither",
+            )
+        if (
+            self.points is not None
+            and self.max_points is not None
+            and (self.points > self.max_points)
+        ):
+            raise sk_error(
+                "SK-SCHEMA-VALUE",
+                f"points {self.points:g} exceed max_points {self.max_points:g}",
+                "give the points reached and the points the item is worth",
+            )
+        return self
+
+
+# --- mastery report (§2.11, `progress/mastery.json`) --------------------------------------
+
+Fraction = Annotated[float, Field(ge=0, le=1)]
+Count = Annotated[int, Field(ge=0)]
+ExerciseStatus = Literal["new", "started", "not-yet", "partial", "solved"]
+
+
+class TaskScore(Strict):
+    points: float = Field(ge=0)
+    max_points: PositiveNumber
+    fraction: Fraction
+
+
+class ExaminerScore(Strict):
+    results: Count
+    score: Fraction
+
+
+class TopicMastery(Strict):
+    title: Text
+    weight: float = Field(gt=0, le=1)
+    focus: bool
+    skip: bool
+    mastery: Fraction | None = Field(
+        description="the browser's topic accuracy (lib/stats.ts): mean score of the last 10 "
+        "MC attempts; null without attempts"
+    )
+    answered: Count
+    questions: Count
+    attempts: Count
+    due: Count
+    misconceptions: Count
+    exercises: dict[ExerciseStatus, Count]
+    exam_tasks: TaskScore | None = None
+    examiner: ExaminerScore | None = None
+
+
+class DueReviews(Strict):
+    mc: Count
+    exercises: Count
+    mc_ids: list[McId]
+    exercise_ids: list[ExerciseId]
+
+
+class Misconception(Strict):
+    id: McId
+    topic: TopicId
+    t: Text
+    chosen: list[Choice]
+
+
+class ExerciseState(Strict):
+    topic: TopicId | None
+    status: ExerciseStatus
+    hints: Count
+    answer_ok: bool | None
+    box: Box | None
+    due: IsoDate | None
+    due_now: bool
+
+
+class ExamAttemptSummary(Strict):
+    started: Text
+    total: float = Field(ge=0)
+    passed: bool | None
+
+
+class ExamResult(Strict):
+    title: Text
+    points: PositiveNumber
+    pass_points: PositiveNumber
+    attempts: Count
+    best: ExamAttemptSummary | None
+    last: ExamAttemptSummary | None
+
+
+class ExaminerFinding(Strict):
+    t: Text
+    topic: TopicId
+    kind: Literal["mc", "exercise", "exam-task", "oral"]
+    item: str | None
+    score: Fraction
+    finding: Text
+
+
+class ExaminerSummary(Strict):
+    results: Count
+    last: Text | None
+    findings: list[ExaminerFinding]
+
+
+class MasterySources(Strict):
+    state: Text | None = Field(description="exported_at of the merged browser progress")
+    imports: Count
+    examiner: Count
+
+
+class Mastery(Strict):
+    """`progress/mastery.json`, written by `studykit progress report`; the site reads
+    `overall` (else the mean of `topics.<id>.mastery`) at build time (lib/courses.ts)."""
+
+    schema_version: Literal["studykit-mastery/1"] = Field(alias="schema")
+    course: CourseId
+    generated: IsoDate
+    exam_date: IsoDate | None
+    overall: Fraction | None = Field(
+        description="lib/stats.ts mastery(): topic accuracies weighted by topic weight over "
+        "the topics not skipped, unanswered topics count 0; null while nothing is answered"
+    )
+    topics: dict[TopicId, TopicMastery]
+    due: DueReviews
+    misconceptions: list[Misconception]
+    exercises: dict[ExerciseId, ExerciseState]
+    exams: dict[ExamId, ExamResult]
+    examiner: ExaminerSummary
+    sources: MasterySources
+
+
 # --- registry ------------------------------------------------------------------------------
 
 # File kind (content.py) -> frontmatter or YAML model.
@@ -832,6 +1016,8 @@ SCHEMAS: dict[str, type[Strict]] = {
     "plan": Plan,
     "verify": VerifyEntry,
     "progress": Progress,
+    "examiner": ExaminerResult,
+    "mastery": Mastery,
 }
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"

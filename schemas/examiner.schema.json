@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One line of `progress/examiner.jsonl`, appended by `studykit progress log`.\n\n`score` is the share of the item that was right (0 to 1): an MC question scored as the\nsite scores it, a task or exercise as points / max_points, an oral question as the\nexaminer judges it. `finding` names what went wrong in one line (a misconception,\na missing step) and is shown in the report.",
+  "properties": {
+    "t": {
+      "format": "date-time",
+      "title": "T",
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "diagnostic",
+        "topic",
+        "mc",
+        "weak",
+        "misconceptions",
+        "exam",
+        "oral"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "mc",
+        "exercise",
+        "exam-task",
+        "oral"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "topic": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Topic",
+      "type": "string"
+    },
+    "item": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Item"
+    },
+    "score": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Score",
+      "type": "number"
+    },
+    "conf": {
+      "anyOf": [
+        {
+          "enum": [
+            "sure",
+            "unsure"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conf"
+    },
+    "chosen": {
+      "default": [],
+      "items": {
+        "pattern": "^[A-F]$",
+        "type": "string"
+      },
+      "title": "Chosen",
+      "type": "array"
+    },
+    "points": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Points"
+    },
+    "max_points": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Points"
+    },
+    "finding": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finding"
+    }
+  },
+  "required": [
+    "t",
+    "mode",
+    "kind",
+    "topic",
+    "score"
+  ],
+  "title": "ExaminerResult",
+  "type": "object"
+}

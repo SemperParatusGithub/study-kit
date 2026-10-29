@@ -1,0 +1,659 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "DueReviews": {
+      "additionalProperties": false,
+      "properties": {
+        "mc": {
+          "minimum": 0,
+          "title": "Mc",
+          "type": "integer"
+        },
+        "exercises": {
+          "minimum": 0,
+          "title": "Exercises",
+          "type": "integer"
+        },
+        "mc_ids": {
+          "items": {
+            "pattern": "^mc-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{3}$",
+            "type": "string"
+          },
+          "title": "Mc Ids",
+          "type": "array"
+        },
+        "exercise_ids": {
+          "items": {
+            "pattern": "^ex-[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Exercise Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mc",
+        "exercises",
+        "mc_ids",
+        "exercise_ids"
+      ],
+      "title": "DueReviews",
+      "type": "object"
+    },
+    "ExamAttemptSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "started": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Started",
+          "type": "string"
+        },
+        "total": {
+          "minimum": 0,
+          "title": "Total",
+          "type": "number"
+        },
+        "passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Passed"
+        }
+      },
+      "required": [
+        "started",
+        "total",
+        "passed"
+      ],
+      "title": "ExamAttemptSummary",
+      "type": "object"
+    },
+    "ExamResult": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Title",
+          "type": "string"
+        },
+        "points": {
+          "exclusiveMinimum": 0,
+          "title": "Points",
+          "type": "number"
+        },
+        "pass_points": {
+          "exclusiveMinimum": 0,
+          "title": "Pass Points",
+          "type": "number"
+        },
+        "attempts": {
+          "minimum": 0,
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "best": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExamAttemptSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExamAttemptSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "title",
+        "points",
+        "pass_points",
+        "attempts",
+        "best",
+        "last"
+      ],
+      "title": "ExamResult",
+      "type": "object"
+    },
+    "ExaminerFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "t": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "T",
+          "type": "string"
+        },
+        "topic": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Topic",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "mc",
+            "exercise",
+            "exam-task",
+            "oral"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "item": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Item"
+        },
+        "score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "finding": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Finding",
+          "type": "string"
+        }
+      },
+      "required": [
+        "t",
+        "topic",
+        "kind",
+        "item",
+        "score",
+        "finding"
+      ],
+      "title": "ExaminerFinding",
+      "type": "object"
+    },
+    "ExaminerScore": {
+      "additionalProperties": false,
+      "properties": {
+        "results": {
+          "minimum": 0,
+          "title": "Results",
+          "type": "integer"
+        },
+        "score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "results",
+        "score"
+      ],
+      "title": "ExaminerScore",
+      "type": "object"
+    },
+    "ExaminerSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "results": {
+          "minimum": 0,
+          "title": "Results",
+          "type": "integer"
+        },
+        "last": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\n]*\\S[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/ExaminerFinding"
+          },
+          "title": "Findings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "results",
+        "last",
+        "findings"
+      ],
+      "title": "ExaminerSummary",
+      "type": "object"
+    },
+    "ExerciseState": {
+      "additionalProperties": false,
+      "properties": {
+        "topic": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Topic"
+        },
+        "status": {
+          "enum": [
+            "new",
+            "started",
+            "not-yet",
+            "partial",
+            "solved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "hints": {
+          "minimum": 0,
+          "title": "Hints",
+          "type": "integer"
+        },
+        "answer_ok": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Answer Ok"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Box"
+        },
+        "due": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Due"
+        },
+        "due_now": {
+          "title": "Due Now",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "topic",
+        "status",
+        "hints",
+        "answer_ok",
+        "box",
+        "due",
+        "due_now"
+      ],
+      "title": "ExerciseState",
+      "type": "object"
+    },
+    "MasterySources": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\n]*\\S[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "exported_at of the merged browser progress",
+          "title": "State"
+        },
+        "imports": {
+          "minimum": 0,
+          "title": "Imports",
+          "type": "integer"
+        },
+        "examiner": {
+          "minimum": 0,
+          "title": "Examiner",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "state",
+        "imports",
+        "examiner"
+      ],
+      "title": "MasterySources",
+      "type": "object"
+    },
+    "Misconception": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^mc-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{3}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "topic": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Topic",
+          "type": "string"
+        },
+        "t": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "T",
+          "type": "string"
+        },
+        "chosen": {
+          "items": {
+            "pattern": "^[A-F]$",
+            "type": "string"
+          },
+          "title": "Chosen",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "topic",
+        "t",
+        "chosen"
+      ],
+      "title": "Misconception",
+      "type": "object"
+    },
+    "TaskScore": {
+      "additionalProperties": false,
+      "properties": {
+        "points": {
+          "minimum": 0,
+          "title": "Points",
+          "type": "number"
+        },
+        "max_points": {
+          "exclusiveMinimum": 0,
+          "title": "Max Points",
+          "type": "number"
+        },
+        "fraction": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Fraction",
+          "type": "number"
+        }
+      },
+      "required": [
+        "points",
+        "max_points",
+        "fraction"
+      ],
+      "title": "TaskScore",
+      "type": "object"
+    },
+    "TopicMastery": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Title",
+          "type": "string"
+        },
+        "weight": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Weight",
+          "type": "number"
+        },
+        "focus": {
+          "title": "Focus",
+          "type": "boolean"
+        },
+        "skip": {
+          "title": "Skip",
+          "type": "boolean"
+        },
+        "mastery": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the browser's topic accuracy (lib/stats.ts): mean score of the last 10 MC attempts; null without attempts",
+          "title": "Mastery"
+        },
+        "answered": {
+          "minimum": 0,
+          "title": "Answered",
+          "type": "integer"
+        },
+        "questions": {
+          "minimum": 0,
+          "title": "Questions",
+          "type": "integer"
+        },
+        "attempts": {
+          "minimum": 0,
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "due": {
+          "minimum": 0,
+          "title": "Due",
+          "type": "integer"
+        },
+        "misconceptions": {
+          "minimum": 0,
+          "title": "Misconceptions",
+          "type": "integer"
+        },
+        "exercises": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "propertyNames": {
+            "enum": [
+              "new",
+              "started",
+              "not-yet",
+              "partial",
+              "solved"
+            ]
+          },
+          "title": "Exercises",
+          "type": "object"
+        },
+        "exam_tasks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskScore"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "examiner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExaminerScore"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "title",
+        "weight",
+        "focus",
+        "skip",
+        "mastery",
+        "answered",
+        "questions",
+        "attempts",
+        "due",
+        "misconceptions",
+        "exercises"
+      ],
+      "title": "TopicMastery",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`progress/mastery.json`, written by `studykit progress report`; the site reads\n`overall` (else the mean of `topics.<id>.mastery`) at build time (lib/courses.ts).",
+  "properties": {
+    "schema": {
+      "const": "studykit-mastery/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "course": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,39}$",
+      "title": "Course",
+      "type": "string"
+    },
+    "generated": {
+      "format": "date",
+      "title": "Generated",
+      "type": "string"
+    },
+    "exam_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Exam Date"
+    },
+    "overall": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "lib/stats.ts mastery(): topic accuracies weighted by topic weight over the topics not skipped, unanswered topics count 0; null while nothing is answered",
+      "title": "Overall"
+    },
+    "topics": {
+      "patternProperties": {
+        "^[a-z0-9]+(?:-[a-z0-9]+)*$": {
+          "$ref": "#/$defs/TopicMastery"
+        }
+      },
+      "title": "Topics",
+      "type": "object"
+    },
+    "due": {
+      "$ref": "#/$defs/DueReviews"
+    },
+    "misconceptions": {
+      "items": {
+        "$ref": "#/$defs/Misconception"
+      },
+      "title": "Misconceptions",
+      "type": "array"
+    },
+    "exercises": {
+      "patternProperties": {
+        "^ex-[a-z0-9]+(?:-[a-z0-9]+)*$": {
+          "$ref": "#/$defs/ExerciseState"
+        }
+      },
+      "title": "Exercises",
+      "type": "object"
+    },
+    "exams": {
+      "patternProperties": {
+        "^[a-z0-9]+(?:-[a-z0-9]+)*$": {
+          "$ref": "#/$defs/ExamResult"
+        }
+      },
+      "title": "Exams",
+      "type": "object"
+    },
+    "examiner": {
+      "$ref": "#/$defs/ExaminerSummary"
+    },
+    "sources": {
+      "$ref": "#/$defs/MasterySources"
+    }
+  },
+  "required": [
+    "schema",
+    "course",
+    "generated",
+    "exam_date",
+    "overall",
+    "topics",
+    "due",
+    "misconceptions",
+    "exercises",
+    "exams",
+    "examiner",
+    "sources"
+  ],
+  "title": "Mastery",
+  "type": "object"
+}

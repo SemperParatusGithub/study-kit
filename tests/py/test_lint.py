@@ -195,6 +195,12 @@ def filter_codes() -> set[str]:
     }
 
 
+def studykit_modules() -> list[Path]:
+    """Every module of the package that can report a finding (all of them are scanned, so a
+    new command's codes are covered without listing it here)."""
+    return sorted((REPO / "src" / "studykit").rglob("*.py"))
+
+
 def test_filter_codes_name_a_rule():
     """A filter finding names its rule like every other check (docs/architecture.md §4.3)."""
     codes = filter_codes()
@@ -203,10 +209,7 @@ def test_filter_codes_name_a_rule():
 
 
 def test_every_code_is_documented():
-    sources = [
-        REPO / "src" / "studykit" / f"{name}.py"
-        for name in ("yamlio", "model", "content", "validate", "lint", "sitecheck", "checklinks")
-    ]
+    sources = studykit_modules()
     used = set()
     for path in sources:
         used |= set(re.findall(r'"(SK-[A-Z]+-[A-Z0-9-]+)"', path.read_text()))
@@ -217,10 +220,7 @@ def test_every_code_is_documented():
 
 
 def test_documented_codes_exist():
-    sources = "".join(
-        (REPO / "src" / "studykit" / f"{n}.py").read_text()
-        for n in ("yamlio", "model", "content", "validate", "lint", "sitecheck", "checklinks")
-    )
+    sources = "".join(path.read_text() for path in studykit_modules())
     emitted = filter_codes()
     stale = {c for c in documented_codes() if f'"{c}"' not in sources and c not in emitted}
     assert not stale, f"errors.md documents codes nothing emits: {sorted(stale)}"

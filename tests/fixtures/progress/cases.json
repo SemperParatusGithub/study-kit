@@ -1,0 +1,4817 @@
+{
+ "merge": [
+  {
+   "local": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-rc-filter-003": {
+      "h": "9c01aa12",
+      "box": 3,
+      "due": "2026-11-24",
+      "attempts": [
+       {
+        "t": "2026-11-10T09:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-17T09:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "sure",
+        "ms": 1000
+       }
+      ]
+     },
+     "mc:mc-rc-filter-004": {
+      "h": "9c01aa12",
+      "box": 0,
+      "due": "2026-11-18",
+      "attempts": [
+       {
+        "t": "2026-11-18T21:30:00.000Z",
+        "chosen": [
+         "B"
+        ],
+        "score": 0,
+        "conf": "sure",
+        "ms": 1000
+       }
+      ]
+     },
+     "ex:ex-rc-tp-grenzfrequenz": {
+      "h": "3f2a91c0",
+      "hints": 0,
+      "answer_ok": false,
+      "rating": "solved",
+      "box": 2,
+      "due": "2026-11-21"
+     },
+     "ex:ex-rc-tp-bode": {
+      "h": "00000000",
+      "hints": 1,
+      "answer_ok": null,
+      "rating": null,
+      "box": null,
+      "due": null
+     },
+     "exam:probeklausur-1": {
+      "attempts": [
+       {
+        "started": "2026-11-15T09:00:00.000Z",
+        "duration_s": 6900,
+        "points": {
+         "pk1-t1": 12,
+         "mc": 14
+        },
+        "total": 71
+       }
+      ]
+     },
+     "plan:s-2026-11-02-a": {
+      "done": true
+     },
+     "plan:s-2026-11-04-a": {
+      "done": false
+     }
+    }
+   },
+   "incoming": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-rc-filter-003": {
+      "h": "aaaaaaaa",
+      "box": 1,
+      "due": "2026-11-20",
+      "attempts": [
+       {
+        "t": "2026-11-17T09:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "sure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-19T10:00:00.000Z",
+        "chosen": [
+         "A",
+         "C"
+        ],
+        "score": 0.5,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     },
+     "mc:mc-rc-filter-004": {
+      "h": "bbbbbbbb",
+      "box": 2,
+      "due": "2026-11-19",
+      "attempts": [
+       {
+        "t": "2026-11-18T21:30:00.000Z",
+        "chosen": [
+         "B"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     },
+     "mc:mc-wechselstrom-001": {
+      "h": "9c01aa12",
+      "box": 2,
+      "due": "2026-11-22",
+      "attempts": [
+       {
+        "t": "2026-11-19T08:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     },
+     "ex:ex-rc-tp-grenzfrequenz": {
+      "h": "3f2a91c0",
+      "hints": 2,
+      "answer_ok": true,
+      "rating": "not-yet",
+      "box": 1,
+      "due": "2026-11-20"
+     },
+     "ex:ex-rc-tp-bode": {
+      "h": "12345678",
+      "hints": 3,
+      "answer_ok": false,
+      "rating": "solved",
+      "box": 2,
+      "due": "2026-11-23"
+     },
+     "exam:probeklausur-1": {
+      "attempts": [
+       {
+        "started": "2026-11-15T09:00:00.000Z",
+        "duration_s": 6900,
+        "points": {
+         "pk1-t1": 12,
+         "mc": 14
+        },
+        "total": 71
+       },
+       {
+        "started": "2026-11-12T09:00:00.000Z",
+        "duration_s": 7000,
+        "points": {
+         "pk1-t1": 8
+        },
+        "total": 48
+       }
+      ]
+     },
+     "plan:s-2026-11-04-a": {
+      "done": true
+     },
+     "plan:s-2026-11-07-a": {
+      "done": false
+     }
+    }
+   }
+  },
+  {
+   "local": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-rc-filter-003": {
+      "h": "aaaaaaaa",
+      "box": 1,
+      "due": "2026-11-20",
+      "attempts": [
+       {
+        "t": "2026-11-17T09:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "sure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-19T10:00:00.000Z",
+        "chosen": [
+         "A",
+         "C"
+        ],
+        "score": 0.5,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     },
+     "mc:mc-rc-filter-004": {
+      "h": "bbbbbbbb",
+      "box": 2,
+      "due": "2026-11-19",
+      "attempts": [
+       {
+        "t": "2026-11-18T21:30:00.000Z",
+        "chosen": [
+         "B"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     },
+     "mc:mc-wechselstrom-001": {
+      "h": "9c01aa12",
+      "box": 2,
+      "due": "2026-11-22",
+      "attempts": [
+       {
+        "t": "2026-11-19T08:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     },
+     "ex:ex-rc-tp-grenzfrequenz": {
+      "h": "3f2a91c0",
+      "hints": 2,
+      "answer_ok": true,
+      "rating": "not-yet",
+      "box": 1,
+      "due": "2026-11-20"
+     },
+     "ex:ex-rc-tp-bode": {
+      "h": "12345678",
+      "hints": 3,
+      "answer_ok": false,
+      "rating": "solved",
+      "box": 2,
+      "due": "2026-11-23"
+     },
+     "exam:probeklausur-1": {
+      "attempts": [
+       {
+        "started": "2026-11-15T09:00:00.000Z",
+        "duration_s": 6900,
+        "points": {
+         "pk1-t1": 12,
+         "mc": 14
+        },
+        "total": 71
+       },
+       {
+        "started": "2026-11-12T09:00:00.000Z",
+        "duration_s": 7000,
+        "points": {
+         "pk1-t1": 8
+        },
+        "total": 48
+       }
+      ]
+     },
+     "plan:s-2026-11-04-a": {
+      "done": true
+     },
+     "plan:s-2026-11-07-a": {
+      "done": false
+     }
+    }
+   },
+   "incoming": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-rc-filter-003": {
+      "h": "9c01aa12",
+      "box": 3,
+      "due": "2026-11-24",
+      "attempts": [
+       {
+        "t": "2026-11-10T09:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-17T09:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "sure",
+        "ms": 1000
+       }
+      ]
+     },
+     "mc:mc-rc-filter-004": {
+      "h": "9c01aa12",
+      "box": 0,
+      "due": "2026-11-18",
+      "attempts": [
+       {
+        "t": "2026-11-18T21:30:00.000Z",
+        "chosen": [
+         "B"
+        ],
+        "score": 0,
+        "conf": "sure",
+        "ms": 1000
+       }
+      ]
+     },
+     "ex:ex-rc-tp-grenzfrequenz": {
+      "h": "3f2a91c0",
+      "hints": 0,
+      "answer_ok": false,
+      "rating": "solved",
+      "box": 2,
+      "due": "2026-11-21"
+     },
+     "ex:ex-rc-tp-bode": {
+      "h": "00000000",
+      "hints": 1,
+      "answer_ok": null,
+      "rating": null,
+      "box": null,
+      "due": null
+     },
+     "exam:probeklausur-1": {
+      "attempts": [
+       {
+        "started": "2026-11-15T09:00:00.000Z",
+        "duration_s": 6900,
+        "points": {
+         "pk1-t1": 12,
+         "mc": 14
+        },
+        "total": 71
+       }
+      ]
+     },
+     "plan:s-2026-11-02-a": {
+      "done": true
+     },
+     "plan:s-2026-11-04-a": {
+      "done": false
+     }
+    }
+   }
+  },
+  {
+   "local": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "1970-01-01T00:00:00.000Z",
+    "items": {}
+   },
+   "incoming": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-rc-filter-003": {
+      "h": "9c01aa12",
+      "box": 3,
+      "due": "2026-11-24",
+      "attempts": [
+       {
+        "t": "2026-11-10T09:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-17T09:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "sure",
+        "ms": 1000
+       }
+      ]
+     },
+     "mc:mc-rc-filter-004": {
+      "h": "9c01aa12",
+      "box": 0,
+      "due": "2026-11-18",
+      "attempts": [
+       {
+        "t": "2026-11-18T21:30:00.000Z",
+        "chosen": [
+         "B"
+        ],
+        "score": 0,
+        "conf": "sure",
+        "ms": 1000
+       }
+      ]
+     },
+     "ex:ex-rc-tp-grenzfrequenz": {
+      "h": "3f2a91c0",
+      "hints": 0,
+      "answer_ok": false,
+      "rating": "solved",
+      "box": 2,
+      "due": "2026-11-21"
+     },
+     "ex:ex-rc-tp-bode": {
+      "h": "00000000",
+      "hints": 1,
+      "answer_ok": null,
+      "rating": null,
+      "box": null,
+      "due": null
+     },
+     "exam:probeklausur-1": {
+      "attempts": [
+       {
+        "started": "2026-11-15T09:00:00.000Z",
+        "duration_s": 6900,
+        "points": {
+         "pk1-t1": 12,
+         "mc": 14
+        },
+        "total": 71
+       }
+      ]
+     },
+     "plan:s-2026-11-02-a": {
+      "done": true
+     },
+     "plan:s-2026-11-04-a": {
+      "done": false
+     }
+    }
+   }
+  },
+  {
+   "local": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "ex:ex-a": {
+      "h": "aaaaaaaa",
+      "hints": 0,
+      "answer_ok": null,
+      "rating": "solved",
+      "box": 3,
+      "due": "2026-11-30"
+     }
+    }
+   },
+   "incoming": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "ex:ex-a": {
+      "h": "aaaaaaaa",
+      "hints": 2,
+      "answer_ok": null,
+      "rating": "partial",
+      "box": 1,
+      "due": "2026-11-21"
+     }
+    }
+   }
+  },
+  {
+   "local": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "ex:ex-a": {
+      "h": "aaaaaaaa",
+      "hints": 2,
+      "answer_ok": null,
+      "rating": "partial",
+      "box": 1,
+      "due": "2026-11-21"
+     }
+    }
+   },
+   "incoming": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "ex:ex-a": {
+      "h": "aaaaaaaa",
+      "hints": 0,
+      "answer_ok": null,
+      "rating": "solved",
+      "box": 3,
+      "due": "2026-11-30"
+     }
+    }
+   }
+  },
+  {
+   "local": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-spannungsteiler-001": {
+      "h": "aaaaaaaa",
+      "box": 2,
+      "due": "2026-11-12",
+      "attempts": [
+       {
+        "t": "2026-11-11T10:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     }
+    }
+   },
+   "incoming": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-spannungsteiler-001": {
+      "h": "bbbbbbbb",
+      "box": 0,
+      "due": "2026-11-11",
+      "attempts": [
+       {
+        "t": "2026-11-11T10:00:00.000Z",
+        "chosen": [
+         "B"
+        ],
+        "score": 0,
+        "conf": "sure",
+        "ms": 1000
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "local": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-spannungsteiler-001": {
+      "h": "bbbbbbbb",
+      "box": 0,
+      "due": "2026-11-11",
+      "attempts": [
+       {
+        "t": "2026-11-11T10:00:00.000Z",
+        "chosen": [
+         "B"
+        ],
+        "score": 0,
+        "conf": "sure",
+        "ms": 1000
+       }
+      ]
+     }
+    }
+   },
+   "incoming": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-spannungsteiler-001": {
+      "h": "aaaaaaaa",
+      "box": 2,
+      "due": "2026-11-12",
+      "attempts": [
+       {
+        "t": "2026-11-11T10:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "local": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-wechselstrom-002": {
+      "h": "9c01aa12",
+      "box": 5,
+      "due": "2026-12-30",
+      "attempts": [
+       {
+        "t": "2026-10-01T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-01T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-01T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-02T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-02T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-02T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-03T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-03T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-03T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-04T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-04T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-04T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-05T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-05T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-05T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-06T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-06T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-06T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-07T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-07T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-07T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-08T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-08T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-08T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-09T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-09T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-09T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-10T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-10T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-10T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-11T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-11T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-11T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-12T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-12T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-12T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-13T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-13T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-13T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-14T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-14T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-14T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-15T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-15T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-15T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-16T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-16T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-16T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-17T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-17T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-17T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-18T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-18T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-18T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-19T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-19T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-19T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-20T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-20T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-20T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-21T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-21T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-21T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-22T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-22T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-22T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-23T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-23T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-23T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-24T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-24T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-24T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-25T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-25T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-25T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-26T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-26T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-26T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-27T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-27T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-27T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-28T06:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-28T12:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-10-28T18:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 1,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     }
+    }
+   },
+   "incoming": {
+    "schema": "studykit-progress/1",
+    "course": "sample-course",
+    "exported_at": "2026-11-20T18:03:00.000Z",
+    "items": {
+     "mc:mc-wechselstrom-002": {
+      "h": "9c01aa12",
+      "box": 1,
+      "due": "2026-11-30",
+      "attempts": [
+       {
+        "t": "2026-11-01T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-01T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-02T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-02T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-03T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-03T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-04T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-04T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-05T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-05T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-06T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-06T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-07T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-07T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-08T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-08T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-09T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-09T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-10T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-10T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-11T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-11T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-12T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-12T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-13T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-13T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-14T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-14T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-15T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-15T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-16T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-16T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-17T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-17T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-18T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-18T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-19T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-19T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-20T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-20T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-21T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-21T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-22T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-22T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-23T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-23T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-24T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-24T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-25T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-25T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-26T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-26T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-27T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-27T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-28T07:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       },
+       {
+        "t": "2026-11-28T19:00:00.000Z",
+        "chosen": [
+         "A"
+        ],
+        "score": 0,
+        "conf": "unsure",
+        "ms": 1000
+       }
+      ]
+     }
+    }
+   }
+  }
+ ],
+ "stats": [
+  {
+   "items": {
+    "mc:mc-spannungsteiler-001": {
+     "h": "9c01aa12",
+     "box": 2,
+     "due": "2026-11-09",
+     "attempts": [
+      {
+       "t": "2026-11-01T00:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T01:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T02:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T03:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T04:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T05:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T11:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T12:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T13:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T14:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T15:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-003": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-09T23:30:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-001": {
+     "h": "9c01aa12",
+     "box": 3,
+     "due": "2026-11-17",
+     "attempts": [
+      {
+       "t": "2026-11-10T12:00:00",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-10",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-001": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-10T08:00:00+05:30",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-099": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-01",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:pk1-mc-01": {
+     "h": "9c01aa12",
+     "box": null,
+     "due": null,
+     "attempts": [
+      {
+       "t": "2026-11-05T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-002": {
+     "h": "9c01aa12",
+     "box": 5,
+     "due": "2027-03-01",
+     "attempts": [
+      {
+       "t": "2027-01-20T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "ex:ex-a": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": true,
+     "rating": "solved",
+     "box": 2,
+     "due": "2026-11-10"
+    },
+    "ex:ex-b": {
+     "h": "9c01aa12",
+     "hints": 2,
+     "answer_ok": null,
+     "rating": "partial",
+     "box": 1,
+     "due": "2026-11-12"
+    },
+    "ex:ex-c": {
+     "h": "9c01aa12",
+     "hints": 1,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-d": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-e": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": false,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "exam:probeklausur-1": {
+     "attempts": [
+      {
+       "started": "2026-11-08T09:00:00.000Z",
+       "duration_s": 3300,
+       "points": {
+        "mc": 12
+       },
+       "total": 55
+      },
+      {
+       "started": "2026-11-04T09:00:00.000Z",
+       "duration_s": 3000,
+       "points": {
+        "mc": 10
+       },
+       "total": 62
+      }
+     ]
+    },
+    "plan:s-2026-11-02-a": {
+     "done": true
+    },
+    "plan:s-2026-11-12-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "weight": 0.25,
+     "mc": [
+      "mc-spannungsteiler-001",
+      "mc-spannungsteiler-002",
+      "mc-spannungsteiler-003"
+     ]
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "weight": 0.35,
+     "mc": [
+      "mc-wechselstrom-001",
+      "mc-wechselstrom-002"
+     ]
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "weight": 0.4,
+     "mc": [
+      "mc-rc-filter-001",
+      "mc-rc-filter-002",
+      "mc-rc-filter-003",
+      "mc-rc-filter-004"
+     ]
+    }
+   ],
+   "today": "2026-11-10",
+   "examDate": "2027-02-15",
+   "sessions": [
+    {
+     "id": "s-2026-11-02-a",
+     "date": "2026-11-02"
+    },
+    {
+     "id": "s-2026-11-04-a",
+     "date": "2026-11-04"
+    },
+    {
+     "id": "s-2026-11-12-a",
+     "date": "2026-11-12"
+    },
+    {
+     "id": "s-2026-11-10-a",
+     "date": "2026-11-10"
+    },
+    {
+     "id": "s-2026-11-14-a",
+     "date": "2026-11-14"
+    }
+   ]
+  },
+  {
+   "items": {
+    "mc:mc-spannungsteiler-001": {
+     "h": "9c01aa12",
+     "box": 2,
+     "due": "2026-11-09",
+     "attempts": [
+      {
+       "t": "2026-11-01T00:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T01:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T02:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T03:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T04:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T05:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T11:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T12:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T13:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T14:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T15:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-003": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-09T23:30:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-001": {
+     "h": "9c01aa12",
+     "box": 3,
+     "due": "2026-11-17",
+     "attempts": [
+      {
+       "t": "2026-11-10T12:00:00",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-10",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-001": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-10T08:00:00+05:30",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-099": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-01",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:pk1-mc-01": {
+     "h": "9c01aa12",
+     "box": null,
+     "due": null,
+     "attempts": [
+      {
+       "t": "2026-11-05T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-002": {
+     "h": "9c01aa12",
+     "box": 5,
+     "due": "2027-03-01",
+     "attempts": [
+      {
+       "t": "2027-01-20T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "ex:ex-a": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": true,
+     "rating": "solved",
+     "box": 2,
+     "due": "2026-11-10"
+    },
+    "ex:ex-b": {
+     "h": "9c01aa12",
+     "hints": 2,
+     "answer_ok": null,
+     "rating": "partial",
+     "box": 1,
+     "due": "2026-11-12"
+    },
+    "ex:ex-c": {
+     "h": "9c01aa12",
+     "hints": 1,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-d": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-e": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": false,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "exam:probeklausur-1": {
+     "attempts": [
+      {
+       "started": "2026-11-08T09:00:00.000Z",
+       "duration_s": 3300,
+       "points": {
+        "mc": 12
+       },
+       "total": 55
+      },
+      {
+       "started": "2026-11-04T09:00:00.000Z",
+       "duration_s": 3000,
+       "points": {
+        "mc": 10
+       },
+       "total": 62
+      }
+     ]
+    },
+    "plan:s-2026-11-02-a": {
+     "done": true
+    },
+    "plan:s-2026-11-12-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "weight": 0.25,
+     "mc": [
+      "mc-spannungsteiler-001",
+      "mc-spannungsteiler-002",
+      "mc-spannungsteiler-003"
+     ]
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "weight": 0.35,
+     "mc": [
+      "mc-wechselstrom-001",
+      "mc-wechselstrom-002"
+     ]
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "weight": 0.4,
+     "mc": [
+      "mc-rc-filter-001",
+      "mc-rc-filter-002",
+      "mc-rc-filter-003",
+      "mc-rc-filter-004"
+     ]
+    }
+   ],
+   "today": "2026-11-11",
+   "examDate": "2027-02-15",
+   "sessions": [
+    {
+     "id": "s-2026-11-02-a",
+     "date": "2026-11-02"
+    },
+    {
+     "id": "s-2026-11-04-a",
+     "date": "2026-11-04"
+    },
+    {
+     "id": "s-2026-11-12-a",
+     "date": "2026-11-12"
+    },
+    {
+     "id": "s-2026-11-10-a",
+     "date": "2026-11-10"
+    },
+    {
+     "id": "s-2026-11-14-a",
+     "date": "2026-11-14"
+    }
+   ]
+  },
+  {
+   "items": {
+    "mc:mc-spannungsteiler-001": {
+     "h": "9c01aa12",
+     "box": 2,
+     "due": "2026-11-09",
+     "attempts": [
+      {
+       "t": "2026-11-01T00:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T01:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T02:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T03:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T04:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T05:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T11:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T12:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T13:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T14:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T15:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-003": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-09T23:30:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-001": {
+     "h": "9c01aa12",
+     "box": 3,
+     "due": "2026-11-17",
+     "attempts": [
+      {
+       "t": "2026-11-10T12:00:00",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-10",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-001": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-10T08:00:00+05:30",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-099": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-01",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:pk1-mc-01": {
+     "h": "9c01aa12",
+     "box": null,
+     "due": null,
+     "attempts": [
+      {
+       "t": "2026-11-05T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-002": {
+     "h": "9c01aa12",
+     "box": 5,
+     "due": "2027-03-01",
+     "attempts": [
+      {
+       "t": "2027-01-20T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "ex:ex-a": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": true,
+     "rating": "solved",
+     "box": 2,
+     "due": "2026-11-10"
+    },
+    "ex:ex-b": {
+     "h": "9c01aa12",
+     "hints": 2,
+     "answer_ok": null,
+     "rating": "partial",
+     "box": 1,
+     "due": "2026-11-12"
+    },
+    "ex:ex-c": {
+     "h": "9c01aa12",
+     "hints": 1,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-d": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-e": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": false,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "exam:probeklausur-1": {
+     "attempts": [
+      {
+       "started": "2026-11-08T09:00:00.000Z",
+       "duration_s": 3300,
+       "points": {
+        "mc": 12
+       },
+       "total": 55
+      },
+      {
+       "started": "2026-11-04T09:00:00.000Z",
+       "duration_s": 3000,
+       "points": {
+        "mc": 10
+       },
+       "total": 62
+      }
+     ]
+    },
+    "plan:s-2026-11-02-a": {
+     "done": true
+    },
+    "plan:s-2026-11-12-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "weight": 0.25,
+     "mc": [
+      "mc-spannungsteiler-001",
+      "mc-spannungsteiler-002",
+      "mc-spannungsteiler-003"
+     ]
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "weight": 0.35,
+     "mc": [
+      "mc-wechselstrom-001",
+      "mc-wechselstrom-002"
+     ]
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "weight": 0.4,
+     "mc": [
+      "mc-rc-filter-001",
+      "mc-rc-filter-002",
+      "mc-rc-filter-003",
+      "mc-rc-filter-004"
+     ]
+    }
+   ],
+   "today": "2027-02-06",
+   "examDate": "2027-02-15",
+   "sessions": [
+    {
+     "id": "s-2026-11-02-a",
+     "date": "2026-11-02"
+    },
+    {
+     "id": "s-2026-11-04-a",
+     "date": "2026-11-04"
+    },
+    {
+     "id": "s-2026-11-12-a",
+     "date": "2026-11-12"
+    },
+    {
+     "id": "s-2026-11-10-a",
+     "date": "2026-11-10"
+    },
+    {
+     "id": "s-2026-11-14-a",
+     "date": "2026-11-14"
+    }
+   ]
+  },
+  {
+   "items": {
+    "mc:mc-spannungsteiler-001": {
+     "h": "9c01aa12",
+     "box": 2,
+     "due": "2026-11-09",
+     "attempts": [
+      {
+       "t": "2026-11-01T00:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T01:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T02:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T03:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T04:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T05:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T11:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T12:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T13:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T14:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T15:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-003": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-09T23:30:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-001": {
+     "h": "9c01aa12",
+     "box": 3,
+     "due": "2026-11-17",
+     "attempts": [
+      {
+       "t": "2026-11-10T12:00:00",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-10",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-001": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-10T08:00:00+05:30",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-099": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-01",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:pk1-mc-01": {
+     "h": "9c01aa12",
+     "box": null,
+     "due": null,
+     "attempts": [
+      {
+       "t": "2026-11-05T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-002": {
+     "h": "9c01aa12",
+     "box": 5,
+     "due": "2027-03-01",
+     "attempts": [
+      {
+       "t": "2027-01-20T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "ex:ex-a": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": true,
+     "rating": "solved",
+     "box": 2,
+     "due": "2026-11-10"
+    },
+    "ex:ex-b": {
+     "h": "9c01aa12",
+     "hints": 2,
+     "answer_ok": null,
+     "rating": "partial",
+     "box": 1,
+     "due": "2026-11-12"
+    },
+    "ex:ex-c": {
+     "h": "9c01aa12",
+     "hints": 1,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-d": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-e": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": false,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "exam:probeklausur-1": {
+     "attempts": [
+      {
+       "started": "2026-11-08T09:00:00.000Z",
+       "duration_s": 3300,
+       "points": {
+        "mc": 12
+       },
+       "total": 55
+      },
+      {
+       "started": "2026-11-04T09:00:00.000Z",
+       "duration_s": 3000,
+       "points": {
+        "mc": 10
+       },
+       "total": 62
+      }
+     ]
+    },
+    "plan:s-2026-11-02-a": {
+     "done": true
+    },
+    "plan:s-2026-11-12-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "weight": 0.25,
+     "mc": [
+      "mc-spannungsteiler-001",
+      "mc-spannungsteiler-002",
+      "mc-spannungsteiler-003"
+     ]
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "weight": 0.35,
+     "mc": [
+      "mc-wechselstrom-001",
+      "mc-wechselstrom-002"
+     ]
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "weight": 0.4,
+     "mc": [
+      "mc-rc-filter-001",
+      "mc-rc-filter-002",
+      "mc-rc-filter-003",
+      "mc-rc-filter-004"
+     ]
+    }
+   ],
+   "today": "2027-02-14",
+   "examDate": "2027-02-15",
+   "sessions": [
+    {
+     "id": "s-2026-11-02-a",
+     "date": "2026-11-02"
+    },
+    {
+     "id": "s-2026-11-04-a",
+     "date": "2026-11-04"
+    },
+    {
+     "id": "s-2026-11-12-a",
+     "date": "2026-11-12"
+    },
+    {
+     "id": "s-2026-11-10-a",
+     "date": "2026-11-10"
+    },
+    {
+     "id": "s-2026-11-14-a",
+     "date": "2026-11-14"
+    }
+   ]
+  },
+  {
+   "items": {
+    "mc:mc-spannungsteiler-001": {
+     "h": "9c01aa12",
+     "box": 2,
+     "due": "2026-11-09",
+     "attempts": [
+      {
+       "t": "2026-11-01T00:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T01:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T02:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T03:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T04:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T05:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T11:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T12:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T13:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T14:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T15:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-003": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-09T23:30:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-001": {
+     "h": "9c01aa12",
+     "box": 3,
+     "due": "2026-11-17",
+     "attempts": [
+      {
+       "t": "2026-11-10T12:00:00",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-10",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-001": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-10T08:00:00+05:30",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-099": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-01",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:pk1-mc-01": {
+     "h": "9c01aa12",
+     "box": null,
+     "due": null,
+     "attempts": [
+      {
+       "t": "2026-11-05T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-002": {
+     "h": "9c01aa12",
+     "box": 5,
+     "due": "2027-03-01",
+     "attempts": [
+      {
+       "t": "2027-01-20T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "ex:ex-a": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": true,
+     "rating": "solved",
+     "box": 2,
+     "due": "2026-11-10"
+    },
+    "ex:ex-b": {
+     "h": "9c01aa12",
+     "hints": 2,
+     "answer_ok": null,
+     "rating": "partial",
+     "box": 1,
+     "due": "2026-11-12"
+    },
+    "ex:ex-c": {
+     "h": "9c01aa12",
+     "hints": 1,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-d": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-e": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": false,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "exam:probeklausur-1": {
+     "attempts": [
+      {
+       "started": "2026-11-08T09:00:00.000Z",
+       "duration_s": 3300,
+       "points": {
+        "mc": 12
+       },
+       "total": 55
+      },
+      {
+       "started": "2026-11-04T09:00:00.000Z",
+       "duration_s": 3000,
+       "points": {
+        "mc": 10
+       },
+       "total": 62
+      }
+     ]
+    },
+    "plan:s-2026-11-02-a": {
+     "done": true
+    },
+    "plan:s-2026-11-12-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "weight": 0.25,
+     "mc": [
+      "mc-spannungsteiler-001",
+      "mc-spannungsteiler-002",
+      "mc-spannungsteiler-003"
+     ]
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "weight": 0.35,
+     "mc": [
+      "mc-wechselstrom-001",
+      "mc-wechselstrom-002"
+     ]
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "weight": 0.4,
+     "mc": [
+      "mc-rc-filter-001",
+      "mc-rc-filter-002",
+      "mc-rc-filter-003",
+      "mc-rc-filter-004"
+     ]
+    }
+   ],
+   "today": "2027-02-20",
+   "examDate": "2027-02-15",
+   "sessions": [
+    {
+     "id": "s-2026-11-02-a",
+     "date": "2026-11-02"
+    },
+    {
+     "id": "s-2026-11-04-a",
+     "date": "2026-11-04"
+    },
+    {
+     "id": "s-2026-11-12-a",
+     "date": "2026-11-12"
+    },
+    {
+     "id": "s-2026-11-10-a",
+     "date": "2026-11-10"
+    },
+    {
+     "id": "s-2026-11-14-a",
+     "date": "2026-11-14"
+    }
+   ]
+  },
+  {
+   "items": {
+    "mc:mc-spannungsteiler-001": {
+     "h": "9c01aa12",
+     "box": 2,
+     "due": "2026-11-09",
+     "attempts": [
+      {
+       "t": "2026-11-01T00:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T01:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T02:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T03:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T04:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T05:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T11:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T12:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T13:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T14:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T15:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-003": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-09T23:30:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-001": {
+     "h": "9c01aa12",
+     "box": 3,
+     "due": "2026-11-17",
+     "attempts": [
+      {
+       "t": "2026-11-10T12:00:00",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-10",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-001": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-10T08:00:00+05:30",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-099": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-01",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:pk1-mc-01": {
+     "h": "9c01aa12",
+     "box": null,
+     "due": null,
+     "attempts": [
+      {
+       "t": "2026-11-05T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-002": {
+     "h": "9c01aa12",
+     "box": 5,
+     "due": "2027-03-01",
+     "attempts": [
+      {
+       "t": "2027-01-20T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "ex:ex-a": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": true,
+     "rating": "solved",
+     "box": 2,
+     "due": "2026-11-10"
+    },
+    "ex:ex-b": {
+     "h": "9c01aa12",
+     "hints": 2,
+     "answer_ok": null,
+     "rating": "partial",
+     "box": 1,
+     "due": "2026-11-12"
+    },
+    "ex:ex-c": {
+     "h": "9c01aa12",
+     "hints": 1,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-d": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-e": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": false,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "exam:probeklausur-1": {
+     "attempts": [
+      {
+       "started": "2026-11-08T09:00:00.000Z",
+       "duration_s": 3300,
+       "points": {
+        "mc": 12
+       },
+       "total": 55
+      },
+      {
+       "started": "2026-11-04T09:00:00.000Z",
+       "duration_s": 3000,
+       "points": {
+        "mc": 10
+       },
+       "total": 62
+      }
+     ]
+    },
+    "plan:s-2026-11-02-a": {
+     "done": true
+    },
+    "plan:s-2026-11-12-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "weight": 0.25,
+     "mc": [
+      "mc-spannungsteiler-001",
+      "mc-spannungsteiler-002",
+      "mc-spannungsteiler-003"
+     ]
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "weight": 0.35,
+     "mc": [
+      "mc-wechselstrom-001",
+      "mc-wechselstrom-002"
+     ],
+     "skip": true
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "weight": 0.4,
+     "mc": [
+      "mc-rc-filter-001",
+      "mc-rc-filter-002",
+      "mc-rc-filter-003",
+      "mc-rc-filter-004"
+     ]
+    }
+   ],
+   "today": "2026-11-10",
+   "examDate": null,
+   "sessions": [
+    {
+     "id": "s-2026-11-02-a",
+     "date": "2026-11-02"
+    },
+    {
+     "id": "s-2026-11-04-a",
+     "date": "2026-11-04"
+    },
+    {
+     "id": "s-2026-11-12-a",
+     "date": "2026-11-12"
+    },
+    {
+     "id": "s-2026-11-10-a",
+     "date": "2026-11-10"
+    },
+    {
+     "id": "s-2026-11-14-a",
+     "date": "2026-11-14"
+    }
+   ]
+  },
+  {
+   "items": {
+    "mc:mc-spannungsteiler-001": {
+     "h": "9c01aa12",
+     "box": 2,
+     "due": "2026-11-09",
+     "attempts": [
+      {
+       "t": "2026-11-01T00:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T01:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T02:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T03:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T04:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T05:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T11:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T12:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T13:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T14:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T15:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-003": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-09T23:30:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-001": {
+     "h": "9c01aa12",
+     "box": 3,
+     "due": "2026-11-17",
+     "attempts": [
+      {
+       "t": "2026-11-10T12:00:00",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-10",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-001": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-10T08:00:00+05:30",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-099": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-01",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:pk1-mc-01": {
+     "h": "9c01aa12",
+     "box": null,
+     "due": null,
+     "attempts": [
+      {
+       "t": "2026-11-05T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-002": {
+     "h": "9c01aa12",
+     "box": 5,
+     "due": "2027-03-01",
+     "attempts": [
+      {
+       "t": "2027-01-20T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "ex:ex-a": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": true,
+     "rating": "solved",
+     "box": 2,
+     "due": "2026-11-10"
+    },
+    "ex:ex-b": {
+     "h": "9c01aa12",
+     "hints": 2,
+     "answer_ok": null,
+     "rating": "partial",
+     "box": 1,
+     "due": "2026-11-12"
+    },
+    "ex:ex-c": {
+     "h": "9c01aa12",
+     "hints": 1,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-d": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-e": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": false,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "exam:probeklausur-1": {
+     "attempts": [
+      {
+       "started": "2026-11-08T09:00:00.000Z",
+       "duration_s": 3300,
+       "points": {
+        "mc": 12
+       },
+       "total": 55
+      },
+      {
+       "started": "2026-11-04T09:00:00.000Z",
+       "duration_s": 3000,
+       "points": {
+        "mc": 10
+       },
+       "total": 62
+      }
+     ]
+    },
+    "plan:s-2026-11-02-a": {
+     "done": true
+    },
+    "plan:s-2026-11-12-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "mc": [
+      "mc-spannungsteiler-001",
+      "mc-spannungsteiler-002",
+      "mc-spannungsteiler-003"
+     ]
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "mc": [
+      "mc-wechselstrom-001",
+      "mc-wechselstrom-002"
+     ]
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "mc": [
+      "mc-rc-filter-001",
+      "mc-rc-filter-002",
+      "mc-rc-filter-003",
+      "mc-rc-filter-004"
+     ]
+    }
+   ],
+   "today": "2026-11-10",
+   "examDate": "2027-02-15",
+   "sessions": []
+  },
+  {
+   "items": {
+    "mc:mc-spannungsteiler-001": {
+     "h": "9c01aa12",
+     "box": 2,
+     "due": "2026-11-09",
+     "attempts": [
+      {
+       "t": "2026-11-01T00:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T01:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T02:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T03:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T04:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T05:15:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-02T11:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-03T12:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-04T13:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-05T14:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      },
+      {
+       "t": "2026-11-06T15:45:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-spannungsteiler-003": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-09T23:30:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-001": {
+     "h": "9c01aa12",
+     "box": 3,
+     "due": "2026-11-17",
+     "attempts": [
+      {
+       "t": "2026-11-10T12:00:00",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-wechselstrom-002": {
+     "h": "9c01aa12",
+     "box": 1,
+     "due": "2026-11-11",
+     "attempts": [
+      {
+       "t": "2026-11-10",
+       "chosen": [
+        "A"
+       ],
+       "score": 0.5,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-001": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-10",
+     "attempts": [
+      {
+       "t": "2026-11-10T08:00:00+05:30",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "sure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-099": {
+     "h": "9c01aa12",
+     "box": 0,
+     "due": "2026-11-01",
+     "attempts": [
+      {
+       "t": "2026-11-01T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 0,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:pk1-mc-01": {
+     "h": "9c01aa12",
+     "box": null,
+     "due": null,
+     "attempts": [
+      {
+       "t": "2026-11-05T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "mc:mc-rc-filter-002": {
+     "h": "9c01aa12",
+     "box": 5,
+     "due": "2027-03-01",
+     "attempts": [
+      {
+       "t": "2027-01-20T10:00:00.000Z",
+       "chosen": [
+        "A"
+       ],
+       "score": 1,
+       "conf": "unsure",
+       "ms": 1000
+      }
+     ]
+    },
+    "ex:ex-a": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": true,
+     "rating": "solved",
+     "box": 2,
+     "due": "2026-11-10"
+    },
+    "ex:ex-b": {
+     "h": "9c01aa12",
+     "hints": 2,
+     "answer_ok": null,
+     "rating": "partial",
+     "box": 1,
+     "due": "2026-11-12"
+    },
+    "ex:ex-c": {
+     "h": "9c01aa12",
+     "hints": 1,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-d": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": null,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "ex:ex-e": {
+     "h": "9c01aa12",
+     "hints": 0,
+     "answer_ok": false,
+     "rating": null,
+     "box": null,
+     "due": null
+    },
+    "exam:probeklausur-1": {
+     "attempts": [
+      {
+       "started": "2026-11-08T09:00:00.000Z",
+       "duration_s": 3300,
+       "points": {
+        "mc": 12
+       },
+       "total": 55
+      },
+      {
+       "started": "2026-11-04T09:00:00.000Z",
+       "duration_s": 3000,
+       "points": {
+        "mc": 10
+       },
+       "total": 62
+      }
+     ]
+    },
+    "plan:s-2026-11-02-a": {
+     "done": true
+    },
+    "plan:s-2026-11-12-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "weight": 0.25
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "weight": 0.35
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "weight": 0.4
+    }
+   ],
+   "today": "2026-11-10",
+   "examDate": "2027-02-15",
+   "sessions": []
+  },
+  {
+   "items": {
+    "plan:s-2026-11-02-a": {
+     "done": true
+    }
+   },
+   "topics": [
+    {
+     "id": "spannungsteiler",
+     "title": "Spannungsteiler",
+     "weight": 0.25,
+     "mc": [
+      "mc-spannungsteiler-001",
+      "mc-spannungsteiler-002",
+      "mc-spannungsteiler-003"
+     ]
+    },
+    {
+     "id": "wechselstrom",
+     "title": "Wechselstrom",
+     "weight": 0.35,
+     "mc": [
+      "mc-wechselstrom-001",
+      "mc-wechselstrom-002"
+     ]
+    },
+    {
+     "id": "rc-filter",
+     "title": "RC-Filter",
+     "weight": 0.4,
+     "mc": [
+      "mc-rc-filter-001",
+      "mc-rc-filter-002",
+      "mc-rc-filter-003",
+      "mc-rc-filter-004"
+     ]
+    }
+   ],
+   "today": "2026-11-10",
+   "examDate": "2027-02-15",
+   "sessions": [
+    {
+     "id": "s-2026-11-02-a",
+     "date": "2026-11-02"
+    },
+    {
+     "id": "s-2026-11-04-a",
+     "date": "2026-11-04"
+    },
+    {
+     "id": "s-2026-11-12-a",
+     "date": "2026-11-12"
+    },
+    {
+     "id": "s-2026-11-10-a",
+     "date": "2026-11-10"
+    },
+    {
+     "id": "s-2026-11-14-a",
+     "date": "2026-11-14"
+    }
+   ]
+  }
+ ]
+}
