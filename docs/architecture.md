@@ -1542,8 +1542,8 @@ Planned for Phase 6: `/register-new-subject` and `/add-material`, the `ingest` s
 status (§5.4). `tests/py/test_claude.py` keeps the layer in line with this section and the
 CLI (§4.4).
 
-Every procedure finds course files with `studykit ls` and ids with `studykit index --json`
-and reads them by explicit path, because Grep and Glob may skip the gitignored `courses/`
+Every procedure finds course files with `studykit ls <c>` and ids with
+`studykit index <c> --json` and reads them by explicit path, because Grep and Glob may skip the gitignored `courses/`
 (§7 risk 10), and computes every number with `studykit calc` or Python. Skills and agents
 call the CLI as `uv run --frozen studykit …`.
 
@@ -1615,8 +1615,8 @@ the main thread and can use AskUserQuestion and start agents). `just tutor` and
 | `/import-progress` | `<course> [file]` | Takes the given browser export, or the newest `~/Downloads/studykit-progress-<course>-*.json`, shown with its date and size and read only after confirmation. Previews with `progress import --dry-run` (SK-PROGRESS findings stop it), imports, runs `progress report` and `status`, and offers a replan when sessions are behind or the weakest topics changed (`studykit plan`, the missing goals, `validate --paths plan.yaml`, `pdf <c> plan`). |
 | `/study-status` | `<course>` | `studykit status` unchanged in a code block, then at most four lines: plan adherence, the weakest topic and the reviews due, and one next step (the next session, `/import-progress`, `/examine <c> mc`, `/tutor <c> <topic>`, `/regenerate <c> plan`, or a mock exam in the last three weeks). Read-only. |
 
-**`/tutor`** prepares quietly from `studykit status --json` and `studykit index --json`
-(never using a quarantined id), the topic's summary chapter, the exercise with its hints
+**`/tutor`** prepares quietly from `studykit status <c> --json` and
+`studykit index <c> --json` (never using a quarantined id), the topic's summary chapter, the exercise with its hints
 and solution, the student's misconceptions (`progress/mastery.json`) and the `why` lines
 of the topic's MC bank. It takes the given exercise, an unsolved exercise of the given
 topic (easy to hard), or offers the weakest topic and that of the next session. It talks
@@ -1628,8 +1628,8 @@ after trying. Every number, the student's and its own, is checked with `studykit
 against the key's tolerance. It closes with what the student can do now, the misconception
 that came up and one next step, and logs nothing.
 
-**`/examine`** reads `studykit status --json`, `progress report --json` and
-`index --json` (no quarantined ids), picks the items of its mode and reads their keys,
+**`/examine`** reads `studykit status <c> --json`, `studykit progress report <c> --json` and
+`studykit index <c> --json` (no quarantined ids), picks the items of its mode and reads their keys,
 `why`s, explanations, answers and rubrics without showing any of them:
 
 | Mode | Items |
@@ -1644,8 +1644,8 @@ that came up and one next step, and logs nothing.
 
 Exercises and exam tasks are graded key by key with `studykit calc`
 (`|x − value| ≤ atol + rtol·|value|`, `--units` to convert; a symbolic answer is right
-when its difference to the key is exactly 0), exam tasks by their rubric (a criterion's points, half of them
-with a stated reason, or none). Every graded item is logged with `studykit progress log`
+when its difference to the key is exactly 0), exam tasks by their rubric (a criterion's
+points, half of them with a stated reason, or none). Every graded item is logged with `studykit progress log`
 (`mode`, `kind`, `topic`, `item`, for MC `chosen` in source letters and `conf`, optional
 `points` and `max_points`, a `finding` naming the mistake); the command computes an MC
 score from `chosen` and refuses one that differs (§2.11). The session closes with
@@ -1756,7 +1756,9 @@ dispute loop of `/verify`, `studykit plan`, `validate` and `pdf`.
 
 The state is derived from outputs by a pipeline status command (manifest hashes plus file
 presence plus ledger; `studykit status` is already the student's status, §2.11, so this one
-gets another name). There is no separate state file. Running the command again resumes at the first unfinished step. Success is judged from files and gates, never from an agent's own report.
+gets another name). There is no separate state file. Running the command again resumes at
+the first unfinished step. Success is judged from files and gates, never from an agent's own
+report.
 
 0. **Preflight:**
    - `just doctor --quick`
@@ -1943,7 +1945,7 @@ Commits:
 | 7 | Course material leaks into the public repo | Gitignore; pre-commit hook; Claude `pre-git` hook and deny rules; CI guard; no agent memory; self-written sample course |
 | 8 | Toolchain drift (pandoc 3.13 is 3 days old; Typst 0.x breaking changes; Astro 7 Markdown churn) | sha256-pinned binaries shared by local and CI; lockfiles with 7-day cooldowns; `doctor`; Astro's Markdown pipeline not used at all; one-line fallback to pandoc 3.12.1 |
 | 9 | Lost browser progress (origin or port change, Safari eviction) or edits invalidating it | Fixed `localhost:4321` with strictPort; `storage.persist()`; export, import and merge; content hashes per item; `/import-progress` merges the export into `progress/state.json` and keeps a copy in `progress/browser/` |
-| 10 | Claude Code's Grep and Glob may skip the gitignored `courses/` | Every skill and agent lists course files with `studykit ls` and ids with `studykit index --json` and reads explicit paths (Read is unaffected); the hooks take the path from the event |
+| 10 | Claude Code's Grep and Glob may skip the gitignored `courses/` | Every skill and agent lists course files with `studykit ls <c>` and ids with `studykit index <c> --json` and reads explicit paths (Read is unaffected); the hooks take the path from the event |
 | 11 | Cost and time of a full ingest and generation run on large courses | Text-first reading with vision only for flagged pages; 20-page chunks; sonnet for ingestion; caps of 6 agents; estimate and core-first mode; resumable status |
 | 12 | Mock exams copy past exams too closely | Modelled at archetype level; n-gram similarity warning (planned); new values and circuits required |
 | 13 | YAML pitfalls (backslash escapes, YAML 1.1 vs 1.2) | Scalar-style lint from parser events; restricted PyYAML loader that reads plain scalars like the YAML 1.2 core schema; the site gets frontmatter from that loader through the render bridge and reads `course.yaml` and `plan.yaml` with `yaml` 1.2 (core schema); no LaTeX in `course.yaml` |
