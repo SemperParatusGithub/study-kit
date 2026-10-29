@@ -127,13 +127,13 @@ export class SkProgress extends HTMLElement {
           exDue ? stat(exDue, exDue === 1 ? 'exercise to review' : 'exercises to review') : null)),
       h('p', { class: 'sk-progress-note' },
         `Mastery averages how many of each topic's last ${RECENT} answers were right, weighted by the topic's share of the exam; topics not started count as 0.`),
-      h('h3', {}, 'Topics'),
+      h('h2', { class: 'sk-progress-title' }, 'Topics'),
       topics.length
         ? h('ul', { class: 'sk-topic-list' }, ...stats.map((s) => topicRow(s, this.content)))
         : h('p', { class: 'sk-muted' }, 'No topics.'),
-      h('h3', {}, 'Sure or unsure?'),
+      h('h2', { class: 'sk-progress-title' }, 'Sure or unsure?'),
       calibration(sure, unsure),
-      h('h3', {}, 'Mock exams'),
+      h('h2', { class: 'sk-progress-title' }, 'Mock exams'),
       examTable(examRows, exams, this.content),
     );
   }

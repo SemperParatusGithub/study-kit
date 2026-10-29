@@ -1376,6 +1376,12 @@ sk-progress {
   color: var(--ske-muted);
 }
 
+/* section headings: h2 under the page's h1, sized like the page's subsections */
+.sk-progress-title {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
 .sk-progress-note {
   max-width: 44rem;
   margin: 0.75rem 0 0;
