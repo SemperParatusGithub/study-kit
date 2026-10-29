@@ -15,7 +15,9 @@ test('one question of each type is scored, recorded and shown again after a relo
   const plan: Array<{ type: string; how: How; conf: 'Sure' | 'Unsure'; verdict: string; box: number; days: number }> = [
     // a new item starts in box 1: right → box 2 (3 days), wrong → box 1 (1 day)
     { type: 'single', how: 'right', conf: 'Sure', verdict: 'Correct. Next review in 3 days.', box: 2, days: 3 },
-    { type: 'multi', how: 'wrong', conf: 'Unsure', verdict: 'Not correct. Next review tomorrow.', box: 1, days: 1 },
+    // one correct option left out: nothing under the course's all-or-nothing rule (partial
+    // or Kprim scoring would give part of the point here)
+    { type: 'multi', how: 'one-off', conf: 'Unsure', verdict: 'Not correct. Next review tomorrow.', box: 1, days: 1 },
     { type: 'kprim', how: 'one-off', conf: 'Unsure', verdict: 'Partly correct: 0.5 of 1 point. Next review tomorrow.', box: 1, days: 1 },
   ];
   const done: Array<{ id: string; score: number }> = [];
@@ -28,6 +30,10 @@ test('one question of each type is scored, recorded and shown again after a relo
     await expect(check).toHaveAttribute('aria-disabled', 'false');
     await check.click();
     await expect(mc.locator('.sk-mc-feedback')).toContainText(step.verdict);
+    if (step.how === 'one-off' && step.type === 'multi') {
+      // the left-out correct option is marked as missed
+      await expect(mc.locator('sk-opt.is-missed')).toHaveCount(1);
+    }
     // every option's why and the explanation are shown after checking
     const whys = mc.locator('.sk-why');
     for (let i = 0; i < (await whys.count()); i++) await expect(whys.nth(i)).toBeVisible();

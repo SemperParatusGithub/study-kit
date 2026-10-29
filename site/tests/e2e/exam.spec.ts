@@ -2,7 +2,7 @@
 // timer keeps running; submit, solutions and rubrics appear, the MC part is scored with the
 // exam's rule.
 import { expect, test, type Page } from '@playwright/test';
-import { answer, C, elementsReady, freezeDay, NOW, progress, SESSION_KEY } from './helpers.ts';
+import { answer, C, elementsReady, freezeDay, NOW, progress, SESSION_KEY, type How } from './helpers.ts';
 
 const EXAM = 'probeklausur-1';
 
@@ -45,10 +45,22 @@ test('the timer survives a reload; submitting shows solutions, rubrics and the s
   }
   await expect(mcs.first().getByRole('button', { name: 'Check' })).toHaveCount(0);
 
-  // answer the MC part: the first question wrong, the rest right
+  // answer the MC part: the first question wrong, the first multi and the first Kprim
+  // question with one decision wrong, the rest right. The exam's rule decides what the
+  // multi answer earns: nothing under all-or-nothing, part of the points under partial or
+  // the Kprim rule.
+  await expect(exam).toHaveAttribute('data-mc-scoring', 'all-or-nothing');
   const n = await mcs.count();
-  let right = 0;
-  for (let i = 0; i < n; i++) right += await answer(mcs.nth(i), i === 0 ? 'wrong' : 'right');
+  const types = await mcs.evaluateAll((els) => els.map((e) => e.getAttribute('data-type')));
+  const plan: How[] = types.map((_, i) => (i === 0 ? 'wrong' : 'right'));
+  for (const type of ['multi', 'kprim']) {
+    const i = types.indexOf(type, 1);
+    expect(i, `the exam has a ${type} question after the first`).toBeGreaterThan(0);
+    plan[i] = 'one-off';
+  }
+  const scores: number[] = [];
+  for (let i = 0; i < n; i++) scores.push(await answer(mcs.nth(i), plan[i] ?? 'right'));
+  const scored = scores.reduce((s, x) => s + x, 0);
   const firstChecked = await mcs.first().locator('input:checked').count();
 
   // ten minutes pass, then the page is reloaded: the clock goes on from where it was
@@ -94,12 +106,22 @@ test('the timer survives a reload; submitting shows solutions, rubrics and the s
     await expect(rubrics.nth(i).getByRole('checkbox')).toHaveCount(criteria.length);
   }
 
-  // the MC part is scored automatically: all-or-nothing, points shared equally
+  // the MC part is scored automatically: all-or-nothing for multi, the Kprim rule for
+  // Kprim, points shared equally
   const each = mcPoints / n;
-  const mcTotal = right * each;
+  const mcTotal = scored * each;
   await expect(mcPart.locator('.sk-exam-mc-total')).toHaveText(`Multiple choice: ${mcTotal} of ${mcPoints} points.`);
-  await expect(mcs.first().locator('.sk-mc-feedback')).toContainText(`Not correct. 0 of ${each} points.`);
-  await expect(mcs.nth(1).locator('.sk-mc-feedback')).toContainText(`Correct. ${each} of ${each} points.`);
+  const verdicts: Record<string, string> = {
+    wrong: `Not correct. 0 of ${each} points.`,
+    right: `Correct. ${each} of ${each} points.`,
+    'one-off:multi': `Not correct. 0 of ${each} points.`,
+    'one-off:kprim': `Partly correct: 0.5 of 1 point. ${each / 2} of ${each} points.`,
+  };
+  for (let i = 0; i < n; i++) {
+    const how = plan[i] ?? 'right';
+    const verdict = verdicts[how === 'one-off' ? `${how}:${types[i]}` : how] ?? '';
+    await expect(mcs.nth(i).locator('.sk-mc-feedback')).toContainText(verdict);
+  }
   await expect(result.locator('.sk-exam-total strong')).toHaveText(`${mcTotal} / ${points}`);
   const mcRow = result.locator('.sk-exam-table tbody tr').filter({ hasText: 'Multiple choice' });
   await expect(mcRow.locator('td').first()).toHaveText(`${mcTotal} / ${mcPoints}`);

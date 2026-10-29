@@ -41,12 +41,15 @@ export type How = 'right' | 'wrong' | 'one-off';
  *   right    every option decided correctly (score 1)
  *   wrong    a wrong choice (single), only the wrong options (multi), every statement
  *            judged the opposite way (Kprim): score 0
- *   one-off  Kprim with exactly one statement judged wrongly (score 0.5)
+ *   one-off  exactly one decision wrong. Kprim: one statement misjudged (score 0.5).
+ *            Multi: one correct option left out, which scores 0 only under the
+ *            all-or-nothing rule of the sample course (exam.mc.scoring in course.yaml); the
+ *            partial rule would give (n − 2)/n and the Kprim rule 0.5.
  * Outside exams the confidence is set too. Returns the score the answer must get.
  */
 export async function answer(mc: Locator, how: How, conf: 'Sure' | 'Unsure' = 'Sure'): Promise<number> {
   const type = await mc.getAttribute('data-type');
-  if (how === 'one-off' && type !== 'kprim') throw new Error('one-off answers are for Kprim questions');
+  if (how === 'one-off' && type === 'single') throw new Error('one-off answers are for multi and Kprim questions');
   const opts = mc.locator('sk-opt');
   const n = await opts.count();
   const correct: boolean[] = [];
@@ -62,8 +65,13 @@ export async function answer(mc: Locator, how: How, conf: 'Sure' | 'Unsure' = 'S
     const pick = correct.findIndex((c) => c === (how === 'right'));
     await opts.nth(pick).locator('input').check();
   } else {
+    // one-off: every correct option but the first one shown (so something stays selected)
+    const left = how === 'one-off' ? correct.indexOf(true) : -1;
+    if (how === 'one-off' && correct.filter(Boolean).length < 2) {
+      throw new Error('one-off multi answers need at least two correct options');
+    }
     for (let i = 0; i < n; i++) {
-      if (correct[i] === (how === 'right')) await opts.nth(i).locator('input').check();
+      if (correct[i] === (how !== 'wrong') && i !== left) await opts.nth(i).locator('input').check();
     }
   }
   if ((await mc.getAttribute('data-mode')) !== 'exam') {
