@@ -6,7 +6,7 @@
 !/courses/README.md
 
 # Local toolchain and caches
-/.tools/
+/.tools
 /.venv/
 /.cache/
 node_modules/

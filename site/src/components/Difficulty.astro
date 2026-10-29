@@ -1,0 +1,26 @@
+---
+// Difficulty 1–4 as filled and hollow dots plus text, so it never depends on colour alone.
+import { DIFFICULTY } from '../lib/format';
+
+interface Props {
+  value: number | null | undefined;
+  label?: boolean;
+}
+
+const { value, label = false } = Astro.props;
+const n = typeof value === 'number' ? Math.max(0, Math.min(4, value)) : 0;
+---
+
+{
+  n > 0 && (
+    <span class="difficulty" title={`Difficulty ${n} of 4: ${DIFFICULTY[n]}`}>
+      <span class="dots" aria-hidden="true">
+        {'●'.repeat(n)}
+        <span class="off">{'○'.repeat(4 - n)}</span>
+      </span>
+      <span class={label ? '' : 'visually-hidden'}>
+        {label ? DIFFICULTY[n] : `Difficulty ${n} of 4 (${DIFFICULTY[n]})`}
+      </span>
+    </span>
+  )
+}

@@ -1,0 +1,97 @@
+---
+// Cheat sheet in CSS columns, with the page count of the built PDF against its limit
+// (min(3, course.cheatsheet.max_pages, frontmatter max_pages), docs/architecture.md §3.3).
+import Base from '../../../layouts/Base.astro';
+import Html from '../../../components/Html.astro';
+import SearchTags from '../../../components/SearchTags.astro';
+import { coursePaths, pdfPages, type Course } from '../../../lib/courses';
+import { sectionize } from '../../../lib/html';
+import type { CheatsheetFm } from '../../../lib/types';
+
+export const getStaticPaths = coursePaths;
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const doc = course.cheatsheet;
+const fm = (doc?.data.fm ?? {}) as Partial<CheatsheetFm>;
+const max = Math.min(3, course.data.cheatsheet.max_pages, fm.max_pages ?? 3);
+const pages = doc ? pdfPages(c, 'cheatsheet') : null;
+const over = pages !== null && pages > max;
+---
+
+<Base title={doc?.data.title ?? 'Cheat sheet'} course={course} tab="cheatsheet">
+  <div class="page-head cs-head">
+    <div>
+      <p class="eyebrow" lang={en}>Cheat sheet</p>
+      <h1>{doc?.data.title ?? 'Cheat sheet'}</h1>
+    </div>
+    {
+      doc && (
+        <p class="cs-badges" lang={en}>
+          {pages === null ? (
+            <span class="badge" data-sk-pdf-pages data-max={max} title={`Build it with: just pdf ${c}`}>
+              PDF not built yet · limit {max} {max === 1 ? 'page' : 'pages'}
+            </span>
+          ) : (
+            <span
+              class:list={['badge', over ? 'badge-warn' : 'badge-accent']}
+              data-sk-pdf-pages
+              data-max={max}
+              data-pages={pages}
+            >
+              PDF ({pages}/{max} {max === 1 ? 'page' : 'pages'}){over && ' · over the limit'}
+            </span>
+          )}
+        </p>
+      )
+    }
+  </div>
+
+  {
+    doc ? (
+      <div class="cheatsheet" data-pagefind-body>
+        <SearchTags course={course} type="cheatsheet" />
+        <span data-pagefind-meta="title[data-value]" data-value={doc.data.title} />
+        <Html html={sectionize(doc.rendered?.html ?? '', 'cs-section')} course={c} />
+      </div>
+    ) : (
+      <div class="empty" lang={en}>
+        {course.data.cheatsheet.allowed
+          ? 'No cheat sheet yet.'
+          : 'This exam allows no cheat sheet, so the course has none.'}
+      </div>
+    )
+  }
+</Base>
+
+<style>
+  .cs-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .cs-head h1 {
+    margin-bottom: 0;
+  }
+
+  .cs-badges {
+    margin: 0;
+  }
+
+  .cheatsheet {
+    padding: var(--space-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  @media (max-width: 30rem) {
+    .cheatsheet {
+      padding: var(--space-4);
+    }
+  }
+</style>

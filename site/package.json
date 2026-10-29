@@ -8,9 +8,12 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node scripts/pagefind.mjs",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "test:unit": "node --test 'tests/unit/**/*.test.ts'",
+    "test:elements": "playwright test -c tests/elements",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "astro": "7.4.2",

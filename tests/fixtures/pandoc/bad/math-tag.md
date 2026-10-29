@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-MATH
+code: SK-MATH-DENIED
 message: '`\tag` is not allowed'
 line: 10
 ---

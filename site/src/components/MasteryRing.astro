@@ -1,0 +1,38 @@
+---
+// Mastery as a ring with the percentage in text. The value comes from
+// progress/mastery.json at build time when it exists; elements/dashboard.ts replaces it
+// with the mastery of this browser's answers (data-sk-mastery) once there are any.
+interface Props {
+  course: string;
+  value: number | null;
+  size?: number;
+}
+
+const { course, value, size = 56 } = Astro.props;
+const r = 22;
+const c = 2 * Math.PI * r;
+const pct = value === null ? null : Math.round(Math.max(0, Math.min(1, value)) * 100);
+---
+
+<span class="mastery" data-sk-mastery data-course={course} data-value={pct ?? ''}>
+  <svg viewBox="0 0 56 56" width={size} height={size} aria-hidden="true">
+    <circle cx="28" cy="28" r={r} fill="none" stroke="var(--border)" stroke-width="6"></circle>
+    {
+      pct !== null && (
+        <circle
+          data-sk-ring-fill
+          cx="28"
+          cy="28"
+          r={r}
+          fill="none"
+          stroke="var(--accent)"
+          stroke-width="6"
+          stroke-linecap="round"
+          stroke-dasharray={`${(c * pct) / 100} ${c}`}
+          transform="rotate(-90 28 28)"
+        />
+      )
+    }
+  </svg>
+  <span class="mastery-value">{pct === null ? '—' : `${pct}%`}</span>
+</span>

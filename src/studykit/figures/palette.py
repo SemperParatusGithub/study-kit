@@ -31,6 +31,29 @@ GRID = ROLES["grid"]
 
 HEX_TO_ROLE: dict[str, str] = {hex_.lower(): role for role, hex_ in ROLES.items()}
 
+# WCAG 2 contrast a text needs against the page (1.4.3, normal-size text).
+TEXT_CONTRAST = 4.5
+
+
+def _luminance(hex_: str) -> float:
+    channels = (int(hex_.lstrip("#")[i : i + 2], 16) / 255 for i in (0, 2, 4))
+    r, g, b = (c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a: str, b: str) -> float:
+    """WCAG 2 contrast ratio of two hex colours (1 to 21)."""
+    hi, lo = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+# Colours a figure may draw text in: readable on the page (fg, muted and c1). Labels are
+# drawn in fg; a coloured line or marker next to them is the key. Okabe-Ito c2 to c6 are
+# below 4.5:1 on white, so text in them is rejected by figures.validate.
+TEXT_ROLES: tuple[str, ...] = tuple(
+    role for role, hex_ in ROLES.items() if contrast(hex_, BG) >= TEXT_CONTRAST
+)
+
 
 def color(role_or_index: str | int) -> str:
     """Palette colour by role name (`"fg"`, `"c2"`) or series index (0 = c1)."""

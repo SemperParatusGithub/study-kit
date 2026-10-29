@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import filecmp
 import json
 import socket
 import subprocess
@@ -97,6 +98,24 @@ def check_typst_fonts(root: Path) -> Check:
     return Check("typst fonts", not missing, detail, "reinstall typst: just setup")
 
 
+HOOKS = ("commit-msg", "pre-commit")
+
+
+def hooks_installed(root: Path, hooks_path: str) -> bool:
+    """core.hooksPath runs this checkout's hooks: .githooks itself, or (as in a git worktree
+    of this checkout) a directory holding the same hook files."""
+    if not hooks_path:
+        return False
+    own = root / ".githooks"
+    path = root / hooks_path  # an absolute hooks_path replaces root
+    if path.resolve() == own.resolve():
+        return True
+    return all(
+        (path / name).is_file() and filecmp.cmp(path / name, own / name, shallow=False)
+        for name in HOOKS
+    )
+
+
 def check_git(root: Path) -> list[Check]:
     hooks = _run(["git", "config", "--get", "core.hooksPath"], cwd=root).stdout.strip()
     ignored = _run(["git", "check-ignore", "-q", "courses/probe/overview.md"], cwd=root)
@@ -104,7 +123,7 @@ def check_git(root: Path) -> list[Check]:
     return [
         Check(
             "git hooks",
-            hooks == ".githooks",
+            hooks_installed(root, hooks),
             f"core.hooksPath={hooks or 'unset'}",
             "git config core.hooksPath .githooks",
         ),

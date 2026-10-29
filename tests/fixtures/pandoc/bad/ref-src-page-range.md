@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-REF
+code: SK-REF-SRC
 message: 'page 99 of `vl-05` does not exist (40 pages)'
 line: 8
 ---

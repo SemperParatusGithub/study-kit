@@ -21,12 +21,12 @@ local FIX_SCHEMES = 'link with ex:<id>, mc:<id>, topic:<id>, exam:<id> or src:<d
 
 --- Resolve a course link; returns {route, title, anchor?} or nil after reporting.
 function M.resolve(scheme, rest, ctx)
-  local function fail(message, fix)
-    ctx:fail('SK-REF', message, fix)
+  local function fail(code, message, fix)
+    ctx:fail(code, message, fix)
     return nil
   end
-  local function missing(message, fix)
-    ctx:fail_target('SK-REF', message, fix)
+  local function missing(code, message, fix)
+    ctx:fail_target(code, message, fix)
     return nil
   end
   local idx = ctx:require_index()
@@ -39,18 +39,19 @@ function M.resolve(scheme, rest, ctx)
     local doc, frag = rest:match('^([^#]*)#?(.*)$')
     local source = idx.sources[doc]
     if type(source) ~= 'table' then
-      return missing('unknown source document `' .. doc .. '`', 'use a document id from sources/manifest.yaml')
+      return missing('SK-REF-MISSING', 'unknown source document `' .. doc .. '`', 'use a document id from sources/manifest.yaml')
     end
     local page
     if frag ~= '' then
       page = tonumber(frag:match('^p=(%d+)$'))
       if not page then
-        return fail('source link `src:' .. rest .. '` has a malformed page', 'write src:' .. doc .. '#p=<page>')
+        return fail('SK-REF-SRC', 'source link `src:' .. rest .. '` has a malformed page', 'write src:' .. doc .. '#p=<page>')
       end
       local pages = tonumber(source.pages)
       pages = pages and (math.tointeger(pages) or pages)
       if page < 1 or (pages and page > pages) then
         return missing(
+          'SK-REF-SRC',
           string.format('page %d of `%s` does not exist (%s pages)', page, doc, tostring(pages)),
           'fix the page number'
         )
@@ -64,18 +65,18 @@ function M.resolve(scheme, rest, ctx)
   end
 
   if not rest:match(ID) then
-    return fail('malformed link target `' .. scheme .. ':' .. rest .. '`', 'write ' .. scheme .. ':<id> with a kebab-case id')
+    return fail('SK-REF-MISSING', 'malformed link target `' .. scheme .. ':' .. rest .. '`', 'write ' .. scheme .. ':<id> with a kebab-case id')
   end
   if scheme == 'topic' then
     local topic = idx.topics[rest]
     if type(topic) ~= 'table' then
-      return missing('unknown topic `' .. rest .. '`', 'use a topic id from course.yaml')
+      return missing('SK-REF-MISSING', 'unknown topic `' .. rest .. '`', 'use a topic id from course.yaml')
     end
     return { route = base .. 'summary/' .. rest .. '/', title = topic.title or rest }
   elseif scheme == 'exam' then
     local exam = idx.exams[rest]
     if type(exam) ~= 'table' then
-      return missing('unknown exam `' .. rest .. '`', 'use an exam id from exams/<id>/exam.yaml')
+      return missing('SK-REF-MISSING', 'unknown exam `' .. rest .. '`', 'use an exam id from exams/<id>/exam.yaml')
     end
     return { route = base .. 'exams/' .. rest .. '/', title = exam.title or rest, anchor = rest }
   end
@@ -83,9 +84,10 @@ function M.resolve(scheme, rest, ctx)
   local item = idx.items[rest]
   local want = scheme == 'ex' and 'exercise' or 'mc'
   if type(item) ~= 'table' then
-    return missing('unknown ' .. (scheme == 'ex' and 'exercise' or 'question') .. ' `' .. rest .. '`', 'check the id')
+    return missing('SK-REF-MISSING', 'unknown ' .. (scheme == 'ex' and 'exercise' or 'question') .. ' `' .. rest .. '`', 'check the id')
   elseif item.kind ~= want then
     return missing(
+      'SK-REF-MISSING',
       string.format(
         '`%s:%s` has kind %s, but %s: links need %s',
         scheme,
@@ -106,12 +108,13 @@ function M.resolve(scheme, rest, ctx)
     local info = idx.exams[exam]
     local exam_title = type(info) == 'table' and type(info.title) == 'string' and info.title or exam
     return missing(
+      'SK-REF-MISSING',
       'question `' .. rest .. '` belongs to exam `' .. exam .. '`, not to a practice bank',
       'link the exam instead: [' .. exam_title .. '](exam:' .. exam .. ')'
     )
   end
   if type(item.topic) ~= 'string' then
-    return fail('question `' .. rest .. '` has no topic in the index', 'rebuild the index')
+    return fail('SK-REF-MISSING', 'question `' .. rest .. '` has no topic in the index', 'rebuild the index')
   end
   return { route = base .. 'mc/' .. item.topic .. '/#' .. rest, title = title, anchor = rest }
 end
@@ -119,18 +122,18 @@ end
 function M.link(el, ctx, W)
   el.content = W.inlines(el.content, ctx)
   if el.identifier ~= '' or #el.classes > 0 or #guard.user_attributes(el) > 0 then
-    ctx:fail('SK-REF', 'links take no attributes', 'remove the {…} after the link')
+    ctx:fail('SK-REF-LINK', 'links take no attributes', 'remove the {…} after the link')
   end
   local target = el.target
   local scheme, rest = target:match('^([%a][%w+.-]*):(.*)$')
   if scheme == 'http' or scheme == 'https' or scheme == 'mailto' then
     if pandoc.utils.stringify(el.content) == target or target:match('^mailto:') and pandoc.utils.stringify(el.content) == rest then
-      ctx:fail('SK-REF', 'bare URL ' .. target, 'write [descriptive text](' .. target .. ')')
+      ctx:fail('SK-REF-LINK', 'bare URL ' .. target, 'write [descriptive text](' .. target .. ')')
     end
     return { W.clean(el) }
   end
   if not KIND_LABEL[scheme] then
-    ctx:fail('SK-REF', 'unsupported link target `' .. target .. '`', FIX_SCHEMES)
+    ctx:fail('SK-REF-SCHEME', 'unsupported link target `' .. target .. '`', FIX_SCHEMES)
     return { W.clean(el) }
   end
   local r = M.resolve(scheme, rest, ctx)
@@ -186,7 +189,7 @@ function M.bare_urls(leaves, ctx)
           k = k + 1
         end
         local href = url:match('^www%.') and ('https://' .. url) or url
-        ctx:fail('SK-REF', 'bare URL ' .. url, 'write [descriptive text](' .. href .. ')', leaves[k].pos)
+        ctx:fail('SK-REF-LINK', 'bare URL ' .. url, 'write [descriptive text](' .. href .. ')', leaves[k].pos)
       end
       i = j
     end

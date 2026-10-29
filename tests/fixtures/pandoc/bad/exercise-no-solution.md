@@ -1,6 +1,6 @@
 ---
 sk-file: exercises/rc-filter/ex-bad.md
-code: SK-BLOCK
+code: SK-BLOCK-SOLUTION
 message: 'missing `::: solution`'
 line: 0
 ---

@@ -1,0 +1,204 @@
+---
+// A summary chapter: reading view (70ch), sticky table of contents from sk-meta, the
+// learning objectives, and a three-question "Test yourself" quiz from the topic's bank.
+import Base from '../../../../layouts/Base.astro';
+import Difficulty from '../../../../components/Difficulty.astro';
+import Html from '../../../../components/Html.astro';
+import QuizSlot from '../../../../components/QuizSlot.astro';
+import SearchTags from '../../../../components/SearchTags.astro';
+import Toc from '../../../../components/Toc.astro';
+import { labelHtml, listCourses, route, sourceTitle, type Course, type Doc } from '../../../../lib/courses';
+import type { SummaryFm } from '../../../../lib/types';
+
+export async function getStaticPaths() {
+  const courses = await listCourses();
+  return courses.flatMap((course) =>
+    course.summaries.map((doc, i) => ({
+      params: { course: course.id, topic: doc.data.topic ?? doc.data.rel },
+      props: { course, doc, index: i },
+    })),
+  );
+}
+
+const { course, doc, index } = Astro.props as { course: Course; doc: Doc; index: number };
+const c = course.id;
+const fm = doc.data.fm as unknown as SummaryFm;
+const topicId = doc.data.topic ?? '';
+const topic = course.topics.find((t) => t.id === topicId);
+const en = course.lang === 'en' ? undefined : 'en';
+const prev = course.summaries[index - 1];
+const next = course.summaries[index + 1];
+const exercises = course.exercises.filter((e) => e.data.topic === topicId);
+const hasBank = course.banks.some((b) => b.data.topic === topicId);
+const objectives = (fm.objectives ?? []).map((o) => labelHtml(doc, o));
+const sources = (fm.sources ?? []).map(
+  (s) => `${sourceTitle(c, s.doc)}${s.pages ? `, pp. ${s.pages.replace('-', '–')}` : ''}`,
+);
+const extra = [
+  ...(hasBank ? [{ href: '#test-yourself', text: 'Test yourself' }] : []),
+  ...(exercises.length ? [{ href: '#practice', text: 'Practice' }] : []),
+];
+---
+
+<Base title={doc.data.title} course={course} tab="summary">
+  <div class="reading-layout">
+    <nav class="toc" aria-label="On this page">
+      <Toc headings={doc.data.headings} lang={course.lang} extra={extra} />
+      <h2 lang="en">Chapters</h2>
+      <ol aria-label="Chapters">
+        {
+          course.summaries.map((s) => (
+            <li>
+              <a
+                href={route.summary(c, s.data.topic ?? '')}
+                aria-current={s.id === doc.id ? 'page' : undefined}
+              >
+                {s.data.title}
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </nav>
+
+    <div class="reading-main">
+      <details class="toc-mobile no-print">
+        <summary lang="en">On this page</summary>
+        <div class="toc">
+          <Toc headings={doc.data.headings} lang={course.lang} extra={extra} title="Sections" />
+        </div>
+      </details>
+
+      <article data-pagefind-body>
+        <SearchTags course={course} type="summary" topic={topicId} />
+        <header class="page-head">
+          <p class="eyebrow" lang={en} data-pagefind-ignore>
+            <a href={route.summaries(c)}>Summary</a> · Chapter {index + 1} of {course.summaries.length}
+            {topic?.focus && <span class="badge badge-accent">Focus</span>}
+          </p>
+          <h1>{doc.data.title}</h1>
+          {
+            sources.length > 0 && (
+              <p class="meta-row" data-pagefind-ignore>
+                <span>
+                  <span lang={en}>Sources: </span>
+                  {sources.join('; ')}
+                </span>
+              </p>
+            )
+          }
+        </header>
+
+        {
+          objectives.length > 0 && (
+            <section class="objectives" aria-labelledby="objectives-title">
+              <h2 id="objectives-title" lang={en} data-pagefind-ignore>
+                You will be able to
+              </h2>
+              <ul>
+                {objectives.map((o) => (
+                  <li set:html={o} />
+                ))}
+              </ul>
+            </section>
+          )
+        }
+
+        <div class="prose">
+          <Html html={doc.rendered?.html} course={c} />
+        </div>
+      </article>
+
+      {
+        hasBank && (
+          <section class="chapter-extra no-print" id="test-yourself" aria-labelledby="test-yourself-title" lang={en}>
+            <h2 id="test-yourself-title">Test yourself</h2>
+            <p class="muted">
+              Three questions from the {course.topicTitle(topicId)} bank, with feedback after each answer.
+            </p>
+            <QuizSlot course={course} mode="practice" topics={[topicId]} count={3} intro={false} />
+            <p class="small">
+              <a href={route.mcTopic(c, topicId)}>All questions on this topic →</a>
+            </p>
+          </section>
+        )
+      }
+
+      {
+        exercises.length > 0 && (
+          <section class="chapter-extra" id="practice" aria-labelledby="practice-title" lang={en}>
+            <h2 id="practice-title">Practice</h2>
+            <ul class="item-list">
+              {exercises.map((e) => (
+                <li>
+                  <a class="item-title" href={route.exercise(c, e.data.id ?? '')} lang={course.lang}>
+                    {e.data.title}
+                  </a>
+                  <span class="item-meta">
+                    <Difficulty value={Number(e.data.fm.difficulty)} />
+                    <span>{String(e.data.fm.minutes ?? '?')} min</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+
+      <nav class="pager" aria-label="Chapters" lang={en}>
+        {
+          prev && (
+            <a class="prev" href={route.summary(c, prev.data.topic ?? '')}>
+              <span>← Previous chapter</span>
+              <strong lang={course.lang}>{prev.data.title}</strong>
+            </a>
+          )
+        }
+        {
+          next && (
+            <a class="next" href={route.summary(c, next.data.topic ?? '')}>
+              <span>Next chapter →</span>
+              <strong lang={course.lang}>{next.data.title}</strong>
+            </a>
+          )
+        }
+      </nav>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .objectives {
+    margin: 0 0 var(--space-6);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .objectives h2 {
+    margin: 0 0 var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .objectives ul {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+
+  .chapter-extra {
+    margin-top: var(--space-7);
+  }
+
+  .chapter-extra h2 {
+    margin-top: 0;
+  }
+
+  .eyebrow .badge {
+    margin-left: var(--space-2);
+  }
+</style>

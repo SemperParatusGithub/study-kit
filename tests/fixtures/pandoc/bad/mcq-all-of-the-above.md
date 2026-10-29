@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-ALL-ABOVE
 message: '"all of the above" options are not allowed'
 line: 19
 ---

@@ -1,0 +1,92 @@
+---
+// Mock exams of the course.
+import Base from '../../../../layouts/Base.astro';
+import { coursePaths, route, type Course } from '../../../../lib/courses';
+import { formatMinutes, formatNumber, plural } from '../../../../lib/format';
+
+export const getStaticPaths = coursePaths;
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+---
+
+<Base title="Exams" course={course} tab="exams">
+  <div class="page-head" lang={en}>
+    <h1>Mock exams</h1>
+    <p class="muted">
+      Timed like the real exam. Solutions stay locked until you submit; then you grade yourself with
+      the rubric and the MC part is scored automatically.
+    </p>
+  </div>
+
+  {
+    course.exams.length === 0 ? (
+      <div class="empty" lang={en}>
+        No mock exams yet.
+      </div>
+    ) : (
+      <ul class="grid exam-cards" role="list">
+        {course.exams.map((exam) => (
+          <li class="card exam-card">
+            <h2>
+              <a href={route.exam(c, exam.id)}>{exam.doc.data.title}</a>
+            </h2>
+            <dl class="stats" lang={en}>
+              <div>
+                <dt>Time</dt>
+                <dd>{formatMinutes(exam.fm.duration_min)}</dd>
+              </div>
+              <div>
+                <dt>Points</dt>
+                <dd>{formatNumber(exam.fm.points)}</dd>
+              </div>
+              <div>
+                <dt>Pass</dt>
+                <dd>{formatNumber(exam.fm.pass_points)}</dd>
+              </div>
+            </dl>
+            <p class="small muted" lang={en}>
+              {plural(exam.tasks.length, 'task')}
+              {exam.mc && ` · ${plural(exam.mc.data.questions.length, 'MC question')}`}
+            </p>
+            <p class="small" lang={en}>
+              Best result: <span data-sk-fill data-sk-exam-best data-course={c} data-exam={exam.id} />
+            </p>
+            <a class="button" href={route.exam(c, exam.id)} lang={en}>
+              Open exam
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</Base>
+
+<style>
+  .exam-cards {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .exam-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .exam-card h2 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+
+  .exam-card .stats {
+    width: 100%;
+  }
+
+  .exam-card p {
+    margin: 0;
+  }
+</style>

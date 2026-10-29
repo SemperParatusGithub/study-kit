@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import { route } from '../lib/courses';
+---
+
+<Base title="Not found">
+  <div class="page-head">
+    <h1>Page not found</h1>
+    <p class="muted">The page may have moved after the course was regenerated.</p>
+    <p><a class="button" href={route.home()}>All courses</a></p>
+  </div>
+</Base>

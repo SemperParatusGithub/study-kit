@@ -1,0 +1,221 @@
+---
+// Exam mode (docs/architecture.md §2.7, §3.2). <sk-exam> runs the timer, keeps solutions
+// inert until submit, then shows the rubric and scores the MC part. Without JavaScript the
+// page is a readable exam with collapsed solutions.
+import Base from '../../../../layouts/Base.astro';
+import Html from '../../../../components/Html.astro';
+import SearchTags from '../../../../components/SearchTags.astro';
+import { labelHtml, listCourses, route, type Course, type Exam } from '../../../../lib/courses';
+import { formatMinutes, formatNumber, plural } from '../../../../lib/format';
+import type { ExamTaskFm } from '../../../../lib/types';
+
+export async function getStaticPaths() {
+  const courses = await listCourses();
+  return courses.flatMap((course) =>
+    course.exams.map((exam) => ({ params: { course: course.id, id: exam.id }, props: { course, exam } })),
+  );
+}
+
+const { course, exam } = Astro.props as { course: Course; exam: Exam };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const fm = exam.fm;
+const scoring = course.data.exam.mc?.scoring ?? 'all-or-nothing';
+const negative = course.data.exam.mc?.negative_marking ?? false;
+const tasks = exam.tasks.map((t) => {
+  const tf = t.data.fm as unknown as ExamTaskFm;
+  return {
+    doc: t,
+    id: t.data.id ?? t.data.rel,
+    points: Number(tf.points ?? 0),
+    rubric: (tf.rubric ?? []).map((r) => ({
+      criterion: r.criterion,
+      points: r.points,
+      criterion_html: labelHtml(t, r.criterion),
+    })),
+  };
+});
+const mcCount = exam.mc?.data.questions.length ?? 0;
+---
+
+<Base title={exam.doc.data.title} course={course} tab="exams">
+  <div class="exam-page">
+    <header class="page-head">
+      <p class="eyebrow" lang={en}><a href={route.exams(c)}>Mock exams</a></p>
+      <h1>{exam.doc.data.title}</h1>
+    </header>
+
+    <sk-exam
+      data-exam={exam.id}
+      data-duration-min={fm.duration_min}
+      data-points={fm.points}
+      data-pass-points={fm.pass_points}
+      data-aids={JSON.stringify(exam.aids)}
+      data-mc-scoring={scoring}
+      data-negative-marking={String(negative)}
+      data-pagefind-body
+    >
+      <SearchTags course={course} type="exam" />
+      <header class="exam-cover card">
+        <dl class="stats" lang={en} data-pagefind-ignore>
+          <div>
+            <dt>Time</dt>
+            <dd>{formatMinutes(fm.duration_min)}</dd>
+          </div>
+          <div>
+            <dt>Points</dt>
+            <dd>{formatNumber(fm.points)}</dd>
+          </div>
+          <div>
+            <dt>Pass mark</dt>
+            <dd>{formatNumber(fm.pass_points)}</dd>
+          </div>
+        </dl>
+        <div class="cover-cols" data-pagefind-ignore>
+          <div lang={en}>
+            <h2>Structure</h2>
+            <ol class="small">
+              {
+                tasks.map((t, i) => (
+                  <li>
+                    <a href={`#${t.id}`}>Task {i + 1}</a> · <span lang={course.lang}>{t.doc.data.title}</span> ·{' '}
+                    {plural(t.points, 'point')}
+                  </li>
+                ))
+              }
+              {
+                exam.mc && (
+                  <li>
+                    <a href="#mc-part">Multiple choice</a> · {plural(mcCount, 'question')} ·{' '}
+                    {plural(exam.mcPoints, 'point')}
+                  </li>
+                )
+              }
+            </ol>
+          </div>
+          <div>
+            <h2 lang={en}>Allowed aids</h2>
+            {
+              exam.aids.length ? (
+                <ul class="small">
+                  {exam.aids.map((a) => (
+                    <li>{a}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p class="small muted" lang={en}>
+                  None.
+                </p>
+              )
+            }
+          </div>
+        </div>
+      </header>
+
+      {
+        tasks.map((t, i) => (
+          <section
+            class="sk-exam-task"
+            id={t.id}
+            data-task={t.id}
+            data-title={t.doc.data.title}
+            data-points={t.points}
+            data-rubric={JSON.stringify(t.rubric)}
+            data-h={t.doc.data.h}
+          >
+            <h2 class="task-title">
+              <span lang={en} data-pagefind-ignore>Task {i + 1}</span>
+              <span class="task-name">{t.doc.data.title}</span>
+              <span class="badge" lang={en} data-pagefind-ignore>
+                {plural(t.points, 'point')}
+              </span>
+            </h2>
+            <div class="prose">
+              <Html html={t.doc.rendered?.html} course={c} />
+            </div>
+          </section>
+        ))
+      }
+
+      {
+        exam.mc && (
+          <section class="sk-exam-mc" id="mc-part" data-points={exam.mcPoints} data-points-each={fm.mc?.points_each}>
+            <h2 class="task-title">
+              <span lang={en} data-pagefind-ignore>Multiple choice</span>
+              <span class="badge" lang={en} data-pagefind-ignore>
+                {plural(exam.mcPoints, 'point')}
+              </span>
+            </h2>
+            <p class="small muted" lang={en} data-pagefind-ignore>
+              {plural(fm.mc?.points_each ?? 0, 'point')} per question; multi-select scored{' '}
+              {scoring === 'partial' ? 'with partial credit' : scoring === 'kprim' ? 'like Kprim' : 'all-or-nothing'}
+              {negative ? ', wrong answers cost points' : ''}.
+            </p>
+            <div class="prose">
+              <Html html={exam.mc.rendered?.html} course={c} />
+            </div>
+          </section>
+        )
+      }
+    </sk-exam>
+  </div>
+</Base>
+
+<style>
+  .exam-page {
+    max-width: var(--measure);
+    margin-inline: auto;
+  }
+
+  .exam-cover {
+    margin-bottom: var(--space-6);
+  }
+
+  .exam-cover h2 {
+    margin: var(--space-4) 0 var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .exam-cover ol,
+  .exam-cover ul {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+
+  .cover-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: 0 var(--space-5);
+  }
+
+  .sk-exam-task,
+  .sk-exam-mc {
+    margin: var(--space-6) 0;
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--border);
+  }
+
+  .task-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    margin: 0 0 var(--space-4);
+  }
+
+  .task-title > span:first-child {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .task-name {
+    flex: 1 1 auto;
+  }
+</style>

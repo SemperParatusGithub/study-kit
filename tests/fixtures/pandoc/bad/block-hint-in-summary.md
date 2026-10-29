@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-BLOCK
+code: SK-BLOCK-PLACEMENT
 message: '`::: hint` is only allowed in exercise and exam task files'
 line: 10
 ---

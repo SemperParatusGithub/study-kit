@@ -1,0 +1,23 @@
+# Exam profile of the sample course. There are no past exams: the profile follows the
+# course description (written exam with an MC part) and the topic weights in course.yaml.
+schema: 1
+confidence: low
+basis: course-description
+format: mixed
+duration_min: 120
+points: 100
+minutes_per_point: 1.2
+aids: ['Nicht programmierbarer Taschenrechner', 'Selbst geschriebenes Formelblatt (zwei Seiten)']
+mc:
+  present: true
+  share: 0.2
+  types: [single, multi, kprim]
+  type_mix: {single: 0.6, multi: 0.2, kprim: 0.2}
+  scoring: all-or-nothing
+  negative_marking: false
+archetypes:
+  - {id: ersatzquelle, topic: spannungsteiler, share: 0.25, title: Ersatzspannungsquelle und belasteter Teiler}
+  - {id: zeigerdiagramm, topic: wechselstrom, share: 0.25, title: Impedanz und Zeigerdiagramm}
+  - {id: bode-diagramm, topic: rc-filter, share: 0.30, title: RC-Filter im Bode-Diagramm}
+  - {id: sprungantwort, topic: rc-filter, share: 0.20, title: Sprungantwort eines RC-Glieds}
+notation: {imaginary_unit: j, phasor: underline, phasor_magnitude: rms}

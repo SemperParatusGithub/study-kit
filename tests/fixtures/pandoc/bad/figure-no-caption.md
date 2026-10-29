@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-FIG
+code: SK-REF-FIGURE
 message: 'figure `rc-bode` has no caption'
 line: 10
 ---

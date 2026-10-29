@@ -268,6 +268,33 @@ OPTIONISH_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s*\[.?\]")
 INLINE_CODE_RE = re.compile(r"(`+)(?:(?!\1).)+?\1")
 BLOCK_MARKER_RE = re.compile(r"^\s*(?:[=+\-*#>]|[0-9]+[.)])")
 HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]|$)")
+# The delimiter row of a pipe table (`|---|:--:|`), without its container's prefix; it
+# needs a `|`, or `---` is a rule.
+TABLE_DELIMITER_RE = re.compile(r"^\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$")
+QUOTE_PREFIX_RE = re.compile(r"^(?: {0,3}>[ ]?)+")
+LIST_MARKER_RE = re.compile(r"^[ \t]*(?:[-+*]|[0-9]{1,9}[.)])(?:[ \t]+|$)")
+UNESCAPED_PIPE_RE = re.compile(r"(?<!\\)\|")
+# A word broken with a hyphen at the end of a line: `[RC-` + newline + `Tiefpass]`.
+LINE_END_HYPHEN_RE = re.compile(r"[^\W\d_]-$")
+LINE_START_LETTER_RE = re.compile(r"^[^\W\d_]")
+# Words after which a line-final hyphen is a suspended compound („Ein- und Ausgang“),
+# compared up to a '/' („und/oder“) and without a trailing comma.
+SUSPENDED_HYPHEN_WORDS = {
+    *("und", "oder", "u.", "sowie", "bis", "wie", "noch", "als"),
+    *("bzw.", "bzw", "beziehungsweise", "resp.", "respektive", "versus", "vs.", "vs"),
+    *("and", "or", "to", "nor"),
+}
+
+
+def _container(text: str) -> tuple[int, bool, str]:
+    """A line's block-quote depth, whether it opens a list item, and its text without both."""
+    quote = QUOTE_PREFIX_RE.match(text)
+    depth = quote.group().count(">") if quote else 0
+    rest = text[quote.end() :] if quote else text
+    item = LIST_MARKER_RE.match(rest)
+    if item:
+        rest = rest[item.end() :]
+    return depth, item is not None, rest.strip()
 
 
 def _mask(text: str, start: int, end: int) -> str:
@@ -930,7 +957,24 @@ class Body:
                 display = []
                 start = (ln.no, ln.text.index("$") + 1)
                 continue
-            out.extend(self._inline_math(ln))
+            if ln.no not in self.table_rows:
+                out.extend(self._inline_math(ln))
+                continue
+            for f in self._inline_math(ln):
+                if "|" in f.tex:
+                    self.finding(
+                        ln.no,
+                        f.col,
+                        "SK-BLOCK-TABLE",
+                        "'|' inside inline math on a table row ends the cell there ('\\|' "
+                        "too, as an escaped '|'): pandoc cuts the row, or in the header row "
+                        "turns the table into a paragraph",
+                        "write \\lvert … \\rvert for an absolute value, \\lVert … \\rVert for "
+                        "a norm, \\mid for a divider",
+                    )
+                else:
+                    out.append(f)
+            self._check_table_code(ln)
         if display is not None:
             self.finding(
                 start[0],
@@ -983,6 +1027,103 @@ class Body:
                 "unmatched $",
                 "close the inline math on the same line, or write \\$ for a dollar sign",
             )
+        return out
+
+    # --- tables and line breaks ---
+
+    @cached_property
+    def table_rows(self) -> set[int]:
+        """File lines of pipe-table rows: the header row and the rows below the delimiter.
+
+        As in pandoc's commonmark_x pipe tables: a table starts a paragraph in its
+        container (a block quote, a list item, also one indented four spaces or more), with
+        a header line and a delimiter row (`|---|---|`); it cannot interrupt a paragraph.
+        Its body is every following line of the same quote with a `|` in it.
+        """
+        rows: set[int] = set()
+        in_list = False  # the previous paragraph belongs to a list, so indented text is too
+        for para in self.paragraphs:
+            parts = [_container(ln.text) for ln in para.lines]
+            depth, first = parts[0][0], para.lines[0].text
+            if not depth:
+                indent = len(first.expandtabs(4)) - len(first.expandtabs(4).lstrip(" "))
+                if LIST_MARKER_RE.match(first) and (indent < 4 or in_list):
+                    in_list = True
+                elif indent < 2:
+                    in_list = False
+                elif indent >= 4 and not in_list:
+                    continue  # an indented code block
+            k = 0
+            while k < len(para.lines) - 1:
+                (d0, item, head), (d1, _, delim) = parts[k], parts[k + 1]
+                # first line of the paragraph, of a list item, of a quote, or after a `>` line
+                starts = k == 0 or item or d0 != parts[k - 1][0] or not parts[k - 1][2]
+                if (
+                    starts
+                    and d0 == d1
+                    and "|" in head
+                    and not para.display[k]
+                    and not para.display[k + 1]
+                    and "|" in delim
+                    and TABLE_DELIMITER_RE.match(delim)
+                ):
+                    rows.add(para.lines[k].no)
+                    k += 2
+                    while k < len(para.lines) and parts[k][0] == d0 and "|" in parts[k][2]:
+                        rows.add(para.lines[k].no)
+                        k += 1
+                    continue
+                k += 1
+        return rows
+
+    def _check_table_code(self, ln: Line) -> None:
+        """A bare '|' in a code span on a table row ends the cell, as in math."""
+        for m in INLINE_CODE_RE.finditer(ln.text):
+            if UNESCAPED_PIPE_RE.search(m.group()):
+                self.finding(
+                    ln.no,
+                    m.start() + 1,
+                    "SK-BLOCK-TABLE",
+                    "'|' inside inline code on a table row ends the cell there",
+                    "escape it as \\| inside the code span; pandoc shows a plain '|'",
+                )
+
+    @cached_property
+    def hyphen_breaks(self) -> list[Finding]:
+        """Warnings for a word broken across lines after a hyphen (`[RC-` / `Tiefpass]`).
+
+        Markdown joins the lines with a space, so the text reads „RC- Tiefpass“. A line
+        that continues with „und“, „oder“, „bzw.“, „als“ … (SUSPENDED_HYPHEN_WORDS) is a
+        suspended compound and fine.
+        """
+        out = []
+        for para in self.paragraphs:
+            lines = para.masked.split("\n")
+            for k in range(len(lines) - 1):
+                if para.display[k] or para.display[k + 1]:
+                    continue
+                end, rest = lines[k].rstrip(), lines[k + 1].lstrip()
+                if not LINE_END_HYPHEN_RE.search(end) or not LINE_START_LETTER_RE.match(rest):
+                    continue
+                word = rest.split()[0].split("/")[0].rstrip(",;:").casefold()
+                if word in SUSPENDED_HYPHEN_WORDS:
+                    continue
+                before = para.lines[k].text.rstrip().split()[-1]
+                after = para.lines[k + 1].text.split()[0]
+                out.append(
+                    Finding(
+                        self.path,
+                        para.lines[k].no,
+                        len(end),
+                        "SK-BLOCK-HYPHEN",
+                        f"a word is broken after the hyphen at the end of the line: Markdown "
+                        f"joins the lines with a space, so it reads '{before} {after}'",
+                        "keep the hyphenated word on one line (a line break is only fine "
+                        "before „und“, „oder“, „bzw.“, „sowie“: „Ein- und Ausgang“)",
+                        "warning",
+                    )
+                )
+        self.findings.extend(out)
         return out
 
     # --- links and figures ---

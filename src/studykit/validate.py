@@ -1,9 +1,9 @@
 """`studykit validate`: every content check as an ordered list of stages (§4.3).
 
 A stage is a function over one course that adds findings. Stages are registered with
-`@stage(...)` in pipeline order; `--quick` runs only quick stages (up to and including
-Math, used by the lint hook), `--release` adds release-only ones (Coverage). A stage whose
-tools or inputs are not there yet (pandoc filters, figure builds, PDFs, the site) declares
+`@stage(...)` in pipeline order; `--quick` runs only quick stages (Structure to Math plus
+the Pandoc backstop, used by the lint hook), `--release` adds the Site build and Coverage.
+A stage whose tools or inputs are not there yet (figure builds, PDFs, the site) declares
 `requires=` and is reported as skipped with an info note instead of failing, so later
 phases plug in by registering a stage or by providing what `requires` looks for.
 """
@@ -43,6 +43,7 @@ class Config:
     denylist: Path | None = None  # default: <root>/pandoc/math-denylist.json
     katex: bool = True
     figures: bool = True  # build the figure scripts in the Figures stage (cached)
+    site: bool = True  # build and check the website in the Site stage (--release only)
 
     @property
     def denylist_path(self) -> Path:
@@ -261,7 +262,7 @@ def _check_required_files(ctx: Context) -> None:
     course = tree.model
     required = [
         ("overview.md", "author it with the six sections of docs/architecture.md §2.12"),
-        ("plan.yaml", "run `studykit plan <course>`"),
+        ("plan.yaml", "`/regenerate <course> plan`, or write it as in docs/architecture.md §2.9"),
     ]
     if course is not None and course.cheatsheet.allowed:
         required.append(("cheatsheet.md", "`/regenerate <course> cheatsheet`, then fit it"))
@@ -474,6 +475,8 @@ def check_fences(ctx: Context) -> None:
         if body is None or doc.split.error:
             continue
         body.blocks  # noqa: B018 - runs the fence scanner
+        body.formulas  # noqa: B018 - the line scan also checks pipe tables (SK-BLOCK-TABLE)
+        body.hyphen_breaks  # noqa: B018
         ctx.extend(f for f in body.findings if f.code.startswith("SK-BLOCK"))
         for line, info in body.code_blocks:
             lang = info.split()[0].lstrip("{.") if info else ""
@@ -841,6 +844,19 @@ BEGIN_RE = re.compile(r"\\begin\s*\{([^}]*)\}")
 ENV_RE = re.compile(r"\\(begin|end)\s*\{([^}]*)\}")
 COMMENT_RE = re.compile(r"(?<!\\)%[^\n]*")
 MINUS = "\u2212"
+DIGITS = set("0123456789")
+# Space commands that set a gap: between two digits the number reads as two (SK-MATH-THINSPACE).
+SPACE_TOKENS = {
+    "\\,",
+    "\\:",
+    "\\;",
+    "\\>",
+    "\\ ",
+    "~",
+    "\\thinspace",
+    "\\medspace",
+    "\\thickspace",
+}
 NUMBER_RE = re.compile(rf"(?<![\w.,}}])[-{MINUS}]?[0-9]+(?:(?:\{{,\}}|,|\.)[0-9]+)?(?![0-9])")
 
 
@@ -891,6 +907,42 @@ def denied(tex: str, denylist: list[DenyEntry]) -> list[DenyEntry]:
         if n and any(tokens[i : i + n] == entry.tokens for i in range(len(tokens) - n + 1)):
             hits.append(entry)
     return hits
+
+
+def _space_gap(tokens: list[str], i: int) -> int:
+    """End of the run of space commands from tokens[i]; a `{…}` group of them counts too."""
+    j = i
+    while j < len(tokens):
+        if tokens[j] in SPACE_TOKENS:
+            j += 1
+        elif tokens[j] == "{":
+            k = j + 1
+            while k < len(tokens) and tokens[k] in SPACE_TOKENS:
+                k += 1
+            if k == j + 1 or k == len(tokens) or tokens[k] != "}":
+                break
+            j = k + 1
+        else:
+            break
+    return j
+
+
+def thin_space_in_number(tex: str) -> str | None:
+    """'1\\,5' when a space command stands between two digits, else None.
+
+    The space commands are SPACE_TOKENS (`\\,` `\\:` `\\;` `\\>` `\\ ` `~` `\\thinspace`
+    `\\medspace` `\\thickspace`), alone or in a group (`10{\\,}000`). math.lua applies the
+    same token rule (SK-MATH-THINSPACE). `10\\,000` and `1\\,5` show as two numbers in both
+    engines; a decimal comma is `{,}`.
+    """
+    tokens = tex_tokens(COMMENT_RE.sub("", tex))
+    for i, token in enumerate(tokens[:-1]):
+        if token not in DIGITS:
+            continue
+        j = _space_gap(tokens, i + 1)
+        if j > i + 1 and j < len(tokens) and tokens[j] in DIGITS:
+            return "".join(tokens[i : j + 1])
+    return None
 
 
 def _wraps(denylist: list[DenyEntry]) -> dict[str, list[Wrap]]:
@@ -1029,6 +1081,17 @@ def check_math(ctx: Context) -> None:
                 "use aligned, gathered, cases, pmatrix, bmatrix or Bmatrix "
                 "(a determinant is \\left|\\begin{matrix}…\\end{matrix}\\right|)",
             )
+        number = thin_space_in_number(f.tex)
+        if number:
+            ctx.at(
+                doc,
+                f.line,
+                f.col,
+                "SK-MATH-THINSPACE",
+                f"space between two digits ({number}): the number shows as two, "
+                "and a decimal comma written this way comes out as a gap",
+                "write 10000, 10^4, or {,} for a decimal comma",
+            )
         if not hits and not env_problem:
             clean.append((doc, f))
 
@@ -1142,9 +1205,11 @@ def check_pandoc(ctx: Context) -> None:
     """Run the selected files through the Lua filters that build the site and the PDFs.
 
     The stages before this one give the precise findings; this one is the backstop for
-    what they cannot see, so it skips files that already have errors (the filter would
-    repeat them under its family codes). In --quick runs the References stage does not
-    run, so the filter does not report link or figure targets missing from the index.
+    what they cannot see (raw HTML, attributes, bare URLs, math pandoc cannot convert to
+    Typst), so it skips files that already have errors (the filter would repeat them). A
+    rule both check has one code: in --quick runs, where the References stage does not
+    run, a figure with attributes is SK-REF-FIGURE from the filter as it is from References
+    in a full run; targets missing from the index are not reported then.
     """
     from studykit import index, pandoc
 
@@ -1364,7 +1429,7 @@ def _check_plan(ctx: Context, plan: Doc, targets: dict) -> None:
                         loc,
                         "SK-REF-MISSING",
                         f"plan reference '{ref}' does not exist",
-                        "regenerate the plan with `studykit plan` or fix the id",
+                        "regenerate the plan (`/regenerate <course> plan`) or fix the id",
                     )
                 elif scheme not in targets:
                     ctx.at_yaml(
@@ -1495,14 +1560,41 @@ def check_pdf(ctx: Context) -> None:  # pragma: no cover - replaced in Phase 4
 
 
 def _site_ready(ctx: Context) -> str | None:
-    if not (ctx.config.root / "site" / "astro.config.mjs").is_file():
-        return "site/astro.config.mjs not found (the site is built in Phase 3)"
-    return "site build checks run in `just build`"
+    from studykit import sitecheck
+
+    if not ctx.release:
+        return "runs with --release (`just build` builds and checks the site)"
+    if not ctx.config.site:
+        return "site build is off (Config.site)"
+    if ctx.selected is not None:
+        return "the site is built for whole courses, not for --paths"
+    reason = sitecheck.missing(ctx.config.root)
+    if reason:
+        return reason
+    if any(f.is_error for f in ctx.prior):
+        return "fix the errors above first; the strict build would stop on them"
+    return None
 
 
 @stage("Site", "SK-SITE", 95, requires=_site_ready)
-def check_site(ctx: Context) -> None:  # pragma: no cover - replaced with the site
-    pass
+def check_site(ctx: Context) -> None:
+    """Strict site build, `astro check` and link check for the course (studykit.sitecheck)."""
+    from studykit import sitecheck
+
+    tree = ctx.tree
+    course_doc = tree.course_doc
+    assert course_doc is not None  # run_course stops earlier without course.yaml
+    lang = tree.model.lang if tree.model is not None else "de"
+    ctx.extend(
+        sitecheck.check(
+            ctx.config.root,
+            tree.root,
+            tree.id,
+            lang,
+            course_doc=course_doc.display,
+            notes=ctx.notes,
+        )
+    )
 
 
 # --- Coverage (SK-COV, --release only) -------------------------------------------------------
@@ -1571,8 +1663,12 @@ def check_coverage(ctx: Context) -> None:
             )
         bank = banks.get(topic.id)
         questions = bank.body.questions if bank and bank.body else []
-        need_mc = mc_target if isinstance(mc_target, int) else max(10, math.ceil(25 * topic.weight))
-        need_mc = min(need_mc, 25)
+        # auto: 10 to 25 by weight; an explicit target is taken as written
+        need_mc = (
+            mc_target
+            if isinstance(mc_target, int)
+            else min(25, max(10, math.ceil(25 * topic.weight)))
+        )
         if len(questions) < need_mc:
             at_topic(
                 topic.id,

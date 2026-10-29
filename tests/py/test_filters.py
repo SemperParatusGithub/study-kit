@@ -580,6 +580,71 @@ def test_typst_figure_paths_are_relative_to_the_typst_root(workdir, tmp_path):
         pandoc.convert(body, outside, "typst")
 
 
+# Minus signs are U+2212, accents combining marks (u + U+0302).
+ALT_TEXT = [
+    (r"\underline{U}_C", "U_C"),
+    (r"U_\mathrm{C}", "U_C"),
+    (r"\mathrm{k\Omega}", "kΩ"),
+    (r"R = 3{,}3\,\mathrm{k\Omega}", "R = 3,3 kΩ"),
+    (
+        r"f_\mathrm{g} = \frac{1}{2\pi R C} \approx 1{,}59\,\mathrm{kHz}",
+        "f_g = 1/(2πRC) ≈ 1,59 kHz",
+    ),
+    (r"\frac{U_2}{U_1} = \frac{1}{\sqrt{2}}", "U_2/U_1 = 1/√2"),
+    (r"\omega\tau = 1", "ωτ = 1"),
+    (r"\varphi = -56{,}3^\circ", "φ = \u221256,3°"),
+    (r"10^{-3}\,\mathrm{A}", "10⁻³ A"),
+    (r"\mathrm{e}^{-t/\tau}", "e^(\u2212t/τ)"),
+    (r"\lvert\underline{H}(\mathrm{j}\omega)\rvert", "|H(jω)|"),
+    (r"\sqrt{R^2 + X_L^2}", "√(R² + X_L²)"),
+    (r"\left. \frac{dU}{dt} \right|_{t=0}", "dU/dt|_(t = 0)"),
+    (r"u(t) = \hat{u}\sin(\omega t + \varphi_u)", "u(t) = u\u0302 sin(ωt + φ_u)"),
+    (r"\text{für } t > 0", "für t > 0"),
+    (r"A^\mathrm{T},\ x \in \mathbb{R}", "Aᵀ, x ∈ \u211d"),
+    # a subscript of several letters is one label; several letters after / are a product
+    (r"R_\mathrm{ges} = 5{,}5\,\mathrm{k\Omega}", "R_ges = 5,5 kΩ"),
+    (r"U_\mathrm{eff} = I_\mathrm{max} \cdot R", "U_eff = I_max · R"),
+    (r"x_{i,j} + U_{\mathrm{C},0}", "x_(i, j) + U_(C, 0)"),
+    (r"\frac{1}{\omega C} = \frac{1}{RC}", "1/(ωC) = 1/(RC)"),
+    # an accented letter is one symbol
+    (r"\frac{\hat{u}}{\sqrt{2}}", "u\u0302/√2"),
+    (r"\frac{\vec{F}}{m}", "F\u20d7/m"),
+]
+
+
+def test_alt_text_reads_math_as_text(tmp_path):
+    """lib/alttext.lua turns TeX into the plain text a screen reader gets as alt text."""
+    driver = tmp_path / "alttext.lua"
+    driver.write_text(
+        "package.path = arg[1] .. '/?.lua;' .. package.path\n"
+        "local alttext = require 'lib.alttext'\n"
+        "local out = {}\n"
+        "for i = 2, #arg do out[#out + 1] = alttext.tex(arg[i]) end\n"
+        "print(pandoc.json.encode(out))\n",
+        encoding="utf-8",
+    )
+    tex = [t for t, _ in ALT_TEXT]
+    proc = pandoc.run(["lua", str(driver), str(ROOT / "pandoc" / "filters"), *tex])
+    assert dict(zip(tex, json.loads(proc.stdout), strict=True)) == dict(ALT_TEXT)
+
+
+def test_figure_caption_math_is_rendered_and_read_as_text_in_the_alt(workdir):
+    body = (
+        "Text.\n\n"
+        r"![Spannung $\underline{U}_C$ am Kondensator mit $C = 47\,\mathrm{nF}$](fig:rc-bode)"
+        "\n"
+    )
+    doc = document("summary/02-rc-filter.md", workdir)
+    typ = pandoc.convert(body, doc, "typst")
+    assert 'alt: "Spannung U_C am Kondensator mit C = 47 nF")' in typ
+    assert "caption: [Spannung $underline(U)_C$ am Kondensator" in typ
+    compile_typst(typ, workdir, "figure-caption-math")
+    tree = check_html_contract(pandoc.convert(body, doc, "html"))
+    (caption,) = tree.find_all("figcaption")
+    assert [m.attrs["data-display"] for m in caption.find_all("sk-math")] == ["0", "0"]
+    pandoc.convert(body, doc, "json")
+
+
 def test_typst_refs_link_inside_the_document_or_name_the_target(workdir):
     body = pandoc.blank_frontmatter((OK / "mc/rc-filter.md").read_text(encoding="utf-8"))
     typ = pandoc.convert(body, document("mc/rc-filter.md", workdir), "typst")
@@ -595,6 +660,61 @@ def test_typst_math_fixups():
     typ = pandoc.convert(f"$$\n{tex}\n$$\n", doc, "typst")
     assert '1","5' in typ and "1\\,5" not in typ
     assert 'cases(delim: "{", 1","5 & quad t < 0, 0 & quad upright("sonst"))' in typ
+
+
+# One table for both engines (validate.thin_space_in_number and math.lua).
+THIN_SPACES = [
+    (r"10\,000", r"0\,0"),
+    (r"1\,5\,\mathrm{V}", r"1\,5"),
+    (r"x_{1 \, 2}", r"1\,2"),
+    ("1\\, % a comment\n5", r"1\,5"),
+    (r"R = 10{\,}000", r"0{\,}0"),  # a group of spaces
+    (r"R = 10{\,\,}000", r"0{\,\,}0"),
+    (r"R = 10\thinspace 000", r"0\thinspace0"),
+    (r"R = 10\medspace 000", r"0\medspace0"),
+    (r"R = 10\thickspace 000", r"0\thickspace0"),
+    (r"R = 10\:000", r"0\:0"),
+    (r"R = 10\;000", r"0\;0"),
+    (r"R = 10\>000", r"0\>0"),
+    (r"R = 10~000", r"0~0"),
+    (r"R = 10\ 000", r"0\ 0"),
+    (r"R = 1\,{\;}5", r"1\,{\;}5"),
+    (r"3{,}3\,\mathrm{k\Omega} + 470\,\Omega", None),
+    (r"10^4\,\mathrm{Hz} = 10000\,\mathrm{Hz}", None),
+    (r"\lambda_{1{,}2} = a\,b", None),
+    (r"U_2 = 2\cdot 3\,\mathrm{V}", None),
+    (r"x^{2}\,3 + 2~\mathrm{V} + a\;b", None),  # a closing brace ends the number
+    (r"1{,}5\;\mathrm{mA} \cdot 2\ \text{s}", None),
+]
+
+
+@pytest.mark.parametrize(("tex", "number"), THIN_SPACES)
+def test_validate_and_the_filter_agree_on_thin_spaces_in_numbers(tex, number, workdir):
+    """SK-MATH-THINSPACE: one token rule in validate and math.lua."""
+    assert validate.thin_space_in_number(tex) == number
+    doc = document("summary/02-rc-filter.md", workdir)
+    if number is None:
+        pandoc.convert(f"Text ${tex}$.\n", doc, "json")
+        return
+    with pytest.raises(pandoc.FilterError) as info:
+        pandoc.convert(f"Text ${tex}$.\n", doc, "json")
+    # \thinspace and \thickspace also fail the Typst conversion (SK-MATH)
+    (f,) = [f for f in info.value.findings if " SK-MATH-THINSPACE " in f]
+    assert f" SK-MATH-THINSPACE space between two digits ({number}) in $" in f
+    assert f.endswith("(fix: write 10000, 10^4, or {,} for a decimal comma)")
+
+
+def test_golden_math_corpus_has_no_thin_space_in_a_number():
+    tex = [t for t, _ in pandoc.math_nodes((GOLDEN / "math.md").read_text(encoding="utf-8"))]
+    assert len(tex) > 100
+    assert [t for t in tex if validate.thin_space_in_number(t)] == []
+
+
+def test_typst_decimal_comma_fixup_leaves_thin_spaces_alone():
+    """pandoc writes TeX \\, as Typst `thin` and only {,} as `\\,`, which the fix-up rewrites."""
+    doc = pandoc.Document(course="c", lang="de", file="summary/01-x.md", index=INDEX)
+    typ = pandoc.convert("$3{,}3\\,\\mathrm{k\\Omega}$\n", doc, "typst")
+    assert '3","3 thin upright(k Omega)' in typ
 
 
 def test_typst_mcq_shuffle_is_deterministic_and_keeps_pin_last(workdir):

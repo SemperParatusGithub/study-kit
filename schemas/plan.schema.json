@@ -158,7 +158,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "`plan.yaml`, written by `studykit plan` (goal and note text by Claude).",
+  "description": "`plan.yaml`, written by `studykit plan` (Phase 5; goal and note text by Claude).",
   "properties": {
     "schema": {
       "const": 1,

@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-KEY
 message: 'single needs exactly one [x], found 2'
 line: 8
 ---

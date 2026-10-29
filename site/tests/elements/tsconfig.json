@@ -1,0 +1,33 @@
+{
+  // Compiles site/src/elements and the client libraries they import (store, leitner,
+  // scoring, shuffle, answer, …) for the browser harness, with the strictest options Astro
+  // offers so the code type-checks whatever preset the site uses. The build-time libraries
+  // of the shell (courses, katex, figures, …) import astro:content and are not included.
+  //   pnpm -C site exec tsc -p tests/elements/tsconfig.json
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": [],
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "erasableSyntaxOnly": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "skipLibCheck": true,
+    "rootDir": "../../src",
+    "outDir": "../../node_modules/.cache/sk-elements/build"
+  },
+  "include": ["../../src/elements/*.ts"]
+}

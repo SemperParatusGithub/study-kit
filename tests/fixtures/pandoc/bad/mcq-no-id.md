@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-ATTR
 message: 'mcq without an id'
 line: 8
 ---

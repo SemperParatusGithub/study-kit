@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-WHY
 message: 'option 1 has no why paragraph'
 line: 11
 ---

@@ -1,0 +1,14 @@
+---
+// What the client knows about a course (lib/stats.ts CourseInfo): topics with their MC
+// questions and exercises, exams and plan sessions. elements/dashboard.ts reads it to fill
+// the progress placeholders; one per course on a page.
+import { clientInfo, scriptJson, type Course } from '../lib/courses';
+
+interface Props {
+  course: Course;
+}
+
+const { course } = Astro.props;
+---
+
+<script is:inline type="application/json" data-sk-course-data={course.id} set:html={scriptJson(clientInfo(course))} />

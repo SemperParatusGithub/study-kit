@@ -13,7 +13,9 @@
 -- Environments are an allowlist (aligned, gathered, cases, pmatrix, bmatrix, Bmatrix):
 -- any other \begin{…} is a finding, with the hint of its env: entry (a starred name
 -- falls back to the unstarred one) or the allowlist. Beyond the list: non-ASCII outside
--- \text{…} (KaTeX strict rejects it).
+-- \text{…} (KaTeX strict rejects it), and a space command (\, \: \; ~ \thinspace …) between
+-- two digits, reported as SK-MATH-THINSPACE like validate does (10\,000 and 1\,5 show as
+-- two numbers).
 --
 -- HTML:  <sk-math data-tex="<base64 of the UTF-8 TeX>" data-display="0|1"></sk-math>
 -- Typst: each node is converted on its own with pandoc.write, any conversion warning is a
@@ -85,7 +87,7 @@ local function load_denylist(ctx)
   local path = ctx.filter_dir .. '/../math-denylist.json'
   local fh = io.open(path, 'r')
   if not fh then
-    ctx:fail('SK-MATH', 'cannot read ' .. path, 'restore pandoc/math-denylist.json')
+    ctx:fail('SK-PANDOC-FAIL', 'cannot read ' .. path, 'restore pandoc/math-denylist.json')
     return denylist
   end
   local entries = pandoc.json.decode(fh:read('a'), false)
@@ -209,10 +211,10 @@ function M.check(tex, ctx)
   local toks = M.tokenize(tex)
   local entries = load_denylist(ctx)
   local reported = {}
-  local function report(key, what, fix)
+  local function report(code, key, what, fix)
     if not reported[key] then
       reported[key] = true
-      ctx:fail('SK-MATH', what .. ' is not allowed in ' .. excerpt(tex), fix)
+      ctx:fail(code, what .. ' is not allowed in ' .. excerpt(tex), fix)
     end
   end
 
@@ -223,7 +225,7 @@ function M.check(tex, ctx)
     else
       for i = 1, #toks do
         if seq_at(toks, i, entry.seq) then
-          report(entry.token, '`' .. entry.token .. '`', entry.use)
+          report('SK-MATH-DENIED', entry.token, '`' .. entry.token .. '`', entry.use)
           break
         end
       end
@@ -235,8 +237,10 @@ function M.check(tex, ctx)
     if env and not M.ALLOWED_ENVS[env] then
       local entry = env_entry[env]
       if not (entry and entry.wrapped and is_wrapped(toks, i, entry)) then
+        -- an environment the denylist names is denied; any other one is outside the list
+        local code = entry and 'SK-MATH-DENIED' or 'SK-MATH-ENV'
         entry = entry or env_entry[(env:gsub('%*$', ''))]
-        report('env:' .. env, 'environment ' .. env, entry and entry.use or FIX_ENV)
+        report(code, 'env:' .. env, 'environment ' .. env, entry and entry.use or FIX_ENV)
       end
     end
   end
@@ -244,11 +248,72 @@ function M.check(tex, ctx)
   local ch = non_ascii(tex)
   if ch then
     ctx:fail(
-      'SK-MATH',
+      'SK-MATH-KATEX',
       'non-ASCII character ' .. ch .. ' outside \\text{…} in ' .. excerpt(tex),
       'put words in \\text{…} and write symbols as TeX commands, e.g. \\Omega'
     )
   end
+
+  local number = M.thin_space_in_number(toks)
+  if number then
+    ctx:fail(
+      'SK-MATH-THINSPACE',
+      'space between two digits (' .. number .. ') in ' .. excerpt(tex)
+        .. ': the number shows as two, and a decimal comma written this way comes out as a gap',
+      'write 10000, 10^4, or {,} for a decimal comma'
+    )
+  end
+end
+
+-- Space commands that set a gap; between two digits the number reads as two.
+local SPACES = {
+  ['\\,'] = true,
+  ['\\:'] = true,
+  ['\\;'] = true,
+  ['\\>'] = true,
+  ['\\ '] = true,
+  ['~'] = true,
+  ['\\thinspace'] = true,
+  ['\\medspace'] = true,
+  ['\\thickspace'] = true,
+}
+
+-- Index after the run of space commands from toks[i]; a {…} group of them counts too.
+local function space_gap(toks, i)
+  local j = i
+  while toks[j] do
+    if SPACES[toks[j]] then
+      j = j + 1
+    elseif toks[j] == '{' then
+      local k = j + 1
+      while toks[k] and SPACES[toks[k]] do
+        k = k + 1
+      end
+      if k == j + 1 or toks[k] ~= '}' then
+        break
+      end
+      j = k + 1
+    else
+      break
+    end
+  end
+  return j
+end
+
+--- '1\,5' when a space command stands between two digit tokens, else nil. The same rule
+--- as validate.thin_space_in_number (SPACES there is SPACE_TOKENS): 10\,000 and 1\,5
+--- show as two numbers in KaTeX and Typst, and the decimal-comma fix-up below only
+--- rewrites {,}.
+function M.thin_space_in_number(toks)
+  for i = 1, #toks - 1 do
+    if toks[i]:match('^%d$') then
+      local j = space_gap(toks, i + 1)
+      if j > i + 1 and toks[j] and toks[j]:match('^%d$') then
+        return table.concat(toks, '', i, j)
+      end
+    end
+  end
+  return nil
 end
 
 ---------------------------------------------------------------------------------------
@@ -342,7 +407,7 @@ function M.to_typst(el, ctx)
   local messages, out = pandoc.log.silence(pandoc.write, doc, 'typst')
   if #messages > 0 then
     ctx:fail(
-      'SK-MATH',
+      'SK-MATH-TYPST',
       'pandoc cannot convert ' .. excerpt(el.text) .. ' to Typst: ' .. first_problem(messages),
       'stay within the math subset of docs/architecture.md §2.3'
     )

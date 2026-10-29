@@ -1,0 +1,210 @@
+---
+// MC hub (docs/architecture.md §3.2): per-topic banks with accuracy and due counts (filled
+// from browser progress by the elements) and the five quiz modes.
+import Base from '../../../../layouts/Base.astro';
+import QuizSlot, { type QuizMode } from '../../../../components/QuizSlot.astro';
+import { coursePaths, route, type Course } from '../../../../lib/courses';
+import { MC_TYPE, plural } from '../../../../lib/format';
+
+export const getStaticPaths = coursePaths;
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const banks = course.banks.filter((b) => b.data.topic);
+const total = banks.reduce((n, b) => n + b.data.questions.length, 0);
+const topics = banks.map((b) => b.data.topic as string);
+const MODES: { id: QuizMode; label: string; text: string }[] = [
+  { id: 'practice', label: 'Practice', text: 'One question at a time with instant feedback.' },
+  { id: 'test', label: 'Test', text: 'A fixed set with feedback at the end and an optional timer.' },
+  { id: 'mistakes', label: 'Mistakes', text: 'Questions you answered wrong the last time.' },
+  { id: 'due', label: 'Due', text: 'What the review schedule brings back today.' },
+  { id: 'mixed', label: 'Mixed', text: 'All banks together, shuffled.' },
+];
+const scoring = course.data.exam.mc?.scoring ?? 'all-or-nothing';
+---
+
+<Base title="Multiple choice" course={course} tab="mc">
+  <div class="page-head" lang={en}>
+    <h1>Multiple choice</h1>
+    <p class="muted">
+      {plural(total, 'question')} in {plural(banks.length, 'topic bank')}. Multi-select questions
+      are scored {scoring === 'partial' ? 'with partial credit' : scoring === 'kprim' ? 'like Kprim' : 'all-or-nothing'},
+      as in the exam.
+    </p>
+  </div>
+
+  {
+    banks.length === 0 ? (
+      <div class="empty" lang={en}>
+        No MC questions yet.
+      </div>
+    ) : (
+      <>
+        <section aria-labelledby="banks-title" lang={en}>
+          <h2 id="banks-title" class="visually-hidden">
+            Topic banks
+          </h2>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Topic</th>
+                  <th scope="col" class="num col-count">
+                    Questions
+                  </th>
+                  <th scope="col" class="col-types">
+                    Types
+                  </th>
+                  <th scope="col" class="num">
+                    Accuracy
+                  </th>
+                  <th scope="col" class="num">
+                    Due
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {banks.map((b) => {
+                  const types = Object.entries(
+                    b.data.questions.reduce<Record<string, number>>((acc, q) => {
+                      acc[q.type] = (acc[q.type] ?? 0) + 1;
+                      return acc;
+                    }, {}),
+                  );
+                  return (
+                    <tr>
+                      <th scope="row">
+                        <a href={route.mcTopic(c, b.data.topic ?? '')} lang={course.lang}>
+                          {course.topicTitle(b.data.topic)}
+                        </a>
+                      </th>
+                      <td class="num col-count">{b.data.questions.length}</td>
+                      <td class="col-types">
+                        {types.map(([t, n]) => (
+                          <span class="badge" title={MC_TYPE[t] ?? t}>
+                            {n} {t}
+                          </span>
+                        ))}
+                      </td>
+                      <td class="num">
+                        <span data-sk-fill data-sk-accuracy data-course={c} data-topic={b.data.topic} />
+                      </td>
+                      <td class="num">
+                        <span data-sk-fill data-sk-due-count data-course={c} data-topic={b.data.topic} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="modes" aria-labelledby="modes-title" lang={en}>
+          <h2 id="modes-title">Quiz modes</h2>
+          {MODES.map((m, i) => (
+            <details class="mode" name="mc-mode" id={m.id} open={i === 0}>
+              <summary>
+                <strong>{m.label}</strong>
+                <span class="muted">{m.text}</span>
+              </summary>
+              <div class="mode-body">
+                <QuizSlot course={course} mode={m.id} topics={topics} intro={false} framed={false} />
+              </div>
+            </details>
+          ))}
+        </section>
+      </>
+    )
+  }
+</Base>
+
+<style>
+  .data-table th[scope='row'] {
+    font-weight: 550;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: var(--text-sm);
+    background: none;
+    color: var(--text);
+  }
+
+  .data-table .badge + .badge {
+    margin-left: var(--space-1);
+  }
+
+  .modes {
+    margin-top: var(--space-6);
+  }
+
+  .mode {
+    margin: var(--space-2) 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .mode > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    cursor: pointer;
+    list-style-position: outside;
+  }
+
+  .mode > summary {
+    list-style: none;
+  }
+
+  .mode > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mode > summary::before {
+    content: '';
+    align-self: center;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-right: var(--space-1);
+    border-right: 2px solid var(--text-muted);
+    border-bottom: 2px solid var(--text-muted);
+    transform: rotate(-45deg);
+    transition: transform 120ms ease;
+  }
+
+  .mode[open] > summary::before {
+    transform: rotate(45deg);
+  }
+
+  @media (max-width: 40rem) {
+    .col-types {
+      display: none;
+    }
+
+    /* the count is on the topic page; accuracy and due are what the hub is for */
+    .col-count {
+      display: none;
+    }
+
+    .mode > summary span {
+      flex-basis: 100%;
+      padding-left: calc(0.45rem + var(--space-4));
+      font-size: var(--text-sm);
+    }
+  }
+
+  .mode[open] > summary {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mode-body {
+    padding: var(--space-4);
+  }
+
+  .mode-body sk-quiz:empty {
+    min-height: 3rem;
+  }
+</style>

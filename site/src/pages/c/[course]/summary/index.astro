@@ -1,0 +1,128 @@
+---
+// Chapter list of the summary, in teaching order.
+import Base from '../../../../layouts/Base.astro';
+import { coursePaths, labelHtml, route, type Course } from '../../../../lib/courses';
+import { plural } from '../../../../lib/format';
+import type { SummaryFm } from '../../../../lib/types';
+
+export const getStaticPaths = coursePaths;
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const hasBank = (topic: string | null) => course.banks.some((b) => b.data.topic === topic);
+const tested = course.summaries.filter((s) => hasBank(s.data.topic)).length;
+const selfTest =
+  tested === 0
+    ? ''
+    : tested === course.summaries.length
+      ? ' Each ends with a short self-test.'
+      : tested === 1
+        ? ' One of them, marked below, ends with a short self-test.'
+        : ` ${tested} of them, marked below, end with a short self-test.`;
+---
+
+<Base title="Summary" course={course} tab="summary">
+  <div class="page-head" lang={en}>
+    <h1>Summary</h1>
+    <p class="muted">
+      {plural(course.summaries.length, 'chapter')}, one per topic, in teaching order.{selfTest}
+    </p>
+  </div>
+
+  {
+    course.summaries.length === 0 ? (
+      <div class="empty" lang={en}>
+        No summary chapters yet.
+      </div>
+    ) : (
+      <ol class="chapters" role="list">
+        {course.summaries.map((s, i) => {
+          const fm = s.data.fm as unknown as SummaryFm;
+          const topic = course.topics.find((t) => t.id === s.data.topic);
+          return (
+            <li class="card chapter">
+              <span class="chapter-no" aria-hidden="true">
+                {i + 1}
+              </span>
+              <div>
+                <h2>
+                  <a href={route.summary(c, s.data.topic ?? '')}>{s.data.title}</a>
+                  {topic?.focus && (
+                    <span class="badge badge-accent" lang={en}>
+                      Focus
+                    </span>
+                  )}
+                  {tested > 0 && tested < course.summaries.length && hasBank(s.data.topic) && (
+                    <span class="badge" lang={en}>
+                      Self-test
+                    </span>
+                  )}
+                </h2>
+                {(fm.objectives ?? []).length > 0 && (
+                  <ul class="small muted">
+                    {(fm.objectives ?? []).map((o) => (
+                      <li set:html={labelHtml(s, o)} />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    )
+  }
+</Base>
+
+<style>
+  .chapters {
+    display: grid;
+    gap: var(--space-3);
+    max-width: 52rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .chapter {
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-start;
+  }
+
+  .chapter-no {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .chapter h2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0.2rem 0 var(--space-1);
+    font-size: 1.15rem;
+  }
+
+  .chapter h2 a {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .chapter h2 a:hover {
+    text-decoration: underline;
+  }
+
+  .chapter ul {
+    margin: 0;
+    padding-left: 1.1rem;
+  }
+</style>

@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-REF
+code: SK-REF-MISSING
 message: '`ex:mc-rc-filter-003` has kind mc, but ex: links need an exercise'
 line: 8
 ---

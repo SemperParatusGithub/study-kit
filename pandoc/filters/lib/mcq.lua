@@ -113,17 +113,17 @@ local function parse_option(label, index, item, ctx, W, list_pos)
   local parts = W.unwrap(item, list_pos)
   local first = parts[1]
   local opt = { pos = first and first.pos or list_pos, index = index }
-  local function fail(message, fix)
-    ctx:fail('SK-MCQ', label .. ': ' .. message, fix, opt.pos)
+  local function fail(code, message, fix)
+    ctx:fail(code, label .. ': ' .. message, fix, opt.pos)
   end
   if not first or (first.el.t ~= 'Para' and first.el.t ~= 'Plain') then
-    fail(string.format('option %d is not a task item', index), 'start it with `- [ ] ` or `- [x] `')
+    fail('SK-MCQ-FORMAT', string.format('option %d is not a task item', index), 'start it with `- [ ] ` or `- [x] `')
     return nil
   end
   local inl = first.el.content
   local box = inl[1]
   if not (box and box.t == 'Str' and (box.text == CHECKED or box.text == UNCHECKED)) then
-    fail(string.format('option %d is not a task item', index), 'start it with `- [ ] ` or `- [x] `')
+    fail('SK-MCQ-FORMAT', string.format('option %d is not a task item', index), 'start it with `- [ ] ` or `- [x] `')
     return nil
   end
   opt.correct = box.text == CHECKED
@@ -133,15 +133,17 @@ local function parse_option(label, index, item, ctx, W, list_pos)
     opt.text:insert(inl[i])
   end
   if #W.flatten(opt.text) == 0 then
-    fail(string.format('option %d has no text', index), 'write the option after the checkbox')
+    fail('SK-MCQ-FORMAT', string.format('option %d has no text', index), 'write the option after the checkbox')
   end
   if #parts < 2 then
     fail(
+      'SK-MCQ-WHY',
       string.format('option %d has no why paragraph', index),
       'add an indented paragraph after a blank line: why it is right, or which mistake it models'
     )
   elseif #parts > 2 or parts[2].el.t ~= 'Para' then
     fail(
+      'SK-MCQ-WHY',
       string.format('option %d must have exactly two paragraphs (option text, why)', index),
       'keep one why paragraph per option'
     )
@@ -151,7 +153,7 @@ local function parse_option(label, index, item, ctx, W, list_pos)
   local text = lower_text(opt.text)
   for _, phrase in ipairs(ALL_OF_THE_ABOVE) do
     if text:find(phrase, 1, true) then
-      fail('"all of the above" options are not allowed', 'write a real distractor or a "none of these" option')
+      fail('SK-MCQ-ALL-ABOVE', '"all of the above" options are not allowed', 'write a real distractor or a "none of these" option')
       break
     end
   end
@@ -162,15 +164,15 @@ end
 --- after errors, which are reported through ctx).
 function M.parse(el, ctx, W)
   local q = { id = el.identifier, pos = ctx.pos, options = {}, stem = pandoc.Blocks({}) }
-  local function fail(message, fix, pos)
-    ctx:fail('SK-MCQ', message, fix, pos or q.pos)
+  local function fail(code, message, fix, pos)
+    ctx:fail(code, message, fix, pos or q.pos)
   end
   local label = q.id ~= '' and q.id or 'mcq'
 
   if q.id == '' then
-    fail('mcq without an id', 'write `:::: {.mcq #mc-<topic>-NNN type="single" difficulty="2"}`')
+    fail('SK-MCQ-ATTR', 'mcq without an id', 'write `:::: {.mcq #mc-<topic>-NNN type="single" difficulty="2"}`')
   elseif not q.id:match(ID_PATTERN) then
-    fail('mcq id `' .. q.id .. '` is not kebab-case ASCII', 'use e.g. #mc-rc-filter-003')
+    fail('SK-MCQ-ATTR', 'mcq id `' .. q.id .. '` is not kebab-case ASCII', 'use e.g. #mc-rc-filter-003')
   end
 
   local attrs = {}
@@ -179,22 +181,22 @@ function M.parse(el, ctx, W)
       if ATTRS[k] then
         attrs[k] = v
       else
-        fail(label .. ': unknown attribute `' .. k .. '`', 'allowed: type, difficulty, tags, source, pin-last')
+        fail('SK-MCQ-ATTR', label .. ': unknown attribute `' .. k .. '`', 'allowed: type, difficulty, tags, source, pin-last')
       end
     end
   end
   q.type = attrs.type
   if not COUNTS[q.type] then
-    fail(label .. ': type must be single, multi or kprim', 'add type="single", type="multi" or type="kprim"')
+    fail('SK-MCQ-ATTR', label .. ': type must be single, multi or kprim', 'add type="single", type="multi" or type="kprim"')
   end
   if not (attrs.difficulty and attrs.difficulty:match('^[1-4]$')) then
-    fail(label .. ': difficulty must be 1, 2, 3 or 4', 'add difficulty="2"')
+    fail('SK-MCQ-ATTR', label .. ': difficulty must be 1, 2, 3 or 4', 'add difficulty="2"')
   else
     q.difficulty = tonumber(attrs.difficulty)
   end
   local pin = attrs['pin-last']
   if pin ~= nil and pin ~= 'true' and pin ~= 'false' then
-    fail(label .. ': pin-last must be "true" or "false"', 'write pin-last="true"')
+    fail('SK-MCQ-ATTR', label .. ': pin-last must be "true" or "false"', 'write pin-last="true"')
   end
   q.pin_last = pin == 'true'
   q.tags = attrs.tags
@@ -207,9 +209,9 @@ function M.parse(el, ctx, W)
     local b = kid.el
     if b.t == 'BulletList' then
       if explanation then
-        fail(label .. ': options after the explanation', 'put the explanation last', kid.pos)
+        fail('SK-MCQ-FORMAT', label .. ': options after the explanation', 'put the explanation last', kid.pos)
       elseif after_options then
-        fail(label .. ': options must form one list', 'remove what separates the options', kid.pos)
+        fail('SK-MCQ-FORMAT', label .. ': options must form one list', 'remove what separates the options', kid.pos)
       else
         table.insert(lists, kid)
       end
@@ -219,16 +221,17 @@ function M.parse(el, ctx, W)
         local name = W.guard_div(b, ctx, kid.pos)
         if name == 'explanation' then
           if explanation then
-            fail(label .. ': more than one explanation', 'merge them into one `::: explanation`', kid.pos)
+            fail('SK-MCQ-EXPLANATION', label .. ': more than one explanation', 'merge them into one `::: explanation`', kid.pos)
           elseif #lists == 0 then
-            fail(label .. ': the explanation must come after the options', 'move it to the end', kid.pos)
+            fail('SK-MCQ-FORMAT', label .. ': the explanation must come after the options', 'move it to the end', kid.pos)
           end
           explanation = explanation or kid
         end
       elseif b.t == 'OrderedList' then
-        fail(label .. ': options must be a task list', 'write each option as `- [ ] …` or `- [x] …`', kid.pos)
+        fail('SK-MCQ-FORMAT', label .. ': options must be a task list', 'write each option as `- [ ] …` or `- [x] …`', kid.pos)
       elseif #lists > 0 or explanation then
         fail(
+          'SK-MCQ-FORMAT',
           label .. ': unexpected block after the options',
           'the stem comes first, then the options, then the explanation',
           kid.pos
@@ -241,15 +244,16 @@ function M.parse(el, ctx, W)
   end
 
   if #q.stem == 0 then
-    fail(label .. ': no question stem', 'write the question before the options')
+    fail('SK-MCQ-FORMAT', label .. ': no question stem', 'write the question before the options')
   end
   if not explanation then
-    fail(label .. ': missing `::: explanation`', 'end the question with one `::: explanation` block')
+    fail('SK-MCQ-EXPLANATION', label .. ': missing `::: explanation`', 'end the question with one `::: explanation` block')
   else
     q.explanation = explanation
     for _, word, letter in pandoc.utils.stringify(explanation.el.content):gmatch('()(%a+)%s+%(?([A-F])%)?%f[^%w]') do
       if LETTER_WORDS[pandoc.text.lower(word)] then
         fail(
+          'SK-MCQ-LETTER',
           label .. ': the explanation refers to option ' .. letter .. ' by its letter',
           'options are shuffled; name the option by its content',
           explanation.pos
@@ -259,7 +263,7 @@ function M.parse(el, ctx, W)
     end
   end
   if #lists == 0 then
-    fail(label .. ': no option list', 'add options as `- [x] …` / `- [ ] …`, each with a why paragraph')
+    fail('SK-MCQ-COUNT', label .. ': no option list', 'add options as `- [x] …` / `- [ ] …`, each with a why paragraph')
     return q
   end
 
@@ -287,15 +291,17 @@ function M.parse(el, ctx, W)
     end
     if n < range[1] or n > range[2] then
       local want = range[1] == range[2] and tostring(range[1]) or (range[1] .. '–' .. range[2])
-      fail(string.format('%s: %s needs %s options, found %d', label, q.type, want, n), 'add or remove options')
+      fail('SK-MCQ-COUNT', string.format('%s: %s needs %s options, found %d', label, q.type, want, n), 'add or remove options')
     end
     if q.type == 'single' and correct ~= 1 then
       fail(
+        'SK-MCQ-KEY',
         string.format('%s: single needs exactly one [x], found %d', label, correct),
         'mark exactly one option `- [x]`, or use type="multi"'
       )
     elseif q.type == 'multi' and (correct == 0 or correct == n) then
       fail(
+        'SK-MCQ-KEY',
         string.format('%s: multi needs at least one [x] and at least one [ ], found %d of %d', label, correct, n),
         'mark the correct options with [x] and keep at least one wrong option'
       )

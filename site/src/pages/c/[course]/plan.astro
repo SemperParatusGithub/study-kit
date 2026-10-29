@@ -1,0 +1,269 @@
+---
+// Study plan as a week timeline (plan.yaml, docs/architecture.md §2.9). <sk-plan> adds the
+// session checkboxes and shows the "behind schedule" banner from browser progress.
+// Past and today are relative to the reader's day, so scripts/site.ts marks them from
+// data-date; without JavaScript every session looks upcoming.
+import Base from '../../../layouts/Base.astro';
+import { coursePaths, route, type Course } from '../../../lib/courses';
+import {
+  formatDate,
+  formatDay,
+  formatDayMonth,
+  formatMinutes,
+  plural,
+  SESSION_KIND,
+} from '../../../lib/format';
+import { sessionStart, taskView, weeks } from '../../../lib/plan';
+
+export const getStaticPaths = coursePaths;
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const plan = course.plan;
+const sessions = plan?.sessions ?? [];
+const allWeeks = weeks(sessions);
+const totalMinutes = sessions.reduce((n, s) => n + s.minutes, 0);
+const examDate = plan?.exam_date ?? course.examDate;
+---
+
+<Base title="Plan" course={course} tab="plan">
+  <div class="page-head" lang={en}>
+    <h1>Study plan</h1>
+    {
+      plan ? (
+        <p class="muted">
+          {plural(sessions.length, 'session')} · {formatMinutes(totalMinutes)} in total
+          {examDate && ` · exam on ${formatDate(examDate)}`} · generated {formatDate(plan.generated)}
+        </p>
+      ) : (
+        <p class="muted">No plan yet.</p>
+      )
+    }
+  </div>
+
+  {
+    !plan ? (
+      <div class="empty" lang={en}>
+        <p>
+          This course has no study plan. In Claude Code, run <code>/regenerate {c} plan</code> to schedule
+          sessions up to the exam.
+        </p>
+      </div>
+    ) : (
+      <sk-plan data-course={c}>
+        <div class="notice notice-warn" data-sk-behind hidden lang={en}>
+          <strong>You are behind schedule.</strong> <span data-sk-behind-text>Some past sessions are not done.</span>{' '}
+          In Claude Code, run <code>/regenerate {c} plan</code> to replan from today; finished work is kept.
+        </div>
+        <ol class="weeks" role="list">
+          {allWeeks.map((w) => (
+            <li class="week">
+              <h2 class="week-title" lang={en}>
+                Week of {formatDayMonth(w.start)}
+                <span class="muted small">
+                  {' '}
+                  · {formatMinutes(w.sessions.reduce((n, s) => n + s.minutes, 0))}
+                </span>
+              </h2>
+              <ol class="sessions" role="list">
+                {w.sessions.map((s) => (
+                  <li class={`session kind-${s.kind}`} data-session={s.id} data-date={s.date} id={s.id}>
+                    <div class="session-date" lang={en}>
+                      <span class="session-day">
+                        <span class="session-check" data-sk-plan-slot />
+                        <time datetime={s.date}>{formatDay(s.date)}</time>
+                      </span>
+                      <span class="badge badge-accent today-badge">Today</span>
+                    </div>
+                    <div class="session-body">
+                      <p class="session-head" lang={en}>
+                        <span class="badge">{SESSION_KIND[s.kind] ?? s.kind}</span>
+                        <span class="muted small">{formatMinutes(s.minutes)}</span>
+                        {s.topics.map((t) =>
+                          course.summaries.some((x) => x.data.topic === t) ? (
+                            <a class="small" href={route.summary(c, t)} lang={course.lang}>
+                              {course.topicTitle(t)}
+                            </a>
+                          ) : (
+                            <span class="small" lang={course.lang}>
+                              {course.topicTitle(t)}
+                            </span>
+                          ),
+                        )}
+                      </p>
+                      {s.goal && <p class="session-goal">{s.goal}</p>}
+                      {s.tasks.length > 0 && (
+                        <ul class="session-tasks" lang={en}>
+                          {s.tasks.map((task) => {
+                            const v = taskView(course, task);
+                            return (
+                              <li>
+                                <span class="task-label">{v.label}</span>
+                                {v.links.map((l, i) => (
+                                  <>
+                                    {i > 0 && ', '}
+                                    <a href={l.href} lang={course.lang}>
+                                      {l.title}
+                                    </a>
+                                  </>
+                                ))}
+                                {v.detail && <span class="muted"> · {v.detail}</span>}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {s.note && <p class="small muted">{s.note}</p>}
+                      <a class="small start" href={sessionStart(course, s)} lang={en}>
+                        Start →
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </li>
+          ))}
+        </ol>
+      </sk-plan>
+    )
+  }
+</Base>
+
+<style>
+  .weeks {
+    max-width: 52rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .week + .week {
+    margin-top: var(--space-5);
+  }
+
+  .week-title {
+    margin: 0 0 var(--space-2);
+    font-size: 1rem;
+  }
+
+  .sessions {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-left: 2px solid var(--border);
+  }
+
+  .session {
+    position: relative;
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: var(--space-3);
+    margin-left: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .session + .session {
+    margin-top: var(--space-2);
+  }
+
+  .session::before {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--space-4) - 6px);
+    top: 1.15rem;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--border-strong);
+    border-radius: 50%;
+    background: var(--bg);
+  }
+
+  .session.today::before {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .session.past {
+    background: transparent;
+  }
+
+  .session:not(.today) .today-badge,
+  .session.past .start {
+    display: none;
+  }
+
+  .session-date {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    font-weight: 600;
+    font-size: var(--text-sm);
+  }
+
+  .session-day {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .session-check:empty {
+    display: none;
+  }
+
+  /* done: ticked, a filled dot and the goal struck through; the text keeps its contrast */
+  .session.is-done::before {
+    border-color: var(--ok);
+    background: var(--ok);
+  }
+
+  .session.is-done .session-goal {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+
+  .session-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-1);
+  }
+
+  .session-body > p {
+    margin: 0 0 var(--space-1);
+  }
+
+  .session-tasks {
+    margin: var(--space-1) 0;
+  }
+
+  /* a coloured inner edge keeps the card geometry, so the timeline dots stay aligned */
+  .kind-mock-exam {
+    box-shadow: inset 4px 0 0 var(--box-warning);
+  }
+
+  .kind-review {
+    box-shadow: inset 4px 0 0 var(--box-example);
+  }
+
+  .notice {
+    margin-bottom: var(--space-5);
+  }
+
+  @media (max-width: 36rem) {
+    .session {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-1);
+    }
+
+    .session-date {
+      flex-direction: row;
+      align-items: center;
+    }
+  }
+</style>

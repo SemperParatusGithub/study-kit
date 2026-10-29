@@ -1,0 +1,1671 @@
+/* Custom elements (docs/architecture.md §3.2): sk-mc, sk-quiz, sk-exam, sk-hints,
+ * sk-answer-check, sk-reveal, sk-self-assess, sk-plan, sk-progress, sk-theme, sk-export.
+ *
+ * Colours come from the shell's tokens.css: every --ske-* token below is a tokens.css
+ * variable (with the same light-dark() pair as a fallback where tokens.css is absent, as in
+ * the element harness), so the elements follow the page's theme: [data-theme=light|dark]
+ * or, for 'system', prefers-color-scheme. Colour is never the only signal: every verdict
+ * also has a symbol and text. Motion only without prefers-reduced-motion. Before the
+ * script runs (:not(:defined)) the content stays plain and readable. */
+
+:root {
+  --ske-fg: var(--text, light-dark(#1f2328, #e6e8eb));
+  --ske-muted: var(--text-muted, light-dark(#59636e, #a1aab4));
+  /* tinted panels inside a card (options, feedback, explanation) */
+  --ske-surface: var(--surface-2, light-dark(#f0f1ef, #22272e));
+  /* hover, tracks and chips: one step stronger than --ske-surface */
+  --ske-surface-2: var(--border, light-dark(#e2e4e1, #2e343c));
+  /* cards, inputs and bars */
+  --ske-raised: var(--surface, light-dark(#ffffff, #1b1f24));
+  --ske-shadow: var(--shadow, 0 2px 10px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.45)));
+  --ske-border: var(--border, light-dark(#e2e4e1, #2e343c));
+  /* form controls keep a 3:1 edge against their background */
+  --ske-border-strong: light-dark(#8c959f, #6e7781);
+  --ske-accent: var(--accent, light-dark(#1f5fbf, #8ab4f8));
+  --ske-accent-fg: var(--accent-contrast, light-dark(#ffffff, #0d1117));
+  --ske-accent-soft: var(--accent-soft, light-dark(#e7eefb, #1d2a40));
+  --ske-ok: var(--ok, light-dark(#197c35, #56d364));
+  --ske-ok-soft: var(--ok-soft, light-dark(#e6f4ea, #1a2e22));
+  --ske-bad: var(--bad, light-dark(#cf222e, #ff7b72));
+  --ske-bad-soft: var(--bad-soft, light-dark(#ffebe9, #3a1d1f));
+  --ske-warn: var(--warn, light-dark(#966400, #e3b341));
+  --ske-warn-soft: var(--warn-soft, light-dark(#fff4d6, #2e2714));
+  --ske-partial: var(--warn, light-dark(#966400, #e3b341));
+  --ske-radius: var(--radius, 0.6rem);
+  --ske-radius-small: var(--radius-sm, 0.375rem);
+  --ske-focus: var(--focus, light-dark(#1f5fbf, #8ab4f8));
+  --ske-gap: 0.75rem;
+  /* The page background, for bars that content scrolls under. */
+  --ske-page: var(--bg, Canvas);
+}
+
+/* --- shared ------------------------------------------------------------------------- */
+
+.sk-vh {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sk-muted {
+  color: var(--ske-muted);
+}
+
+.sk-num {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.sk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--ske-border-strong);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-raised);
+  color: var(--ske-fg);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.sk-btn:hover {
+  background: var(--ske-surface-2);
+}
+
+.sk-btn-primary {
+  border-color: var(--ske-accent);
+  background: var(--ske-accent);
+  color: var(--ske-accent-fg);
+  font-weight: 600;
+}
+
+.sk-btn-primary:hover {
+  background: color-mix(in srgb, var(--ske-accent) 88%, var(--ske-fg));
+}
+
+.sk-btn-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ske-muted);
+}
+
+.sk-btn-large {
+  min-height: 2.75rem;
+  padding: 0.5rem 1.4rem;
+  font-size: 1.05rem;
+}
+
+.sk-btn[aria-disabled='true'],
+.sk-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sk-btn[hidden] {
+  display: none;
+}
+
+:is(sk-mc, sk-quiz, sk-exam, sk-hints, sk-answer-check, sk-reveal, sk-self-assess, sk-plan,
+  sk-progress, sk-theme, sk-export, .sk-dialog) :focus-visible {
+  outline: 2px solid var(--ske-focus);
+  outline-offset: 2px;
+}
+
+.sk-input {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--ske-border-strong);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-raised);
+  color: var(--ske-fg);
+  font: inherit;
+}
+
+.sk-input-short {
+  width: 6.5rem;
+}
+
+.sk-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--ske-muted);
+}
+
+.sk-field > .sk-input {
+  color: var(--ske-fg);
+  font-size: 1rem;
+}
+
+.sk-meter {
+  display: block;
+  position: relative;
+  height: 0.6rem;
+  min-width: 4rem;
+  border-radius: 999px;
+  background: var(--ske-surface-2);
+  border: 1px solid var(--ske-border);
+  overflow: hidden;
+}
+
+.sk-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--ske-accent);
+  border-radius: inherit;
+}
+
+.sk-badge {
+  display: inline-block;
+  margin-inline-start: 0.5em;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.sk-badge.is-ok {
+  background: var(--ske-ok-soft);
+  color: var(--ske-ok);
+}
+
+.sk-badge.is-bad {
+  background: var(--ske-bad-soft);
+  color: var(--ske-bad);
+}
+
+kbd {
+  font: inherit;
+}
+
+/* --- sk-mc -------------------------------------------------------------------------- */
+
+sk-mc {
+  display: block;
+  margin-block: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+  scroll-margin-top: 5rem;
+}
+
+sk-mc:not(:defined) sk-opt {
+  display: block;
+  margin-block: 0.5rem;
+  padding-inline-start: 1rem;
+  border-inline-start: 3px solid var(--ske-border);
+}
+
+sk-mc:focus-visible {
+  outline: 2px solid var(--ske-focus);
+  outline-offset: 3px;
+}
+
+sk-mc:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.sk-mc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block-end: 0.5rem;
+  color: var(--ske-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sk-mc-type {
+  font-weight: 600;
+}
+
+.sk-mc-difficulty {
+  letter-spacing: 0.15em;
+  color: var(--ske-border-strong);
+}
+
+.sk-mc-note {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ske-muted);
+}
+
+.sk-mc-note.is-warning,
+.sk-assess-changed {
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-warn-soft);
+  color: var(--ske-warn);
+  font-weight: 600;
+}
+
+.sk-stem > :first-child {
+  margin-block-start: 0;
+}
+
+.sk-stem > :last-child {
+  margin-block-end: 0.25rem;
+}
+
+.sk-mc-instr {
+  margin: 0.35rem 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--ske-muted);
+}
+
+.sk-mc-options {
+  display: grid;
+  gap: 0.45rem;
+}
+
+sk-opt.sk-opt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.75rem;
+  align-items: start;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-surface);
+  cursor: pointer;
+}
+
+.sk-mc-kprim sk-opt.sk-opt {
+  grid-template-columns: auto 1fr auto;
+  cursor: default;
+}
+
+sk-opt.sk-opt:hover {
+  border-color: var(--ske-border-strong);
+}
+
+sk-opt.is-selected,
+sk-opt.is-judged {
+  border-color: var(--ske-accent);
+  background: var(--ske-accent-soft);
+}
+
+.sk-opt-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block-start: 0.1rem;
+}
+
+.sk-opt-control input,
+.sk-kprim input,
+.sk-mc-conf input,
+.sk-rubric-item input,
+.sk-check-chip input,
+.sk-plan-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--ske-accent);
+}
+
+.sk-opt-letter {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--ske-surface-2);
+  color: var(--ske-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.sk-mc-kprim .sk-opt-letter {
+  margin-block-start: 0.05rem;
+}
+
+.sk-opt-text {
+  min-width: 0;
+  overflow-x: auto;
+  padding-block: 0.1rem;
+}
+
+.sk-opt-text > p:only-child {
+  margin: 0;
+}
+
+.sk-kprim {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-self: center;
+}
+
+.sk-kprim-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--ske-border);
+  border-radius: 999px;
+  background: var(--ske-raised);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.sk-kprim-choice:has(input:checked) {
+  border-color: var(--ske-accent);
+  background: var(--ske-accent-soft);
+  font-weight: 600;
+}
+
+.sk-opt-mark,
+sk-opt > .sk-why {
+  grid-column: 2 / -1;
+}
+
+.sk-opt-mark {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ske-muted);
+}
+
+sk-opt > .sk-why {
+  margin-block-start: 0.2rem;
+  font-size: 0.92rem;
+}
+
+sk-opt > .sk-why > :first-child {
+  margin-block-start: 0;
+}
+
+sk-opt > .sk-why > :last-child {
+  margin-block-end: 0;
+}
+
+sk-mc.is-checked sk-opt.sk-opt {
+  cursor: default;
+}
+
+sk-mc.is-checked sk-opt.is-correct {
+  border-color: var(--ske-ok);
+}
+
+sk-mc.is-checked sk-opt.is-right {
+  border-color: var(--ske-ok);
+  background: var(--ske-ok-soft);
+}
+
+sk-mc.is-checked sk-opt.is-wrong {
+  border-color: var(--ske-bad);
+  background: var(--ske-bad-soft);
+}
+
+sk-mc.is-checked sk-opt.is-missed {
+  border-style: dashed;
+  border-width: 2px;
+}
+
+sk-opt.is-right .sk-opt-mark {
+  color: var(--ske-ok);
+}
+
+sk-opt.is-wrong .sk-opt-mark,
+sk-opt.is-missed .sk-opt-mark {
+  color: var(--ske-bad);
+}
+
+.sk-mc-conf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.sk-mc-conf legend {
+  float: left;
+  margin-inline-end: 0.25rem;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sk-mc-conf-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--ske-border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.sk-mc-conf-choice:has(input:checked) {
+  border-color: var(--ske-accent);
+  background: var(--ske-accent-soft);
+  font-weight: 600;
+}
+
+.sk-mc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-block-start: 0.9rem;
+}
+
+.sk-mc-keys {
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+  color: var(--ske-muted);
+}
+
+sk-mc.is-locked .sk-mc-keys {
+  display: none;
+}
+
+.sk-mc-keys kbd {
+  padding: 0 0.3em;
+  border: 1px solid var(--ske-border);
+  border-radius: 0.2rem;
+  background: var(--ske-surface);
+  font-size: 0.95em;
+}
+
+.sk-mc-status {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+  color: var(--ske-warn);
+}
+
+.sk-mc-status:empty,
+.sk-mc-feedback:empty {
+  display: none;
+}
+
+.sk-mc-feedback {
+  margin-block-start: 0.75rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--ske-radius-small);
+  border-inline-start: 4px solid var(--ske-border-strong);
+  background: var(--ske-surface);
+  font-weight: 600;
+}
+
+.sk-mc-feedback:focus {
+  outline: none;
+}
+
+.sk-mc-feedback:focus-visible {
+  outline: 2px solid var(--ske-focus);
+}
+
+.sk-mc-feedback.is-ok {
+  border-color: var(--ske-ok);
+  background: var(--ske-ok-soft);
+  color: var(--ske-ok);
+}
+
+.sk-mc-feedback.is-partial {
+  border-color: var(--ske-partial);
+  background: var(--ske-warn-soft);
+  color: var(--ske-warn);
+}
+
+.sk-mc-feedback.is-bad {
+  border-color: var(--ske-bad);
+  background: var(--ske-bad-soft);
+  color: var(--ske-bad);
+}
+
+sk-mc > .sk-explanation {
+  margin-block-start: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-surface);
+}
+
+.sk-mc-expl-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ske-muted);
+}
+
+sk-mc > .sk-explanation > :last-child {
+  margin-block-end: 0;
+}
+
+/* --- sk-quiz ------------------------------------------------------------------------ */
+
+sk-quiz {
+  display: block;
+  margin-block: 1.5rem;
+}
+
+.sk-quiz-start,
+.sk-quiz-result {
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+}
+
+/* data-frame="none": the page already frames the quiz (a card, the MC hub's disclosures) */
+sk-quiz[data-frame='none'] {
+  margin-block: 0;
+}
+
+sk-quiz[data-frame='none'] :is(.sk-quiz-start, .sk-quiz-result) {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.sk-quiz-mode {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.sk-quiz-desc,
+.sk-quiz-count {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--ske-muted);
+}
+
+.sk-quiz-count {
+  color: var(--ske-fg);
+  font-weight: 600;
+}
+
+.sk-quiz-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.sk-quiz-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.sk-quiz-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sk-quiz-filter legend {
+  margin-block-end: 0.35rem;
+  padding: 0;
+  font-size: 0.9rem;
+  color: var(--ske-muted);
+}
+
+.sk-check-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--ske-border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.sk-check-chip:has(input:checked) {
+  border-color: var(--ske-accent);
+  background: var(--ske-accent-soft);
+}
+
+.sk-quiz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-block: 0.5rem;
+}
+
+:is(.sk-quiz-fields, .sk-quiz-filter, .sk-quiz-actions)[hidden] {
+  display: none;
+}
+
+.sk-quiz-error {
+  color: var(--ske-bad);
+}
+
+.sk-quiz-status {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+  box-shadow: var(--ske-shadow);
+  font-size: 0.92rem;
+}
+
+.sk-quiz-pos {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sk-quiz-bar {
+  flex: 1;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--ske-surface-2);
+  overflow: hidden;
+}
+
+.sk-quiz-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--ske-accent);
+}
+
+.sk-quiz-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--ske-muted);
+  white-space: nowrap;
+}
+
+.sk-quiz-time.is-low {
+  color: var(--ske-bad);
+  font-weight: 700;
+}
+
+.sk-quiz-stage sk-mc {
+  margin-block: 0.5rem;
+}
+
+.sk-quiz-practice {
+  margin: 0.75rem 0 0;
+  padding: 0.45rem 0.85rem;
+  border-inline-start: 4px solid var(--ske-accent);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-accent-soft);
+  font-size: 0.95rem;
+}
+
+.sk-quiz-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sk-quiz-title {
+  margin: 0;
+}
+
+.sk-quiz-title:focus {
+  outline: none;
+}
+
+.sk-quiz-score {
+  margin: 0.4rem 0 0;
+  font-size: 1.15rem;
+}
+
+.sk-quiz-score strong {
+  font-size: 1.6rem;
+}
+
+.sk-quiz-meta {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--ske-muted);
+}
+
+.sk-quiz-result h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.sk-quiz-topics,
+.sk-exam-table,
+.sk-exam-history {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+
+:is(.sk-quiz-topics, .sk-exam-table, .sk-exam-history) :is(th, td) {
+  padding: 0.4rem 0.5rem;
+  border-block-end: 1px solid var(--ske-border);
+  text-align: start;
+}
+
+:is(.sk-quiz-topics, .sk-exam-table, .sk-exam-history) thead th {
+  font-size: 0.8rem;
+  color: var(--ske-muted);
+  font-weight: 600;
+}
+
+:is(.sk-quiz-topics, .sk-exam-table, .sk-exam-history) tbody th {
+  font-weight: 500;
+  /* long German compounds ("Wechselstromrechnung") must not widen the table past a phone */
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.sk-quiz-bar-cell {
+  width: 30%;
+}
+
+.sk-quiz-misconceptions {
+  margin: 0;
+  padding-inline-start: 1.2rem;
+}
+
+.sk-quiz-misconceptions li {
+  margin-block: 0.4rem;
+}
+
+.sk-quiz-mis-topic {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.sk-quiz-none {
+  color: var(--ske-muted);
+}
+
+.sk-quiz-review {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sk-quiz-item {
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius-small);
+}
+
+.sk-quiz-item > summary {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.sk-quiz-item > sk-mc {
+  margin: 0 0.5rem 0.5rem;
+}
+
+.sk-quiz-item-icon {
+  font-weight: 700;
+  width: 1.2rem;
+  text-align: center;
+}
+
+.sk-quiz-item.is-ok .sk-quiz-item-icon {
+  color: var(--ske-ok);
+}
+
+.sk-quiz-item.is-partial .sk-quiz-item-icon {
+  color: var(--ske-partial);
+}
+
+.sk-quiz-item.is-bad .sk-quiz-item-icon {
+  color: var(--ske-bad);
+}
+
+/* --- exercises: sk-hints, sk-answer-check, sk-reveal, sk-self-assess --------------------- */
+
+sk-hints,
+sk-answer-check,
+sk-reveal,
+sk-self-assess {
+  display: block;
+  margin-block: 1rem;
+}
+
+.sk-hints-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.sk-hints-bar .sk-btn[hidden] + .sk-hints-status {
+  margin: 0;
+}
+
+.sk-hints-status {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ske-muted);
+}
+
+/* One grid for every answer row (subgrid): the labels share a column, so all inputs start
+ * at the same x whatever the label widths. Long labels wrap at 16rem. */
+.sk-check {
+  display: grid;
+  grid-template-columns: fit-content(16rem) minmax(0, 1fr);
+  column-gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+}
+
+.sk-check > :not(.sk-check-row) {
+  grid-column: 1 / -1;
+}
+
+.sk-check-title,
+.sk-assess-title {
+  margin: 0 0 0.6rem;
+  font-weight: 700;
+}
+
+.sk-check-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  row-gap: 0.35rem;
+  align-items: start;
+  margin-block-end: 0.75rem;
+}
+
+.sk-check-label {
+  padding-block-start: 0.45rem;
+  font-weight: 600;
+}
+
+.sk-check-field {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.sk-check-input {
+  min-height: 2.25rem;
+  max-width: 22rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--ske-border-strong);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-raised);
+  color: var(--ske-fg);
+  font: inherit;
+}
+
+.sk-check-input[aria-invalid='true'] {
+  border-color: var(--ske-bad);
+}
+
+.sk-check-hint {
+  font-size: 0.82rem;
+  color: var(--ske-muted);
+}
+
+.sk-check-result {
+  grid-column: 2;
+  font-size: 0.92rem;
+}
+
+.sk-check-result:empty {
+  display: none;
+}
+
+.sk-check-result.is-ok {
+  color: var(--ske-ok);
+}
+
+.sk-check-result.is-bad {
+  color: var(--ske-bad);
+}
+
+.sk-check-icon {
+  font-weight: 700;
+}
+
+.sk-check-read {
+  color: var(--ske-muted);
+}
+
+.sk-check-tip {
+  display: block;
+  margin-block-start: 0.15rem;
+  color: var(--ske-warn);
+  font-weight: 600;
+}
+
+.sk-check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sk-check-summary {
+  margin: 0;
+  color: var(--ske-muted);
+}
+
+.sk-reveal-confirm {
+  margin-block: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ske-warn);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-warn-soft);
+}
+
+.sk-reveal-confirm p {
+  margin: 0 0 0.6rem;
+}
+
+.sk-reveal-actions,
+.sk-assess-choices,
+.sk-export-actions,
+.sk-exam-actions,
+.sk-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sk-assess {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+}
+
+.sk-assess-choice[aria-pressed='true'] {
+  border-color: var(--ske-accent);
+  background: var(--ske-accent-soft);
+  font-weight: 600;
+}
+
+.sk-assess-choice[aria-pressed='true']::before {
+  content: '✓';
+}
+
+.sk-assess-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ske-warn);
+}
+
+.sk-assess-changed {
+  margin: 0.6rem 0 0;
+}
+
+.sk-assess-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ske-muted);
+}
+
+.sk-assess-status:empty {
+  display: none;
+}
+
+.sk-inline-math {
+  white-space: nowrap;
+}
+
+/* --- sk-exam ------------------------------------------------------------------------ */
+
+sk-exam {
+  display: block;
+}
+
+.sk-exam-cover,
+.sk-exam-result {
+  margin-block: 1rem 1.5rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+}
+
+.sk-exam-cover h2,
+.sk-exam-result h2 {
+  margin-block-start: 0;
+}
+
+.sk-exam-cover h3 {
+  margin: 1rem 0 0.35rem;
+  font-size: 1rem;
+}
+
+.sk-exam-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.sk-exam-facts > div {
+  flex: 1 1 7rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-surface);
+}
+
+.sk-exam-facts > div:last-child {
+  flex: 3 1 16rem;
+}
+
+.sk-exam-facts dt {
+  font-size: 0.8rem;
+  color: var(--ske-muted);
+}
+
+.sk-exam-facts dd {
+  margin: 0.1rem 0 0;
+  font-weight: 600;
+}
+
+.sk-exam-rules,
+.sk-exam-aids {
+  margin: 0;
+  padding-inline-start: 1.25rem;
+}
+
+.sk-exam-last {
+  margin-block: 0.75rem 0;
+  color: var(--ske-muted);
+}
+
+.sk-exam-cover > .sk-btn {
+  margin-block-start: 1rem;
+}
+
+/* An opaque strip from the viewport top through the alert: scrolled text never shows
+ * between the bar and the alert. */
+.sk-exam-head.is-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin-block: 0 0.5rem;
+  padding-block: 0.5rem;
+  background: var(--ske-page);
+}
+
+.sk-exam-head.is-sticky .sk-exam-alert {
+  margin-block-end: 0;
+}
+
+.sk-exam-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+  box-shadow: var(--ske-shadow);
+}
+
+.sk-exam-time {
+  font-size: 1.15rem;
+}
+
+.sk-exam-clock {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+sk-exam.is-low .sk-exam-clock {
+  color: var(--ske-bad);
+}
+
+.sk-exam-time-label {
+  color: var(--ske-muted);
+  font-size: 0.9rem;
+}
+
+.sk-exam-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-inline-end: auto;
+}
+
+.sk-exam-nav a {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding-inline: 0.4rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius-small);
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.sk-exam-nav a:hover {
+  border-color: var(--ske-accent);
+}
+
+.sk-exam-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block: 0.4rem 0.5rem;
+  box-shadow: var(--ske-shadow);
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--ske-radius-small);
+  border-inline-start: 4px solid var(--ske-warn);
+  background: var(--ske-warn-soft);
+  color: var(--ske-warn);
+  font-weight: 700;
+}
+
+.sk-exam-alert[hidden] {
+  display: none;
+}
+
+.sk-exam-alert-close {
+  min-height: 1.8rem;
+  padding-block: 0.15rem;
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Jumps to a part (the task links, N in the MC part) and focus end below the sticky head:
+ * while the exam runs, sk-exam sets the page's scroll-padding-top to the head's height
+ * (kept in --sk-exam-head) plus 0.5rem, so the parts need no margin of their own. */
+sk-exam :is(.sk-exam-task, .sk-exam-mc, sk-mc) {
+  scroll-margin-top: 0;
+}
+
+.sk-exam-total {
+  margin: 0.25rem 0;
+  font-size: 1.1rem;
+}
+
+.sk-exam-total strong {
+  font-size: 1.6rem;
+}
+
+.sk-exam-timeup {
+  color: var(--ske-warn);
+  font-weight: 600;
+}
+
+.sk-exam-hint {
+  font-size: 0.9rem;
+  color: var(--ske-muted);
+}
+
+.sk-exam-mc-total {
+  font-weight: 700;
+}
+
+.sk-rubric {
+  display: grid;
+  gap: 0.4rem;
+  margin-block: 1rem;
+  padding: 0.8rem 1rem;
+  border: 2px solid var(--ske-accent);
+  border-radius: var(--ske-radius);
+  background: var(--ske-accent-soft);
+}
+
+.sk-rubric legend {
+  padding-inline: 0.3rem;
+  font-weight: 700;
+}
+
+.sk-rubric-item {
+  display: grid;
+  grid-template-columns: auto 3.2rem 1fr;
+  gap: 0.6rem;
+  align-items: baseline;
+  cursor: pointer;
+}
+
+.sk-rubric-points {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.sk-rubric-total {
+  font-weight: 700;
+}
+
+.sk-dialog {
+  max-width: min(28rem, calc(100vw - 2rem));
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+  color: var(--ske-fg);
+}
+
+.sk-dialog::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+
+.sk-dialog h2 {
+  margin-block-start: 0;
+  font-size: 1.15rem;
+}
+
+.sk-dialog-actions {
+  justify-content: flex-end;
+}
+
+/* --- sk-plan ------------------------------------------------------------------------ */
+
+/* A plain list of sessions: the checkbox sits in front of each item. Where the shell gives
+ * each session a [data-sk-plan-slot] (.has-slot), the shell lays it out. */
+sk-plan.sk-plan-ready :is(ol, ul):has(> .sk-plan-item:not(.has-slot)) {
+  padding-inline-start: 0;
+}
+
+.sk-plan-item:not(.has-slot) {
+  position: relative;
+  margin-block: 0.3rem;
+  padding-inline-start: 1.9rem;
+  list-style: none;
+}
+
+.sk-plan-check {
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.sk-plan-item:not(.has-slot) > .sk-plan-check {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.2em;
+}
+
+/* The checkbox is an atomic inline box, so the line-through does not reach it. */
+.sk-plan-item.is-done:not(.has-slot) {
+  color: var(--ske-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--ske-border-strong);
+}
+
+.sk-plan-behind {
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--ske-radius-small);
+  border-inline-start: 4px solid var(--ske-warn);
+  background: var(--ske-warn-soft);
+}
+
+.sk-plan-behind[hidden] {
+  display: none;
+}
+
+/* --- sk-progress -------------------------------------------------------------------- */
+
+sk-progress {
+  display: block;
+}
+
+.sk-progress-overview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem 2rem;
+}
+
+.sk-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+}
+
+.sk-ring svg {
+  position: absolute;
+  inset: 0;
+}
+
+.sk-ring-track {
+  fill: none;
+  stroke: var(--ske-surface-2);
+  stroke-width: 9;
+}
+
+.sk-ring-fill {
+  fill: none;
+  stroke: var(--ske-accent);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.sk-ring-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-block-start: -0.5rem;
+}
+
+.sk-ring-label {
+  position: absolute;
+  top: 56%;
+  font-size: 0.7rem;
+  color: var(--ske-muted);
+}
+
+/* section headings: h2 under the page's h1, sized like the page's subsections */
+.sk-progress-title {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.sk-progress-note {
+  max-width: 44rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.88rem;
+  color: var(--ske-muted);
+}
+
+.sk-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sk-stats strong {
+  font-size: 1.3rem;
+}
+
+.sk-topic-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sk-topic,
+.sk-calib-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 18rem) minmax(5rem, 1fr) 3.5rem;
+  gap: 0.2rem 0.85rem;
+  align-items: center;
+}
+
+.sk-topic-name {
+  font-weight: 600;
+}
+
+.sk-topic-value {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  font-weight: 600;
+}
+
+.sk-topic-meta {
+  grid-column: 2 / -1;
+  font-size: 0.82rem;
+  color: var(--ske-muted);
+}
+
+.sk-topic.is-empty .sk-topic-value {
+  color: var(--ske-muted);
+}
+
+.sk-calib-row:last-child .sk-meter-fill {
+  background: var(--ske-border-strong);
+}
+
+.sk-calib-text {
+  margin-block: 0.6rem 0;
+  color: var(--ske-muted);
+}
+
+/* --- sk-theme ----------------------------------------------------------------------- */
+
+sk-theme {
+  display: inline-block;
+}
+
+.sk-theme {
+  display: inline-flex;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--ske-border);
+  border-radius: 999px;
+}
+
+.sk-theme-opt {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  color: var(--ske-muted);
+  cursor: pointer;
+}
+
+.sk-theme-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.sk-theme-opt:has(input:checked) {
+  background: var(--ske-surface-2);
+  /* the ring marks the choice at 3:1 or more against the bar; the fill alone is too faint */
+  box-shadow: inset 0 0 0 1.5px var(--ske-muted);
+  color: var(--ske-fg);
+}
+
+.sk-theme-opt:has(input:focus-visible) {
+  outline: 2px solid var(--ske-focus);
+  outline-offset: 1px;
+}
+
+.sk-theme-icon {
+  display: inline-grid;
+}
+
+/* --- sk-export ---------------------------------------------------------------------- */
+
+.sk-export-status {
+  margin-block: 0.6rem 0;
+}
+
+/* empty, it stays in place (a live region must exist before its text) but takes no room */
+.sk-export-status:empty {
+  margin: 0;
+}
+
+.sk-export-status.is-ok {
+  color: var(--ske-ok);
+}
+
+.sk-export-status.is-bad {
+  color: var(--ske-bad);
+}
+
+.sk-export-note {
+  margin-block: 0.6rem 0;
+  font-size: 0.88rem;
+  color: var(--ske-muted);
+}
+
+/* --- small screens, motion, print ----------------------------------------------------- */
+
+@media (max-width: 34rem) {
+  sk-mc {
+    padding: 0.8rem;
+  }
+
+  /* the running exam's bar stays one row on a phone: smaller task links, the clock's
+   * "left" only for screen readers */
+  .sk-exam-bar {
+    gap: 0.4rem 0.5rem;
+    padding: 0.4rem 0.55rem;
+  }
+
+  .sk-exam-time-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .sk-exam-nav {
+    gap: 0.2rem;
+  }
+
+  .sk-exam-nav a {
+    min-width: 1.85rem;
+    height: 1.85rem;
+    padding-inline: 0.25rem;
+  }
+
+  .sk-exam-bar .sk-btn {
+    min-height: 2rem;
+    padding-inline: 0.7rem;
+  }
+
+  .sk-mc-conf legend {
+    float: none;
+    width: 100%;
+    margin-block-end: 0.1rem;
+  }
+
+  .sk-mc-kprim sk-opt.sk-opt {
+    grid-template-columns: auto 1fr;
+  }
+
+  .sk-mc-kprim .sk-kprim {
+    grid-column: 2;
+    margin-block-start: 0.4rem;
+  }
+
+  .sk-mc-keys {
+    display: none;
+  }
+
+  .sk-check {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sk-check-label {
+    padding-block-start: 0;
+  }
+
+  .sk-check-result {
+    grid-column: 1;
+  }
+
+  .sk-topic,
+  .sk-calib-row {
+    grid-template-columns: 1fr 3.5rem;
+  }
+
+  .sk-topic .sk-meter,
+  .sk-calib-row .sk-meter {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .sk-topic-meta {
+    grid-column: 1 / -1;
+  }
+
+  .sk-quiz-bar-cell {
+    display: none;
+  }
+
+  /* the row already names the topic: the link reads "Read" (screen readers hear it all) */
+  .sk-quiz-topics .sk-quiz-link-topic {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  sk-opt.sk-opt,
+  .sk-btn,
+  .sk-kprim-choice,
+  .sk-mc-conf-choice,
+  .sk-check-chip,
+  .sk-theme-opt {
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+
+  .sk-meter-fill,
+  .sk-quiz-bar-fill {
+    transition: width 300ms ease;
+  }
+}
+
+@media print {
+  .sk-mc-actions,
+  .sk-mc-conf,
+  .sk-mc-status,
+  .sk-hints-bar,
+  .sk-check,
+  .sk-reveal-confirm,
+  .sk-assess,
+  .sk-exam-bar,
+  .sk-exam-alert,
+  .sk-exam-cover > .sk-btn,
+  .sk-exam-actions,
+  .sk-quiz-nav,
+  .sk-quiz-status,
+  sk-theme,
+  sk-export {
+    display: none !important;
+  }
+
+  sk-mc,
+  .sk-rubric {
+    break-inside: avoid;
+  }
+
+  /* the running exam's head is only its (hidden) bar: no empty strip on paper */
+  .sk-exam-head.is-sticky {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: none;
+  }
+}

@@ -1,0 +1,154 @@
+---
+import Base from '../layouts/Base.astro';
+import CourseData from '../components/CourseData.astro';
+import MasteryRing from '../components/MasteryRing.astro';
+import NextSession from '../components/NextSession.astro';
+import { listCourses, overallMastery, route } from '../lib/courses';
+import { daysBetween, EXAM_FORMAT, formatDate, plural, todayIso } from '../lib/format';
+import { coursesDir, displayPath } from '../lib/sys.mjs';
+
+const courses = await listCourses();
+const today = todayIso();
+---
+
+<Base title="Courses" description="Your study-kit courses">
+  <div class="page-head">
+    <h1>Your courses</h1>
+    <p class="muted">
+      Pick up where you left off. Everything runs on this machine; your answers and progress
+      are kept in this browser.
+    </p>
+  </div>
+
+  {
+    courses.length === 0 ? (
+      <div class="empty">
+        <p>
+          No courses in <code>{displayPath(coursesDir())}</code>.
+        </p>
+        <p>
+          Register a subject in Claude Code with <code>/register-new-subject &lt;folder&gt;</code>, or
+          point <code>STUDYKIT_COURSES_DIR</code> at a courses directory.
+        </p>
+      </div>
+    ) : (
+      <ul class="course-cards" role="list">
+        {courses.map((course) => (
+          <li class="card course-card">
+            <div class="course-card-head">
+              <div>
+                <p class="eyebrow">
+                  {course.short}
+                  {course.data.semester && <span> · {course.data.semester}</span>}
+                  {course.data.status === 'draft' && <span class="badge badge-warn">Draft</span>}
+                </p>
+                <h2 lang={course.lang}>
+                  <a href={route.course(course.id)}>{course.title}</a>
+                </h2>
+              </div>
+              <MasteryRing course={course.id} value={overallMastery(course)} />
+            </div>
+
+            <dl class="stats">
+              <div>
+                <dt>Exam</dt>
+                <dd>
+                  {course.examDate ? (
+                    <time datetime={course.examDate} data-countdown>
+                      <strong data-countdown-text>
+                        {(() => {
+                          const n = daysBetween(today, course.examDate);
+                          return n >= 0 ? `in ${plural(n, 'day')}` : 'passed';
+                        })()}
+                      </strong>
+                      <span class="muted small">{formatDate(course.examDate)}</span>
+                    </time>
+                  ) : (
+                    <span class="muted">Date not set</span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Due today</dt>
+                <dd>
+                  <strong data-sk-fill data-sk-due-count data-course={course.id}></strong>
+                  <span class="muted small">to review</span>
+                </dd>
+              </div>
+              <div>
+                <dt>Format</dt>
+                <dd class="small">{EXAM_FORMAT[course.data.exam.format] ?? course.data.exam.format}</dd>
+              </div>
+            </dl>
+
+            <h3 class="small muted">Next session</h3>
+            <NextSession course={course} />
+
+            <p class="card-actions">
+              <a class="button button-quiet" href={route.mc(course.id)}>
+                Practice MC
+              </a>
+              <a class="button button-quiet" href={route.summaries(course.id)}>
+                Summary
+              </a>
+            </p>
+            <CourseData course={course} />
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</Base>
+
+<style>
+  .course-cards {
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .course-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .course-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .course-card h2 {
+    margin: 0;
+    font-size: 1.3rem;
+  }
+
+  .course-card h2 a {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .course-card h2 a:hover {
+    text-decoration: underline;
+  }
+
+  .course-card h3 {
+    margin: var(--space-2) 0 0;
+    font-weight: 600;
+  }
+
+  .eyebrow .badge {
+    margin-left: var(--space-2);
+  }
+
+  .card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: auto;
+  }
+</style>

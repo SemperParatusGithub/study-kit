@@ -1,0 +1,120 @@
+---
+// One topic bank: every question in source order, each with its id as anchor (refs.lua
+// links mc:<id> to /c/<c>/mc/<topic>/#<id>), plus a practice quiz over the bank.
+import Base from '../../../../layouts/Base.astro';
+import Difficulty from '../../../../components/Difficulty.astro';
+import Html from '../../../../components/Html.astro';
+import QuizSlot from '../../../../components/QuizSlot.astro';
+import SearchTags from '../../../../components/SearchTags.astro';
+import { listCourses, route, type Course, type Doc } from '../../../../lib/courses';
+import { errorCard } from '../../../../lib/findings';
+import { MC_TYPE, plural } from '../../../../lib/format';
+
+export async function getStaticPaths() {
+  const courses = await listCourses();
+  return courses.flatMap((course) =>
+    course.banks
+      .filter((b) => b.data.topic)
+      .map((bank) => ({ params: { course: course.id, topic: bank.data.topic as string }, props: { course, bank } })),
+  );
+}
+
+const { course, bank } = Astro.props as { course: Course; bank: Doc };
+const c = course.id;
+const topicId = bank.data.topic ?? '';
+const en = course.lang === 'en' ? undefined : 'en';
+const errors = bank.data.findings.filter((f) => f.severity === 'error');
+const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
+---
+
+<Base title={`MC: ${course.topicTitle(topicId)}`} course={course} tab="mc">
+  <div class="page-head">
+    <p class="eyebrow" lang={en}>
+      <a href={route.mc(c)}>Multiple choice</a>
+      {hasSummary && ' · '}
+      {hasSummary && <a href={route.summary(c, topicId)}>Read the chapter</a>}
+    </p>
+    <h1>{bank.data.title}</h1>
+    <p class="muted" lang={en}>{plural(bank.data.questions.length, 'question')}</p>
+  </div>
+
+  <section class="practice card no-print" aria-labelledby="practice-title" lang={en}>
+    <h2 id="practice-title">Practice this topic</h2>
+    <p class="muted small">Questions from this bank in random order, with feedback after each answer.</p>
+    <QuizSlot course={course} mode="practice" topics={[topicId]} intro={false} framed={false} />
+  </section>
+
+  <section aria-labelledby="questions-title" data-pagefind-body>
+    <SearchTags course={course} type="mc" topic={topicId} />
+    <span data-pagefind-meta="title[data-value]" data-value={`MC: ${bank.data.title}`}></span>
+    <h2 id="questions-title" lang={en} data-pagefind-ignore>All questions</h2>
+    {errors.length > 0 && <Fragment set:html={errorCard(errors)} />}
+    <ol class="questions" role="list">
+      {
+        bank.data.questions.map((q, i) => (
+          <li class="question" id={q.id}>
+            <p class="question-meta" lang={en} data-pagefind-ignore>
+              <a href={`#${q.id}`} class="question-no">
+                Question {i + 1}
+              </a>
+              <span class="badge">{MC_TYPE[q.type] ?? q.type}</span>
+              <Difficulty value={q.difficulty} />
+            </p>
+            <Html html={q.html} course={c} />
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+</Base>
+
+<style>
+  .practice {
+    max-width: var(--measure);
+    margin-bottom: var(--space-6);
+  }
+
+  .questions {
+    display: grid;
+    gap: var(--space-5);
+    max-width: var(--measure);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .question {
+    scroll-margin-top: var(--space-5);
+  }
+
+  .question:target {
+    outline: 2px solid var(--accent);
+    outline-offset: 6px;
+    border-radius: var(--radius);
+  }
+
+  .question-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+  }
+
+  .question-no {
+    font-weight: 600;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .question :global(sk-mc) {
+    margin: 0;
+  }
+
+  /* the meta row above already names the type and difficulty (also without JavaScript) */
+  .question :global(.sk-mc-head) {
+    display: none;
+  }
+</style>

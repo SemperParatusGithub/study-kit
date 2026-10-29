@@ -1,0 +1,268 @@
+---
+// Overview tab (docs/architecture.md §2.12) with the Today panel on top.
+import Base from '../../../layouts/Base.astro';
+import Html from '../../../components/Html.astro';
+import NextSession from '../../../components/NextSession.astro';
+import SearchTags from '../../../components/SearchTags.astro';
+import { coursePaths, route, type Course } from '../../../lib/courses';
+import {
+  daysBetween,
+  EXAM_FORMAT,
+  formatDate,
+  formatMinutes,
+  formatNumber,
+  plural,
+  todayIso,
+} from '../../../lib/format';
+
+export const getStaticPaths = coursePaths;
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const today = todayIso();
+const exam = course.data.exam;
+const days = course.examDate ? daysBetween(today, course.examDate) : null;
+const en = course.lang === 'en' ? undefined : 'en';
+const overview = course.overview;
+const firstSummary = course.summaries[0];
+---
+
+<Base title="Overview" course={course} tab="overview" description={`Overview of ${course.title}`}>
+  <div class="page-head">
+    <p class="eyebrow" lang={en}>
+      {course.short}{course.data.semester && ` · ${course.data.semester}`}
+    </p>
+    <h1>{course.title}</h1>
+  </div>
+
+  <section class="today" aria-labelledby="today-title" lang={en}>
+    <h2 id="today-title" class="visually-hidden">Today</h2>
+
+    <div class="card today-exam">
+      <h3>Exam</h3>
+      {
+        course.examDate ? (
+          <>
+            <p class="big">
+              <time datetime={course.examDate} data-countdown>
+                <span data-countdown-text>
+                  {days !== null && days >= 0 ? `in ${plural(days, 'day')}` : 'passed'}
+                </span>
+              </time>
+            </p>
+            <p class="muted small">{formatDate(course.examDate)}</p>
+          </>
+        ) : (
+          <p class="muted">Date not known yet.</p>
+        )
+      }
+      <p class="small">
+        {EXAM_FORMAT[exam.format] ?? exam.format}
+        {exam.duration_min && ` · ${formatMinutes(exam.duration_min)}`}
+        {exam.points && ` · ${formatNumber(exam.points)} points`}
+      </p>
+      <a class="small" href={route.exams(c)}>Mock exams →</a>
+    </div>
+
+    <div class="card today-session">
+      <h3>Next session</h3>
+      <NextSession course={course} />
+      <a class="small" href={route.plan(c)}>Full plan →</a>
+    </div>
+
+    <div class="card today-reviews">
+      <h3>Reviews due</h3>
+      <p class="big"><span data-sk-fill data-sk-due-count data-course={c}></span></p>
+      <p class="muted small">MC questions the review schedule brings back today.</p>
+      <a class="small" href={`${route.mc(c)}#due`}>Start due reviews →</a>
+    </div>
+
+    <div class="card today-weak">
+      <h3>Weakest topics</h3>
+      <ol class="weak-list" data-sk-weakest data-course={c}></ol>
+      <p class="muted small" data-sk-weakest-empty>
+        Answer a few questions and the topics that need work show up here.
+      </p>
+      <a class="small" href={route.progress(c)}>Progress →</a>
+    </div>
+  </section>
+
+  <section class="topics" aria-labelledby="topics-title">
+    <h2 id="topics-title" lang={en}>Topics</h2>
+    <ul class="topic-chips" role="list">
+      {
+        course.topics.map((t) => {
+          const has = course.summaries.some((s) => s.data.topic === t.id);
+          return (
+            <li class:list={['topic-chip', { skip: t.skip }]}>
+              {has ? <a href={route.summary(c, t.id)}>{t.title}</a> : <span>{t.title}</span>}
+              {t.focus && (
+                <span class="badge badge-accent" lang={en}>
+                  Focus
+                </span>
+              )}
+              {t.skip && (
+                <span class="badge" lang={en}>
+                  Skipped
+                </span>
+              )}
+              <span class="muted small" lang={en}>
+                {Math.round(t.weight * 100)}%
+              </span>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </section>
+
+  {
+    overview ? (
+      <article class="prose overview" data-pagefind-body>
+        <SearchTags course={course} type="overview" />
+        <span data-pagefind-meta="title[data-value]" data-value={`${overview.data.title} · ${course.title}`} />
+        <h2 class="visually-hidden">{overview.data.title}</h2>
+        <Html html={overview.rendered?.html} course={c} />
+      </article>
+    ) : (
+      <div class="empty" lang={en}>
+        <p>This course has no overview yet.</p>
+        {firstSummary && (
+          <p>
+            <a href={route.summary(c, firstSummary.data.topic ?? '')}>Start with the first chapter</a>
+          </p>
+        )}
+      </div>
+    )
+  }
+</Base>
+
+<style>
+  .today {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1fr);
+    margin-bottom: var(--space-6);
+  }
+
+  .today .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+  }
+
+  .today h3 {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .today p {
+    margin: 0;
+  }
+
+  .today .card > a:last-child {
+    margin-top: auto;
+    padding-top: var(--space-2);
+  }
+
+  .big {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .weak-list {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+
+  /* items come from elements/dashboard.ts: topic link, then its accuracy */
+  .weak-list :global(li + li) {
+    margin-top: var(--space-1);
+  }
+
+  .weak-list :global(.sk-weak-value) {
+    float: right;
+    margin-left: var(--space-2);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .weak-list:empty {
+    display: none;
+  }
+
+  .weak-list:not(:empty) + [data-sk-weakest-empty] {
+    display: none;
+  }
+
+  .topic-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .topic-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: var(--text-sm);
+  }
+
+  .topic-chip a {
+    font-weight: 550;
+    text-decoration: none;
+  }
+
+  .topic-chip.skip {
+    border-style: dashed;
+    opacity: 0.75;
+  }
+
+  .topics {
+    margin-bottom: var(--space-6);
+  }
+
+  .topics h2 {
+    margin-top: 0;
+  }
+
+  .overview {
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 64rem) {
+    .today {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .today-session {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .today {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .today-session {
+      grid-row: auto;
+    }
+  }
+</style>

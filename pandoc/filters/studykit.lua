@@ -107,12 +107,12 @@ function Ctx.new(doc)
 
   if not self.file then
     self.file = '<stdin>'
-    self:fail('SK-STRUCT', 'missing -M sk-file', 'run pandoc through studykit.pandoc, which passes it')
+    self:fail('SK-PANDOC-FAIL', 'missing -M sk-file', 'run pandoc through studykit.pandoc, which passes it')
   else
     self.kind = file_kind(self.file)
     if not self.kind then
       self:fail(
-        'SK-STRUCT',
+        'SK-STRUCT-PATH',
         'cannot tell the file kind of ' .. self.file,
         'pass the course-relative path, e.g. summary/03-rc-filter.md or mc/rc-filter.md'
       )
@@ -124,15 +124,15 @@ function Ctx.new(doc)
   self.course = self.course or (self.index and self.index.course) or 'course'
   self.lang = self.lang or (self.index and self.index.lang) or 'de'
   if not i18n.languages[self.lang] then
-    self:fail('SK-STRUCT', 'unsupported language ' .. self.lang, 'set course.lang to de or en')
+    self:fail('SK-PANDOC-FAIL', 'unsupported language ' .. self.lang, 'set course.lang to de or en')
     self.lang = 'en'
   end
   if self.scope ~= 'course' and self.scope ~= 'file' then
-    self:fail('SK-STRUCT', 'sk-scope must be course or file', 'fix the pandoc argv')
+    self:fail('SK-PANDOC-FAIL', 'sk-scope must be course or file', 'fix the pandoc argv')
     self.scope = 'course'
   end
   if not ({ inline = true, appendix = true, none = true })[self.solutions] then
-    self:fail('SK-STRUCT', 'sk-solutions must be inline, appendix or none', 'fix the pandoc argv')
+    self:fail('SK-PANDOC-FAIL', 'sk-solutions must be inline, appendix or none', 'fix the pandoc argv')
     self.solutions = 'appendix'
   end
   return self
@@ -141,14 +141,14 @@ end
 function Ctx:load_index()
   local fh = io.open(self.index_path, 'r')
   if not fh then
-    self:fail('SK-REF', 'cannot read the course index ' .. self.index_path, 'run `studykit index <course> --json`')
+    self:fail('SK-PANDOC-FAIL', 'cannot read the course index ' .. self.index_path, 'run `studykit index <course> --json`')
     return
   end
   local text = fh:read('a')
   fh:close()
   local ok, data = pcall(pandoc.json.decode, text, false)
   if not ok or type(data) ~= 'table' or data.schema ~= 1 then
-    self:fail('SK-REF', 'course index is not schema 1 JSON: ' .. self.index_path, 'rebuild it with `studykit index`')
+    self:fail('SK-PANDOC-FAIL', 'course index is not schema 1 JSON: ' .. self.index_path, 'rebuild it with `studykit index`')
     return
   end
   for _, key in ipairs({ 'topics', 'items', 'exams', 'sources', 'figures' }) do
@@ -176,7 +176,7 @@ function Ctx:require_index()
   end
   if not self.index_path and not self.reported_no_index then
     self.reported_no_index = true
-    self:fail('SK-REF', 'references need the course index (-M sk-index)', 'run pandoc through studykit.pandoc')
+    self:fail('SK-PANDOC-FAIL', 'references need the course index (-M sk-index)', 'run pandoc through studykit.pandoc')
   end
   return nil
 end
@@ -406,6 +406,7 @@ function W.inline(el, ctx)
     el.content = W.inlines(el.content, ctx)
     return { W.clean(el) }
   elseif t == 'Code' then
+    guard.inline_code(el, ctx)
     return { W.clean(el) }
   elseif t == 'RawInline' then
     guard.raw(el, ctx)
@@ -490,6 +491,8 @@ function W.block(el, ctx, parent)
     return {}
   elseif t == 'HorizontalRule' then
     return { el }
+  elseif t == 'Table' then
+    guard.table(el, ctx)
   end
   return { W.clean(W.generic(el, ctx)) }
 end

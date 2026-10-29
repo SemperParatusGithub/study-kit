@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-BLOCK
+code: SK-BLOCK-UNKNOWN
 message: 'unknown block class `remark`'
 line: 10
 ---

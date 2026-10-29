@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-REF
+code: SK-REF-MISSING
 message: 'unknown exercise `ex-gibt-es-nicht`'
 line: 8
 ---
