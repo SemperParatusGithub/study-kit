@@ -257,6 +257,12 @@ def test_guard_allows_the_protocol(repo: Path, command: str):
         "git commit --no-verify -m 'feat: x'",
         "git commit -nm 'feat: x'",
         "git stage courses/get2/mc",
+        # git takes a unique prefix of a long option
+        "git add --forc .",
+        "git add --f notes.txt",
+        "git commit --no-verif -m 'feat: x'",
+        "git commit --no-veri -m 'feat: x'",
+        "git add --forc . && git commit --no-verif -m x",
     ],
 )
 def test_pre_git_blocks(repo: Path, command: str):
@@ -276,6 +282,8 @@ def test_pre_git_blocks(repo: Path, command: str):
         "git status",
         "git log --oneline -- courses",
         "echo git add -f",
+        "git commit --amend --no-edit",
+        "git add --dry-run src",
     ],
 )
 def test_pre_git_allows(repo: Path, command: str):

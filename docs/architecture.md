@@ -1636,10 +1636,11 @@ call the CLI as `uv run --frozen studykit …`.
     else exits 0 without output.
   - `PreToolUse`, matcher `Bash`, with `"if": "Bash(git *)"`: `studykit hook pre-git`
     checks every simple command of the line (`&&`, `;`, `|`, following `git -C <dir>`). It
-    denies `git add` or `git stage` with `-f`/`--force` (also inside a flag cluster) or a
-    path under `courses/` (pathspecs such as `:/courses` too; `courses/README.md` is
-    allowed), and `git commit` with a course path, `--no-verify` or `-n`, or course files
-    already staged. It prints the documented deny JSON
+    denies `git add` or `git stage` with `-f`/`--force` (also inside a flag cluster, or a
+    prefix such as `--forc`, which git accepts) or a path under `courses/` (pathspecs such
+    as `:/courses` too; `courses/README.md` is allowed), and `git commit` with a course
+    path, `--no-verify` (or a prefix down to `--no-v`) or `-n`, or course files already
+    staged. It prints the documented deny JSON
     (`hookSpecificOutput.permissionDecision: "deny"` with a reason) and exits 0; input it
     cannot read never blocks.
   - The verifier's guard is a hook of that agent only (§5.3).

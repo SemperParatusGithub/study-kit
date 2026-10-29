@@ -455,6 +455,12 @@ GIT_HINT = (
 )
 
 
+def _long_option(arg: str, option: str, shortest: int) -> bool:
+    """`option` or a prefix of it at least `shortest` long: git takes `--forc`, `--no-verif`."""
+    name = arg.split("=", 1)[0]
+    return len(name) >= shortest and option.startswith(name)
+
+
 def pre_git(payload: dict[str, Any]) -> dict[str, Any] | None:
     if payload.get("tool_name") != "Bash":
         return None
@@ -470,7 +476,9 @@ def pre_git(payload: dict[str, Any]) -> dict[str, Any] | None:
         sub, args, where = parsed
         if sub in ("add", "stage"):
             for arg in args:
-                if arg == "--force" or (re.fullmatch(r"-[A-Za-z]+", arg) and "f" in arg[1:]):
+                if _long_option(arg, "--force", 3) or (
+                    re.fullmatch(r"-[A-Za-z]+", arg) and "f" in arg[1:]
+                ):
                     return deny("pre-git: `git add -f` is never allowed." + GIT_HINT)
             paths = [a for a in args if not a.startswith("-") or a.startswith(":")]
             bad = [a for a in paths if course_path(a, where)]
@@ -483,7 +491,7 @@ def pre_git(payload: dict[str, Any]) -> dict[str, Any] | None:
                 if arg == "--":
                     paths.extend(args[i + 1 :])
                     break
-                if arg == "--no-verify":
+                if _long_option(arg, "--no-verify", 6):
                     return deny(NO_VERIFY)
                 if arg in COMMIT_OPTS_WITH_VALUE:
                     i += 2
