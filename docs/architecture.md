@@ -1047,11 +1047,17 @@ Not needed for any core build: Chromium, TeX, Graphviz, Mermaid, rsvg or resvg. 
 
 ```just
 set shell := ["bash", "-euo", "pipefail", "-c"]
+
 root := justfile_directory()
 export PATH := root / ".tools/bin" + ":" + env("PATH")
 export ASTRO_TELEMETRY_DISABLED := "1"
-export STUDYKIT_COURSES_DIR := env("STUDYKIT_COURSES_DIR", root / "courses")
+# absolute, so python (run from the repo root) and the site (run from site/) agree on a
+# relative value: it is relative to the repo root
+export STUDYKIT_COURSES_DIR := absolute_path(env("STUDYKIT_COURSES_DIR", root / "courses"))
+
 sk := "uv run --frozen studykit"
+# recipes that run other recipes call this very just with this justfile
+just := quote(just_executable()) + " --justfile " + quote(justfile())
 
 default:
     @just --list
@@ -1061,45 +1067,47 @@ setup:                       # idempotent
     pnpm -C site install --frozen-lockfile
     git config core.hooksPath .githooks
     {{sk}} doctor
-doctor:                      # exact versions, embedded Typst fonts, courses/ ignored, hooks active, port 4321 free
-    {{sk}} doctor
-dev: (figures "")            # http://localhost:4321 (strictPort)
-    pnpm -C site dev
+doctor *flags:               # toolchain.toml versions, site packages, Typst fonts, hooks, courses/ ignored, port 4321 (warning)
+    {{sk}} doctor {{flags}}
 figures course="":
     {{sk}} fig build {{course}}
-pdf course="" doc="": (figures course)
-    {{sk}} pdf {{course}} {{doc}}
-cheatsheet course:
-    {{sk}} cheatsheet fit {{course}}
-lint +files:
-    {{sk}} lint {{files}}
-validate course="" *flags:
-    {{sk}} validate {{course}} {{flags}}
-verify course="" *ids:
-    {{sk}} verify {{course}} {{ids}}
-status course:
-    {{sk}} status {{course}}
-build course="": (validate course) (pdf course)
+dev: (figures "")            # http://localhost:4321 (strictPort)
+    pnpm -C site dev
+build course="": (figures course) (validate course)
     STUDYKIT_STRICT=1 pnpm -C site build
     {{sk}} check-links site/dist
+check-links dist="site/dist":
+    {{sk}} check-links {{dist}}
+lint +files:
+    {{sk}} lint {{files}}
+validate course="" *flags:   # flags: --quick, --release, --paths, --json
+    {{sk}} validate {{course}} {{flags}}
 schema:
     {{sk}} schema export
 test:
     uv run --frozen pytest -q
-    node --test site/tests/unit/
-    {{sk}} golden            # math, block and mcq corpus through KaTeX and pandoc→Typst
-e2e:
-    pnpm -C site exec playwright test
-tutor course:
-    claude --agent tutor "{{course}}"
-examine course mode="mixed":
-    claude --agent examiner "{{course}} {{mode}}"
-ci:
-    just doctor test
+    pnpm -C site run test:unit
+    bash .github/scripts/test-hooks.sh
     {{sk}} schema export --check
-    STUDYKIT_COURSES_DIR={{root}}/examples STUDYKIT_STRICT=1 just build sample-course
-    STUDYKIT_COURSES_DIR={{root}}/examples just validate sample-course --release
+    {{sk}} golden            # math corpus through KaTeX and pandoc→Typst
+[positional-arguments]
+e2e *args:                   # needs site/dist with the sample course
+    pnpm -C site exec playwright install chromium
+    pnpm -C site run e2e "$@"
+ci:
+    {{just}} doctor
+    {{just}} test
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} build sample-course
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate sample-course --release
+lint-code:
+    uv run --frozen ruff check src tests
+    uv run --frozen ruff format --check src tests
 ```
+
+`build` sets `STUDYKIT_STRICT=1` itself and builds the whole site (all courses); its
+`course` argument picks what figures and validation cover. Planned recipes: `pdf` and
+`cheatsheet` (Phase 4, and `build` then depends on `pdf`), `verify`, `status`, `tutor` and
+`examine` (Phase 5 and 6).
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
 
