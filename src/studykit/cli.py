@@ -189,6 +189,14 @@ def _add_study_commands(sub) -> None:
     p_plan.add_argument("--json", action="store_true", help="machine-readable output")
     p_plan.set_defaults(func=cmd_plan)
 
+    p_status = sub.add_parser(
+        "status", help="study status: days left, plan adherence, weak topics, reviews due"
+    )
+    p_status.add_argument("course", help="course id or directory")
+    p_status.add_argument("--today", type=_day, help="the day to report for (default: today)")
+    p_status.add_argument("--json", action="store_true", help="machine-readable output")
+    p_status.set_defaults(func=cmd_status)
+
 
 def _print_findings(found, as_json: bool) -> None:
     if as_json:
@@ -289,6 +297,27 @@ def cmd_plan(args: argparse.Namespace) -> int:
         if result:
             print(plan.format_text(result, dry_run=args.dry_run))
     return 1 if errors else 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    from studykit import status
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        result, found = status.study_status(tree.root, args.today)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if found:
+        _print_findings(found, args.json)
+        return 1
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(status.format_text(result))
+    return 0
 
 
 def _course_tree(arg: str):
