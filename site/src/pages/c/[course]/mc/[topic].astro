@@ -40,7 +40,8 @@ const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
 
   <section class="practice card" aria-labelledby="practice-title" lang={en}>
     <h2 id="practice-title">Practice this topic</h2>
-    <QuizSlot course={course} mode="practice" topics={[topicId]} />
+    <p class="muted small">Questions from this bank in random order, with feedback after each answer.</p>
+    <QuizSlot course={course} mode="practice" topics={[topicId]} intro={false} framed={false} />
   </section>
 
   <section aria-labelledby="questions-title" data-pagefind-body>
@@ -110,5 +111,10 @@ const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
 
   .question :global(sk-mc) {
     margin: 0;
+  }
+
+  /* the meta row above already names the type and difficulty (also without JavaScript) */
+  .question :global(.sk-mc-head) {
+    display: none;
   }
 </style>

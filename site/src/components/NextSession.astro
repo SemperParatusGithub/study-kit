@@ -1,23 +1,26 @@
 ---
-// The next study session. Upcoming sessions are rendered hidden; scripts/site.ts shows the
-// first one dated today or later, so the box stays right after the build day.
+// The next study session. Every session from the build day on is rendered hidden (no
+// limit: a built site is used for weeks, and sessions may be ticked off ahead of time);
+// elements/dashboard.ts shows the first one dated today or later that is not done yet.
+// One day of slack covers a browser whose clock is a time zone behind the build.
 import SessionCard from './SessionCard.astro';
 import type { Course } from '../lib/courses';
 import { todayIso } from '../lib/format';
 
 interface Props {
   course: Course;
-  limit?: number;
 }
 
-const { course, limit = 30 } = Astro.props;
-const today = todayIso();
-const upcoming = (course.plan?.sessions ?? []).filter((s) => s.date >= today).slice(0, limit);
+const { course } = Astro.props;
+const from = todayIso(new Date(Date.now() - 86_400_000));
+const upcoming = (course.plan?.sessions ?? []).filter((s) => s.date >= from);
+// without JavaScript: the first session from the build day on
+const shown = upcoming.findIndex((s) => s.date >= todayIso());
 ---
 
-<div class="next-session" data-next-session>
-  {upcoming.map((s, i) => <SessionCard course={course} session={s} hidden={i !== 0} />)}
-  <p class="muted small" data-no-session hidden={upcoming.length > 0} lang={course.lang === 'en' ? undefined : 'en'}>
+<div class="next-session" data-next-session data-course={course.id}>
+  {upcoming.map((s, i) => <SessionCard course={course} session={s} hidden={i !== shown} />)}
+  <p class="muted small" data-no-session hidden={shown >= 0} lang={course.lang === 'en' ? undefined : 'en'}>
     {
       course.plan
         ? 'No upcoming sessions in the plan.'

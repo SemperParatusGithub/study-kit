@@ -1,5 +1,7 @@
-// <sk-answer-check data-item="ex:<id>" data-answers='[{key,label,value,unit,rtol,atol,expr,symbols}]'>
-// (docs/architecture.md §2.5, §3.2).
+// <sk-answer-check data-item="ex:<id>"
+//   data-answers='[{key,label,label_html,value,unit,rtol,atol,expr,symbols}]'>
+// (docs/architecture.md §2.5, §3.2). label_html is the label with its math rendered at
+// build time by the shell; the content hash is the nearest data-h (the exercise <article>).
 //
 // One input per answer: numbers in German or English notation with unit and SI prefix
 // ("1,59 kHz"), or an expression in the given symbols. Each answer gets its own verdict,
@@ -37,7 +39,7 @@ export class SkAnswerCheck extends HTMLElement {
     for (const spec of answers) {
       const id = uid('answer');
       const label = h('label', { class: 'sk-check-label', for: id });
-      renderInline(label, spec.label || spec.key);
+      renderInline(label, spec.label || spec.key, spec.label_html);
       const hintId = uid('hint');
       const hint = spec.expr
         ? `Expression in ${(spec.symbols ?? []).join(', ')}`

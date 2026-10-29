@@ -185,6 +185,19 @@ test('clicking the option row selects it; links inside options still work', asyn
   await expect(mc.locator('sk-opt[data-key="B"] input')).toHaveAccessibleName(/^[A-D] Bei/);
 });
 
+test("practice uses the course's multi rule from <body data-mc-scoring>", async ({ page }) => {
+  // the shell writes course.exam.mc.scoring on <body> of every course page
+  await page.evaluate(() => (document.body.dataset.mcScoring = 'partial'));
+  const mc = page.locator('sk-mc[data-id="mc-rc-tiefpass-002"]');
+  await mc.locator('sk-opt[data-key="A"] input').check(); // A, B correct: 3 of 4 decided right
+  await mc.getByLabel('Unsure', { exact: true }).check();
+  await mc.getByRole('button', { name: 'Check' }).click();
+  await expect(mc.locator('.sk-mc-feedback')).toContainText('Partly correct: 0.5 of 1 point.');
+  const entry = (await progress(page)).items['mc:mc-rc-tiefpass-002'];
+  expect(entry.attempts[0]).toMatchObject({ chosen: ['A'], score: 0.5, conf: 'unsure' });
+  expect(entry.box).toBe(1); // not fully right
+});
+
 test('reduced motion turns transitions off', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const d = await page.locator('sk-opt').first().evaluate((e) => getComputedStyle(e).transitionDuration);

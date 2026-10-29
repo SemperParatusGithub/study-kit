@@ -1,6 +1,9 @@
 // <sk-quiz data-course data-mode="practice|test|mistakes|due|mixed" data-pools='["…json"]'
-//          data-topic-titles='{"id":"Title"}' data-summary-base="/c/<c>/summary/">
-// (docs/architecture.md §3.2).
+//          data-topic-titles='{"id":"Title"}' data-summary-base="/c/<c>/summary/"
+//          [data-n="3"] [data-intro="false"] [data-frame="none"]>
+// (docs/architecture.md §3.2). data-n is the default number of questions; data-intro="false"
+// leaves out the mode title and description (the page already shows them); data-frame="none"
+// drops the start and result screens' own frame inside a box that is framed already.
 //
 // Each pool URL returns {topic, questions:[{id, type, difficulty, topic, h, html}]}, html
 // being an <sk-mc> outerHTML. Modes:
@@ -10,7 +13,9 @@
 //   due       questions the Leitner schedule says are due (exam clamp included)
 //   mixed     every pool together, instant feedback
 // URL parameters: ?n=10&minutes=15&topics=a,b&difficulty=1,2 (or 1-3)&mode=… pre-fill the
-// start form. The result screen shows the score per topic, the time, the misconceptions
+// start form. With several quizzes on a page (the MC hub has one per mode) each keeps its
+// data-mode and the parameters go to the quiz of ?mode= (or to all without it); a quiz
+// alone on its page takes ?mode= as its mode. The result screen shows the score per topic, the time, the misconceptions
 // (sure but wrong) and links to the topic summaries. Every answer is recorded by <sk-mc>,
 // once: a question has no "Try again" inside a quiz, the first answer is the quiz result,
 // and "Retry mistakes" (after the solutions were shown) is a practice round that records
@@ -118,6 +123,9 @@ export class SkQuiz extends HTMLElement {
   private posEl: HTMLElement | null = null;
   private bar: HTMLElement | null = null;
   private timeEl: HTMLElement | null = null;
+  /** Recounts the start screen (null while a quiz runs or shows its result). */
+  private refreshStart: (() => void) | null = null;
+  private unsubscribe: (() => void) | null = null;
 
   private get course(): string {
     return this.dataset.course || courseOf(this);
@@ -132,15 +140,25 @@ export class SkQuiz extends HTMLElement {
   }
 
   connectedCallback(): void {
+    // Answers given elsewhere (another quiz on the MC hub, another tab) change what the
+    // mistakes and due modes offer: the start screen recounts.
+    this.unsubscribe ??= this.store.subscribe(() => this.refreshStart?.());
     if (this.ready) return;
     this.ready = true;
-    const q = new URLSearchParams(location.search);
-    const wanted = (q.get('mode') ?? this.dataset.mode ?? 'practice') as QuizMode;
-    this.mode = MODES.includes(wanted) ? wanted : 'practice';
+    const url = new URLSearchParams(location.search);
+    const valid = (m: string | null | undefined): m is QuizMode => MODES.includes(m as QuizMode);
+    const urlMode = url.get('mode');
+    const own = this.dataset.mode;
+    const alone = document.querySelectorAll('sk-quiz').length <= 1;
+    this.mode = alone
+      ? valid(urlMode) ? urlMode : valid(own) ? own : 'practice'
+      : valid(own) ? own : valid(urlMode) ? urlMode : 'practice';
+    const q = alone || !valid(urlMode) || urlMode === this.mode ? url : new URLSearchParams();
+    const topics = q.get('topics')?.split(',').map((t) => t.trim()).filter(Boolean) ?? [];
     this.settings = {
-      n: posInt(q.get('n')),
+      n: posInt(q.get('n')) ?? posInt(this.dataset.n ?? null),
       minutes: posInt(q.get('minutes')),
-      topics: q.get('topics')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null,
+      topics: topics.length ? topics : null,
       difficulty: difficulties(q.get('difficulty')),
     };
     this.replaceChildren(this.live, this.screen); // drop the no-JS fallback
@@ -157,6 +175,8 @@ export class SkQuiz extends HTMLElement {
 
   disconnectedCallback(): void {
     this.stopTimer();
+    this.unsubscribe?.();
+    this.unsubscribe = null;
   }
 
   private async load(): Promise<void> {
@@ -186,9 +206,10 @@ export class SkQuiz extends HTMLElement {
   // --- selecting questions ----------------------------------------------------------
 
   private filtered(s: Settings): PoolQuestion[] {
+    // null: no filter; an empty choice (every box unticked) matches nothing
     let qs = this.all;
-    if (s.topics?.length) qs = qs.filter((q) => s.topics!.includes(q.topic));
-    if (s.difficulty?.length) qs = qs.filter((q) => s.difficulty!.includes(q.difficulty));
+    if (s.topics) qs = qs.filter((q) => s.topics!.includes(q.topic));
+    if (s.difficulty) qs = qs.filter((q) => s.difficulty!.includes(q.difficulty));
     const items = this.store.read().items;
     const entry = (q: PoolQuestion) => items[`mc:${q.id}`] as McEntry | undefined;
     const day = today();
@@ -251,10 +272,17 @@ export class SkQuiz extends HTMLElement {
       topics: topicBoxes.length > 1 ? topicBoxes.filter((b) => b.checked).map((b) => b.value) : null,
       difficulty: levelBoxes.length > 1 ? levelBoxes.filter((b) => b.checked).map((b) => Number(b.value)) : null,
     });
+    // The question count follows the mode's default until the student changes it.
+    let nChosen = false;
+    nInput.addEventListener('input', () => (nChosen = true));
+    const controls: HTMLElement[] = [];
     const update = () => {
       const available = this.filtered(current()).length;
+      // Nothing due or wrong at all: no form to fill in, only the message.
+      const none = available === 0 && this.filtered({ n: null, minutes: null, topics: null, difficulty: null }).length === 0;
+      for (const c of controls) c.hidden = none;
       nInput.max = String(Math.max(1, available));
-      if (!nInput.value || Number(nInput.value) > available) {
+      if (!nChosen || !nInput.value || Number(nInput.value) > available) {
         const want = this.settings.n ?? info.n ?? available;
         nInput.value = String(Math.max(1, Math.min(want, available)));
       }
@@ -264,19 +292,20 @@ export class SkQuiz extends HTMLElement {
 
     form.append(count);
     if (this.all.length > 0) {
-      form.append(h('div', { class: 'sk-quiz-fields' },
+      controls.push(h('div', { class: 'sk-quiz-fields' },
         h('label', { class: 'sk-field' }, h('span', {}, 'Questions'), nInput),
         this.mode === 'test' ? h('label', { class: 'sk-field' }, h('span', {}, 'Time limit (minutes)'), minutes) : null,
       ));
       if (topicBoxes.length > 1) {
-        form.append(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Topics'),
+        controls.push(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Topics'),
           ...topicBoxes.map((b) => h('label', { class: 'sk-check-chip' }, b, h('span', {}, this.titles[b.value] ?? b.value)))));
       }
       if (levelBoxes.length > 1) {
-        form.append(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Difficulty'),
+        controls.push(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Difficulty'),
           ...levelBoxes.map((b) => h('label', { class: 'sk-check-chip' }, b, h('span', {}, `Level ${b.value}`)))));
       }
-      form.append(h('div', { class: 'sk-quiz-actions' }, start));
+      controls.push(h('div', { class: 'sk-quiz-actions' }, start));
+      form.append(...controls);
     }
     form.addEventListener('change', update);
     form.addEventListener('input', update);
@@ -287,10 +316,12 @@ export class SkQuiz extends HTMLElement {
       this.begin(picked.slice(0, s.n ?? picked.length), this.mode === 'test' ? s.minutes : null, false);
     });
     update();
+    this.refreshStart = update;
+    const intro = this.dataset.intro !== 'false';
     this.screen.replaceChildren(
       h('div', { class: 'sk-quiz-start' },
-        h('p', { class: 'sk-quiz-mode' }, info.title),
-        h('p', { class: 'sk-quiz-desc' }, info.text),
+        intro ? h('p', { class: 'sk-quiz-mode' }, info.title) : null,
+        intro ? h('p', { class: 'sk-quiz-desc' }, info.text) : null,
         this.errors.length
           ? h('p', { class: 'sk-quiz-error', role: 'alert' }, `Some questions could not be loaded (${this.errors.length} of ${this.errors.length + new Set(this.all.map((q) => q.topic)).size} banks).`)
           : null,
@@ -313,6 +344,7 @@ export class SkQuiz extends HTMLElement {
 
   private begin(list: PoolQuestion[], minutes: number | null, practiceRound: boolean): void {
     if (list.length === 0) return;
+    this.refreshStart = null;
     this.practiceRound = practiceRound;
     this.list = list;
     this.index = 0;
@@ -443,8 +475,12 @@ export class SkQuiz extends HTMLElement {
   private renderResult(): void {
     const titles = this.titles;
     const base = this.dataset.summaryBase;
+    // "Read “<topic>”"; on a phone the result table shows only "Read" (the row names the topic)
     const link = (topic: string) =>
-      base ? h('a', { href: `${base.replace(/\/?$/, '/')}${topic}/` }, `Read “${titles[topic] ?? topic}”`) : null;
+      base
+        ? h('a', { href: `${base.replace(/\/?$/, '/')}${topic}/` },
+            'Read', h('span', { class: 'sk-quiz-link-topic' }, ` “${titles[topic] ?? topic}”`))
+        : null;
     let total = 0;
     const byTopic = new Map<string, { score: number; n: number }>();
     for (const q of this.list) {

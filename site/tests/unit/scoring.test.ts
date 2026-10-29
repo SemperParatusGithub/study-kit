@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   decidedRight,
+  examPartPoints,
   examPoints,
+  examScore,
   gradeEstimate,
   isCorrect,
   isMisconception,
@@ -110,4 +112,35 @@ test('exam points and grade estimate', () => {
   assert.equal(gradeEstimate(95, 100, 50), 1.0);
   assert.equal(gradeEstimate(94.9, 100, 50), 1.3);
   assert.equal(gradeEstimate(10, 20, null), null);
+});
+
+test('exam score without negative marking is the normal score', () => {
+  const o = opts('0100');
+  assert.equal(examScore('single', o, ['A']), 0);
+  assert.equal(examScore('single', o, ['B'], 'all-or-nothing', undefined, false), 1);
+  assert.equal(examScore('multi', opts('1100'), ['C', 'D'], 'partial'), 0);
+});
+
+test('exam score with negative marking: a wrong answer costs a right one', () => {
+  const single = opts('0100');
+  assert.equal(examScore('single', single, ['B'], 'all-or-nothing', undefined, true), 1);
+  assert.equal(examScore('single', single, ['A'], 'all-or-nothing', undefined, true), -1);
+  assert.equal(examScore('single', single, [], 'all-or-nothing', undefined, true), 0); // blank
+  const multi = opts('1100');
+  assert.equal(examScore('multi', multi, ['A'], 'all-or-nothing', undefined, true), -1);
+  assert.equal(examScore('multi', multi, [], 'all-or-nothing', undefined, true), 0);
+  // partial rule without the floor: (right − wrong) / n
+  assert.equal(examScore('multi', multi, ['A'], 'partial', undefined, true), 0.5);
+  assert.equal(examScore('multi', multi, ['C', 'D'], 'partial', undefined, true), -1);
+  assert.equal(examScore('multi', multi, ['A', 'C'], 'partial', undefined, true), 0);
+  // kprim: 3/4 keeps its half point, worse costs the question's points, nothing judged is 0
+  assert.equal(examScore('kprim', multi, ['A'], 'all-or-nothing', ['A', 'B', 'C', 'D'], true), 0.5);
+  assert.equal(examScore('kprim', multi, ['C'], 'all-or-nothing', ['A', 'B', 'C', 'D'], true), -1);
+  assert.equal(examScore('kprim', multi, [], 'all-or-nothing', [], true), 0);
+});
+
+test('the MC part never goes below 0', () => {
+  assert.equal(examPartPoints([2, -2, -2]), 0);
+  assert.equal(examPartPoints([2, 2, -2, 1]), 3);
+  assert.equal(examPartPoints([]), 0);
 });

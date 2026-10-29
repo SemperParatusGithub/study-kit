@@ -116,7 +116,7 @@ const extra = [
             <p class="muted">
               Three questions from the {course.topicTitle(topicId)} bank, with feedback after each answer.
             </p>
-            <QuizSlot course={course} mode="practice" topics={[topicId]} count={3} />
+            <QuizSlot course={course} mode="practice" topics={[topicId]} count={3} intro={false} />
             <p class="small">
               <a href={route.mcTopic(c, topicId)}>All questions on this topic →</a>
             </p>

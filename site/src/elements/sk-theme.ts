@@ -1,8 +1,10 @@
 // <sk-theme>: light / dark / system (docs/architecture.md §3.2).
 //
-// Stores the choice under studykit:theme (through store.ts) and mirrors it to
-// document.documentElement.dataset.theme; tokens.css maps that to color-scheme. The shell's
-// inline head script applies the stored value before first paint.
+// One rule everywhere: the choice is stored under studykit:theme (through store.ts) as
+// light, dark or system and mirrored to <html data-theme>. tokens.css styles only
+// [data-theme=light] and [data-theme=dark]; 'system' keeps color-scheme: light dark, so
+// the page follows prefers-color-scheme. The shell's inline head script applies the stored
+// value (and the color-scheme meta tag) before first paint; applyTheme does the same here.
 
 import { getTheme, setTheme, THEME_KEY, type Theme } from '../lib/store.ts';
 import { emit, h, uid } from './util.ts';
@@ -20,6 +22,9 @@ const LABELS: Record<Theme, string> = { light: 'Light', dark: 'Dark', system: 'S
 
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
+  document
+    .querySelector('meta[name="color-scheme"]')
+    ?.setAttribute('content', theme === 'system' ? 'light dark' : theme);
 }
 
 export class SkTheme extends HTMLElement {

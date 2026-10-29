@@ -1,11 +1,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <script>
-  // Mirrors the shell's inline head script: apply the stored theme before first paint.
-  try { document.documentElement.dataset.theme = localStorage.getItem('studykit:theme') || 'system'; } catch {}
+  // Mirrors the shell's inline head script (src/layouts/Base.astro): the stored theme
+  // (light | dark; anything else is system) before first paint, and the color-scheme meta.
+  (function () {
+    var theme = 'system';
+    try {
+      var stored = localStorage.getItem('studykit:theme');
+      if (stored === 'light' || stored === 'dark') theme = stored;
+    } catch (e) {}
+    document.documentElement.dataset.theme = theme;
+    var meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta) meta.setAttribute('content', theme === 'system' ? 'light dark' : theme);
+  })();
 </script>
 <link rel="stylesheet" href="/katex/katex.min.css">
 <link rel="stylesheet" href="/harness.css">
 <link rel="stylesheet" href="/styles/elements.css">
-<script type="importmap">{"imports": {"katex": "/katex/katex.mjs"}}</script>
 <script type="module" src="/build/elements/index.js"></script>

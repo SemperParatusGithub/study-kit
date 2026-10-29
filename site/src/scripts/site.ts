@@ -1,5 +1,6 @@
 // Small progressive enhancements of the shell. Nothing here reads or writes progress
-// (that is lib/store.ts, used by the custom elements); every page works without it.
+// (that is lib/store.ts, used by the custom elements; elements/dashboard.ts fills the
+// progress placeholders and picks the next session); every page works without it.
 
 const DAY_MS = 86_400_000;
 
@@ -38,21 +39,6 @@ function countdowns(): void {
     const out = el.querySelector<HTMLElement>('[data-countdown-text]') ?? el;
     out.textContent = text;
     el.dataset.days = String(n);
-  }
-}
-
-/**
- * Upcoming sessions are rendered at build time as hidden cards; show the first one that is
- * today or later, and the fallback when none is left.
- */
-function nextSessions(): void {
-  const today = todayIso();
-  for (const box of document.querySelectorAll<HTMLElement>('[data-next-session]')) {
-    const cards = [...box.querySelectorAll<HTMLElement>('[data-session-date]')];
-    const next = cards.find((c) => (c.dataset.sessionDate ?? '') >= today);
-    for (const c of cards) c.hidden = c !== next;
-    const none = box.querySelector<HTMLElement>('[data-no-session]');
-    if (none) none.hidden = Boolean(next);
   }
 }
 
@@ -107,6 +93,26 @@ function filters(): void {
   }
 }
 
+/**
+ * A link to a closed <details> (the MC hub's quiz modes: /mc/#due) opens it, also on
+ * ?mode=<id> (a quiz link with parameters for that mode).
+ */
+function openTargets(): void {
+  const open = () => {
+    const ids = [decodeURIComponent(location.hash.slice(1)), new URLSearchParams(location.search).get('mode') ?? ''];
+    for (const id of ids) {
+      const el = id ? document.getElementById(id) : null;
+      if (el instanceof HTMLDetailsElement && !el.open) {
+        el.open = true;
+        if (location.hash.slice(1) === id) el.scrollIntoView({ block: 'start' });
+        return;
+      }
+    }
+  };
+  open();
+  addEventListener('hashchange', open);
+}
+
 /** Highlight the table-of-contents entry of the section being read. */
 function tocSpy(): void {
   const links = [...document.querySelectorAll<HTMLAnchorElement>('.toc a[href^="#"]')];
@@ -146,9 +152,9 @@ function printDetails(): void {
 
 searchShortcut();
 countdowns();
-nextSessions();
 planDays();
 todayFill();
 filters();
+openTargets();
 tocSpy();
 printDetails();

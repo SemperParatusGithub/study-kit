@@ -30,24 +30,28 @@ test.describe('sk-progress', () => {
 
   test('topic bars, calibration and exam history', async ({ page }) => {
     const p = page.locator('sk-progress');
-    // rc-tiefpass: last attempts 0, 1, 0 → 33 %; rc-filter: 1 → 100 %; overall 2 of 4 → 50 %
-    await expect(p.locator('.sk-ring')).toHaveAttribute('aria-label', '50 % right in the last 10 answers per topic');
+    // rc-tiefpass: last attempts 0, 1, 0 → 33%; rc-filter: 1 → 100%; mastery as on the course
+    // cards: 0.25 · 0 + 0.35 · 1/3 + 0.4 · 1 = 0.517 → 52%
+    await expect(p.locator('.sk-ring')).toHaveAttribute('aria-label', 'Mastery 52%');
+    await expect(p.locator('.sk-ring')).toContainText('52%mastery');
+    await expect(p.locator('.sk-progress-note')).toContainText("each topic's last 10 answers");
     await expect(p.locator('.sk-stats')).toContainText('5 answers');
-    await expect(p.locator('.sk-stats')).toContainText('3 due today'); // 002, filter-003, the exercise
+    await expect(p.locator('.sk-stats')).toContainText('2 reviews due'); // 002, filter-003
+    await expect(p.locator('.sk-stats')).toContainText('1 exercise to review');
     await expect(p.locator('.sk-stats')).toContainText('1 misconception');
-    await expect(p.locator('.sk-stats')).toContainText('1 exercises solved');
+    await expect(p.locator('.sk-stats')).toContainText('1 exercise solved');
     const topics = p.locator('.sk-topic');
     await expect(topics).toHaveCount(3);
     await expect(topics.nth(0)).toContainText('Spannungsteiler');
     await expect(topics.nth(0)).toContainText('not started');
     await expect(topics.nth(1)).toContainText('RC-Tiefpass');
-    await expect(topics.nth(1).locator('.sk-topic-value')).toHaveText('33 %');
+    await expect(topics.nth(1).locator('.sk-topic-value')).toHaveText('33%');
     await expect(topics.nth(1).locator('.sk-topic-meta')).toHaveText('2 questions answered · 1 due · 1 misconception');
-    await expect(topics.nth(2).locator('.sk-topic-value')).toHaveText('100 %');
+    await expect(topics.nth(2).locator('.sk-topic-value')).toHaveText('100%');
     const calib = p.locator('.sk-calib-row');
     await expect(calib.nth(0)).toContainText('When sure');
-    await expect(calib.nth(0).locator('.sk-topic-value')).toHaveText('67 %');
-    await expect(calib.nth(1).locator('.sk-topic-value')).toHaveText('50 %');
+    await expect(calib.nth(0).locator('.sk-topic-value')).toHaveText('67%');
+    await expect(calib.nth(1).locator('.sk-topic-value')).toHaveText('50%');
     await expect(p.locator('.sk-exam-history tbody tr')).toHaveText([/Probeklausur 1.*4 Nov 2026.*15 \/ 20.*55 min/]);
   });
 
@@ -56,7 +60,7 @@ test.describe('sk-progress', () => {
       const { storeFor } = await import('/build/lib/store.js' as string);
       storeFor('mini').recordMc('mc-spannungsteiler-001', { chosen: ['A'], score: 1, conf: 'sure', ms: 1 });
     });
-    await expect(page.locator('sk-progress .sk-topic').nth(0)).toContainText('100 %');
+    await expect(page.locator('sk-progress .sk-topic').nth(0)).toContainText('100%');
     await expect(page.locator('sk-progress .sk-stats')).toContainText('6 answers');
   });
 });
@@ -174,4 +178,42 @@ test('sk-theme: light, dark and system are stored and applied', async ({ page })
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await theme.getByRole('radio', { name: 'System' }).check();
   expect(await page.evaluate(() => localStorage.getItem('studykit:theme'))).toBe('system');
+});
+
+test('sk-theme: one rule with the head script and the CSS; system follows the OS', async ({ page }) => {
+  const meta = page.locator('meta[name="color-scheme"]');
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  // The theme is on <html> before <body> exists: no flash of the wrong theme on reload.
+  await page.addInitScript(() => {
+    new MutationObserver((_, observer) => {
+      if (!document.body) return;
+      (window as unknown as { themeAtBody: string }).themeAtBody = document.documentElement.dataset.theme ?? '';
+      observer.disconnect();
+    }).observe(document, { childList: true, subtree: true });
+  });
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/progress.html');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'system');
+  await expect(meta).toHaveAttribute('content', 'light dark');
+  expect(await bg()).toBe('rgb(14, 18, 23)'); // system + dark OS → dark
+  await page.emulateMedia({ colorScheme: 'light' });
+  expect(await bg()).toBe('rgb(255, 255, 255)');
+
+  // light chosen while the OS is dark: light, also right after a reload
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.locator('sk-theme').getByRole('radio', { name: 'Light' }).check();
+  await expect(meta).toHaveAttribute('content', 'light');
+  expect(await bg()).toBe('rgb(255, 255, 255)');
+  await page.reload();
+  expect(await page.evaluate(() => (window as unknown as { themeAtBody: string }).themeAtBody)).toBe('light');
+  await expect(meta).toHaveAttribute('content', 'light');
+  expect(await bg()).toBe('rgb(255, 255, 255)');
+
+  // an unknown stored value is 'system' everywhere
+  await page.evaluate(() => localStorage.setItem('studykit:theme', 'sepia'));
+  await page.reload();
+  expect(await page.evaluate(() => (window as unknown as { themeAtBody: string }).themeAtBody)).toBe('system');
+  await expect(page.locator('sk-theme').getByRole('radio', { name: 'System' })).toBeChecked();
+  expect(await bg()).toBe('rgb(14, 18, 23)');
 });

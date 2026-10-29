@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import CourseData from '../components/CourseData.astro';
 import MasteryRing from '../components/MasteryRing.astro';
 import NextSession from '../components/NextSession.astro';
 import { listCourses, overallMastery, route } from '../lib/courses';
@@ -71,7 +72,7 @@ const today = todayIso();
                 <dt>Due today</dt>
                 <dd>
                   <strong data-sk-fill data-sk-due-count data-course={course.id}></strong>
-                  <span class="muted small">reviews</span>
+                  <span class="muted small">to review</span>
                 </dd>
               </div>
               <div>
@@ -81,7 +82,7 @@ const today = todayIso();
             </dl>
 
             <h3 class="small muted">Next session</h3>
-            <NextSession course={course} limit={14} />
+            <NextSession course={course} />
 
             <p class="card-actions">
               <a class="button button-quiet" href={route.mc(course.id)}>
@@ -91,6 +92,7 @@ const today = todayIso();
                 Summary
               </a>
             </p>
+            <CourseData course={course} />
           </li>
         ))}
       </ul>

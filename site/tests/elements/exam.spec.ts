@@ -130,7 +130,7 @@ test('time per part: late ticks count in full', async ({ page }) => {
   await exam(page).getByRole('button', { name: 'Submit' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
   const times = await partTimes(page);
-  expect(times).toEqual({ '1. Aufgabe 1: Spannungsteiler (12 P)': '3 min', 'Multiple choice': '7 min' });
+  expect(times).toEqual({ '1. Spannungsteiler': '3 min', 'Multiple choice': '7 min' });
   await expect(exam(page).locator('.sk-exam-result')).toContainText('Time used: 10 min of 60 min.');
 });
 
@@ -162,17 +162,17 @@ test('submit: solutions open, rubric grading, MC auto-scored, result saved', asy
   await expect(rubric.getByRole('checkbox')).toHaveCount(2);
   await expect(rubric.locator('.sk-rubric-criterion .katex')).toHaveCount(1); // "Spannung $U_2$ korrekt"
   const result = exam(page).locator('.sk-exam-result');
-  await expect(result.locator('.sk-exam-total')).toContainText('4 / 20 points · 20 %');
+  await expect(result.locator('.sk-exam-total')).toContainText('4 / 20 points · 20%');
   await expect(result.locator('.sk-exam-total')).toContainText('not passed (pass mark 10)');
   await expect(result.locator('.sk-exam-grade')).toContainText('Grade estimate: 5.0');
 
   await rubric.getByRole('checkbox').first().check();
   await expect(rubric.locator('.sk-rubric-total')).toHaveText('6 of 12 points');
-  await expect(result.locator('.sk-exam-total')).toContainText('10 / 20 points · 50 %');
+  await expect(result.locator('.sk-exam-total')).toContainText('10 / 20 points · 50%');
   await expect(result.locator('.sk-exam-total')).toContainText('passed (pass mark 10)');
   await expect(result.locator('.sk-exam-grade')).toContainText('Grade estimate: 4.0');
   await expect(result.locator('.sk-exam-table tbody tr')).toHaveCount(2);
-  await expect(result.locator('.sk-exam-table')).toContainText('Aufgabe 1: Spannungsteiler (12 P)');
+  await expect(result.locator('.sk-exam-table tbody th').first()).toHaveText('1. Spannungsteiler'); // data-title
 
   const attempts = (await progress(page)).items['exam:probeklausur-1'].attempts;
   expect(attempts).toHaveLength(1);
@@ -185,6 +185,90 @@ test('submit: solutions open, rubric grading, MC auto-scored, result saved', asy
   await exam(page).getByRole('button', { name: 'Retake exam' }).click();
   await expect(exam(page).locator('.sk-exam-last')).toContainText('Last attempt: 10 of 20 points');
   expect((await progress(page)).items['exam:probeklausur-1'].attempts).toHaveLength(1);
+});
+
+test('Start and the task links end with the part heading below the sticky bar', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 500 });
+  await page.addInitScript(() => {
+    // a long page above the exam, so Start has to scroll to the first task
+    addEventListener('DOMContentLoaded', () => document.querySelector('main h1')?.setAttribute('style', 'margin-bottom: 900px'));
+  });
+  await start(page);
+  const head = exam(page).locator('.sk-exam-head');
+  const belowBar = (heading: string) => async () => {
+    const bar = await head.boundingBox();
+    const h = await exam(page).locator(heading).first().boundingBox();
+    const below = bar ? bar.y + bar.height : 0;
+    return Boolean(h && h.y >= below - 1 && h.y < below + 80);
+  };
+  await expect.poll(belowBar('section.sk-exam-task h2')).toBe(true);
+  for (const [link, heading] of [['MC', 'section.sk-exam-mc h2'], ['1', 'section.sk-exam-task h2']] as const) {
+    await exam(page).locator('.sk-exam-nav a', { hasText: link }).click();
+    await expect.poll(belowBar(heading)).toBe(true);
+  }
+  const height = await head.evaluate((el) => (el as HTMLElement).offsetHeight);
+  await expect(exam(page)).toHaveCSS('--sk-exam-head', `${height}px`);
+});
+
+/** Serve /exam.html with some attributes of the shell's markup changed. */
+async function examVariant(page: Page, edits: Array<[string, string]>): Promise<void> {
+  await page.route('**/exam.html', async (route) => {
+    const res = await route.fetch();
+    let body = await res.text();
+    for (const [from, to] of edits) {
+      expect(body).toContain(from);
+      body = body.replace(from, to);
+    }
+    await route.fulfill({ response: res, body });
+  });
+}
+
+test('negative marking: a wrong answer costs its points, the MC part stays at 0 or more', async ({ page }) => {
+  await examVariant(page, [['data-negative-marking="false"', 'data-negative-marking="true"']]);
+  await page.goto('/exam.html');
+  await expect(exam(page).locator('.sk-exam-rules')).toContainText('a wrong answer costs as many points as a right one earns');
+  await start(page);
+  const mcs = exam(page).locator('sk-mc');
+  await answer(mcs.nth(0), true); // +2
+  await answer(mcs.nth(1), true); // +2
+  await mcs.nth(2).locator('sk-opt[data-key="A"] input').check(); // multi, one of two: −2
+  // the Kprim question stays blank: 0
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(exam(page).locator('.sk-exam-mc-total')).toHaveText('Multiple choice: 2 of 8 points.');
+  await expect(mcs.nth(2).locator('.sk-mc-feedback')).toContainText('with negative marking this costs points. −2 of 2 points.');
+  await expect(mcs.nth(3).locator('.sk-mc-feedback')).toContainText('0 of 2 points.');
+  expect((await progress(page)).items['exam:probeklausur-1'].attempts[0].points.mc).toBe(2);
+});
+
+test('negative marking never takes the MC part below 0', async ({ page }) => {
+  await examVariant(page, [['data-negative-marking="false"', 'data-negative-marking="true"']]);
+  await start(page);
+  const mcs = exam(page).locator('sk-mc');
+  await answer(mcs.nth(0), false);
+  await answer(mcs.nth(1), false);
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(exam(page).locator('.sk-exam-mc-total')).toHaveText('Multiple choice: 0 of 8 points.');
+});
+
+test('the MC points per question come from data-points-each', async ({ page }) => {
+  await examVariant(page, [['data-points-each="2"', 'data-points-each="3"']]);
+  await start(page);
+  const mcs = exam(page).locator('sk-mc');
+  await answer(mcs.nth(0), true);
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(mcs.nth(0).locator('.sk-mc-feedback')).toContainText('3 of 3 points.');
+});
+
+test('rubric criteria use the HTML the shell rendered (criterion_html)', async ({ page }) => {
+  await start(page);
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  const html = await exam(page).locator('.sk-rubric-criterion').evaluateAll((els) => els.map((e) => e.innerHTML));
+  const rubric = JSON.parse((await exam(page).locator('section.sk-exam-task').getAttribute('data-rubric')) ?? '[]');
+  expect(html).toEqual(rubric.map((r: { criterion_html: string }) => r.criterion_html));
 });
 
 test('without JavaScript tasks and solutions are plain content', async ({ browser }) => {

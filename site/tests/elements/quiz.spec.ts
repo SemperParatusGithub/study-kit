@@ -29,7 +29,7 @@ test('practice: feedback per question, result per topic with summary links', asy
   }
   const result = q.locator('.sk-quiz-result');
   await expect(result.getByRole('heading', { name: 'Result' })).toBeFocused();
-  await expect(result.locator('.sk-quiz-score')).toHaveText('2 / 3 points · 67 %');
+  await expect(result.locator('.sk-quiz-score')).toHaveText('2 / 3 points · 67%');
   const row = result.locator('.sk-quiz-topics tbody tr');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText('RC-Tiefpass');
@@ -60,8 +60,42 @@ test('practice: feedback per question, result per topic with summary links', asy
   await expect(mc.locator('.sk-mc-feedback')).toContainText('Practice answer: not recorded');
   await q.getByRole('button', { name: 'See result' }).click();
   await expect(q.locator('.sk-quiz-meta')).toContainText('Retry round, not recorded · 1 of 1 answered');
-  await expect(q.locator('.sk-quiz-score')).toHaveText('1 / 1 points · 100 %');
+  await expect(q.locator('.sk-quiz-score')).toHaveText('1 / 1 points · 100%');
   expect((await progress(page)).items).toEqual(before);
+});
+
+test('the result fits a phone, also with a long German topic title', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/quiz.html?n=2&topics=rc-filter');
+  const q = quiz(page);
+  await q.evaluate((el: HTMLElement) => {
+    el.dataset.topicTitles = JSON.stringify({ 'rc-filter': 'Komplexe Wechselstromrechnung' });
+  });
+  await q.getByRole('button', { name: 'Start' }).click();
+  for (let i = 1; i <= 2; i++) {
+    const mc = current(page);
+    await answer(mc, i === 1, 'Sure');
+    await mc.getByRole('button', { name: 'Check' }).click();
+    await q.getByRole('button', { name: i === 2 ? 'See result' : 'Next' }).click();
+  }
+  const table = q.locator('.sk-quiz-topics');
+  await expect(table).toBeVisible();
+  // the row names the topic; its link reads "Read" but keeps the topic in its name
+  const link = table.getByRole('link', { name: 'Read “Komplexe Wechselstromrechnung”' });
+  await expect(link).toBeVisible();
+  const named = link.locator('.sk-quiz-link-topic');
+  expect((await named.boundingBox())?.width).toBeLessThanOrEqual(1);
+  const box = await table.boundingBox();
+  const card = await q.locator('.sk-quiz-result').boundingBox();
+  expect(box && card && box.x + box.width <= card.x + card.width + 0.5).toBe(true);
+  const { scroll, client } = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(scroll).toBeLessThanOrEqual(client);
+  // wider screens name the topic in the link
+  await page.setViewportSize({ width: 1000, height: 844 });
+  expect((await named.boundingBox())?.width).toBeGreaterThan(100);
 });
 
 test('N and Enter on the question move to the next one in practice', async ({ page }) => {
@@ -91,7 +125,7 @@ test('test mode: no feedback until the end, then every answer is revealed', asyn
     if (i < 3) await expect(mc.locator('.sk-why').first()).toBeHidden();
   }
   const result = q.locator('.sk-quiz-result');
-  await expect(result.locator('.sk-quiz-score')).toHaveText('1 / 3 points · 33 %');
+  await expect(result.locator('.sk-quiz-score')).toHaveText('1 / 3 points · 33%');
   await expect(result.locator('.sk-quiz-misconceptions li')).toHaveCount(2);
   const wrong = result.locator('.sk-quiz-item.is-bad');
   await expect(wrong).toHaveCount(2);
@@ -116,7 +150,7 @@ test('test mode with a time limit ends when the time is up', async ({ page }) =>
   await expect(result).toBeVisible();
   await expect(result.locator('.sk-quiz-meta')).toContainText('1 of 4 answered');
   await expect(result.locator('.sk-quiz-meta')).toContainText('time is up');
-  await expect(result.locator('.sk-quiz-score')).toHaveText('1 / 4 points · 25 %');
+  await expect(result.locator('.sk-quiz-score')).toHaveText('1 / 4 points · 25%');
   // the unanswered question is shown with its key but not recorded
   await expect(result.locator('.sk-quiz-item').nth(1)).toContainText('not answered');
   expect(Object.keys((await progress(page)).items)).toHaveLength(1);
@@ -169,7 +203,10 @@ test('due mode: nothing due names the next review', async ({ page }) => {
   });
   await page.goto('/quiz.html?mode=due');
   await expect(quiz(page).locator('.sk-quiz-count')).toHaveText('Nothing is due today. The next review is in 3 days (2026-11-05).');
-  await expect(quiz(page).getByRole('button', { name: 'Start' })).toBeDisabled();
+  // nothing to choose from: no form, only the message
+  await expect(quiz(page).locator('button[type=submit]')).toBeHidden();
+  await expect(quiz(page).locator('.sk-quiz-fields, .sk-quiz-filter')).toHaveCount(3);
+  for (const el of await quiz(page).locator('.sk-quiz-fields, .sk-quiz-filter').all()) await expect(el).toBeHidden();
 });
 
 test('mixed mode and filters: every pool, topic and difficulty choices', async ({ page }) => {
@@ -182,6 +219,11 @@ test('mixed mode and filters: every pool, topic and difficulty choices', async (
   await expect(q.locator('.sk-quiz-count')).toHaveText('3 questions available.');
   await q.getByLabel('Level 2').uncheck();
   await expect(q.locator('.sk-quiz-count')).toHaveText('1 question available.');
+  // filters that leave nothing keep the form, so they can be changed back
+  await q.getByLabel('Level 1').uncheck();
+  await expect(q.locator('.sk-quiz-count')).toHaveText('No question matches these filters.');
+  await expect(q.getByRole('button', { name: 'Start' })).toBeDisabled();
+  await q.getByLabel('Level 1').check();
   await q.getByRole('button', { name: 'Start' }).click();
   await expect(current(page)).toHaveAttribute('data-id', 'mc-rc-tiefpass-001');
 });
@@ -194,6 +236,44 @@ test('URL parameters pre-fill the start form', async ({ page }) => {
   await expect(q.getByRole('spinbutton', { name: 'Questions' })).toHaveValue('2');
   await expect(q.getByRole('spinbutton', { name: 'Time limit (minutes)' })).toHaveValue('15');
   await expect(q.getByLabel('Level 2')).not.toBeChecked();
+});
+
+test('data-n sets the default size; data-intro="false" leaves out the mode title', async ({ page }) => {
+  await page.goto('/quiz-hub.html');
+  const practice = page.locator('#quiz-practice');
+  await expect(practice.locator('.sk-quiz-count')).toHaveText('6 questions available.');
+  await expect(practice.getByRole('spinbutton', { name: 'Questions' })).toHaveValue('2');
+  await expect(practice.locator('.sk-quiz-mode, .sk-quiz-desc')).toHaveCount(0);
+  await practice.getByRole('button', { name: 'Start' }).click();
+  await expect(practice.locator('.sk-quiz-pos')).toHaveText('Question 1 of 2');
+});
+
+test('with several quizzes each keeps its mode; URL parameters go to the quiz of ?mode=', async ({ page }) => {
+  await page.goto('/quiz-hub.html?mode=test&n=3&minutes=5');
+  const practice = page.locator('#quiz-practice');
+  const testQuiz = page.locator('#quiz-test');
+  await expect(practice.getByRole('spinbutton', { name: 'Questions' })).toHaveValue('2');
+  await expect(practice.getByRole('spinbutton', { name: 'Time limit (minutes)' })).toHaveCount(0);
+  await expect(testQuiz.getByRole('spinbutton', { name: 'Questions' })).toHaveValue('3');
+  await expect(testQuiz.getByRole('spinbutton', { name: 'Time limit (minutes)' })).toHaveValue('5');
+});
+
+test('a start screen recounts when another quiz on the page records answers', async ({ page }) => {
+  await page.goto('/quiz-hub.html');
+  const mistakes = page.locator('#quiz-mistakes');
+  await expect(mistakes.locator('.sk-quiz-count')).toHaveText(
+    'No mistakes to review: every question you answered was right last time.',
+  );
+  const practice = page.locator('#quiz-practice');
+  await practice.getByRole('button', { name: 'Start' }).click();
+  for (let i = 0; i < 2; i++) {
+    const mc = practice.locator('.sk-quiz-stage sk-mc');
+    await answer(mc, false, 'Unsure');
+    await mc.getByRole('button', { name: 'Check' }).click();
+    await expect(mistakes.locator('.sk-quiz-count')).toHaveText(`${i + 1} question${i ? 's' : ''} available.`);
+    await expect(mistakes.getByRole('spinbutton', { name: 'Questions' })).toHaveValue(String(i + 1)); // all of them
+    await practice.getByRole('button', { name: i === 1 ? 'See result' : 'Next' }).click();
+  }
 });
 
 test('without JavaScript the fallback text stays', async ({ browser }) => {

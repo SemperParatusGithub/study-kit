@@ -1,6 +1,8 @@
 {
-  // Compiles site/src/lib and site/src/elements for the browser harness, with the
-  // strictest options Astro offers so the code type-checks whatever preset the site uses.
+  // Compiles site/src/elements and the client libraries they import (store, leitner,
+  // scoring, shuffle, answer, …) for the browser harness, with the strictest options Astro
+  // offers so the code type-checks whatever preset the site uses. The build-time libraries
+  // of the shell (courses, katex, figures, …) import astro:content and are not included.
   //   pnpm -C site exec tsc -p tests/elements/tsconfig.json
   "compilerOptions": {
     "target": "ES2023",
@@ -27,5 +29,5 @@
     "rootDir": "../../src",
     "outDir": "../../node_modules/.cache/sk-elements/build"
   },
-  "include": ["../../src/lib/*.ts", "../../src/elements/*.ts"]
+  "include": ["../../src/elements/*.ts"]
 }

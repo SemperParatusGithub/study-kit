@@ -11,10 +11,15 @@ interface Props {
   course: Course;
   mode: QuizMode;
   topics: string[];
+  /** Default number of questions (data-n). */
   count?: number;
+  /** False when the page already names the mode: the quiz leaves out its title. */
+  intro?: boolean;
+  /** False inside a box that is already framed (a card, a disclosure): no frame of its own. */
+  framed?: boolean;
 }
 
-const { course, mode, topics, count } = Astro.props;
+const { course, mode, topics, count, intro = true, framed = true } = Astro.props;
 const pools = topics
   .filter((t) => course.banks.some((b) => b.data.topic === t))
   .map((t) => route.mcPool(course.id, t));
@@ -28,6 +33,8 @@ const titles = Object.fromEntries(course.topics.map((t) => [t.id, t.title]));
   data-topic-titles={JSON.stringify(titles)}
   data-summary-base={route.summaries(course.id)}
   data-n={count}
+  data-intro={intro ? undefined : 'false'}
+  data-frame={framed ? undefined : 'none'}
 ></sk-quiz>
 <noscript>
   <p class="notice small" lang="en">The quiz needs JavaScript. The questions are listed on the topic pages of the MC tab.</p>

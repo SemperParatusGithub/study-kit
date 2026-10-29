@@ -18,6 +18,9 @@ test('hints are revealed one at a time and counted', async ({ page }) => {
   await expect(details.nth(0)).toHaveAttribute('open', '');
   await expect(details.nth(1)).toBeHidden();
   await expect(hints.locator('.sk-hints-status')).toHaveText('1 of 2 hints used.');
+  // the content hash is the exercise's (<article data-h>, as the shell renders it)
+  await expect(page.locator('article.sk-exercise')).toHaveAttribute('data-h', '450eee78');
+  await expect(hints).not.toHaveAttribute('data-h');
   expect((await progress(page)).items[ITEM]).toMatchObject({ hints: 1, h: '450eee78' });
 
   await hints.getByRole('button', { name: 'Show hint 2 of 2' }).click();

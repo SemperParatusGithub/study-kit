@@ -40,7 +40,10 @@ const mcCount = exam.mc?.data.questions.length ?? 0;
 
 <Base title={exam.doc.data.title} course={course} tab="exams">
   <div class="exam-page">
-    <p class="eyebrow" lang={en}><a href={route.exams(c)}>Mock exams</a></p>
+    <header class="page-head">
+      <p class="eyebrow" lang={en}><a href={route.exams(c)}>Mock exams</a></p>
+      <h1>{exam.doc.data.title}</h1>
+    </header>
 
     <sk-exam
       data-exam={exam.id}
@@ -54,7 +57,6 @@ const mcCount = exam.mc?.data.questions.length ?? 0;
     >
       <SearchTags course={course} type="exam" />
       <header class="exam-cover card">
-        <h1>{exam.doc.data.title}</h1>
         <dl class="stats" lang={en} data-pagefind-ignore>
           <div>
             <dt>Time</dt>
@@ -116,6 +118,7 @@ const mcCount = exam.mc?.data.questions.length ?? 0;
             class="sk-exam-task"
             id={t.id}
             data-task={t.id}
+            data-title={t.doc.data.title}
             data-points={t.points}
             data-rubric={JSON.stringify(t.rubric)}
             data-h={t.doc.data.h}
@@ -194,7 +197,6 @@ const mcCount = exam.mc?.data.questions.length ?? 0;
     margin: var(--space-6) 0;
     padding-top: var(--space-5);
     border-top: 1px solid var(--border);
-    scroll-margin-top: var(--space-4);
   }
 
   .task-title {

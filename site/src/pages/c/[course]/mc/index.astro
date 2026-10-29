@@ -50,7 +50,7 @@ const scoring = course.data.exam.mc?.scoring ?? 'all-or-nothing';
               <thead>
                 <tr>
                   <th scope="col">Topic</th>
-                  <th scope="col" class="num">
+                  <th scope="col" class="num col-count">
                     Questions
                   </th>
                   <th scope="col" class="col-types">
@@ -79,7 +79,7 @@ const scoring = course.data.exam.mc?.scoring ?? 'all-or-nothing';
                           {course.topicTitle(b.data.topic)}
                         </a>
                       </th>
-                      <td class="num">{b.data.questions.length}</td>
+                      <td class="num col-count">{b.data.questions.length}</td>
                       <td class="col-types">
                         {types.map(([t, n]) => (
                           <span class="badge" title={MC_TYPE[t] ?? t}>
@@ -110,7 +110,7 @@ const scoring = course.data.exam.mc?.scoring ?? 'all-or-nothing';
                 <span class="muted">{m.text}</span>
               </summary>
               <div class="mode-body">
-                <QuizSlot course={course} mode={m.id} topics={topics} />
+                <QuizSlot course={course} mode={m.id} topics={topics} intro={false} framed={false} />
               </div>
             </details>
           ))}
@@ -181,6 +181,11 @@ const scoring = course.data.exam.mc?.scoring ?? 'all-or-nothing';
 
   @media (max-width: 40rem) {
     .col-types {
+      display: none;
+    }
+
+    /* the count is on the topic page; accuracy and due are what the hub is for */
+    .col-count {
       display: none;
     }
 

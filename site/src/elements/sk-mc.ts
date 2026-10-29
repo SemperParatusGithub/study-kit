@@ -25,6 +25,7 @@
 import { dayOf, type Conf } from '../lib/leitner.ts';
 import { LETTERS, optionOrder } from '../lib/shuffle.ts';
 import {
+  examScore,
   isCorrect,
   isMcType,
   isMisconception,
@@ -466,10 +467,13 @@ export class SkMc extends HTMLElement {
     return detail;
   }
 
-  /** Exam scoring: whatever is selected counts (open Kprim statements are wrong). */
-  grade(rule: MultiRule = this.rule, pointsEach?: number): number {
+  /**
+   * Exam scoring: whatever is selected counts (open Kprim statements are wrong). With
+   * `negative` marking a wrong answer scores below 0 (scoring.examScore).
+   */
+  grade(rule: MultiRule = this.rule, pointsEach?: number, negative = false): number {
     const sel = this.selection();
-    const value = scoreOf(this.type, this.opts, sel.chosen, rule, sel.answered);
+    const value = examScore(this.type, this.opts, sel.chosen, rule, sel.answered, negative);
     this.result = {
       id: this.qid,
       item: `mc:${this.qid}`,
@@ -531,10 +535,17 @@ export class SkMc extends HTMLElement {
     if (this.note) this.note.hidden = true; // "Last time" describes the state before this answer
     this.seenSolution = true;
     this.classList.add('is-checked');
-    const verdict =
-      r.correct ? 'Correct.' : r.score > 0 ? `Partly correct: ${pts(r.score)} of 1 point.` : 'Not correct.';
+    const verdict = r.correct
+      ? 'Correct.'
+      : r.score > 0
+        ? `Partly correct: ${pts(r.score)} of 1 point.`
+        : r.score < 0
+          ? 'Not correct; with negative marking this costs points.'
+          : 'Not correct.';
     const parts: string[] = [verdict];
-    if (pointsEach !== undefined) parts.push(`${pts(r.score * pointsEach)} of ${pts(pointsEach)} points.`);
+    if (pointsEach !== undefined) {
+      parts.push(`${pts(r.score * pointsEach).replace('-', '−')} of ${pts(pointsEach)} points.`);
+    }
     if (r.misconception) {
       parts.push(r.due
         ? `You were sure, so this counts as a misconception; it comes back ${relativeDay(r.due)}.`

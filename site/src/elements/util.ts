@@ -102,7 +102,7 @@ export function relativeDay(day: string, from: string = today()): string {
 }
 
 export function percent(x: number): string {
-  return `${Math.round(x * 100)} %`;
+  return `${Math.round(x * 100)}%`;
 }
 
 /** Format points: 12, 7.5, 0.33. */
@@ -132,43 +132,23 @@ export function isTyping(e: KeyboardEvent): boolean {
   return t instanceof HTMLInputElement && !['radio', 'checkbox', 'button', 'submit'].includes(t.type);
 }
 
-type Katex = typeof import('katex').default;
-let katexLoad: Promise<Katex | null> | null = null;
-
-function loadKatex(): Promise<Katex | null> {
-  katexLoad ??= import('katex').then(
-    (m) => (m as unknown as { default: Katex }).default ?? (m as unknown as Katex),
-    () => null,
-  );
-  return katexLoad;
-}
-
 /**
- * Answer labels and rubric criteria are plain text plus inline $…$ math (§2.5). Text goes in
- * as text nodes; math is shown as its TeX at once and replaced by KaTeX when it has loaded.
+ * Answer labels and rubric criteria are plain text plus inline $…$ math (§2.5). The shell
+ * renders them at build time (label_html, criterion_html: escaped text and KaTeX output);
+ * that HTML is used when present. Without it the text goes in as text, each formula as its
+ * TeX source, so no KaTeX is loaded in the browser.
  */
-export function renderInline(target: HTMLElement, text: string): void {
+export function renderInline(target: HTMLElement, text: string, html?: string | null): void {
+  if (typeof html === 'string' && html) {
+    target.innerHTML = html;
+    return;
+  }
   target.replaceChildren();
-  const parts = text.split(/\$([^$]+)\$/g);
-  const math: Array<[HTMLElement, string]> = [];
-  parts.forEach((part, i) => {
+  text.split(/\$([^$]+)\$/g).forEach((part, i) => {
     if (i % 2 === 0) {
       if (part) target.append(part);
-      return;
-    }
-    const span = h('span', { class: 'sk-inline-math' }, part);
-    math.push([span, part]);
-    target.append(span);
-  });
-  if (math.length === 0) return;
-  void loadKatex().then((katex) => {
-    if (!katex) return;
-    for (const [span, tex] of math) {
-      try {
-        span.innerHTML = katex.renderToString(tex, { throwOnError: false, displayMode: false });
-      } catch {
-        /* keep the TeX source */
-      }
+    } else {
+      target.append(h('span', { class: 'sk-inline-math' }, part));
     }
   });
 }

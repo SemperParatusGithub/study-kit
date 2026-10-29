@@ -5,9 +5,10 @@
 // 1. Compiles site/src/lib and site/src/elements with the pinned TypeScript into
 //    node_modules/.cache/sk-elements/build (gitignored).
 // 2. Serves pages/*.html with <!--#include fixtures/…--> resolved, the fixtures' <sk-math>
-//    rendered by KaTeX exactly as the site loader does (docs/architecture.md §3.2, step 5),
-//    the pool JSON files likewise, the compiled modules under /build/, elements.css under
-//    /styles/ and KaTeX's dist under /katex/.
+//    rendered by KaTeX exactly as the site loader does (docs/architecture.md §3.2, step 5)
+//    and, like the site shell, label_html / criterion_html added to every data-answers /
+//    data-rubric entry; the pool JSON files likewise, the compiled modules under /build/,
+//    elements.css under /styles/ and KaTeX's dist (its CSS and fonts) under /katex/.
 
 import { spawnSync } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
@@ -57,6 +58,50 @@ export function renderMath(html) {
   );
 }
 
+const escapeHtml = (text) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const unescapeHtml = (text) =>
+  text
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+
+/** A label with inline $…$ math as HTML, like the shell's renderLabel (src/lib/katex.ts). */
+export function renderLabel(text) {
+  return text
+    .split(/\$([^$]+)\$/g)
+    .map((part, i) =>
+      i % 2 === 0
+        ? escapeHtml(part)
+        : katex.renderToString(part, { displayMode: false, throwOnError: true, strict: 'error', trust: false }),
+    )
+    .join('');
+}
+
+const LABEL_ATTRS = /(data-answers|data-rubric)=(["'])([\s\S]*?)\2/g;
+
+/** What the shell adds at build time: label_html for answers, criterion_html for rubrics. */
+export function addLabelHtml(html) {
+  return html.replace(LABEL_ATTRS, (whole, name, _quote, value) => {
+    let list;
+    try {
+      list = JSON.parse(unescapeHtml(value));
+    } catch {
+      return whole;
+    }
+    if (!Array.isArray(list)) return whole;
+    for (const entry of list) {
+      if (name === 'data-answers' && typeof entry.label === 'string') entry.label_html ??= renderLabel(entry.label);
+      if (name === 'data-rubric' && typeof entry.criterion === 'string') {
+        entry.criterion_html ??= renderLabel(entry.criterion);
+      }
+    }
+    return `${name}="${escapeHtml(JSON.stringify(list))}"`;
+  });
+}
+
 async function page(file) {
   let html = await readFile(file, 'utf8');
   const includes = [...html.matchAll(/<!--#include ([\w./-]+)-->/g)];
@@ -64,7 +109,7 @@ async function page(file) {
     const text = await readFile(join(HERE, rel), 'utf8');
     html = html.replace(marker, () => text); // a function: no $& patterns in fixtures
   }
-  return renderMath(html);
+  return addLabelHtml(renderMath(html));
 }
 
 function within(root, path) {

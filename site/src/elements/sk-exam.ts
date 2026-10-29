@@ -1,14 +1,19 @@
-// <sk-exam data-exam data-duration-min data-points data-pass-points data-aids='[…]' data-mc-scoring>
-//   <section class="sk-exam-task" data-task data-points data-rubric='[{criterion, points}]'>…</section>
-//   <section class="sk-exam-mc" data-points><sk-mc>…</sk-mc>…</section>
+// <sk-exam data-exam data-duration-min data-points data-pass-points data-aids='[…]'
+//          data-mc-scoring data-negative-marking="true|false">
+//   <section class="sk-exam-task" data-task data-title data-points data-h
+//            data-rubric='[{criterion, criterion_html, points}]'>…</section>
+//   <section class="sk-exam-mc" data-points data-points-each><sk-mc>…</sk-mc>…</section>
 // </sk-exam>                                               (docs/architecture.md §2.7, §3.2)
+// data-mc-scoring and data-negative-marking fall back to <body>'s (the course's exam);
+// criterion_html is the criterion with its math rendered at build time.
 //
 // 1. A cover page shows duration, points, pass mark and allowed aids.
 // 2. Start stores the start time (session state), so a reload keeps the timer running. While
 //    the exam runs a beforeunload warning is set, and alerts come at 10 and at 1 minute left.
 // 3. Hints and solutions stay hidden and `inert` until Submit or time-up.
 // 4. Then each task gets its rubric as checkboxes; the MC part is scored automatically with
-//    the exam's multi rule (data-mc-scoring), without negative marking.
+//    the exam's multi rule (data-mc-scoring) and, if the exam has it, negative marking
+//    (scoring.examScore; the MC part never goes below 0).
 // 5. The result shows total, pass/fail, a grade estimate and the time per task: all time
 //    on the exam clock goes to the part that was on screen, including gaps between late
 //    ticks (a sleeping laptop, a throttled background tab while the student reads a
@@ -16,13 +21,15 @@
 //    exam:<id> and updated while grading. Without JS the tasks and solutions are plain
 //    content.
 
-import { examPoints, gradeEstimate, multiRule, type MultiRule } from '../lib/scoring.ts';
+import { examPartPoints, examPoints, gradeEstimate, multiRule, type MultiRule } from '../lib/scoring.ts';
 import type { ExamEntry } from '../lib/store.ts';
 import type { McSelection, SkMc } from './sk-mc.ts';
 import { clock, duration, emit, h, parseJson, percent, pts, renderInline, storeOf, uid } from './util.ts';
 
 interface RubricItem {
   criterion: string;
+  /** The criterion with its math rendered at build time (the site shell). */
+  criterion_html?: string | undefined;
   points: number;
 }
 
@@ -65,9 +72,12 @@ export class SkExam extends HTMLElement {
   private pass: number | null = null;
   private aids: string[] = [];
   private rule: MultiRule = 'all-or-nothing';
+  private negative = false;
   private tasks: Task[] = [];
   private mcEl: HTMLElement | null = null;
   private mcPoints = 0;
+  /** Points per MC question (data-points-each, else the part's points shared equally). */
+  private mcEach = 0;
   private body: HTMLElement = h('div', { class: 'sk-exam-body' });
   private head: HTMLElement = h('div', { class: 'sk-exam-head' });
   private alertText: HTMLElement = h('span', { class: 'sk-exam-alert-text', role: 'alert' });
@@ -78,11 +88,14 @@ export class SkExam extends HTMLElement {
   private ticks = 0;
   private visible = new Map<string, number>();
   private observer: IntersectionObserver | null = null;
+  /** Keeps --sk-exam-head at the sticky head's height (scroll-margin of the parts). */
+  private headSize: ResizeObserver | null = null;
   private session: ExamSession | null = null;
   private announceTimeUp = false;
   private onBeforeUnload = (e: BeforeUnloadEvent) => {
     e.preventDefault();
-    e.returnValue = '';
+    // older browsers only warn when returnValue is set (deprecated, so set it untyped)
+    (e as { returnValue: unknown }).returnValue = '';
   };
   private onPageHide = () => {
     this.account();
@@ -118,7 +131,9 @@ export class SkExam extends HTMLElement {
     this.durationMs = Math.max(1, Number(this.dataset.durationMin) || 60) * 60_000;
     this.pass = Number.isFinite(Number.parseFloat(this.dataset.passPoints ?? '')) ? Number(this.dataset.passPoints) : null;
     this.aids = parseJson<unknown[]>(this.dataset.aids, []).filter((a): a is string => typeof a === 'string');
-    this.rule = multiRule(this.dataset.mcScoring);
+    const body = document.body?.dataset ?? {};
+    this.rule = multiRule(this.dataset.mcScoring ?? body.mcScoring);
+    this.negative = (this.dataset.negativeMarking ?? body.negativeMarking) === 'true';
 
     this.body.append(...this.childNodes);
     this.append(this.head, this.body);
@@ -131,11 +146,15 @@ export class SkExam extends HTMLElement {
       const heading = el.querySelector('h1, h2, h3, h4');
       this.tasks.push({
         id,
-        title: heading?.textContent?.trim() || `Task ${this.tasks.length + 1}`,
+        title: el.dataset.title?.trim() || heading?.textContent?.trim() || `Task ${this.tasks.length + 1}`,
         points: Number(el.dataset.points) || 0,
         rubric: parseJson<unknown[]>(el.dataset.rubric, [])
           .filter((r): r is RubricItem => typeof (r as RubricItem)?.criterion === 'string')
-          .map((r) => ({ criterion: r.criterion, points: Number(r.points) || 0 })),
+          .map((r) => ({
+            criterion: r.criterion,
+            criterion_html: typeof r.criterion_html === 'string' ? r.criterion_html : undefined,
+            points: Number(r.points) || 0,
+          })),
         el,
         output: null,
       });
@@ -144,6 +163,9 @@ export class SkExam extends HTMLElement {
     if (this.mcEl) {
       this.mcEl.id ||= 'exam-mc';
       this.mcPoints = Number(this.mcEl.dataset.points) || 0;
+      const n = this.mcEl.querySelectorAll('sk-mc').length;
+      this.mcEach = Number(this.mcEl.dataset.pointsEach) || (n ? this.mcPoints / n : 0);
+      this.mcPoints ||= this.mcEach * n;
       for (const mc of this.mcEl.querySelectorAll('sk-mc')) mc.setAttribute('data-mode', 'exam');
       this.mcEl.addEventListener('sk:change', () => this.saveMc());
     }
@@ -222,7 +244,11 @@ export class SkExam extends HTMLElement {
         h('ul', { class: 'sk-exam-rules' },
           h('li', {}, 'The timer starts when you press Start and keeps running if you reload or leave the page.'),
           h('li', {}, 'Work on paper. Hints and solutions stay locked until you submit or the time is up.'),
-          h('li', {}, `Then you grade each task with its rubric. The multiple-choice part is scored automatically: ${RULE_TEXT[this.rule]}, no negative marking.`)),
+          h('li', {}, `Then you grade each task with its rubric. The multiple-choice part is scored automatically: ${RULE_TEXT[this.rule]}, ${
+            this.negative
+              ? 'and a wrong answer costs as many points as a right one earns (the part never goes below 0)'
+              : 'no negative marking'
+          }.`)),
         last
           ? h('p', { class: 'sk-exam-last' },
               `Last attempt: ${pts(last.total)} of ${pts(this.points)} points on ${new Date(last.started).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
@@ -258,6 +284,13 @@ export class SkExam extends HTMLElement {
     window.addEventListener('pagehide', this.onPageHide);
     document.addEventListener('visibilitychange', this.onVisibility);
     this.observe();
+    // now (the Start button scrolls to the first task right away) and on every resize
+    const headHeight = () => this.style.setProperty('--sk-exam-head', `${this.head.offsetHeight}px`);
+    headHeight();
+    if (typeof ResizeObserver !== 'undefined') {
+      this.headSize = new ResizeObserver(headHeight);
+      this.headSize.observe(this.head);
+    }
     this.resumeClock(Date.now());
     this.timer = window.setInterval(() => this.tick(), 1000);
     this.tick();
@@ -363,6 +396,9 @@ export class SkExam extends HTMLElement {
     this.timer = null;
     this.observer?.disconnect();
     this.observer = null;
+    this.headSize?.disconnect();
+    this.headSize = null;
+    this.style.removeProperty('--sk-exam-head');
     this.lastTick = 0;
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     window.removeEventListener('pagehide', this.onPageHide);
@@ -445,8 +481,7 @@ export class SkExam extends HTMLElement {
     this.setLocked(false);
     for (const d of this.body.querySelectorAll<HTMLDetailsElement>('details.sk-solution')) d.open = true;
     this.restoreMc();
-    const each = this.mcs.length ? this.mcPoints / this.mcs.length : 0;
-    for (const m of this.mcs) if (!m.result) m.grade(this.rule, each);
+    for (const m of this.mcs) if (!m.result) m.grade(this.rule, this.mcEach, this.negative);
     if (this.mcEl && !this.mcEl.querySelector('.sk-exam-mc-total')) {
       this.mcEl.append(h('p', { class: 'sk-exam-mc-total' }));
     }
@@ -467,7 +502,7 @@ export class SkExam extends HTMLElement {
     t.rubric.forEach((r, i) => {
       const box = h('input', { type: 'checkbox', checked: checked.has(i), 'data-index': String(i) });
       const text = h('span', { class: 'sk-rubric-criterion' });
-      renderInline(text, r.criterion);
+      renderInline(text, r.criterion, r.criterion_html);
       box.addEventListener('change', () => this.onRubric(t, fs));
       fs.append(h('label', { class: 'sk-rubric-item' }, box, h('span', { class: 'sk-rubric-points' }, `${pts(r.points)} P`), text));
     });
@@ -493,8 +528,7 @@ export class SkExam extends HTMLElement {
   private renderResult(): void {
     const s = this.session;
     if (!s?.submitted) return;
-    const each = this.mcs.length ? this.mcPoints / this.mcs.length : 0;
-    const mcTotal = this.mcs.reduce((sum, m) => sum + examPoints(m.result?.score ?? 0, each), 0);
+    const mcTotal = examPartPoints(this.mcs.map((m) => examPoints(m.result?.score ?? 0, this.mcEach)));
     const points: Record<string, number> = {};
     for (const t of this.tasks) {
       points[t.id] = this.taskPoints(t);
