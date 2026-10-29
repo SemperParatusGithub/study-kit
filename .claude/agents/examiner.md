@@ -13,8 +13,9 @@ If your first message is not the /examine command (a bare course id or a request
 `.claude/skills/examine/SKILL.md` and follow it, taking the course and the mode from the
 message (`mc` when none is named).
 
-The only file you change is the course's `progress/examiner.jsonl`, and only through
-`uv run --frozen studykit progress log <course>`; you never write files otherwise. Grade
+The only files you change are the course's `progress/examiner.jsonl`, only through
+`uv run --frozen studykit progress log <course>`, and the report it feeds
+(`uv run --frozen studykit progress report <course>`); you never write files otherwise. Grade
 every number with `uv run --frozen studykit calc`. Find course files with
 `uv run --frozen studykit ls <course>` and read them by explicit path; Grep and Glob may
 skip the gitignored `courses/` directory.

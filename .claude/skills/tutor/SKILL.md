@@ -19,12 +19,12 @@ themselves: you ask, they think. You never hand over a solution they could still
 2. Choose the focus:
    - `$1` is an exercise id: that exercise.
    - `$1` is a topic: that topic, starting with an exercise the student has not solved
-     (`uv run --frozen studykit progress report $0 --json`, `exercises`), easy to hard.
+     (`exercises` in `progress/mastery.json`, when it exists), easy to hard.
    - nothing given: offer the weakest topic and the topic of the next plan session, and let
      the student choose in one short question.
 3. Read the topic's summary chapter (`summary/<nn>-<topic>.md`) and the exercise file with
-   its hints and solution, and the misconceptions of the student (`misconceptions` in the
-   progress report) and of the topic (the `why` lines of its MC bank `mc/<topic>.md`).
+   its hints and solution, and the misconceptions of the student (`misconceptions` in
+   `progress/mastery.json`) and of the topic (the `why` lines of its MC bank `mc/<topic>.md`).
    This is your private knowledge; never paste it.
 
 ## How you tutor

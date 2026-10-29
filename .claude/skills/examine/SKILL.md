@@ -43,10 +43,10 @@ lines, then start.
    (single: exactly one correct; multi: one or more; Kprim: judge each statement).
 2. Ask with AskUserQuestion:
    - single with ≤ 4 options: one question, the options as choices (label: the letter,
-     description: the option text);
+     description: the option text; header: the question number, e.g. `3/10`);
    - multi with ≤ 4 options: one question with `multiSelect: true`;
-   - Kprim: four questions in one call, one per statement, choices true/false in the course
-     language (richtig / falsch);
+   - Kprim: four questions in one call, one per statement (header `A` to `D`), choices
+     true/false in the course language (richtig / falsch);
    - 5 or 6 options: show them as text and let the student answer with the letters.
    Add the confidence question ("How sure are you?" with Sure / Unsure) to the same call
    when the call has room (at most 4 questions), else ask it in a second call. Confidence
