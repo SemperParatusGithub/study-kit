@@ -33,6 +33,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
+import numpy as np
 import schemdraw
 import schemdraw.elements as elm
 from schemdraw import drawing_stack as schemdraw_stack
@@ -179,7 +180,8 @@ def quantity(value: Value, kind: str) -> Quantity | None:
 
     '4.7 kΩ' and '4,7 kΩ' -> 4700 Ω; 1e-7 (a number, SI units) -> '100 nF';
     symbols ('R', '2R', 'R_0') are shown as TeX. A number with a unit this cannot read
-    ('4.7k', '10 nf', '1 KΩ') raises ValueError instead of turning into a symbol.
+    ('4.7k', '10 nf', '1 KΩ') raises ValueError instead of turning into a symbol, and so do
+    non-finite numbers and negative resistances, capacitances and inductances.
     """
     if value is None:
         return None
@@ -187,6 +189,7 @@ def quantity(value: Value, kind: str) -> Quantity | None:
     if isinstance(value, bool):
         raise TypeError(f"{kind} value must be a string or a number, not {value!r}")
     if isinstance(value, int | float):
+        _check_si(float(value), kind, value)
         return _from_number(float(value), expected)
     symbolic = Quantity(text=value.strip(), si=None, unit="", tex=value.strip())
     match = _NUMBER.match(value)
@@ -204,7 +207,16 @@ def quantity(value: Value, kind: str) -> Quantity | None:
     si = float(match["num"].replace(",", ".")) * 10.0 ** PREFIXES[prefix]
     tex = rf"{_mantissa_tex(match['num'])}\,{_unit_tex(prefix, unit)}"
     text = f"{match['num'].replace(',', '.')} {prefix}{unit}"
+    _check_si(si, kind, value)
     return Quantity(text=text, si=si, unit=unit, tex=tex)
+
+
+def _check_si(si: float, kind: str, value: Value) -> None:
+    """Reject values no circuit can have: non-finite numbers and negative R, L or C."""
+    if not math.isfinite(si):
+        raise ValueError(f"{kind} value {value!r} is not a finite number")
+    if si < 0 and kind in ("resistor", "capacitor", "inductor"):
+        raise ValueError(f"{kind} value {value!r} is negative")
 
 
 def _from_number(value: float, unit: str) -> Quantity:
@@ -930,6 +942,11 @@ def _sig(x: float) -> float:
     return float(f"{x:.6g}")
 
 
+def _parallel(a: float, b: float) -> float:
+    """Resistance of a and b in parallel; a zero resistance shorts the pair."""
+    return 0.0 if a == 0 or b == 0 else a * b / (a + b)
+
+
 def _finish_template(c: drawing, alt: str | None, auto_alt: str) -> core.Figure:
     c.alt = alt or auto_alt
     return c._render()
@@ -982,9 +999,10 @@ def voltage_divider(
         r1v, r2v = vals
         r_low = r2v
         if loaded and (rlv := _si(c, "RL")):
-            r_low = r2v * rlv[0] / (r2v + rlv[0])
+            r_low = _parallel(r2v, rlv[0])
             derived["R2_parallel_RL"] = _sig(r_low)
-        if not loaded or "R2_parallel_RL" in derived:
+        # With R1 and the lower branch both 0 Ω the source is shorted: no ratio, no current.
+        if (not loaded or "R2_parallel_RL" in derived) and r1v + r_low > 0:
             ratio = r_low / (r1v + r_low)
             derived["ratio_U2_U0"] = _sig(ratio)
             if u0 := _si(c, "U0"):
@@ -1070,7 +1088,9 @@ def rc(
     derived: dict = {}
     if vals := _si(c, "R", "C"):
         tau = vals[0] * vals[1]
-        derived = {"tau": _sig(tau), "omega_c": _sig(1 / tau), "f_c": _sig(1 / (2 * math.pi * tau))}
+        derived["tau"] = _sig(tau)
+        if tau > 0:  # R = 0 or C = 0 has no finite cut-off frequency
+            derived.update({"omega_c": _sig(1 / tau), "f_c": _sig(1 / (2 * math.pi * tau))})
     c.facts["derived"] = derived
     c.facts["transfer"] = "1/(1 + j*w*tau)" if kind == "lowpass" else "j*w*tau/(1 + j*w*tau)"
     return _finish_template(c, alt, _filter_alt("RC", kind, c, series, shunt))
@@ -1095,8 +1115,11 @@ def rl(
     c = _two_port("rl", kind, series, shunt, phasors, size, alt)
     derived: dict = {}
     if vals := _si(c, "R", "L"):
-        tau = vals[1] / vals[0]
-        derived = {"tau": _sig(tau), "omega_c": _sig(1 / tau), "f_c": _sig(1 / (2 * math.pi * tau))}
+        r_v, l_v = vals
+        if r_v > 0:  # tau = L/R is infinite for R = 0
+            derived["tau"] = _sig(l_v / r_v)
+        if l_v > 0:  # omega_c = R/L is infinite for L = 0
+            derived.update({"omega_c": _sig(r_v / l_v), "f_c": _sig(r_v / (2 * math.pi * l_v))})
     c.facts["derived"] = derived
     c.facts["transfer"] = "1/(1 + j*w*tau)" if kind == "lowpass" else "j*w*tau/(1 + j*w*tau)"
     return _finish_template(c, alt, _filter_alt("RL", kind, c, series, shunt))
@@ -1188,16 +1211,21 @@ def rlc(
                 c.dot((x, 0))
 
     derived: dict = {}
-    if vals := _si(c, "R", "L", "C"):
-        r_v, l_v, c_v = vals
+    if (lc := _si(c, "L", "C")) and lc[0] > 0 and lc[1] > 0:
+        l_v, c_v = lc
         w0 = 1 / math.sqrt(l_v * c_v)
-        q = math.sqrt(l_v / c_v) / r_v if topology == "series" else r_v * math.sqrt(c_v / l_v)
-        derived = {
-            "omega_0": _sig(w0),
-            "f_0": _sig(w0 / (2 * math.pi)),
-            "Q": _sig(q),
-            "bandwidth_Hz": _sig(w0 / (2 * math.pi) / q),
-        }
+        derived = {"omega_0": _sig(w0), "f_0": _sig(w0 / (2 * math.pi))}
+        # Q and bandwidth need a numeric R; keys that would be infinite are left out: the
+        # ideal series LC circuit (R = 0) has no Q, the parallel one with R = 0 no bandwidth.
+        r_v = r[0] if (r := _si(c, "R")) else None
+        if r_v is not None and topology == "series":
+            if r_v > 0:
+                derived["Q"] = _sig(math.sqrt(l_v / c_v) / r_v)
+            derived["bandwidth_Hz"] = _sig(r_v / (2 * math.pi * l_v))
+        elif r_v is not None:
+            derived["Q"] = _sig(r_v * math.sqrt(c_v / l_v))
+            if r_v > 0:
+                derived["bandwidth_Hz"] = _sig(1 / (2 * math.pi * r_v * c_v))
     c.facts.update({"topology": topology, "source": source, "ac": ac, "derived": derived})
 
     src_desc = _desc(c, "U0" if source == "voltage" else "I0")
@@ -1330,7 +1358,7 @@ def opamp(
     derived: dict = {}
     if kind == "follower":
         derived["gain"] = 1.0
-    elif kind in ("inverting", "non_inverting") and (vals := _si(c, "R1", "R2")):
+    elif kind in ("inverting", "non_inverting") and (vals := _si(c, "R1", "R2")) and vals[0] > 0:
         g = -vals[1] / vals[0] if kind == "inverting" else 1 + vals[1] / vals[0]
         derived["gain"] = _sig(g)
     elif kind in ("integrator", "differentiator") and (vals := _si(c, "R", "C")):
@@ -1380,6 +1408,57 @@ def opamp(
     return _finish_template(c, alt, auto)
 
 
+_BRIDGE_ENDS = {
+    "R1": ("T", "A"),
+    "R2": ("A", "0"),
+    "R3": ("T", "B"),
+    "R4": ("B", "0"),
+    "R5": ("A", "B"),
+}
+
+
+def _bridge_voltages(u0: float, resistors: dict[str, float]) -> tuple[float, float] | None:
+    """Node voltages (U_A, U_B) of the bridge with T at u0 and node 0 at ground.
+
+    A 0 Ω resistor merges its two nodes, so a shorted diagonal (R5 = 0) or branch still
+    solves. None when the merged nodes short the source (T joined to 0).
+    """
+    parent = {n: n for n in "TAB0"}
+
+    def root(n: str) -> str:
+        while parent[n] != n:
+            n = parent[n]
+        return n
+
+    for name, r in resistors.items():
+        if r == 0:
+            a, b = (root(n) for n in _BRIDGE_ENDS[name])
+            parent[a] = b
+    if root("T") == root("0"):
+        return None
+    fixed = {root("T"): u0, root("0"): 0.0}
+    free = sorted({root("A"), root("B")} - fixed.keys())
+    index = {n: i for i, n in enumerate(free)}
+    g_matrix = np.zeros((len(free), len(free)))
+    currents = np.zeros(len(free))
+    for name, r in resistors.items():
+        a, b = (root(n) for n in _BRIDGE_ENDS[name])
+        if r == 0 or a == b:
+            continue
+        for here, there in ((a, b), (b, a)):
+            if here not in index:
+                continue
+            g_matrix[index[here], index[here]] += 1 / r
+            if there in index:
+                g_matrix[index[here], index[there]] -= 1 / r
+            else:
+                currents[index[here]] += fixed[there] / r
+    # Every free node reaches T or 0 through a resistor > 0, so the matrix is regular.
+    solved = dict(zip(free, np.linalg.solve(g_matrix, currents), strict=True)) if free else {}
+    volts = {**fixed, **solved}
+    return float(volts[root("A")]), float(volts[root("B")])
+
+
 def bridge(
     kind: str = "wheatstone",
     R1: Value = None,
@@ -1427,19 +1506,14 @@ def bridge(
         r1v, r2v, r3v, r4v = vals
         derived["balanced"] = math.isclose(r1v * r4v, r2v * r3v, rel_tol=1e-9)
         u0 = _si(c, "U0")
-        r5v = _si(c, "R5") if R5 is not None else None
-        if u0 and R5 is None:
-            ua, ub = u0[0] * r2v / (r1v + r2v), u0[0] * r4v / (r3v + r4v)
-            derived.update({"U_A": _sig(ua), "U_B": _sig(ub), "U_AB": _sig(ua - ub)})
-        elif u0 and r5v:
-            # Node equations for A and B with T at U0 and 0 at ground.
-            g1, g2, g3, g4, g5 = (1 / r for r in (r1v, r2v, r3v, r4v, r5v[0]))
-            a11, a12, b1 = g1 + g2 + g5, -g5, g1 * u0[0]
-            a21, a22, b2 = -g5, g3 + g4 + g5, g3 * u0[0]
-            det = a11 * a22 - a12 * a21
-            ua = (b1 * a22 - a12 * b2) / det
-            ub = (a11 * b2 - a21 * b1) / det
-            derived.update({"U_A": _sig(ua), "U_B": _sig(ub), "U_AB": _sig(ua - ub)})
+        r5v = _si(c, "R5") if R5 is not None else []  # None while R5 is symbolic
+        resistors = dict(zip(("R1", "R2", "R3", "R4", "R5"), [*vals, *(r5v or [])], strict=False))
+        # The node voltages are undefined (None) when 0 Ω resistors short the source.
+        if u0 and r5v is not None and (volts := _bridge_voltages(u0[0], resistors)):
+            ua, ub = volts
+            # A balanced bridge has U_AB = 0 exactly; the solver would leave rounding noise.
+            uab = 0.0 if derived["balanced"] else ua - ub
+            derived.update({"U_A": _sig(ua), "U_B": _sig(ub), "U_AB": _sig(uab)})
     c.facts.update({"kind": kind, "derived": derived})
 
     comps = ", ".join(_desc(c, n) for n in ("R1", "R2", "R3", "R4"))

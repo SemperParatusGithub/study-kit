@@ -405,6 +405,67 @@ def test_wheatstone_bridge_with_detector_resistor(de):
         circuit.bridge("maxwell")
 
 
+def test_bridge_with_zero_ohm_resistors(de):
+    # Shorted diagonal: A and B are one node fed by R1 || R3 from T and R2 || R4 to ground.
+    fig = circuit.bridge("wheatstone", "1 kΩ", "1 kΩ", "1 kΩ", "2 kΩ", "5 V", R5="0 Ω")
+    _assert_ok(fig)
+    g1, g2, g3, g4 = (1 / r for r in (1e3, 1e3, 1e3, 2e3))
+    u_node = 5 * (g1 + g3) / (g1 + g2 + g3 + g4)
+    derived = fig.facts["derived"]
+    assert derived["U_A"] == pytest.approx(u_node, rel=1e-5)
+    assert derived["U_B"] == pytest.approx(u_node, rel=1e-5)
+    assert derived["U_AB"] == 0.0
+    # R1 = 0 ties A to the top node.
+    tied = circuit.bridge("wheatstone", "0 Ω", "1 kΩ", "1 kΩ", "3 kΩ", "8 V").facts["derived"]
+    assert tied["U_A"] == pytest.approx(8.0) and tied["U_B"] == pytest.approx(6.0)
+    # R1 = R2 = 0 shorts the source: no node voltage is defined, nothing crashes.
+    shorted = circuit.bridge("wheatstone", "0 Ω", "0 Ω", "1 kΩ", "1 kΩ", "5 V")
+    _assert_ok(shorted)
+    assert not {"U_A", "U_B", "U_AB"} & set(shorted.facts["derived"])
+
+
+def test_zero_values_keep_the_defined_derived_numbers(de):
+    rc = circuit.rc("lowpass", "0 Ω", "1 nF")
+    _assert_ok(rc)
+    assert rc.facts["derived"] == {"tau": 0.0}
+    assert circuit.rl("lowpass", "0 Ω", "10 mH").facts["derived"] == {"omega_c": 0.0, "f_c": 0.0}
+    assert set(circuit.rl("highpass", "100 Ω", "0 H").facts["derived"]) == {"tau"}
+    w0 = 1 / math.sqrt(10e-3 * 1e-6)
+    lc = circuit.rlc("series", "0 Ω", "10 mH", "1 µF")  # ideal LC circuit: no Q
+    _assert_ok(lc)
+    assert lc.facts["derived"]["omega_0"] == pytest.approx(w0, rel=1e-5)
+    assert "Q" not in lc.facts["derived"]
+    assert lc.facts["derived"]["bandwidth_Hz"] == 0.0
+    parallel = circuit.rlc("parallel", "0 Ω", "10 mH", "1 µF").facts["derived"]
+    assert parallel["Q"] == 0.0 and "bandwidth_Hz" not in parallel
+    symbolic_r = circuit.rlc("series", "R", "10 mH", "1 µF").facts["derived"]
+    assert symbolic_r == {
+        "omega_0": pytest.approx(w0, rel=1e-5),
+        "f_0": pytest.approx(w0 / 2 / math.pi, rel=1e-5),
+    }
+    series = circuit.rlc("series", "10 Ω", "10 mH", "1 µF").facts["derived"]
+    assert series["bandwidth_Hz"] == pytest.approx(series["f_0"] / series["Q"], rel=1e-5)
+    assert "gain" not in circuit.opamp("inverting", "0 Ω", "10 kΩ").facts["derived"]
+    assert circuit.voltage_divider("0 Ω", "0 Ω", "5 V").facts["derived"] == {}
+    upper_short = circuit.voltage_divider("0 Ω", "1 kΩ", "5 V").facts["derived"]
+    assert upper_short["ratio_U2_U0"] == 1.0 and upper_short["I"] == pytest.approx(5e-3)
+    load_short = circuit.voltage_divider("1 kΩ", "1 kΩ", "10 V", RL="0 Ω").facts["derived"]
+    assert load_short["R2_parallel_RL"] == 0.0 and load_short["U2"] == 0.0
+    assert load_short["I"] == pytest.approx(10e-3)
+
+
+def test_quantity_rejects_negative_components_and_infinity():
+    with pytest.raises(ValueError, match="negative"):
+        circuit.quantity("-10 mH", "inductor")
+    with pytest.raises(ValueError, match="negative"):
+        circuit.quantity(-1.0, "resistor")
+    with pytest.raises(ValueError, match="negative"):
+        circuit.rlc("series", "1 Ω", "-10 mH", "1 µF")
+    with pytest.raises(ValueError, match="finite"):
+        circuit.quantity(math.inf, "capacitor")
+    assert circuit.quantity("-5 V", "voltage_source").si == pytest.approx(-5.0)
+
+
 @pytest.mark.parametrize("size", ["half", "cs", "full"])
 def test_templates_fit_every_size(de, size):
     fig = circuit.rc("lowpass", "1 kΩ", "100 nF", size=size)
