@@ -1577,7 +1577,8 @@ Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
 
 `commit-msg` rejects a `Co-Authored-By` trailer on every commit; subjects git writes itself
 (`Merge …`, `Revert "…"`, `fixup!`, `squash!`, `amend!`) are exempt only from the Conventional
-Commit format. `pre-commit` matches the staged paths by pathspec, so file names with non-ASCII
+Commit format, `Merge …` only on a merge git is making (`MERGE_HEAD` exists), so a
+hand-written commit with that subject is checked, locally and by the guard. `pre-commit` matches the staged paths by pathspec, so file names with non-ASCII
 characters or quotes are caught too.
 
 ## 5. Claude Code layer
