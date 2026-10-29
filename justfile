@@ -11,6 +11,8 @@ export ASTRO_TELEMETRY_DISABLED := "1"
 export STUDYKIT_COURSES_DIR := absolute_path(env("STUDYKIT_COURSES_DIR", root / "courses"))
 
 sk := "uv run --frozen studykit"
+# recipes that run other recipes call this very just with this justfile
+just := quote(just_executable()) + " --justfile " + quote(justfile())
 
 # list recipes
 default:
@@ -57,11 +59,30 @@ validate course="" *flags:
 schema:
     {{sk}} schema export
 
-# python tests, schema drift and the golden math corpus
+# python and node unit tests, schema drift and the golden math corpus
 test:
     uv run --frozen pytest -q
+    pnpm -C site run test:unit
     {{sk}} schema export --check
     {{sk}} golden
+
+# The e2e suite runs against site/dist, so build the sample course first:
+#   STUDYKIT_COURSES_DIR=examples just build sample-course
+# Playwright fetches its Chromium on first use; args go to `playwright test`.
+# browser tests of the built sample course (site/tests/e2e)
+[positional-arguments]
+e2e *args:
+    pnpm -C site exec playwright install chromium
+    pnpm -C site run e2e "$@"
+
+# `test` includes `schema export --check`; the sample course comes from examples/. CI then
+# runs the browser suites too: `pnpm -C site run test:elements` and `just e2e`.
+# CI checks before the browser tests: doctor, tests, sample-course build and validation
+ci:
+    {{just}} doctor
+    {{just}} test
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} build sample-course
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate sample-course --release
 
 # ruff lint and format check of the python code
 lint-code:
