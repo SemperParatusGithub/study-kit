@@ -1058,7 +1058,9 @@ def compile_typst(
     ]
     for key, value in (inputs or {}).items():
         args += ["--input", f"{key}={value}"]
-    env = {**os.environ, "SOURCE_DATE_EPOCH": "0"}
+    # TYPST_FONT_PATHS and friends would bring fonts or packages from this machine in
+    env = {k: v for k, v in os.environ.items() if not k.startswith("TYPST_")}
+    env["SOURCE_DATE_EPOCH"] = "0"
     proc = subprocess.run(
         [*args, str(typ), str(out)],
         capture_output=True,
