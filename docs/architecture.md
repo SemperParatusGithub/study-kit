@@ -1970,8 +1970,9 @@ any content → figures → verify → pdf
 
 These follow your order (toolchain → figures → website → PDF → agents/skills → /register-new-subject), with a small guardrails phase first. Every commit is a Conventional Commit, one logical change, with no Co-Authored-By trailer.
 
-**Status:** Phases 0–5 are complete; Phase 6 is next. Sections of this document that describe
-later phases mark the parts that do not exist yet.
+**Status:** Phases 0–6 are complete; Phase 7 is optional. The few parts of this document
+marked *planned* (the summary and cheat-sheet formula audits `checks/sum-*.py`, the mock
+exams' archetype-mix and n-gram checks, key points of function plots) do not exist yet.
 
 **Phase 0: guardrails.** Done when the hooks reject a bad message and staged course data, and the guard workflow is green.
 - `chore: ignore course data, build outputs and local tool dirs`
@@ -2078,6 +2079,12 @@ Commits:
 - `test(claude): lint skill and agent frontmatter and referenced files`
 
 **Phase 6: `/register-new-subject`.** Done when an end-to-end run on `examples/sample-materials`, including the rasterised scan, produces a course with a green `--release`, and an interrupted run resumes correctly.
+
+The run built `opamp-grundlagen` (3 topics, 21 exercises, 37 MC questions, 1 mock exam, a
+cheat sheet of 1 of 2 pages, 19 figure scripts) with every item verified and a green
+`validate --release`; it ran over several sessions, each resuming at the step
+`pipeline status` reported, and `test_pipeline.py` checks the resume point after each step
+and after an interrupted reading wave.
 - `feat(ingest): add inventory, source copy and manifest`
 - `feat(ingest): extract page text and plan chunks`
 - `feat(claude): add ingester and exam-analyst agents`
@@ -2103,6 +2110,6 @@ Commits:
 | 8 | Toolchain drift (pandoc 3.13 is 3 days old; Typst 0.x breaking changes; Astro 7 Markdown churn) | sha256-pinned binaries shared by local and CI; lockfiles with 7-day cooldowns; `doctor`; Astro's Markdown pipeline not used at all; one-line fallback to pandoc 3.12.1 |
 | 9 | Lost browser progress (origin or port change, Safari eviction) or edits invalidating it | Fixed `localhost:4321` with strictPort; `storage.persist()`; export, import and merge; content hashes per item; `/import-progress` merges the export into `progress/state.json` and keeps a copy in `progress/browser/` |
 | 10 | Claude Code's Grep and Glob may skip the gitignored `courses/` | Every skill and agent lists course files with `studykit ls <c>` and ids with `studykit index <c> --json` and reads explicit paths (Read is unaffected); the hooks take the path from the event |
-| 11 | Cost and time of a full ingest and generation run on large courses | Text-first reading with vision only for flagged pages; 20-page chunks; sonnet for ingestion; caps of 6 agents; estimate and core-first mode; resumable status |
+| 11 | Cost and time of a full ingest and generation run on large courses | Text-first reading: ingesters read the extracted page text and open PDF pages only where `ingest extract` flagged them, and transcribe a scanned page once into `pNNNN.vision.md`; chunks of at most 20 pages, past exams whole; the `ingester` on sonnet with medium effort and 40 turns; at most 6 agents at a time (3 for mock exams) and at most 2 fix rounds per step (3 for publish); round 2 shows an estimate of authors, items, agent runs and time for both scopes before the go, and no-go stops; scope core builds summary, MC and plan first and defers exercises, mock exams and the cheat sheet; `pipeline status` derives every step from the files, so a resumed run redoes only its `todo` (missing or stale notes, items not verified, stale PDFs); `ingest extract` and `add` skip documents whose sha256 is known and keep their chunk ids, and `/add-material` reads only new and changed chunks; figures and PDFs are cached by digest (a code change to `src/studykit` still makes every figure, and with them the PDFs, stale) |
 | 12 | Mock exams copy past exams too closely | Modelled at archetype level; n-gram similarity warning (planned); new values and circuits required |
 | 13 | YAML pitfalls (backslash escapes, YAML 1.1 vs 1.2) | Scalar-style lint from parser events; restricted PyYAML loader that reads plain scalars like the YAML 1.2 core schema; the site gets frontmatter from that loader through the render bridge and reads `course.yaml` and `plan.yaml` with `yaml` 1.2 (core schema); no LaTeX in `course.yaml` |
