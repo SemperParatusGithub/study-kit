@@ -36,6 +36,9 @@ const { title, course, tab, description } = Astro.props;
 const lang = course?.lang ?? 'en';
 const chromeLang = lang === 'en' ? undefined : 'en';
 const fullTitle = course ? `${title} · ${course.short}` : `${title} · study-kit`;
+// The course's MC rule for multi-select questions (course.exam.mc): practice questions are
+// scored like the exam (sk-mc reads the nearest data-mc-scoring).
+const mc = course?.data.exam.mc;
 ---
 
 <!doctype html>
@@ -59,7 +62,12 @@ const fullTitle = course ? `${title} · ${course.short}` : `${title} · study-ki
       })();
     </script>
   </head>
-  <body data-course={course?.id ?? ''} data-exam-date={course?.examDate ?? ''}>
+  <body
+    data-course={course?.id ?? ''}
+    data-exam-date={course?.examDate ?? ''}
+    data-mc-scoring={mc?.scoring}
+    data-negative-marking={mc ? String(mc.negative_marking) : undefined}
+  >
     <a class="skip-link" href="#main" lang={chromeLang}>Skip to content</a>
     <header class="site-header" lang={chromeLang}>
       <div class="bar">
