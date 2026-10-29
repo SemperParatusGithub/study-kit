@@ -100,10 +100,17 @@ test('warnings at 10 and at 1 minute left', async ({ page }) => {
 
 test('time-up submits automatically, also across a reload', async ({ page }) => {
   await start(page);
+  const mcs = exam(page).locator('sk-mc');
+  await answer(mcs.nth(0), true); // pk1-mc-01, saved while the exam runs
   await elapse(page, 61);
   await expect(exam(page).locator('.sk-exam-result')).toBeVisible();
   await expect(page.locator('.sk-exam-timeup')).toHaveText('Time was up; the exam was submitted automatically.');
   await expect(exam(page).locator('details.sk-solution')).toBeVisible();
+  // the MC answers given before the page was closed are graded, not wiped
+  await expect(exam(page).locator('.sk-exam-mc-total')).toHaveText('Multiple choice: 2 of 8 points.');
+  await expect(mcs.nth(0).locator('sk-opt input:checked')).toHaveCount(1);
+  const saved = await page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? '{}')['exam:probeklausur-1'].mc, SESSION_KEY);
+  expect(saved['pk1-mc-01'].chosen).toHaveLength(1);
   const attempt = (await progress(page)).items['exam:probeklausur-1'].attempts[0];
   expect(attempt.duration_s).toBe(3600);
   // the hour the page was closed goes to the part that was on screen
