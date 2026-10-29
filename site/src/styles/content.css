@@ -187,6 +187,11 @@ details.sk-solution > summary::marker {
   font-size: 1.08em;
 }
 
+/* punctuation written against inline math stays on its line (lib/katex.ts glue()) */
+.sk-nobr {
+  white-space: nowrap;
+}
+
 .katex-display {
   margin: var(--space-3) 0;
   padding: var(--space-1) 0;
