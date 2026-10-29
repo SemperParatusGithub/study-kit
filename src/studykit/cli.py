@@ -64,6 +64,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_validate.add_argument("--json", action="store_true", help="machine-readable output")
     p_validate.set_defaults(func=cmd_validate)
 
+    p_render = sub.add_parser("render", help="render course files to HTML for the website")
+    p_render.add_argument("course", help="course id or directory")
+    p_render.add_argument(
+        "--paths", nargs="+", metavar="PATH", help="only these files (course-relative or paths)"
+    )
+    p_render.add_argument(
+        "--known",
+        metavar="FILE",
+        help="JSON {rel: digest} of renders the caller holds ('-' reads stdin); those come "
+        "back as cached",
+    )
+    p_render.add_argument("--jobs", type=int, help="parallel pandoc runs (default: CPU count)")
+    p_render.add_argument("--json", action="store_true", help="print the full result as JSON")
+    p_render.set_defaults(func=cmd_render)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -210,6 +225,36 @@ def cmd_schema_export(args: argparse.Namespace) -> int:
         if path.name not in wanted:
             path.unlink()
             print(f"removed schemas/{path.name}")
+    return 0
+
+
+def cmd_render(args: argparse.Namespace) -> int:
+    from studykit import render
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    known = None
+    if args.known:
+        text = sys.stdin.read() if args.known == "-" else Path(args.known).read_text("utf-8")
+        known = json.loads(text) if text.strip() else {}
+        if not isinstance(known, dict):
+            print("error: --known must be a JSON object {rel: digest}", file=sys.stderr)
+            return 2
+    result = render.render_course(tree.root, paths=args.paths, known=known, jobs=args.jobs)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False))
+        return 0
+    errors = 0
+    for row in result["files"]:
+        state = "cached" if row["cached"] else f"{len(row['findings'])} finding(s)"
+        print(f"{row['kind']:<10} {row['rel']}  {state}")
+        for f in row["findings"]:
+            errors += f["severity"] == "error"
+            print(f"  {f['path']}:{f['line']}:{f['col']} {f['code']} {f['message']}")
+    for row in result["skipped"]:
+        print(f"skipped    {row['rel']}  ({row['reason']})")
+    print(f"render: {len(result['files'])} file(s), {errors} error(s)")
     return 0
 
 
