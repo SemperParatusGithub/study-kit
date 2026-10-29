@@ -1130,21 +1130,37 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
 
 ### 4.4 Tests
 
-- **pytest:**
-  - key points: `cos x = x`, touching roots, poles
-  - control margins compared with `scipy.signal` and closed forms
-  - every figure template renders and validates, with a `facts.json` snapshot (never SVG bytes)
-  - lint fixtures: each forbidden construct produces its code and its replacement hint
-  - `mc_numeric`, the scheduler and Leitner clamp, `status`, and ingest of a generated two-page PDF
-- **Golden corpus** (compiled in CI through both KaTeX and pandoc→Typst):
-  - `tests/golden/math.md`: about 120 EE and math formulas, including decimal comma, `\underline`, `\mathrm{k\Omega}`, `cases`, `aligned` and determinants
-  - `blocks.md` and `mcq.md`: every container form and all three MC types
-- **node --test:** scoring for every type and mode, shuffle determinism with `pin-last`, Leitner exam clamp, store migration and merge.
-- **Playwright** (`e2e`):
-  1. Answer one MC question of each type and check the score.
-  2. Reload and check that progress persisted.
-  3. Start an exam, reload, and check that the timer kept running.
-  4. Submit and check that solutions and the rubric appear.
+`just test` runs the first five suites; CI runs the browser suites after it (§4.5).
+
+- **pytest** (`tests/py/`):
+  - control margins compared with `scipy.signal` and closed forms; repeated roots, poles
+    and right-half-plane counts of the control templates
+  - every figure template renders and validates, with a `facts.json` snapshot (never SVG bytes); the palette, its readable text colours and the site's figure tokens agree
+  - lint fixtures (`tests/fixtures/bad/<SK-CODE>/`): each forbidden construct produces its code and its replacement hint; every emitted code is documented in `errors.md`, and every documented code is emitted
+  - the filter set over `tests/fixtures/pandoc/` and the golden `blocks.md` and `mcq.md` corpora through html5, typst (compiled) and json
+  - YAML loading, the schemas, validate's stages, the render bridge, the Site stage, `check-links`, `doctor` and `tools`
+  - *(planned)* key points of function plots (`cos x = x`, touching roots, poles) beyond the
+    gallery snapshot; *(Phase 5/6)* `mc_numeric`, the scheduler, `status`, and ingest of a
+    generated two-page PDF
+- **node --test** (`site/tests/unit/`): scoring for every type and mode, shuffle determinism with `pin-last` (against values printed by Python), Leitner and the exam clamp, store migration and merge, the answer check (`lib/answer.ts`), the progress figures (`lib/stats.ts`), and text colour pairs of `tokens.css` at 4.5:1 or more in both themes.
+- **Git hooks and guard** (`.github/scripts/test-hooks.sh`): `commit-msg`, `pre-commit` and `guard.sh` in throwaway repositories.
+- **Schema drift:** `studykit schema export --check`.
+- **Golden corpus** (`studykit golden`): `tests/golden/math.md`, EE and math formulas including decimal comma, `\underline`, `\mathrm{k\Omega}`, `cases`, `aligned` and determinants, through KaTeX strict and pandoc → Typst with zero warnings; `math.typ.snap` pins the Typst translation; every construct in `math-denied.md` must still fail an engine.
+- **Element harness** (`pnpm -C site run test:elements`, `site/tests/elements/`): Playwright against static fixture pages that mirror the shell's markup, served by `server.mjs`, which compiles `src/lib` and `src/elements` with the pinned TypeScript. Covers `<sk-mc>`, `<sk-quiz>`, the exercise elements, `<sk-exam>`, `<sk-progress>` and the dashboard placeholders; `screenshots.spec.ts` writes every element in light and dark for review by eye.
+- **Playwright e2e** (`just e2e`, `site/tests/e2e/`) against the built sample course in `site/dist`, served by `astro preview` (`SK_E2E_PORT` moves it off 4321):
+  - `pages`: the build has the sample course's pages, unknown paths get the 404 page, and every page loads its scripts and assets without errors
+  - `mc`: one MC question of each type is answered, scored and recorded, and the progress survives a reload
+  - `quiz`: Practice, Test (`?n=`, `?minutes=`), Mistakes, Due and Mixed
+  - `exercise`: hint ladder, answer check, "Tried it?", the hint cap on the self-assessment
+  - `exam`: start the mock exam, reload, the timer keeps running; submit, solutions and rubrics appear, the MC part is scored with the exam's rule
+  - `progress`: export and import round trip
+  - `overview`: plan checkboxes and the shell's progress placeholders
+  - `shell`: the theme persists without a flash, search finds German course content and never shows hints, a malformed `#fragment` breaks no shell script
+  - `lang`: every text resolves to the language it is written in (quiz questions and topic names in the course language, the elements' own text in English)
+  - `layout`: the cheat sheet fills its columns and cuts no formula, the current course tab is visible on a phone, no sideways scrolling at 320 px, past and done plan sessions keep their contrast
+  - `print`: an exercise prints its hints and solution (without counting the hints as used); summary, MC topic and exam pages print without their quizzes and buttons
+
+Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
 
 ### 4.5 GitHub Actions
 
