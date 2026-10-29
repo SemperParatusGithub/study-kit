@@ -55,9 +55,9 @@ study-kit/
 │   ├── pdf.py                      # `pdf`: assemble → pandoc → typst per document, digest cache, _build/pdf/manifest.json (§3.3)
 │   ├── cheatsheet.py               # `cheatsheet fit`: density loop 0–4, overflow measured with `typst eval` (§3.3)
 │   ├── ingest.py                   # (Phase 6) scan, copy, page text, chunk plan
-│   ├── plan.py                     # (Phase 5) deterministic scheduler
-│   ├── progress.py                 # (Phase 5) import browser export, examiner log, report and mastery
-│   ├── status.py                   # (Phase 6) pipeline state derived from outputs
+│   ├── plan.py                     # `plan`: deterministic study-plan scheduler (§2.9)
+│   ├── progress.py                 # `progress import|log|report`: browser export, examiner log, mastery (§2.11)
+│   ├── status.py                   # `status`: the study status of /study-status (§2.11)
 │   └── calc.py                     # (Phase 5) `studykit calc "<sympy>"` for tutor and examiner
 ├── pandoc/
 │   ├── defaults/common.yaml web.yaml typst.yaml json.yaml
@@ -126,7 +126,7 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── sources/raw/*.pdf  manifest.yaml  text/<doc>/p0001.txt  notes/<chunk>.md  outline.md
 ├── analysis/exam-profile.yaml  notation.yaml
 ├── state/verify/<item-id>.json     # (Phase 5) ledger, one file per item (no locking)
-├── progress/browser/*.json  examiner.jsonl  mastery.json  report.md    # (Phase 5)
+├── progress/state.json  browser/*.json  examiner.jsonl  mastery.json  report.md    # (Phase 5)
 ├── _history/<timestamp>/…          # (Phase 5) copies saved by /regenerate before overwriting
 └── _build/{index.json,figures,typ,pdf,blind,logs}   # typ: assembled .md/.typ and digests; pdf: PDFs and manifest.json; logs: pandoc logs
 ```
@@ -578,10 +578,14 @@ mc: {file: mc.md, points_each: 2}        # present only if course.exam.mc.presen
 
 ### 2.9 Study plan (`plan.yaml`)
 
-`studykit plan` (Phase 5) is deterministic. Claude writes only the `goal` and `note` text
-afterwards. Until the scheduler exists, `plan.yaml` is written by hand against
-`schemas/plan.schema.json`, as in the sample course; the site and validate already read it
-(plan refs are checked as SK-REF-SCHEME and SK-REF-MISSING).
+`studykit plan <course> [--from YYYY-MM-DD] [--dry-run] [--json]` (`plan.py`) is
+deterministic: the same course, content, progress, old plan and first day give the same
+`plan.yaml` byte for byte. Claude writes only the `goal` and `note` text afterwards; the
+output lists the sessions without a goal. The written plan is read back and checked like
+validate checks it (schema, references) before it replaces the old one. The sample course's
+`plan.yaml` is still the hand-written one from Phase 3. Validate checks plan refs
+(SK-REF-SCHEME, SK-REF-MISSING) and that no session lies on or after the exam
+(SK-STRUCT-PLAN, a warning when `exam_date` differs from `course.yaml`).
 
 ```yaml
 schema: 1
@@ -602,10 +606,39 @@ sessions:
 ```
 
 How the scheduler places sessions:
-- Learning time per topic is proportional to weight × mean difficulty, multiplied by 1.5 for focus topics, in prerequisite order.
-- Reviews follow at +1, +3 and +7 days.
-- Mock exams go into the last 14 days, and the last day is for the cheat sheet.
-- `--replan` keeps past sessions and puts weak topics from `progress/mastery.json` first.
+- Days run from `--from` (default today, never before `study.start`) to the day before the
+  exam, outside `study.blocked`. `study.hours_per_week` is the weekly budget, split into
+  round(budget / 120 min) sessions (1–6) on fixed weekdays (3: Mon, Wed, Sat), each budget / n
+  minutes rounded down to 15; the day before the exam always has a session. No calendar week
+  exceeds the budget: in a week with a mock exam, a done session or the extra last day the
+  other sessions get shorter, down to 45 minutes, and below that the least important one is
+  dropped.
+- The last day is for the cheat sheet (a review of every topic when none is allowed). Mock
+  exams (`targets.mock_exams`, at most those the course has and that were not taken) take
+  the exam's duration + 30 minutes and are spread over the last 14 days, the last at least
+  4 days before the exam; the next session reviews each. The session before the last day
+  is a final MC round over every topic; the last session before the final 14 days is a
+  buffer.
+- Learning takes 60 % of the sessions before the final 14 days, at least one per topic and
+  never more than a topic has exercises: topics in prerequisite order (teaching order among
+  free ones), shared in proportion to weight × mean exercise difficulty, × 1.5 for focus
+  topics, skipped topics left out. A topic's first session reads its summary; its exercises
+  follow from easy to hard, each session with MC practice.
+- Reviews follow at +1, +3 and +7 days after a topic's last learning session (in the first
+  session on or after that day).
+- The remaining sessions practise learned topics (two exercises, unsolved and harder first,
+  MC practice, a review of a second topic) in a smooth weighted round robin by the same
+  shares × (1 + 3 · (1 − accuracy)), with the accuracy of `lib/stats.ts` over the progress
+  in `progress/` (browser state plus examiner answers), so weak topics come first and most
+  often.
+- Replanning keeps every session `progress/` marks done and plans the rest from the first
+  day; past sessions that are not done are dropped. A topic whose learning sessions are all
+  done is not learned again; exercises solved or in a done session leave its learning
+  sessions. A new session keeps the old `goal` and `note` of its id when kind, topics and
+  tasks are unchanged.
+- An unknown exam date plans 12 weeks and writes `exam_date: null` (SK-PLAN-DATE warning);
+  SK-PLAN-STUDY and SK-PLAN-BUDGET report a missing or too small budget
+  (`content-format/errors.md`).
 
 `plan.pdf` lists the sessions week by week („Woche n · dates“), one row each with a box to
 tick, date, minutes, kind, goal, topics and tasks (§3.3).
@@ -675,16 +708,38 @@ tick, date, minutes, kind, goal, topics and tasks (§3.3).
 - Exercise status: `new`, `started` (hints opened or the answer checked, not rated yet),
   `not-yet`, `partial` or `solved`.
 
-**Repo side** (Phase 5):
-- `/import-progress` copies an export into `progress/browser/`.
-- The examiner appends results through `studykit progress log`.
-- `studykit progress report` computes `mastery.json` and `report.md` deterministically, with
-  the same accuracy and mastery as `lib/stats.ts`:
-  - per-topic accuracy over the last 10 attempts
-  - exam-task score fraction
-  - examiner results
-  - misconceptions (last attempt sure but not fully right)
-- The site reads `mastery.json` at build time (`lib/courses.ts`, straight from the course directory), so examiner findings show up on the course home page.
+**Repo side** (`progress.py`; `progress.py` mirrors `lib/leitner.ts`, the merge of
+`lib/store.ts` and `lib/stats.ts`, and `tests/py/test_progress.py` runs the site's own
+TypeScript on the shared cases in `tests/fixtures/progress/` and compares every value):
+- `studykit progress import <course> <file> [--dry-run] [--json]` (what `/import-progress`
+  runs) validates an export against `model.Progress` and the site's timestamp form, refuses
+  a file of another course, without a course or with another schema (SK-PROGRESS codes),
+  merges it into `progress/state.json` with the site's union merge, keeps the file in
+  `progress/browser/` (once) and reports what changed: new entries, MC attempts, ratings,
+  mock exam attempts, sessions newly done.
+- The examiner appends results through `studykit progress log <course> --json-line '{…}'`
+  (repeatable, or JSON lines on stdin) to `progress/examiner.jsonl`, one
+  `model.ExaminerResult` per line (`schemas/examiner.schema.json`): mode, kind (`mc`,
+  `exercise`, `exam-task`, `oral`), topic, item, score 0–1, for MC `chosen` and `conf`,
+  optional `points`/`max_points` and a one-line `finding`. Items and topics are checked
+  against the course; a batch is written all or nothing.
+- `studykit progress report <course> [--today D] [--json]` writes `mastery.json`
+  (`model.Mastery`, `schemas/mastery.schema.json`) and `report.md` deterministically. The
+  examiner's MC answers count as attempts (folded in with the same Leitner step), then the
+  figures are those of `lib/stats.ts`:
+  - `overall`: mastery as defined above; `topics.<id>.mastery`: the topic accuracy over the
+    last 10 attempts (null without answers)
+  - due reviews (MC and exercises, with ids), misconceptions (last attempt sure but not fully
+    right), exercise status per exercise and per topic
+  - exam-task score fraction per topic from each mock exam's last attempt, mock exam results
+    (best, last, passed)
+  - examiner results per topic (mean of the last 10) and the last 20 findings
+- `studykit status <course> [--today D] [--json]` (`status.py`, what `/study-status`
+  prints): days left, plan adherence (done sessions, and past sessions not done as the
+  site's banner counts them), the next three sessions, the three weakest topics, reviews
+  due, the last mock exam and hints for the next step. It is the student's status; the
+  pipeline status of §5.4 needs another name.
+- The site reads `mastery.json` at build time (`lib/courses.ts`, straight from the course directory: `overall`, else the mean of `topics.<id>.mastery`), so examiner results show up on the course home page until the browser has answers of its own.
 
 ### 2.12 Overview (`overview.md`)
 
