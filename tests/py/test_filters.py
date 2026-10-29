@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from studykit import golden, pandoc, tools
+from studykit import golden, pandoc, tools, validate
 
 ROOT = tools.repo_root()
 FIXTURES = ROOT / "tests" / "fixtures" / "pandoc"
@@ -771,15 +771,16 @@ def test_control_words_match_exactly(workdir):
     pandoc.convert(body, document("summary/02-rc-filter.md", workdir), "json")
 
 
-@pytest.mark.parametrize(
-    "tex",
-    [
-        r"\left|\begin{matrix} a & b \\ c & d \end{matrix}\right|",
-        r"\left(\begin{matrix} a \\ b \end{matrix}\right)",
-        r"\left[\begin{matrix} a & b \\ c & d \end{matrix}\right]",
-        r"\left\{\begin{matrix} a & b \\ c & d \end{matrix}\right\}",
-    ],
-)
+WRAPPED_MATRICES = [
+    r"\left|\begin{matrix} a & b \\ c & d \end{matrix}\right|",
+    r"\left(\begin{matrix} a \\ b \end{matrix}\right)",
+    r"\left[\begin{matrix} a & b \\ c & d \end{matrix}\right]",
+    r"\left\{\begin{matrix} a & b \\ c & d \end{matrix}\right\}",
+    r"\left( % a comment" "\n" r"\begin{matrix} a \\ b \end{matrix} \right)",
+]
+
+
+@pytest.mark.parametrize("tex", WRAPPED_MATRICES)
 def test_wrapped_matrix_is_allowed(tex, workdir):
     """unless_wrapped lists pairs that pandoc turns into a Typst matrix (or a vector)."""
     doc = document("summary/02-rc-filter.md", workdir)
@@ -793,33 +794,34 @@ VMATRIX_FIX = DENY_USE["env:vmatrix"]
 ALLOWLIST_FIX = "use aligned, gathered, cases, pmatrix, bmatrix or Bmatrix"
 
 
-@pytest.mark.parametrize(
-    ("tex", "env", "fix"),
-    [
-        # silently become alignment rows (or a stray "[r]") in Typst
-        (r"\begin{matrix*} a & b \\ c & d \end{matrix*}", "matrix*", MATRIX_FIX),
-        (r"\begin{matrix*}[r] a & b \\ c & d \end{matrix*}", "matrix*", MATRIX_FIX),
-        (r"\left(\begin{matrix*}[r] a & b \end{matrix*}\right)", "matrix*", MATRIX_FIX),
-        (r"\begin{smallmatrix} a & b \\ c & d \end{smallmatrix}", "smallmatrix", ALLOWLIST_FIX),
-        # pass the Typst conversion, then fail typst compile
-        (r"\begin{vmatrix*} a & b \\ c & d \end{vmatrix*}", "vmatrix*", VMATRIX_FIX),
-        (r"\begin{Vmatrix*} a & b \\ c & d \end{Vmatrix*}", "Vmatrix*", VMATRIX_FIX),
-        # outside the allowlist of docs/architecture.md §2.3
-        (r"\begin{align} a &= b \end{align}", "align", ALLOWLIST_FIX),
-        (r"\begin{gather} a \\ b \end{gather}", "gather", ALLOWLIST_FIX),
-        (r"\begin{alignat}{2} a &= b \end{alignat}", "alignat", ALLOWLIST_FIX),
-        (r"\begin{split} a &= b \end{split}", "split", ALLOWLIST_FIX),
-        (r"\begin{equation} a = b \end{equation}", "equation", ALLOWLIST_FIX),
-        (r"\begin { align } a &= b \end{align}", "align", ALLOWLIST_FIX),
-        # a matrix counts as wrapped only between a listed \left…\right pair
-        (r"\left.\begin{matrix} a \\ b \end{matrix}\right\}", "matrix", MATRIX_FIX),
-        (r"\left\langle\begin{matrix} a \\ b \end{matrix}\right\rangle", "matrix", MATRIX_FIX),
-        (r"\left[\begin{matrix} a \\ b \end{matrix}\right)", "matrix", MATRIX_FIX),
-        (r"\left( x + \begin{matrix} a \\ b \end{matrix}\right)", "matrix", MATRIX_FIX),
-        # an array drops its column spec in Typst, wrapped or not
-        (r"\left[\begin{array}{rl} 10 & 1 \\ 1 & 10 \end{array}\right]", "array", None),
-    ],
-)
+REJECTED_ENVIRONMENTS = [
+    # silently become alignment rows (or a stray "[r]") in Typst
+    (r"\begin{matrix*} a & b \\ c & d \end{matrix*}", "matrix*", MATRIX_FIX),
+    (r"\begin{matrix*}[r] a & b \\ c & d \end{matrix*}", "matrix*", MATRIX_FIX),
+    (r"\left(\begin{matrix*}[r] a & b \end{matrix*}\right)", "matrix*", MATRIX_FIX),
+    (r"\begin{smallmatrix} a & b \\ c & d \end{smallmatrix}", "smallmatrix", ALLOWLIST_FIX),
+    # pass the Typst conversion, then fail typst compile
+    (r"\begin{vmatrix*} a & b \\ c & d \end{vmatrix*}", "vmatrix*", VMATRIX_FIX),
+    (r"\begin{Vmatrix*} a & b \\ c & d \end{Vmatrix*}", "Vmatrix*", VMATRIX_FIX),
+    # outside the allowlist of docs/architecture.md §2.3
+    (r"\begin{align} a &= b \end{align}", "align", ALLOWLIST_FIX),
+    (r"\begin{gather} a \\ b \end{gather}", "gather", ALLOWLIST_FIX),
+    (r"\begin{alignat}{2} a &= b \end{alignat}", "alignat", ALLOWLIST_FIX),
+    (r"\begin{split} a &= b \end{split}", "split", ALLOWLIST_FIX),
+    (r"\begin{equation} a = b \end{equation}", "equation", ALLOWLIST_FIX),
+    (r"\begin { align } a &= b \end{align}", "align", ALLOWLIST_FIX),
+    # a matrix counts as wrapped only between a listed \left…\right pair
+    (r"\left.\begin{matrix} a \\ b \end{matrix}\right\}", "matrix", MATRIX_FIX),
+    (r"\left\langle\begin{matrix} a \\ b \end{matrix}\right\rangle", "matrix", MATRIX_FIX),
+    (r"\left[\begin{matrix} a \\ b \end{matrix}\right)", "matrix", MATRIX_FIX),
+    (r"\left( x + \begin{matrix} a \\ b \end{matrix}\right)", "matrix", MATRIX_FIX),
+    # an array drops its column spec in Typst, wrapped or not
+    (r"\left[\begin{array}{rl} 10 & 1 \\ 1 & 10 \end{array}\right]", "array", None),
+    (r"\left(\begin{matrix} \begin{matrix} 1 \end{matrix} \end{matrix}\right)", "matrix", None),
+]
+
+
+@pytest.mark.parametrize(("tex", "env", "fix"), REJECTED_ENVIRONMENTS)
 def test_environments_outside_the_allowlist_are_reported(tex, env, fix, workdir):
     with pytest.raises(pandoc.FilterError) as info:
         pandoc.convert(f"$${tex}$$\n", document("summary/02-rc-filter.md", workdir), "json")
@@ -827,6 +829,24 @@ def test_environments_outside_the_allowlist_are_reported(tex, env, fix, workdir)
     assert hits, info.value.findings
     if fix is not None:
         assert hits[0].endswith(f"(fix: {fix})"), hits[0]
+
+
+def validate_rejects(tex: str) -> bool:
+    """The verdict of `studykit validate` (SK-MATH-DENIED or SK-MATH-ENV) on one formula."""
+    entries = validate.load_denylist(DENYLIST)
+    envs = validate._environments(tex, validate._wraps(entries))
+    return bool(validate.denied(tex, entries)) or any(
+        not wrapped and name not in validate.ALLOWED_ENVS for name, wrapped in envs
+    )
+
+
+@pytest.mark.parametrize(
+    ("tex", "rejected"),
+    [(t, False) for t in WRAPPED_MATRICES] + [(t, True) for t, _, _ in REJECTED_ENVIRONMENTS],
+)
+def test_validate_and_the_filter_agree_on_environments(tex, rejected):
+    """validate reads unless_wrapped from the same denylist, so both give one verdict."""
+    assert validate_rejects(tex) is rejected
 
 
 def test_allowed_environments_pass(workdir):

@@ -837,8 +837,14 @@ def _check_letters(ctx: Context, doc: Doc, singles: list) -> None:
 ALLOWED_ENVS = {"aligned", "gathered", "cases", "pmatrix", "bmatrix", "Bmatrix"}
 TEX_TOKEN_RE = re.compile(r"\\(?:[A-Za-z]+|.)|\S")
 BEGIN_RE = re.compile(r"\\begin\s*\{([^}]*)\}")
+ENV_RE = re.compile(r"\\(begin|end)\s*\{([^}]*)\}")
+COMMENT_RE = re.compile(r"(?<!\\)%[^\n]*")
 MINUS = "\u2212"
 NUMBER_RE = re.compile(rf"(?<![\w.,}}])[-{MINUS}]?[0-9]+(?:(?:\{{,\}}|,|\.)[0-9]+)?(?![0-9])")
+
+
+# A pair of delimiters around an environment: (opening tokens, closing tokens).
+Wrap = tuple[list[str], list[str]]
 
 
 @dataclass
@@ -848,6 +854,7 @@ class DenyEntry:
     kind: str
     tokens: list[str]
     env: str | None
+    unless_wrapped: list[Wrap] = field(default_factory=list)  # env: entries only
 
 
 def tex_tokens(tex: str) -> list[str]:
@@ -860,8 +867,11 @@ def load_denylist(path: Path) -> list[DenyEntry]:
     for e in entries:
         token = e["token"]
         env = token[4:] if token.startswith("env:") else None
+        wraps = [(tex_tokens(o), tex_tokens(c)) for o, c in e.get("unless_wrapped", [])]
         out.append(
-            DenyEntry(token, e.get("use", ""), e.get("kind", "fails"), tex_tokens(token), env)
+            DenyEntry(
+                token, e.get("use", ""), e.get("kind", "fails"), tex_tokens(token), env, wraps
+            )
         )
     return out
 
@@ -869,7 +879,7 @@ def load_denylist(path: Path) -> list[DenyEntry]:
 def denied(tex: str, denylist: list[DenyEntry]) -> list[DenyEntry]:
     """Denylist entries used in `tex`; control words match exactly (\\R never hits \\Rightarrow)."""
     tokens = tex_tokens(tex)
-    envs = _environments(tex)
+    envs = _environments(tex, _wraps(denylist))
     hits = []
     for entry in denylist:
         if entry.env is not None:
@@ -882,14 +892,45 @@ def denied(tex: str, denylist: list[DenyEntry]) -> list[DenyEntry]:
     return hits
 
 
-def _environments(tex: str) -> list[tuple[str, bool]]:
-    """(name, wrapped) per \\begin; wrapped = a matrix directly inside \\left<delim>."""
+def _wraps(denylist: list[DenyEntry]) -> dict[str, list[Wrap]]:
+    return {e.env: e.unless_wrapped for e in denylist if e.env and e.unless_wrapped}
+
+
+def _environments(tex: str, wraps: dict[str, list[Wrap]]) -> list[tuple[str, bool]]:
+    """(name, wrapped) per \\begin, in order.
+
+    wrapped: the denylist's `unless_wrapped` pairs for this environment name contain one
+    whose opening tokens end right before \\begin{name} and whose closing tokens start
+    right after the matching \\end{name} (whitespace and comments ignored). These are the
+    forms pandoc turns into a Typst matrix, e.g. \\left( \\begin{matrix} … \\end{matrix} \\right).
+    """
+    tex = COMMENT_RE.sub("", tex)
+    events = [(m.group(1), m.group(2).strip(), m.start(), m.end()) for m in ENV_RE.finditer(tex)]
     out = []
-    for m in BEGIN_RE.finditer(tex):
-        before = tex_tokens(tex[: m.start()])
-        wrapped = len(before) >= 2 and before[-2] == "\\left" and m.group(1) == "matrix"
-        out.append((m.group(1).strip(), wrapped))
+    for i, (kind, name, start, _) in enumerate(events):
+        if kind != "begin":
+            continue
+        end = _matching_end(events, i)
+        before = tex_tokens(tex[:start])
+        after = tex_tokens(tex[end:]) if end is not None else []
+        wrapped = end is not None and any(
+            before[len(before) - len(o) :] == o and after[: len(c)] == c
+            for o, c in wraps.get(name, [])
+        )
+        out.append((name, wrapped))
     return out
+
+
+def _matching_end(events: list[tuple[str, str, int, int]], i: int) -> int | None:
+    """Offset just after the \\end that closes the \\begin at events[i], if there is one."""
+    name, depth = events[i][1], 0
+    for kind, other, _, stop in events[i:]:
+        if other != name:
+            continue
+        depth += 1 if kind == "begin" else -1
+        if depth == 0:
+            return stop
+    return None
 
 
 def katex_available(root: Path) -> str | None:
@@ -959,6 +1000,7 @@ def check_math(ctx: Context) -> None:
     else:
         ctx.note(f"denylist not checked: {display_path(path)} not found")
 
+    wraps = _wraps(denylist)
     clean: list[tuple[Doc, Formula]] = []
     for doc, f in formulas:
         hits = denied(f.tex, denylist)
@@ -973,7 +1015,7 @@ def check_math(ctx: Context) -> None:
                 entry.use or "rewrite the formula without it",
             )
         env_problem = False
-        for name, wrapped in _environments(f.tex):
+        for name, wrapped in _environments(f.tex, wraps):
             if name in ALLOWED_ENVS or wrapped or any(e.env == name for e in hits):
                 continue
             env_problem = True

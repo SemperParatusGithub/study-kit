@@ -219,11 +219,15 @@ def test_denylist_matches_whole_control_words():
     assert validate.denied("\\begin{vmatrix} a \\end{vmatrix}", entries)
 
 
-def test_wrapped_matrix_is_allowed():
-    assert validate._environments("\\left|\\begin{matrix} a \\end{matrix}\\right|") == [
-        ("matrix", True)
-    ]
-    assert validate._environments("\\begin{matrix} a \\end{matrix}") == [("matrix", False)]
+def test_wrapped_matrix_follows_the_denylist_pairs():
+    wraps = {"matrix": [(["\\left", "|"], ["\\right", "|"])]}
+    det = "\\left|\\begin{matrix} a \\end{matrix}\\right|"
+    assert validate._environments(det, wraps) == [("matrix", True)]
+    assert validate._environments(det, {}) == [("matrix", False)]
+    bare = "\\begin{matrix} a \\end{matrix}"
+    assert validate._environments(bare, wraps) == [("matrix", False)]
+    mismatched = "\\left|\\begin{matrix} a \\end{matrix}\\right)"
+    assert validate._environments(mismatched, wraps) == [("matrix", False)]
 
 
 def test_real_denylist_entries_are_matchable():
