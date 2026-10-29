@@ -398,3 +398,10 @@ sk-mc:not(:defined) .sk-opt-text {
 .cheatsheet .katex-display {
   margin: var(--space-2) 0;
 }
+
+/* a wide table scrolls inside its column instead of running over the sheet's edge */
+.cheatsheet table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
