@@ -330,9 +330,7 @@ def step_read(inp: Inputs, s: Step) -> None:
         s.todo["transcriptions_missing"] = transcribe
         s.details.append(f"scanned page(s) without a transcription: {', '.join(transcribe)}")
     started = len(missing) < len(plan.chunks) or (inp.root / "analysis").is_dir()
-    done = (
-        not (missing or invalid or stale or lint or transcribe) and profile_ok and notation_ok
-    )
+    done = not (missing or invalid or stale or lint or transcribe) and profile_ok and notation_ok
     s.status = _combine(done, started, bool(stale) and not (missing or invalid))
 
 
