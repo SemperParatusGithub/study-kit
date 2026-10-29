@@ -562,7 +562,9 @@ The runner asserts four things:
 4. Each option's text parses to its stated value. If the text can't be parsed, this is a warning.
 
 A failure of 1–3 disputes the question; a failure of 4 means the check misread an option,
-so the item stays unverified until the check is fixed.
+so the item stays unverified until the check is fixed. A question whose every option states
+a number needs this check: a letter answer to it (`mc_answer` or a JSON answer) is a check
+error.
 
 **Conceptual questions**: the verifier answers blind into `checks/<id>.json` (or a script ending with `mc_answer(...)`; Kprim takes `{"A": true, …}` or the list of true statements):
 

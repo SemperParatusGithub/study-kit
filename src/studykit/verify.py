@@ -621,6 +621,12 @@ def _compare_mc(item: VItem, data: Mapping[str, Any], out: Outcome) -> None:
     if data.get("kind") == "mc-numeric" or "correct" in data:
         _compare_mc_numeric(item, data, out)
         return
+    if numeric_question(q):
+        # a letter alone would skip the checks of the distractors and the option values
+        out.errors.append(
+            "every option states a number; check the question with mc_numeric(...) (§2.6)"
+        )
+        return
     if "answer" not in data:
         out.errors.append('an MC check needs mc_answer(...), mc_numeric(...) or {"answer": [...]}')
         return
