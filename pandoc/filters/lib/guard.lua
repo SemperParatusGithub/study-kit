@@ -60,32 +60,32 @@ end
 function M.div(el, ctx, parent)
   local classes = el.classes
   if #classes == 0 then
-    ctx:fail('SK-BLOCK', 'container block without a class', 'open it with `::: name`, name one of: ' .. NAME_LIST)
+    ctx:fail('SK-BLOCK-UNKNOWN', 'container block without a class', 'open it with `::: name`, name one of: ' .. NAME_LIST)
     return nil
   end
   local name = classes[1]
   if not NAMES[name] then
-    ctx:fail('SK-BLOCK', 'unknown block class `' .. name .. '`', 'use one of: ' .. NAME_LIST)
+    ctx:fail('SK-BLOCK-UNKNOWN', 'unknown block class `' .. name .. '`', 'use one of: ' .. NAME_LIST)
     return nil
   end
   if #classes > 1 then
-    ctx:fail('SK-BLOCK', 'block `' .. name .. '` has more than one class', 'write the fence as ' .. fence_of(name))
+    ctx:fail('SK-BLOCK-FENCE', 'block `' .. name .. '` has more than one class', 'write the fence as ' .. fence_of(name))
   end
   if name ~= 'mcq' and (el.identifier ~= '' or #M.user_attributes(el) > 0) then
-    ctx:fail('SK-BLOCK', '`' .. name .. '` takes no id or attributes', 'write the fence as ' .. fence_of(name))
+    ctx:fail('SK-BLOCK-FENCE', '`' .. name .. '` takes no id or attributes', 'write the fence as ' .. fence_of(name))
   end
 
   if name == 'explanation' then
     if parent ~= 'mcq' then
       ctx:fail(
-        'SK-BLOCK',
+        'SK-BLOCK-PLACEMENT',
         '`::: explanation` is only allowed directly inside an mcq',
         'move it to the end of its `:::: {.mcq …}` block'
       )
     end
   elseif parent ~= 'root' then
     ctx:fail(
-      'SK-BLOCK',
+      'SK-BLOCK-NESTING',
       '`' .. name .. '` cannot be nested in another block or a list',
       'put it at the top level; only `::: explanation` nests, directly inside an mcq'
     )
@@ -95,23 +95,23 @@ function M.div(el, ctx, parent)
   if kind then
     if name == 'hint' or name == 'solution' then
       if kind ~= 'exercise' and kind ~= 'exam-task' then
-        ctx:fail('SK-BLOCK', '`::: ' .. name .. '` is only allowed in exercise and exam task files', 'remove it')
+        ctx:fail('SK-BLOCK-PLACEMENT', '`::: ' .. name .. '` is only allowed in exercise and exam task files', 'remove it')
       end
     elseif name == 'mcq' then
       if kind ~= 'mc' then
-        ctx:fail('SK-BLOCK', 'mcq blocks are only allowed in mc/<topic>.md and exams/<exam>/mc.md', 'move the question')
+        ctx:fail('SK-BLOCK-PLACEMENT', 'mcq blocks are only allowed in mc/<topic>.md and exams/<exam>/mc.md', 'move the question')
       end
     elseif M.BOXES[name] then
       if kind == 'cheatsheet' then
         if not CHEATSHEET_BOXES[name] then
           ctx:fail(
-            'SK-BLOCK',
+            'SK-BLOCK-PLACEMENT',
             '`::: ' .. name .. '` is not allowed in the cheat sheet',
             'use definition, note or warning, or plain text'
           )
         end
       elseif kind ~= 'summary' then
-        ctx:fail('SK-BLOCK', '`::: ' .. name .. '` is only allowed in summary chapters', 'use plain text here')
+        ctx:fail('SK-BLOCK-PLACEMENT', '`::: ' .. name .. '` is only allowed in summary chapters', 'use plain text here')
       end
     end
   end
@@ -131,7 +131,7 @@ function M.para(el, ctx, W)
     end
     if text:sub(1, 3) == ':::' then
       ctx:fail(
-        'SK-BLOCK',
+        'SK-BLOCK-FENCE',
         'malformed fence `' .. text .. '` in a paragraph',
         'fences are `::: name` or `:::` alone on a line, with a blank line before the block and after it'
       )
@@ -148,10 +148,10 @@ end
 
 function M.header(el, ctx)
   if el.level == 1 then
-    ctx:fail('SK-BLOCK', 'H1 headings are not allowed in the body', 'the title comes from the frontmatter; start at ##')
+    ctx:fail('SK-BLOCK-MARKDOWN', 'H1 headings are not allowed in the body', 'the title comes from the frontmatter; start at ##')
   end
   if #el.classes > 0 or #M.user_attributes(el) > 0 then
-    ctx:fail('SK-BLOCK', 'heading attributes are not allowed', 'remove the {…} after the heading')
+    ctx:fail('SK-BLOCK-MARKDOWN', 'heading attributes are not allowed', 'remove the {…} after the heading')
   end
 end
 
@@ -159,7 +159,7 @@ function M.code(el, ctx)
   local lang = el.classes[1]
   if #el.classes ~= 1 or not CODE_LANGUAGES[lang] or #M.user_attributes(el) > 0 then
     ctx:fail(
-      'SK-BLOCK',
+      'SK-BLOCK-CODE',
       'code blocks need exactly one language and no attributes',
       'fence it as ```python (or matlab, octave, c, cpp, vhdl, verilog, systemverilog, julia, text)'
     )
@@ -167,7 +167,7 @@ function M.code(el, ctx)
 end
 
 function M.note(_, ctx)
-  ctx:fail('SK-BLOCK', 'footnotes are not allowed', 'say it in the text or in a `::: note` box')
+  ctx:fail('SK-BLOCK-MARKDOWN', 'footnotes are not allowed', 'say it in the text or in a `::: note` box')
 end
 
 --- Raw HTML from the reader. commonmark_x keeps raw_html even with -raw_html (pandoc
@@ -179,7 +179,7 @@ function M.raw(el, ctx)
     excerpt = excerpt:sub(1, utf8.offset(excerpt, 38) - 1) .. '…'
   end
   local what = el.format == 'html' and 'raw HTML' or ('raw ' .. el.format)
-  ctx:fail('SK-BLOCK', what .. ' `' .. excerpt .. '` is not allowed', 'use Markdown, math or a container block')
+  ctx:fail('SK-BLOCK-RAW', what .. ' `' .. excerpt .. '` is not allowed', 'use Markdown, math or a container block')
 end
 
 --- True if an author wrote an id, a class or an attribute on `el`.
@@ -189,21 +189,21 @@ end
 
 function M.span(el, ctx)
   if has_attributes(el) then
-    ctx:fail('SK-BLOCK', 'spans with attributes are not allowed', 'remove the {…} after the bracketed text')
+    ctx:fail('SK-BLOCK-MARKDOWN', 'spans with attributes are not allowed', 'remove the {…} after the bracketed text')
   end
 end
 
 --- Inline code is written as is: an attribute such as `onclick` would reach the page.
 function M.inline_code(el, ctx)
   if has_attributes(el) then
-    ctx:fail('SK-BLOCK', 'inline code takes no attributes', 'remove the {…} after the code span')
+    ctx:fail('SK-BLOCK-MARKDOWN', 'inline code takes no attributes', 'remove the {…} after the code span')
   end
 end
 
 --- A `{…}` line above a pipe table puts its attributes on the <table>.
 function M.table(el, ctx)
   if has_attributes(el) then
-    ctx:fail('SK-BLOCK', 'tables take no attributes', 'remove the {…} line above the table')
+    ctx:fail('SK-BLOCK-MARKDOWN', 'tables take no attributes', 'remove the {…} line above the table')
   end
 end
 
@@ -222,19 +222,19 @@ function M.structure(root, ctx)
     end
   end
   if #solutions == 0 then
-    ctx:fail('SK-BLOCK', 'missing `::: solution`', 'end the file with exactly one `::: solution` block', '0:0')
+    ctx:fail('SK-BLOCK-SOLUTION', 'missing `::: solution`', 'end the file with exactly one `::: solution` block', '0:0')
   elseif #solutions > 1 then
-    ctx:fail('SK-BLOCK', 'more than one `::: solution`', 'merge them into one block', solutions[2].pos)
+    ctx:fail('SK-BLOCK-SOLUTION', 'more than one `::: solution`', 'merge them into one block', solutions[2].pos)
   end
   for _, s in ipairs(solutions) do
     if not s.last then
-      ctx:fail('SK-BLOCK', '`::: solution` must be the last block', 'move everything after it above it', s.pos)
+      ctx:fail('SK-BLOCK-SOLUTION', '`::: solution` must be the last block', 'move everything after it above it', s.pos)
     end
   end
   if #hints == 0 then
-    ctx:fail('SK-BLOCK', 'missing `::: hint`', 'add 1–3 hints: principle, set-up, key intermediate result', '0:0')
+    ctx:fail('SK-BLOCK-HINTS', 'missing `::: hint`', 'add 1–3 hints: principle, set-up, key intermediate result', '0:0')
   elseif #hints > 3 then
-    ctx:fail('SK-BLOCK', string.format('%d hints, at most 3 are allowed', #hints), 'merge or drop hints', hints[4].pos)
+    ctx:fail('SK-BLOCK-HINTS', string.format('%d hints, at most 3 are allowed', #hints), 'merge or drop hints', hints[4].pos)
   end
 end
 
@@ -261,8 +261,8 @@ function M.scan_fences(text, ctx)
   local function fence(i)
     return i >= 1 and i <= #lines and lines[i]:match('^%s*:::') ~= nil
   end
-  local function fail(i, message, fix)
-    ctx:fail('SK-BLOCK', message, fix, i .. ':1')
+  local function fail(i, message, fix, code)
+    ctx:fail(code or 'SK-BLOCK-FENCE', message, fix, i .. ':1')
   end
 
   local stack = {}
@@ -297,7 +297,7 @@ function M.scan_fences(text, ctx)
               end
               table.remove(stack)
               if not (blank(i + 1) or fence(i + 1)) then
-                fail(i, 'no blank line after the closing fence', 'add an empty line after it')
+                fail(i, 'no blank line after the closing fence', 'add an empty line after it', 'SK-BLOCK-BLANK')
               end
             end
           else
@@ -321,7 +321,7 @@ function M.scan_fences(text, ctx)
                 )
               end
               if not (blank(i - 1) or fence(i - 1)) then
-                fail(i, 'no blank line before the fence', 'add an empty line before it')
+                fail(i, 'no blank line before the fence', 'add an empty line before it', 'SK-BLOCK-BLANK')
               end
               table.insert(stack, { name = name, len = #colons, line = i })
             end

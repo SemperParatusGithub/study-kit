@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-COUNT
 message: 'kprim needs 4 options, found 5'
 line: 8
 ---

@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-FORMAT
 message: 'unexpected block after the options'
 line: 24
 ---

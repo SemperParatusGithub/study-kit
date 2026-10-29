@@ -102,7 +102,7 @@ def test_lint_rejects_attributes_that_would_reach_the_page(
         assert replaced in text
         path.write_text(text.replace(replaced, snippet, 1))
     report = lint.lint_files([path], config(denylist))
-    assert [(f.code, f.message) for f in report.findings] == [("SK-BLOCK", message)]
+    assert [(f.code, f.message) for f in report.findings] == [("SK-BLOCK-MARKDOWN", message)]
 
 
 def test_lint_outside_a_course(tmp_path: Path, denylist: Path):
@@ -179,8 +179,30 @@ def test_hook_ignores_bad_json(monkeypatch):
     assert cli.main(["lint", "--hook"]) == 0
 
 
+FILTERS = REPO / "pandoc" / "filters"
+# Rules only the Lua filters check, new with their rule codes; their errors.md entries are
+# written separately. Remove this set once docs/content-format/errors.md documents them.
+PENDING_DOCS = {"SK-BLOCK-MARKDOWN", "SK-BLOCK-RAW", "SK-MATH-TYPST", "SK-REF-LINK"}
+
+
 def documented_codes() -> set[str]:
     return set(re.findall(r"^### `(SK-[A-Z0-9-]+)`", ERRORS_DOC.read_text(), re.MULTILINE))
+
+
+def filter_codes() -> set[str]:
+    """Every code the Lua filters can report (each is written out as a string literal)."""
+    return {
+        code
+        for path in sorted(FILTERS.rglob("*.lua"))
+        for code in re.findall(r"'(SK-[A-Z0-9-]+)'", path.read_text())
+    }
+
+
+def test_filter_codes_name_a_rule():
+    """A filter finding names its rule like every other check (docs/architecture.md §4.3)."""
+    codes = filter_codes()
+    assert {"SK-BLOCK-RAW", "SK-REF-FIGURE", "SK-MATH-THINSPACE"} <= codes
+    assert not {c for c in codes if not re.fullmatch(r"SK-[A-Z]+-[A-Z0-9-]+", c)}
 
 
 def test_every_code_is_documented():
@@ -192,7 +214,9 @@ def test_every_code_is_documented():
     for path in sources:
         used |= set(re.findall(r'"(SK-[A-Z]+-[A-Z0-9-]+)"', path.read_text()))
     used |= {p.name for p in BAD.iterdir() if p.is_dir()}
-    missing = used - documented_codes()
+    used |= filter_codes()
+    assert used >= PENDING_DOCS
+    missing = used - documented_codes() - PENDING_DOCS
     assert not missing, f"document these in docs/content-format/errors.md: {sorted(missing)}"
 
 
@@ -201,5 +225,6 @@ def test_documented_codes_exist():
         (REPO / "src" / "studykit" / f"{n}.py").read_text()
         for n in ("yamlio", "model", "content", "validate", "lint", "sitecheck", "checklinks")
     )
-    stale = {code for code in documented_codes() if f'"{code}"' not in sources}
+    emitted = filter_codes()
+    stale = {c for c in documented_codes() if f'"{c}"' not in sources and c not in emitted}
     assert not stale, f"errors.md documents codes nothing emits: {sorted(stale)}"

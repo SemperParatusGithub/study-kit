@@ -87,7 +87,7 @@ local function load_denylist(ctx)
   local path = ctx.filter_dir .. '/../math-denylist.json'
   local fh = io.open(path, 'r')
   if not fh then
-    ctx:fail('SK-MATH', 'cannot read ' .. path, 'restore pandoc/math-denylist.json')
+    ctx:fail('SK-PANDOC-FAIL', 'cannot read ' .. path, 'restore pandoc/math-denylist.json')
     return denylist
   end
   local entries = pandoc.json.decode(fh:read('a'), false)
@@ -211,10 +211,10 @@ function M.check(tex, ctx)
   local toks = M.tokenize(tex)
   local entries = load_denylist(ctx)
   local reported = {}
-  local function report(key, what, fix)
+  local function report(code, key, what, fix)
     if not reported[key] then
       reported[key] = true
-      ctx:fail('SK-MATH', what .. ' is not allowed in ' .. excerpt(tex), fix)
+      ctx:fail(code, what .. ' is not allowed in ' .. excerpt(tex), fix)
     end
   end
 
@@ -225,7 +225,7 @@ function M.check(tex, ctx)
     else
       for i = 1, #toks do
         if seq_at(toks, i, entry.seq) then
-          report(entry.token, '`' .. entry.token .. '`', entry.use)
+          report('SK-MATH-DENIED', entry.token, '`' .. entry.token .. '`', entry.use)
           break
         end
       end
@@ -237,8 +237,10 @@ function M.check(tex, ctx)
     if env and not M.ALLOWED_ENVS[env] then
       local entry = env_entry[env]
       if not (entry and entry.wrapped and is_wrapped(toks, i, entry)) then
+        -- an environment the denylist names is denied; any other one is outside the list
+        local code = entry and 'SK-MATH-DENIED' or 'SK-MATH-ENV'
         entry = entry or env_entry[(env:gsub('%*$', ''))]
-        report('env:' .. env, 'environment ' .. env, entry and entry.use or FIX_ENV)
+        report(code, 'env:' .. env, 'environment ' .. env, entry and entry.use or FIX_ENV)
       end
     end
   end
@@ -246,7 +248,7 @@ function M.check(tex, ctx)
   local ch = non_ascii(tex)
   if ch then
     ctx:fail(
-      'SK-MATH',
+      'SK-MATH-KATEX',
       'non-ASCII character ' .. ch .. ' outside \\text{…} in ' .. excerpt(tex),
       'put words in \\text{…} and write symbols as TeX commands, e.g. \\Omega'
     )
@@ -405,7 +407,7 @@ function M.to_typst(el, ctx)
   local messages, out = pandoc.log.silence(pandoc.write, doc, 'typst')
   if #messages > 0 then
     ctx:fail(
-      'SK-MATH',
+      'SK-MATH-TYPST',
       'pandoc cannot convert ' .. excerpt(el.text) .. ' to Typst: ' .. first_problem(messages),
       'stay within the math subset of docs/architecture.md §2.3'
     )

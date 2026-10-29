@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-BLOCK
+code: SK-BLOCK-MARKDOWN
 message: 'inline code takes no attributes'
 line: 8
 ---

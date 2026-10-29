@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-ATTR
 message: 'difficulty must be 1, 2, 3 or 4'
 line: 8
 ---

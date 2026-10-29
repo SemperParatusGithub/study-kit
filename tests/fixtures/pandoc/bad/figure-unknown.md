@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-FIG
+code: SK-REF-MISSING
 message: 'unknown figure `nope`'
 line: 10
 ---

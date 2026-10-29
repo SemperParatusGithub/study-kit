@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-EXPLANATION
 message: 'missing `::: explanation`'
 line: 8
 ---

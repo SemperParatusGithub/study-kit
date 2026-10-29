@@ -1205,9 +1205,11 @@ def check_pandoc(ctx: Context) -> None:
     """Run the selected files through the Lua filters that build the site and the PDFs.
 
     The stages before this one give the precise findings; this one is the backstop for
-    what they cannot see, so it skips files that already have errors (the filter would
-    repeat them under its family codes). In --quick runs the References stage does not
-    run, so the filter does not report link or figure targets missing from the index.
+    what they cannot see (raw HTML, attributes, bare URLs, math pandoc cannot convert to
+    Typst), so it skips files that already have errors (the filter would repeat them). A
+    rule both check has one code: in --quick runs, where the References stage does not
+    run, a figure with attributes is SK-REF-FIGURE from the filter as it is from References
+    in a full run; targets missing from the index are not reported then.
     """
     from studykit import index, pandoc
 

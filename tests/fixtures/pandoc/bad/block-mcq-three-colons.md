@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-BLOCK
+code: SK-BLOCK-FENCE
 message: '`mcq` fence has 3 colons, it needs exactly 4'
 line: 8
 ---
