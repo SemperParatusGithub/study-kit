@@ -217,10 +217,30 @@ def _positions(names: list[str], layout, spacing: float) -> dict[str, np.ndarray
     return {k: radius * _unit(start - 360 * i / n) for i, k in enumerate(names)}
 
 
+DIVIDER_DODGE = 25.0  # degrees: edges and arrows keep this far off a Moore state's divider
+ALONG_DIVIDER = 12.0  # a straight edge this close to horizontal would run along dividers
+
+
+def _clears(pts: np.ndarray, others: list[tuple[np.ndarray, float]]) -> bool:
+    return all(np.min(np.linalg.norm(pts - c, axis=1)) > clear for c, clear in others)
+
+
 def _route_edge(
-    edge: _Edge, pos: dict[str, np.ndarray], r: float, paired: bool, looped: set[str]
+    edge: _Edge,
+    pos: dict[str, np.ndarray],
+    r: float,
+    paired: bool,
+    looped: set[str],
+    divided: set[str],
+    routed: Sequence[np.ndarray] = (),
 ) -> None:
-    """Straight if nothing is in the way, else the flattest arc that clears other states."""
+    """Straight if nothing is in the way, else the flattest arc that clears other states.
+
+    Of two equally flat arcs the one farther from the `routed` edges wins, so edges from
+    one state to two others do not run side by side. A straight edge that would run along
+    the divider of a Moore state (output below the name) is moved off the centre line,
+    attaching at DIVIDER_DODGE degrees on its left.
+    """
     p0, p2 = pos[edge.src], pos[edge.dst]
     d = p2 - p0
     perp = np.array([-d[1], d[0]])
@@ -229,13 +249,32 @@ def _route_edge(
         for name, c in pos.items()
         if name not in (edge.src, edge.dst)
     ]
-    ks = (0.2, 0.32, 0.45, 0.6) if paired else (0.0, 0.2, -0.2, 0.32, -0.32, 0.45, -0.45, 0.6)
-    chosen = ks[-1]
-    for k in ks:
-        p1 = p0 + d / 2 + k * perp
-        pts = _quad(p0, p1, p2, np.linspace(0.05, 0.95, 48))
-        if all(np.min(np.linalg.norm(pts - c, axis=1)) > clear for c, clear in others):
-            chosen = k
+    theta = _angle(d)
+    on_divider = abs(math.sin(math.radians(theta))) < math.sin(math.radians(ALONG_DIVIDER))
+    if not paired and on_divider and {edge.src, edge.dst} & divided:
+        q0 = p0 + r * _unit(theta + DIVIDER_DODGE)
+        q2 = p2 + r * _unit(theta + 180 - DIVIDER_DODGE)
+        if _clears(np.linspace(q0, q2, 48), others):
+            edge.q0, edge.q1, edge.q2, edge.k, edge.route = q0, (q0 + q2) / 2, q2, 0.0, "line"
+            edge.samples = np.linspace(q0, q2, 40)
+            return
+    levels = (0.2, 0.32, 0.45) if paired else (0.0, 0.2, 0.32, 0.45)
+    if not paired and on_divider and {edge.src, edge.dst} & divided:
+        levels = levels[1:]  # the dodged line was blocked; never fall back onto the divider
+    chosen = 0.6
+    for level in levels:
+        fits = []
+        for k in (level,) if paired or level == 0 else (level, -level):
+            pts = _quad(p0, p0 + d / 2 + k * perp, p2, np.linspace(0.05, 0.95, 48))
+            if _clears(pts, others):
+                inner = pts[8:-8]
+                room = min(
+                    (float(np.min(np.linalg.norm(inner[:, None] - q, axis=2))) for q in routed),
+                    default=math.inf,
+                )
+                fits.append((min(room, 2.0), k))
+        if fits:
+            chosen = max(fits, key=lambda f: (round(f[0], 1), f[1]))[1]
             break
     p1 = p0 + d / 2 + chosen * perp
     a = _leave(p0, p1, p2, p0, r, 0.0, 0.5)
@@ -249,11 +288,16 @@ def _route_edge(
     edge.samples = _quad(edge.q0, edge.q1, edge.q2, np.linspace(0, 1, 40))
 
 
-def _free_direction(occupied: list[float], prefer: list[tuple[float, float]]) -> float:
+def _free_direction(
+    occupied: list[float], prefer: list[tuple[float, float]], avoid: Sequence[float] = ()
+) -> float:
+    """Direction with the widest gap to `occupied`, weighted by `prefer`; never near `avoid`."""
     best, best_score = 90.0, -math.inf
     for th in range(0, 360, 5):
         gap = min((_angdiff(th, a) for a in occupied), default=180.0)
         score = min(gap, 90.0) + sum(w * math.cos(math.radians(th - p)) for p, w in prefer)
+        if any(_angdiff(th, a) < DIVIDER_DODGE + 5 for a in avoid):
+            score -= 1000.0
         if score > best_score + 1e-9:
             best, best_score = float(th), score
     return best
@@ -376,11 +420,15 @@ def state_machine(
 
     # Edges between different states first, then loops and the entry arrow in free gaps.
     looped = {src for src, dst in edges if src == dst}
+    divided = {name for name in names if outputs.get(name) is not None}
     occupied: dict[str, list[float]] = {n: [] for n in names}
+    routed: list[np.ndarray] = []
     for (src, dst), e in edges.items():
         if src == dst:
             continue
-        _route_edge(e, pos, r, paired=(dst, src) in edges, looped=looped)
+        paired = (dst, src) in edges
+        _route_edge(e, pos, r, paired, looped, divided, routed)
+        routed.append(e.samples)
         occupied[src].append(_angle(e.q0 - pos[src]))
         occupied[dst].append(_angle(e.q2 - pos[dst]))
     for name in names:  # edges that pass close by also block loops and the entry arrow
@@ -395,13 +443,18 @@ def state_machine(
         v = pos[name] - centroid
         return _angle(v) if np.linalg.norm(v) > 1e-6 and not flat else 90.0
 
+    def divider(name: str) -> tuple[float, ...]:
+        return (0.0, 180.0) if name in divided else ()
+
     paths: list[np.ndarray] = []
     placed: list[Rect] = []
     loops = {}
     for (src, dst), e in edges.items():
         if src != dst:
             continue
-        theta = _free_direction(occupied[src], [(outward(src), 40.0), (90.0, 8.0)])
+        theta = _free_direction(
+            occupied[src], [(outward(src), 40.0), (90.0, 8.0)], avoid=divider(src)
+        )
         occupied[src] += [theta, theta + LOOP_HALF, theta - LOOP_HALF]
         a, b, radius, ring, far = _loop_geometry(pos[src], r, theta)
         e.route, e.direction, e.q0, e.q2, e.samples = "loop", theta, a, b, ring
@@ -414,7 +467,9 @@ def state_machine(
     init_dir = None
     if initial is not None:
         init_dir = _free_direction(
-            occupied[initial], [(180.0, 30.0), (outward(initial), 0.0 if flat else 10.0)]
+            occupied[initial],
+            [(180.0, 30.0), (outward(initial), 0.0 if flat else 10.0)],
+            avoid=divider(initial),
         )
         u = _unit(init_dir)
         start = pos[initial] + u * (r + INIT_LEN)
@@ -490,11 +545,13 @@ def state_machine(
                 "label": e.text,
                 "route": e.route,
                 "k": round(e.k, 3),
+                "ends": [_round(e.q0), _round(e.q2)],
                 "label_xy": _round(e.label_xy) if e.label_xy is not None else None,
             }
             for e in edges.values()
         ],
         "initial": initial,
+        "initial_angle": init_dir,
         "accepting": accepting,
         "reachable": reachable,
         "unreachable": [n for n in names if reachable is not None and n not in reachable],

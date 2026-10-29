@@ -237,6 +237,34 @@ def test_row_layout_bends_edges_around_states():
     assert grid.facts["layout"] == "coords"
 
 
+def _angle_on(state_xy, point) -> float:
+    return math.degrees(math.atan2(point[1] - state_xy[1], point[0] - state_xy[0])) % 360
+
+
+def _off_divider(angle: float) -> float:
+    return min(abs((angle - a + 180) % 360 - 180) for a in (0.0, 180.0))
+
+
+def test_moore_edges_and_entry_arrow_keep_off_the_divider(locale):
+    moore = {"S0": "0", "S1": "0", "S2": "0", "S3": "0", "S4": "1"}
+    t = [("S0", "S1", "1"), ("S0", "S0", "0"), ("S1", "S1", "1"), ("S1", "S2", "0"),
+         ("S2", "S3", "1"), ("S2", "S0", "0"), ("S3", "S4", "1"), ("S3", "S2", "0"),
+         ("S4", "S1", "1"), ("S4", "S2", "0")]  # fmt: skip
+    for layout in ("row", "ring"):
+        f = graph.state_machine(moore, t, initial="S0", layout=layout).facts
+        xy = {s["name"]: s["xy"] for s in f["states"]}
+        for e in f["edges"]:
+            if e["route"] == "line":
+                assert _off_divider(_angle_on(xy[e["src"]], e["ends"][0])) > 20
+                assert _off_divider(_angle_on(xy[e["dst"]], e["ends"][1])) > 20
+        assert _off_divider(f["initial_angle"]) > 25
+    row = graph.state_machine(moore, t, initial="S0", layout="row").facts
+    assert _edge(row, "S0", "S1")["route"] == "line"  # straight, just above the divider
+    # Plain automata keep centre-to-centre lines and the entry arrow from the left.
+    plain = graph.state_machine(["a", "b"], [("a", "b", "x")], initial="a", layout="row").facts
+    assert _edge(plain, "a", "b")["ends"][0][1] == 0.0 and plain["initial_angle"] == 180.0
+
+
 # --- flowcharts --------------------------------------------------------------------------
 
 LOOP_NODES = [
