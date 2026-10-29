@@ -386,6 +386,10 @@ Welche Aussagen gelten für den RC-Tiefpass erster Ordnung?
 
   Bei $f_\mathrm{g}$ ist $\arg\underline{H} = -\arctan 1 = -45^\circ$.
 
+- [ ] Bei $f_\mathrm{g}$ ist der Betrag auf die Hälfte abgefallen.
+
+  Er ist auf $1/\sqrt{2} \approx 0{,}707$ abgefallen, also $-3\,\mathrm{dB}$; die Hälfte wären $-6\,\mathrm{dB}$.
+
 - [ ] Keine der Aussagen ist richtig.
 
   Die erste Aussage ist richtig.
