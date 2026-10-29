@@ -112,4 +112,9 @@ const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
   .question :global(sk-mc) {
     margin: 0;
   }
+
+  /* the meta row above already names the type and difficulty (also without JavaScript) */
+  .question :global(.sk-mc-head) {
+    display: none;
+  }
 </style>
