@@ -148,6 +148,9 @@ def test_guard_on_writes(repo: Path):
         "uv run --frozen studykit render get2 --json",
         "studykit verify get2 ex-a --json",
         "uv run --frozen studykit verify get2 ex-a --show-key",
+        "uv run --frozen studykit verify get2 ex-a --show",  # argparse-style prefixes
+        "studykit verify get2 ex-a --js",
+        "studykit verify get2 ex-a --json=1",
         "studykit pdf get2",
         f"python ../checks/../mc/rc.md {C}/mc",
     ],
@@ -237,3 +240,10 @@ def test_cli(repo: Path, monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event("Bash", repo, command="ls"))))
     assert cli.main(["hook", "pre-git"]) == 0
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("flag", ["--show", "--js"])
+def test_verify_takes_no_flag_prefixes(flag: str):
+    # a prefix would print the key past the guard's flag check
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["verify", "get2", "ex-a", flag])

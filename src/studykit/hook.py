@@ -17,7 +17,7 @@ reasons say what to do instead.
   writes outside a course's `checks/`, and Bash commands that mention those paths unless
   they are `studykit` (blind, calc, verify, ls, lint, validate, fig, index, doctor) or
   `python checks/…`. `studykit render`, `pdf` and the key-revealing `verify --json` and
-  `--show-key` are denied even without a path.
+  `--show-key` (or a prefix of either) are denied even without a path.
 - `pre-git` (project-wide, on `Bash(git *)`): denies `git add` with `-f`/`--force` or a
   path under `courses/` (except `courses/README.md`), and `git commit` with a course path,
   `--no-verify`, or course files already staged.
@@ -163,6 +163,12 @@ def _program(words: list[str]) -> list[str]:
     return words
 
 
+def _key_flag(word: str) -> bool:
+    """`--json`, `--show-key` or a prefix of one (`--show`, `--js=1`), as argparse reads it."""
+    name = word.split("=", 1)[0]
+    return len(name) >= 3 and name.startswith("--") and any(f.startswith(name) for f in KEY_FLAGS)
+
+
 def _verifier_allowed(words: list[str]) -> str | None:
     """None if the verifier may run this command whatever paths it names; else why not."""
     prog = _program(words)
@@ -173,7 +179,7 @@ def _verifier_allowed(words: list[str]) -> str | None:
         sub = prog[1] if len(prog) > 1 else ""
         if sub not in VERIFIER_STUDYKIT:
             return f"`studykit {sub}` is not for the verifier"
-        if sub == "verify" and KEY_FLAGS & set(prog):
+        if sub == "verify" and any(_key_flag(w) for w in prog[2:]):
             return "`studykit verify --json`/`--show-key` print the key"
         return None
     if re.fullmatch(r"python3?(\.\d+)?", name) and len(prog) > 1:

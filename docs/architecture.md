@@ -1756,8 +1756,8 @@ the `just` recipes start them. No agent has memory, and only the verifier has a 
   course, and Glob patterns or Grep globs that name those paths.
 - It denies Bash commands that mention those paths (command substitution included), except
   `studykit` and `python checks/…`; of `studykit` only `blind`, `calc`, `verify` (without
-  `--json` and `--show-key`), `ls`, `lint`, `validate`, `fig`, `index` and `doctor` are
-  allowed, with or without a path.
+  `--json` and `--show-key`, or a prefix of either; `verify` takes no abbreviated options),
+  `ls`, `lint`, `validate`, `fig`, `index` and `doctor` are allowed, with or without a path.
 - It denies Write, Edit, MultiEdit and NotebookEdit outside a course's `checks/`, and check
   code that names those paths.
 - The verifier works only from `studykit blind <c> <id>`, which writes `_build/blind/<id>.md`:
