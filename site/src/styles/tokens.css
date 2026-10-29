@@ -1,0 +1,105 @@
+/* Design tokens (docs/architecture.md §3.2). Every colour is a light-dark() pair: the
+   inline head script sets <html data-theme="light|dark|system"> from localStorage
+   'studykit:theme', and color-scheme picks the side. Contrast of each pair was checked
+   against both backgrounds (text ≥ 4.5:1, figure strokes ≥ 3:1 in dark mode). */
+
+:root {
+  color-scheme: light dark;
+
+  /* type */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans',
+    Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
+    monospace;
+  --text-base: 1.0625rem;
+  --text-sm: 0.9rem;
+  --text-xs: 0.8rem;
+  --leading: 1.65;
+  --measure: 70ch;
+
+  /* space and shape */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --page-max: 76rem;
+  --gutter: clamp(1rem, 4vw, 2rem);
+
+  /* surfaces and text */
+  --bg: light-dark(#f7f7f5, #14171b);
+  --surface: light-dark(#ffffff, #1b1f24);
+  --surface-2: light-dark(#f0f1ef, #22272e);
+  --border: light-dark(#e2e4e1, #2e343c);
+  --border-strong: light-dark(#c9cdd1, #444c56);
+  --text: light-dark(#1f2328, #e6e8eb);
+  --text-muted: light-dark(#59636e, #a1aab4);
+  --accent: light-dark(#1f5fbf, #8ab4f8);
+  --accent-soft: light-dark(#e7eefb, #1d2a40);
+  --accent-contrast: light-dark(#ffffff, #0d1117);
+  --focus: light-dark(#1f5fbf, #8ab4f8);
+  --shadow: 0 1px 2px light-dark(rgb(31 35 40 / 0.06), rgb(0 0 0 / 0.4)),
+    0 2px 8px light-dark(rgb(31 35 40 / 0.04), rgb(0 0 0 / 0.25));
+
+  /* feedback (always paired with text or an icon, never colour alone) */
+  --ok: light-dark(#1a7f37, #56d364);
+  --ok-soft: light-dark(#e6f4ea, #1a2e22);
+  --warn: light-dark(#9a6700, #e3b341);
+  --warn-soft: light-dark(#fff4d6, #2e2714);
+  --bad: light-dark(#cf222e, #ff7b72);
+  --bad-soft: light-dark(#ffebe9, #3a1d1f);
+
+  /* content boxes (blocks.lua): border and tint per kind */
+  --box-definition: light-dark(#1f5fbf, #79a8f2);
+  --box-definition-bg: light-dark(#eef3fc, #18233a);
+  --box-theorem: light-dark(#6f42c1, #b394f0);
+  --box-theorem-bg: light-dark(#f4effc, #241d38);
+  --box-example: light-dark(#0f7b6c, #4cc3ad);
+  --box-example-bg: light-dark(#eaf6f3, #15292a);
+  --box-note: light-dark(#57606a, #a1aab4);
+  --box-note-bg: light-dark(#f2f3f1, #20252c);
+  --box-warning: light-dark(#b35900, #f0a457);
+  --box-warning-bg: light-dark(#fff3e6, #2f2216);
+  --box-takeaways: light-dark(#1a7f37, #56d364);
+  --box-takeaways-bg: light-dark(#ebf6ee, #182a1f);
+
+  /* figure palette (studykit.figures.palette): light values are the SVG fallbacks */
+  --fig-fg: light-dark(#1f2328, #e6edf3);
+  --fig-muted: light-dark(#6e7781, #9ea7b3);
+  --fig-grid: light-dark(#d0d7de, #3a414a);
+  --fig-bg: light-dark(#ffffff, #1b1f24);
+  --fig-c1: light-dark(#0072b2, #5aa8e8);
+  --fig-c2: light-dark(#d55e00, #f28a4b);
+  --fig-c3: light-dark(#009e73, #33c495);
+  --fig-c4: light-dark(#cc79a7, #e7a1cd);
+  --fig-c5: light-dark(#e69f00, #f2b83d);
+  --fig-c6: light-dark(#56b4e9, #a5dcf7);
+  --fig-scale: 1.5px; /* CSS px per SVG pt: a 'full' figure (446 pt) fills the column */
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion: 0;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

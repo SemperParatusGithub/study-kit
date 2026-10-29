@@ -6,7 +6,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 root := justfile_directory()
 export PATH := root / ".tools/bin" + ":" + env("PATH")
 export ASTRO_TELEMETRY_DISABLED := "1"
-export STUDYKIT_COURSES_DIR := env("STUDYKIT_COURSES_DIR", root / "courses")
+# absolute, so python (run from the repo root) and the site (run from site/) agree on a
+# relative value: it is relative to the repo root
+export STUDYKIT_COURSES_DIR := absolute_path(env("STUDYKIT_COURSES_DIR", root / "courses"))
 
 sk := "uv run --frozen studykit"
 
@@ -29,6 +31,19 @@ doctor *flags:
 # render the figure scripts of one course (or all)
 figures course="":
     {{sk}} fig build {{course}}
+
+# website at http://localhost:4321 (strictPort: progress is tied to the origin)
+dev: (figures "")
+    pnpm -C site dev
+
+# strict site build with search index and link check (all courses; validates `course`)
+build course="": (figures course) (validate course)
+    STUDYKIT_STRICT=1 pnpm -C site build
+    {{sk}} check-links site/dist
+
+# every internal link and #anchor of the built site resolves
+check-links dist="site/dist":
+    {{sk}} check-links {{dist}}
 
 # quick check of edited course files (what the Claude Code hook runs)
 lint +files:

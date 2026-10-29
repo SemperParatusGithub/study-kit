@@ -1,0 +1,120 @@
+---
+// Base layout: document shell, header with search and theme toggle, the course tabs, and
+// the one processed script that loads the custom elements (docs/architecture.md §3.2).
+import 'katex/dist/katex.min.css';
+import '../styles/tokens.css';
+import '../styles/base.css';
+import '../styles/content.css';
+import '../styles/code.css';
+import '../styles/print.css';
+import CourseNav from '../components/CourseNav.astro';
+import type { Course } from '../lib/courses';
+import { route } from '../lib/courses';
+
+// The elements track ships ../styles/elements.css; the glob is empty until it exists.
+import.meta.glob('../styles/elements.css', { eager: true });
+
+export type Tab =
+  | 'overview'
+  | 'plan'
+  | 'summary'
+  | 'exercises'
+  | 'mc'
+  | 'cheatsheet'
+  | 'exams'
+  | 'progress';
+
+interface Props {
+  title: string;
+  course?: Course;
+  tab?: Tab;
+  description?: string;
+}
+
+const { title, course, tab, description } = Astro.props;
+const lang = course?.lang ?? 'en';
+const chromeLang = lang === 'en' ? undefined : 'en';
+const fullTitle = course ? `${title} · ${course.short}` : `${title} · study-kit`;
+---
+
+<!doctype html>
+<html lang={lang} data-theme="system">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    {description && <meta name="description" content={description} />}
+    <title>{fullTitle}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline>
+      // Theme before first paint: 'light' | 'dark' | 'system' from localStorage.
+      (function () {
+        var theme = 'system';
+        try {
+          var stored = localStorage.getItem('studykit:theme');
+          if (stored === 'light' || stored === 'dark' || stored === 'system') theme = stored;
+        } catch (e) {}
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+  </head>
+  <body data-course={course?.id ?? ''} data-exam-date={course?.examDate ?? ''}>
+    <a class="skip-link" href="#main" lang={chromeLang}>Skip to content</a>
+    <header class="site-header" lang={chromeLang}>
+      <div class="bar">
+        <a class="brand" href={route.home()}>
+          <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="5" width="13" height="16" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+            <path d="M8 3h10.5A2.5 2.5 0 0 1 21 5.5V18" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"></path>
+            <path d="M6.5 10h6M6.5 13.5h6M6.5 17h3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+          <span>study-kit</span>
+        </a>
+        {
+          course && (
+            <>
+              <span class="crumb-sep" aria-hidden="true">/</span>
+              <a class="course-link" href={route.course(course.id)} title={course.title}>
+                {course.short}
+              </a>
+            </>
+          )
+        }
+        <span class="bar-spacer"></span>
+        <form class="search-box" action={route.search()} method="get" role="search">
+          <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true">
+            <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+            <path d="M12.6 12.6 17 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+          </svg>
+          <input
+            type="search"
+            name="q"
+            placeholder="Search"
+            aria-label="Search course content"
+            aria-keyshortcuts="/"
+            autocomplete="off"
+            data-search-shortcut
+          />
+          <kbd aria-hidden="true">/</kbd>
+        </form>
+        <sk-theme></sk-theme>
+      </div>
+      {course && <CourseNav course={course} active={tab} />}
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-footer" lang={chromeLang}>
+      <div>
+        <span>study-kit · runs locally; your progress stays in this browser</span>
+        {course && <span>{course.title}{course.data.semester ? ` · ${course.data.semester}` : ''}</span>}
+      </div>
+    </footer>
+    <script>
+      // Custom elements (src/elements/index.ts, built by the elements track) and the
+      // shell's own small behaviours. The glob resolves to nothing until the file exists.
+      import.meta.glob('../elements/index.ts', { eager: true });
+      import '../scripts/site';
+    </script>
+  </body>
+</html>

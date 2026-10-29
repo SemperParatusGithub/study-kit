@@ -1,0 +1,39 @@
+---
+// Table of contents from the sk-meta headings (meta.lua), plus optional extra links.
+import type { MetaHeading } from '../lib/html';
+
+interface Props {
+  headings: MetaHeading[];
+  title?: string;
+  lang?: string;
+  extra?: { href: string; text: string }[];
+  label?: string;
+}
+
+const { headings, title = 'On this page', lang, extra = [], label = 'On this page' } = Astro.props;
+const shown = headings.filter((h) => h.level <= 3);
+---
+
+{
+  (shown.length > 0 || extra.length > 0) && (
+    <>
+      <h2 lang="en">{title}</h2>
+      <ol aria-label={label}>
+        {shown.map((h) => (
+          <li class={`depth-${h.level}`}>
+            <a href={`#${h.id}`} lang={lang}>
+              {h.text}
+            </a>
+          </li>
+        ))}
+        {extra.map((x) => (
+          <li class="depth-2">
+            <a href={x.href} lang="en">
+              {x.text}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </>
+  )
+}

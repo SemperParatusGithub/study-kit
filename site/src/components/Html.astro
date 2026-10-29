@@ -1,0 +1,13 @@
+---
+// Rendered course HTML with the course's figures inlined (lib/figures.ts).
+import { inlineFigures } from '../lib/figures';
+
+interface Props {
+  html: string | null | undefined;
+  course: string;
+}
+
+const { html, course } = Astro.props;
+---
+
+<Fragment set:html={inlineFigures(html ?? '', course)} />

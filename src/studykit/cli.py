@@ -64,6 +64,31 @@ def build_parser() -> argparse.ArgumentParser:
     p_validate.add_argument("--json", action="store_true", help="machine-readable output")
     p_validate.set_defaults(func=cmd_validate)
 
+    p_render = sub.add_parser("render", help="render course files to HTML for the website")
+    p_render.add_argument("course", help="course id or directory")
+    p_render.add_argument(
+        "--paths", nargs="+", metavar="PATH", help="only these files (course-relative or paths)"
+    )
+    p_render.add_argument(
+        "--known",
+        metavar="FILE",
+        help="JSON {rel: digest} of renders the caller holds ('-' reads stdin); those come "
+        "back as cached",
+    )
+    p_render.add_argument("--jobs", type=int, help="parallel pandoc runs (default: CPU count)")
+    p_render.add_argument("--json", action="store_true", help="print the full result as JSON")
+    p_render.set_defaults(func=cmd_render)
+
+    p_links = sub.add_parser("check-links", help="check internal links and anchors of the site")
+    p_links.add_argument("dist", nargs="?", type=Path, default=Path("site/dist"))
+    p_links.add_argument(
+        "--strict-documents",
+        action="store_true",
+        help="fail on missing PDFs under /c/<c>/src/ and /c/<c>/pdf/ too (default: warn)",
+    )
+    p_links.add_argument("--json", action="store_true", help="machine-readable output")
+    p_links.set_defaults(func=cmd_check_links)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -211,6 +236,58 @@ def cmd_schema_export(args: argparse.Namespace) -> int:
             path.unlink()
             print(f"removed schemas/{path.name}")
     return 0
+
+
+def cmd_render(args: argparse.Namespace) -> int:
+    from studykit import render
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    known = None
+    if args.known:
+        text = sys.stdin.read() if args.known == "-" else Path(args.known).read_text("utf-8")
+        known = json.loads(text) if text.strip() else {}
+        if not isinstance(known, dict):
+            print("error: --known must be a JSON object {rel: digest}", file=sys.stderr)
+            return 2
+    result = render.render_course(tree.root, paths=args.paths, known=known, jobs=args.jobs)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False))
+        return 0
+    errors = 0
+    for row in result["files"]:
+        state = "cached" if row["cached"] else f"{len(row['findings'])} finding(s)"
+        print(f"{row['kind']:<10} {row['rel']}  {state}")
+        for f in row["findings"]:
+            errors += f["severity"] == "error"
+            print(f"  {f['path']}:{f['line']}:{f['col']} {f['code']} {f['message']}")
+    for row in result["skipped"]:
+        print(f"skipped    {row['rel']}  ({row['reason']})")
+    print(f"render: {len(result['files'])} file(s), {errors} error(s)")
+    return 0
+
+
+def cmd_check_links(args: argparse.Namespace) -> int:
+    from studykit import checklinks
+
+    dist = args.dist if args.dist.is_absolute() else Path.cwd() / args.dist
+    if not dist.is_dir():
+        print(f"error: {args.dist} is not a directory (build the site first)", file=sys.stderr)
+        return 2
+    found = checklinks.check(dist, strict_documents=args.strict_documents)
+    errors = [f for f in found if f.is_error]
+    if args.json:
+        print(json.dumps([f.to_dict() for f in found], ensure_ascii=False, indent=2))
+    else:
+        for f in found:
+            print(f.format())
+        pages = sum(1 for _ in checklinks.html_files(dist))
+        print(
+            f"check-links: {pages} page(s), {len(errors)} broken link(s), "
+            f"{len(found) - len(errors)} warning(s)"
+        )
+    return 1 if errors else 0
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:
