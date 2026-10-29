@@ -1,0 +1,34 @@
+---
+// The <sk-quiz> contract for the elements track (docs/architecture.md §3.2): pools are the
+// static mc/<topic>.json endpoints; topic titles and the summary base let the result screen
+// link back to the right chapter.
+import type { Course } from '../lib/courses';
+import { route } from '../lib/courses';
+
+export type QuizMode = 'practice' | 'test' | 'mistakes' | 'due' | 'mixed';
+
+interface Props {
+  course: Course;
+  mode: QuizMode;
+  topics: string[];
+  count?: number;
+}
+
+const { course, mode, topics, count } = Astro.props;
+const pools = topics
+  .filter((t) => course.banks.some((b) => b.data.topic === t))
+  .map((t) => route.mcPool(course.id, t));
+const titles = Object.fromEntries(course.topics.map((t) => [t.id, t.title]));
+---
+
+<sk-quiz
+  data-course={course.id}
+  data-mode={mode}
+  data-pools={JSON.stringify(pools)}
+  data-topic-titles={JSON.stringify(titles)}
+  data-summary-base={route.summaries(course.id)}
+  data-n={count}
+></sk-quiz>
+<noscript>
+  <p class="notice small" lang="en">The quiz needs JavaScript. The questions are listed on the topic pages of the MC tab.</p>
+</noscript>
