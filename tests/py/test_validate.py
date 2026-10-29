@@ -286,3 +286,14 @@ Darum.
     (finding,) = run(mini, denylist, quick=True).findings
     assert finding.code == "SK-MCQ-BIAS" and finding.severity == "warning"
     assert "correct answer is (A) in 3 of 4" in finding.message
+
+
+def test_mock_exam_size_follows_the_real_exam(mini: Path, denylist: Path):
+    course = mini / "course.yaml"
+    text = course.read_text().replace("duration_min: 60", "duration_min: 90")
+    course.write_text(text.replace("points: 30", "points: 33"))  # 30 is within 10% of 33
+    found = [f for f in run(mini, denylist, release=True).findings if f.code == "SK-COV-EXAM"]
+    assert [(f.path.split("/mini/")[1], f.line) for f in found] == [
+        ("exams/probeklausur-1/exam.yaml", 5)
+    ]
+    assert "duration_min is 60 minutes, but the real exam has 90" in found[0].message

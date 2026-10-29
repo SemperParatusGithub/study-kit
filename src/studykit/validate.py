@@ -1514,8 +1514,37 @@ def check_coverage(ctx: Context) -> None:
             f"{len(exams)} mock exam(s), the target is {course.targets.mock_exams}",
             "author the missing mock exams or lower targets.mock_exams",
         )
-    if exams:
-        ctx.note("exam points and time are not compared with the exam profile yet")
+    for exam_doc in exams:
+        _check_exam_size(ctx, exam_doc, course.exam)
+
+
+EXAM_TOLERANCE = 0.10
+
+
+def _check_exam_size(ctx: Context, exam_doc: Doc, real: model.CourseExam) -> None:
+    """Mock exam points and time within ±10% of the real exam (course.yaml `exam`, §2.7).
+
+    course.yaml carries the real exam's duration and points as the exam analyst found them
+    in the profile (or as the user gave them), already validated.
+    """
+    exam = exam_doc.model
+    if exam is None:
+        return
+    for field_name, unit in (("points", "points"), ("duration_min", "minutes")):
+        target = getattr(real, field_name)
+        value = getattr(exam, field_name)
+        if target is None:
+            ctx.note(f"{exam_doc.rel}: {field_name} not compared, course.yaml exam has none")
+            continue
+        if abs(value - target) > EXAM_TOLERANCE * target:
+            ctx.at_yaml(
+                exam_doc,
+                [field_name],
+                "SK-COV-EXAM",
+                f"{field_name} is {value:g} {unit}, but the real exam has {target:g} "
+                f"(allowed ±{EXAM_TOLERANCE:.0%})",
+                f"scale the mock exam to {target:g} {unit}, as course.yaml exam says",
+            )
 
 
 # --- runner ---------------------------------------------------------------------------------

@@ -392,5 +392,7 @@ Fix: `/regenerate <course> cheatsheet`.
 Fix: `studykit plan <course>`.
 
 ### `SK-COV-EXAM`
-**error.** Fewer mock exams than `targets.mock_exams`.
-Fix: `/regenerate <course> exams`, or lower the target.
+**error.** Fewer mock exams than `targets.mock_exams`, or a mock exam whose `points` or
+`duration_min` is more than 10 % away from the real exam in `course.yaml: exam`.
+Fix: `/regenerate <course> exams`, or lower the target; scale the mock exam's tasks to the
+real exam's points and time.
