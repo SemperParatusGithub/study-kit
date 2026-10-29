@@ -1,0 +1,52 @@
+# study-kit house style. Colours come from palette.py; keep both in sync.
+
+font.family: DejaVu Sans
+font.size: 9
+mathtext.fontset: cm
+axes.unicode_minus: True
+
+figure.dpi: 100
+figure.facecolor: none
+figure.edgecolor: none
+figure.constrained_layout.use: True
+
+axes.facecolor: none
+axes.edgecolor: 1f2328
+axes.labelcolor: 1f2328
+axes.linewidth: 0.8
+axes.grid: True
+axes.axisbelow: True
+axes.titlesize: 9
+axes.labelsize: 9
+axes.spines.top: False
+axes.spines.right: False
+axes.prop_cycle: cycler('color', ['0072b2', 'd55e00', '009e73', 'cc79a7', 'e69f00', '56b4e9'])
+
+grid.color: d0d7de
+grid.linewidth: 0.6
+grid.linestyle: -
+
+xtick.color: 1f2328
+ytick.color: 1f2328
+xtick.labelcolor: 1f2328
+ytick.labelcolor: 1f2328
+xtick.labelsize: 8
+ytick.labelsize: 8
+
+lines.linewidth: 1.6
+lines.markersize: 4
+patch.edgecolor: 1f2328
+patch.force_edgecolor: False
+text.color: 1f2328
+
+legend.frameon: False
+legend.fontsize: 8
+legend.labelcolor: 1f2328
+
+savefig.transparent: True
+savefig.bbox: tight
+savefig.pad_inches: 0.03
+
+svg.fonttype: path
+svg.hashsalt: studykit
+svg.image_inline: True
