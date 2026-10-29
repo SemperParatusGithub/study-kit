@@ -26,8 +26,8 @@ test('plan: session checkboxes persist and the behind-schedule banner counts pas
   const dates = await sessions.evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.date ?? ''));
   const past = dates.filter((d) => d < today).length;
   expect(past).toBeGreaterThan(1);
-  const banner = page.locator('sk-plan .sk-plan-behind');
-  await expect(banner).toContainText(`Behind schedule: ${past} past sessions are not done.`);
+  const banner = page.locator('sk-plan [data-sk-behind]');
+  await expect(banner).toContainText(`You are behind schedule. ${past} past sessions are not done.`);
   await expect(banner.locator('code')).toHaveText(`/regenerate sample-course plan`);
 
   const first = sessions.first();
@@ -43,22 +43,15 @@ test('plan: session checkboxes persist and the behind-schedule banner counts pas
 });
 
 test('the MC hub shows accuracy and due count per topic bank', async ({ page }) => {
-  // Product bug: nothing fills the [data-sk-fill] placeholders of the site shell, so the
-  // MC hub's "Accuracy" and "Due" columns always show "—" (§3.2 "MC hub: accuracy per
-  // topic, due count").
-  test.fail();
   await misconception(page, 'rc-filter');
   await page.goto(`${C}/mc/`);
   await elementsReady(page);
   const row = page.locator('table.data-table tbody tr').filter({ hasText: 'RC-Filter' });
-  await expect(row.locator('[data-sk-accuracy]')).toHaveText('0 %', { timeout: 2_000 });
+  await expect(row.locator('[data-sk-accuracy]')).toHaveText('0%', { timeout: 2_000 });
   await expect(row.locator('[data-sk-due-count]')).toHaveText('1', { timeout: 2_000 });
 });
 
 test('the course overview and the home page show reviews due and the weakest topics', async ({ page }) => {
-  // Product bug: [data-sk-due-count] (course card on /, Today panel on /c/<c>/) and
-  // [data-sk-weakest] (Today panel) are never filled (§3.2 routes / and /c/<c>/).
-  test.fail();
   await misconception(page, 'rc-filter');
   await page.goto(`${C}/`);
   await elementsReady(page);
@@ -71,10 +64,6 @@ test('the course overview and the home page show reviews due and the weakest top
 });
 
 test('"Start due reviews" on the course overview opens the Due mode', async ({ page }) => {
-  // Product bug: the link goes to /c/<c>/mc/#due, but #due names a closed <details> of the
-  // exclusive mode accordion; fragment navigation does not open it, so the hub shows
-  // Practice open and Due collapsed.
-  test.fail();
   await page.goto(`${C}/`);
   await elementsReady(page);
   await page.getByRole('link', { name: 'Start due reviews' }).click();
@@ -83,10 +72,6 @@ test('"Start due reviews" on the course overview opens the Due mode', async ({ p
 });
 
 test('the exercise list shows each exercise status and filters by it', async ({ page }) => {
-  // Product bug: nothing sets data-status on the exercise rows or fills [data-sk-status], so
-  // every exercise counts as "Not started" and the status filter never finds a rated one
-  // (§3.2 "/c/<c>/exercises/: filters for topic, difficulty and status").
-  test.fail();
   await page.goto(`${C}/exercises/ex-st-unbelastet/`);
   await elementsReady(page);
   await page.locator('sk-self-assess').getByRole('button', { name: 'Solved' }).click();
@@ -99,9 +84,6 @@ test('the exercise list shows each exercise status and filters by it', async ({ 
 });
 
 test('the exam list shows the last attempt', async ({ page }) => {
-  // Product bug: [data-sk-exam-best] on /c/<c>/exams/ is never filled, so "Last attempt"
-  // always shows "—" after an exam was graded.
-  test.fail();
   page.on('dialog', (d) => void d.accept());
   await page.goto(`${C}/exams/probeklausur-1/`);
   await elementsReady(page);

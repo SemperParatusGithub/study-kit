@@ -62,10 +62,10 @@ test('one question of each type is scored, recorded and shown again after a relo
   await page.goto(`${C}/progress/`);
   const stats = page.locator('sk-progress .sk-stats');
   await expect(stats).toContainText('3 answers');
-  await expect(stats).toContainText('0 due today');
+  await expect(stats).toContainText('0 reviews due');
   const mean = done.reduce((s, d) => s + d.score, 0) / done.length;
   const topic = page.locator('sk-progress .sk-topic').filter({ hasText: 'RC-Filter' });
-  await expect(topic.locator('.sk-topic-value')).toHaveText(`${Math.round(mean * 100)} %`);
+  await expect(topic.locator('.sk-topic-value')).toHaveText(`${Math.round(mean * 100)}%`);
 });
 
 test('keyboard: digits choose, S and U set the confidence, Enter checks, N moves on', async ({ page }) => {

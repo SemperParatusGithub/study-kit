@@ -18,6 +18,13 @@ async function mode(page: Page, id: 'practice' | 'test' | 'mistakes' | 'due' | '
   return quiz;
 }
 
+/** A mode with nothing to offer shows only its message, without the start form. */
+async function expectNoForm(quiz: Locator): Promise<void> {
+  await expect(quiz.locator('.sk-quiz-actions')).toHaveCount(1);
+  await expect(quiz.locator('.sk-quiz-actions')).toBeHidden();
+  await expect(quiz.locator('.sk-quiz-fields')).toBeHidden();
+}
+
 /** Answer the question on screen; in instant-feedback modes check it and see the verdict. */
 async function step(quiz: Locator, tally: Tally, how: How, conf: 'Sure' | 'Unsure' = 'Unsure', instant = true): Promise<string> {
   const mc = current(quiz);
@@ -55,7 +62,7 @@ async function answerOnTopicPage(page: Page, topic: string, how: How, conf: 'Sur
 test('Practice: instant feedback per question, ?n= sets the length, result per topic', async ({ page }) => {
   await page.goto(`${C}/mc/wechselstrom/?n=4`);
   const quiz = page.locator('section.practice sk-quiz');
-  await expect(quiz.locator('.sk-quiz-mode')).toHaveText('Practice');
+  await expect(quiz).toHaveAttribute('data-mode', 'practice');
   await expect(quiz.locator('.sk-quiz-count')).toHaveText('10 questions available.');
   await expect(quiz.getByLabel('Questions')).toHaveValue('4');
   await quiz.getByRole('button', { name: 'Start' }).click();
@@ -79,7 +86,7 @@ test('Practice: instant feedback per question, ?n= sets the length, result per t
 test('Test: ?n= and ?minutes= pre-fill the form, feedback waits for the end, time-up ends the quiz', async ({ page }) => {
   await page.goto(`${C}/mc/?n=3&minutes=5`);
   const quiz = await mode(page, 'test');
-  await expect(quiz.locator('.sk-quiz-mode')).toHaveText('Test');
+  await expect(quiz).toHaveAttribute('data-mode', 'test');
   await expect(quiz.locator('.sk-quiz-count')).toHaveText('30 questions available.');
   await expect(quiz.getByLabel('Questions')).toHaveValue('3');
   await expect(quiz.getByLabel('Time limit (minutes)')).toHaveValue('5');
@@ -127,7 +134,7 @@ test('Mistakes: a wrong answer comes back, a right one clears it', async ({ page
   await expect(quiz.locator('.sk-quiz-count')).toHaveText(
     'No mistakes to review: every question you answered was right last time.',
   );
-  await expect(quiz.getByRole('button', { name: 'Start' })).toBeDisabled();
+  await expectNoForm(quiz);
 });
 
 test('Due: a right answer is due again after three days', async ({ page }) => {
@@ -136,7 +143,7 @@ test('Due: a right answer is due again after three days', async ({ page }) => {
   let quiz = await mode(page, 'due');
   const due = await pageDay(page, 3);
   await expect(quiz.locator('.sk-quiz-count')).toHaveText(`Nothing is due today. The next review is in 3 days (${due}).`);
-  await expect(quiz.getByRole('button', { name: 'Start' })).toBeDisabled();
+  await expectNoForm(quiz);
 
   await page.clock.setSystemTime(new Date(NOW.getTime() + 3 * 86_400_000));
   await page.reload();
