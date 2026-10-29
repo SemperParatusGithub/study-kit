@@ -509,6 +509,60 @@ def test_topic_map_fifteen_long_german_titles(tmp_path, monkeypatch):
     assert f["width_in"] <= 6.2 + 1e-6 and f["scale"] >= block.MIN_SCALE
 
 
+CHAPTERS = [
+    "Gleichstromnetzwerke", "Wechselstromrechnung", "Zeigerdiagramme", "Ortskurven",
+    "Frequenzgang", "Bode-Diagramme", "Schwingkreise", "Drehstrom", "Transformatoren",
+    "Ausgleichsvorgänge",
+]  # fmt: skip
+
+
+def _shown_in(f: dict) -> tuple[float, float]:
+    """Drawn size of the map in inches after scaling (legend excluded)."""
+    return f["size_in"][0] * f["scale"], f["size_in"][1] * f["scale"]
+
+
+def test_topic_map_wraps_a_long_chain_like_text(tmp_path, locale):
+    text = "topics:\n" + "".join(
+        f"  - {{id: t{i}, title: {title}, weight: 0.1, prereq: [{f't{i - 1}' if i else ''}]}}\n"
+        for i, title in enumerate(CHAPTERS)
+    )
+    fig = graph.topic_map(_course(tmp_path, text))
+    assert validate_svg(fig.svg) == []
+    f = fig.facts
+    assert f["wrap"]["bands"] >= 2 and f["wrap"]["returns"] == f["wrap"]["bands"] - 1
+    w, h = _shown_in(f)
+    assert w <= 6.2 + 1e-6 and h <= 0.5 * w  # a wide block, not a strip down the page
+    assert f["scale"] >= block.MIN_SCALE and f["node_overlaps"] == 0
+    assert f["layers"] == [[f"t{i}"] for i in range(10)]  # facts keep the depth levels
+    xy = {k: n["xy"] for k, n in f["nodes"].items()}
+    rows = sorted({v[1] for v in xy.values()}, reverse=True)
+    assert len(rows) == f["wrap"]["bands"]
+    for i in range(9):  # left to right within a row, the next row further down
+        a, b = xy[f"t{i}"], xy[f"t{i + 1}"]
+        assert b[0] > a[0] if a[1] == b[1] else b[1] < a[1]
+
+
+def test_topic_map_splits_flat_and_fan_shaped_courses(tmp_path, locale):
+    flat = "topics:\n" + "".join(
+        f"  - {{id: t{i}, title: Thema Nummer {i} mit langem Titel, weight: {0.02 * (i + 1):.2f}, "
+        "prereq: []}\n"
+        for i in range(15)
+    )
+    f = graph.topic_map(_course(tmp_path, flat)).facts
+    assert f["wrap"]["split"] and f["wrap"]["returns"] == 0 and f["node_overlaps"] == 0
+    w, h = _shown_in(f)
+    assert w <= 6.2 + 1e-6 and h <= 0.6 * w
+    assert f["layers"] == [[f"t{i}" for i in range(15)]]  # one level, in teaching order
+    fan = "topics:\n  - {id: base, title: Grundlagen, weight: 0.2, prereq: []}\n" + "".join(
+        f"  - {{id: t{i}, title: Anwendung {i} der Grundlagen, weight: 0.05, prereq: [base]}}\n"
+        for i in range(14)
+    )
+    f = graph.topic_map(_course(tmp_path, fan)).facts
+    assert f["wrap"]["split"] == {"1": f["wrap"]["split"]["1"]} and f["node_overlaps"] == 0
+    w, h = _shown_in(f)
+    assert w <= 6.2 + 1e-6 and h <= 1.3 * 6.2
+
+
 def test_topic_map_rejects_broken_course(tmp_path):
     cyclic = (
         "topics:\n"

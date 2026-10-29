@@ -25,11 +25,12 @@ import yaml
 from schemdraw import flow
 
 from studykit.figures import core
-from studykit.figures.block import FONT_PT, LABEL_PT, Sheet, plain, text_size
+from studykit.figures.block import FONT_PT, LABEL_PT, MIN_SCALE, UNIT_PT, Sheet, plain, text_size
 from studykit.figures.block import label as _label
 from studykit.figures.palette import BG, FG, MUTED, color
 
 ARROW = {"arrowwidth": 0.15, "arrowlength": 0.25}
+UNIT_IN = UNIT_PT / 72  # one drawing unit in inches at natural scale
 
 # ---------------------------------------------------------------------------------------
 # Geometry helpers
@@ -1210,6 +1211,7 @@ TB_LAYER_GAP = 1.1
 NODE_GAP = 0.4
 DUMMY_GAP = 0.35
 PORT_GAP = 0.22
+PORT_END = 0.15  # ports keep clear of the rounded corners
 DUMMY = "→"  # marks a bend point of a long edge in layer lists
 
 
@@ -1426,10 +1428,17 @@ class _MapLayout:
     span: list[tuple[float, float]]  # per layer: (start, end) along the main axis
     width: float
     height: float
+    bands: int = 1  # left-to-right rows of layers, read like lines of text
+    # Links from the end of one band to the start of the next: (x right, y gap, x left).
+    returns: dict[tuple[str, str], tuple[float, float, float]] = field(default_factory=dict)
 
 
 def _map_layout(
-    direction: str, layers: list[list[str]], topics: dict[str, _Topic], links: list[tuple[str, str]]
+    direction: str,
+    layers: list[list[str]],
+    topics: dict[str, _Topic],
+    links: list[tuple[str, str]],
+    split_gap: bool = False,
 ) -> _MapLayout:
     lr = direction == "lr"
     real = lambda k: k in topics  # noqa: E731
@@ -1453,7 +1462,8 @@ def _map_layout(
         return box[k][1] if lr else box[k][0]
 
     def gap(a: str, b: str) -> float:
-        return NODE_GAP if real(a) and real(b) else DUMMY_GAP
+        # Split layers stagger their nodes, so edges to the next sub-layer pass between.
+        return (SPLIT_GAP if split_gap else NODE_GAP) if real(a) and real(b) else DUMMY_GAP
 
     preds: dict[str, list[str]] = {}
     succs: dict[str, list[str]] = {}
@@ -1501,13 +1511,178 @@ def _map_layout(
     return _MapLayout(direction, layers, centre, box, span, width, height)
 
 
+BAND_GAP = 0.9  # between two bands of a wrapped topic map, plus one track per return
+RETURN_PAD = 0.45  # a return route runs this far beside the band it leaves or enters
+RETURN_TRACK = 0.2
+SPLIT_GAP = 0.7  # node gap in a layer split into staggered sub-layers (room for edges)
+
+
+def _band_layout(base: _MapLayout, k: int, links: list[tuple[str, str]]) -> _MapLayout:
+    """Cut a left-to-right layout into k bands of consecutive layers, stacked downwards.
+
+    A link from the last layer of one band to the first layer of the next returns like a
+    line of text: right of its band, down through the gap, left of the next band, in.
+    """
+    n = len(base.layers)
+    ends = [hi for _, hi in base.span]
+    total = ends[-1]
+    cuts = sorted(
+        {min(range(1, n), key=lambda i: abs(ends[i - 1] - total * j / k)) for j in range(1, k)}
+    )
+    starts = [0, *cuts]
+    stops = [*cuts, n]
+    band_of = {
+        li: b for b, (a, z) in enumerate(zip(starts, stops, strict=True)) for li in range(a, z)
+    }
+    level = {key: li for li, layer in enumerate(base.layers) for key in layer}
+    crossing = [(a, b) for a, b in links if band_of[level[a]] != band_of[level[b]]]
+    centre = {key: c.copy() for key, c in base.centre.items()}
+    span = list(base.span)
+    tops, bottoms, lefts, rights = [], [], [], []
+    y = 0.0
+    for b, (a, z) in enumerate(zip(starts, stops, strict=True)):
+        keys = [key for li in range(a, z) for key in base.layers[li]]
+        x0 = base.span[a][0]
+        hi = max(base.centre[key][1] + base.box[key][1] / 2 for key in keys)
+        lo = min(base.centre[key][1] - base.box[key][1] / 2 for key in keys)
+        if b > 0:
+            m = sum(1 for p, q in crossing if band_of[level[q]] == b)
+            y -= BAND_GAP + 2 * RETURN_PAD + max(m - 1, 0) * RETURN_TRACK
+        for key in keys:
+            centre[key] = np.array([base.centre[key][0] - x0, base.centre[key][1] - hi + y])
+        for li in range(a, z):
+            span[li] = (base.span[li][0] - x0, base.span[li][1] - x0)
+        tops.append(y)
+        y -= hi - lo
+        bottoms.append(y)
+        lefts.append(0.0)
+        rights.append(span[z - 1][1])
+    returns: dict[tuple[str, str], tuple[float, float, float]] = {}
+    for b in range(1, k):
+        group = [(p, q) for p, q in crossing if band_of[level[q]] == b]
+        group.sort(key=lambda pq: -centre[pq[0]][1])  # highest source first
+        m = len(group)
+        for i, (p, q) in enumerate(group):
+            x_r = rights[b - 1] + RETURN_PAD + (m - 1 - i) * RETURN_TRACK
+            y_g = bottoms[b - 1] - RETURN_PAD - (m - 1 - i) * RETURN_TRACK
+            x_l = lefts[b] - RETURN_PAD - i * RETURN_TRACK
+            returns[(p, q)] = (x_r, y_g, x_l)
+    if returns:
+        x_min = min(x_l for _, _, x_l in returns.values())
+        x_max = max(x_r for x_r, _, _ in returns.values())
+    else:
+        x_min, x_max = 0.0, max(rights)
+    shift = -(x_min + x_max) / 2
+    for key in centre:
+        centre[key][0] += shift
+    span = [(a + shift, z + shift) for a, z in span]
+    returns = {pq: (x_r + shift, y_g, x_l + shift) for pq, (x_r, y_g, x_l) in returns.items()}
+    width = x_max - x_min
+    return _MapLayout(
+        "lr", base.layers, centre, base.box, span, width, -y, bands=k, returns=returns
+    )
+
+
+def _visual_layers(topics: list[_Topic], depth: dict[str, int], split: dict[int, int]):
+    """Layer of each topic after splitting some depth levels into sub-layers.
+
+    A split level is cut into runs of consecutive topics (course order), one run per
+    sub-layer, so each sub-column still reads top to bottom in teaching order.
+    """
+    start, layer = {}, 0
+    for d in range(max(depth.values()) + 1):
+        start[d] = layer
+        layer += split.get(d, 1)
+    members: dict[int, list[str]] = {}
+    for t in topics:
+        members.setdefault(depth[t.id], []).append(t.id)
+    out = {}
+    for d, ids in members.items():
+        per = math.ceil(len(ids) / split.get(d, 1))
+        for i, tid in enumerate(ids):
+            out[tid] = start[d] + i // per
+    return out
+
+
+def _layered(topics: list[_Topic], vlayer: dict[str, int]):
+    """Layers with bend points for links that skip layers; links and chains of each edge."""
+    layers: list[list[str]] = [[] for _ in range(max(vlayer.values()) + 1)]
+    for t in topics:
+        layers[vlayer[t.id]].append(t.id)
+    links: list[tuple[str, str]] = []
+    chains: list[tuple[str, str, list[str]]] = []
+    for t in topics:
+        for p in t.prereq:
+            chain = [p]
+            for li in range(vlayer[p] + 1, vlayer[t.id]):
+                key = f"{p}{DUMMY}{t.id}#{li}"
+                layers[li].append(key)
+                chain.append(key)
+            chain.append(t.id)
+            links += list(itertools.pairwise(chain))
+            chains.append((p, t.id, chain))
+    return _order_layers(layers, links), links, chains
+
+
+@dataclass
+class _MapChoice:
+    layout: _MapLayout
+    layers: list[list[str]]
+    links: list[tuple[str, str]]
+    chains: list
+    split: dict[int, int]
+    cost: float = 0.0
+
+
+def _map_cost(layout: _MapLayout, split: dict[int, int], size: str) -> float:
+    """Inches of page height the map takes, plus the cost of shrinking and of wrapping."""
+    target_w = core.size(size)[0]
+    width, height = layout.width * UNIT_IN, layout.height * UNIT_IN
+    scale = min(1.0, target_w / width)
+    cost = height * max(scale, MIN_SCALE) + 4.0 * (1 - scale)
+    if scale < MIN_SCALE:  # overflows the column even at the smallest legible scale
+        cost += 2.0 + 20.0 * (MIN_SCALE / scale - 1)
+    cost += 0.5 * len(layout.returns) + 0.1 * sum(m - 1 for m in split.values())
+    return cost
+
+
+def _map_choices(topics, depth, by_id, direction: str, size: str) -> list[_MapChoice]:
+    """Candidate arrangements: plain, long layers split, long rows wrapped into bands."""
+    plain = _layered(topics, {t.id: depth[t.id] for t in topics})
+    if direction == "tb":
+        return [_MapChoice(_map_layout("tb", plain[0], by_id, plain[1]), *plain, {})]
+    choices = [_MapChoice(_map_layout("lr", plain[0], by_id, plain[1]), *plain, {})]
+    if direction == "lr":
+        return choices
+    choices.append(_MapChoice(_map_layout("tb", plain[0], by_id, plain[1]), *plain, {}))
+    sizes = {d: sum(1 for t in topics if depth[t.id] == d) for d in set(depth.values())}
+    longest = max(sizes.values())
+    splits = [{}]
+    for parts in (2, 3, 4):
+        cap = math.ceil(longest / parts)
+        split = {d: math.ceil(n / cap) for d, n in sizes.items() if n > cap}
+        if split and split not in splits:
+            splits.append(split)
+    for split in splits:
+        layered = plain if not split else _layered(topics, _visual_layers(topics, depth, split))
+        base = _map_layout("lr", layered[0], by_id, layered[1], split_gap=bool(split))
+        if split:
+            choices.append(_MapChoice(base, *layered, split))
+        for k in range(2, min(len(layered[0]), 6) + 1):
+            choices.append(_MapChoice(_band_layout(base, k, layered[1]), *layered, split))
+    return choices
+
+
 def topic_map(
     course_dir: Path, *, size: str = "full", direction: str = "auto", alt: str | None = None
 ) -> core.Figure:
     """The course topic map: a layered DAG of the topics in course.yaml.
 
-    Layers follow prerequisite depth (left to right; top to bottom when that fits the
-    page much better, or with direction='tb'). Box height grows with the topic weight,
+    Layers follow prerequisite depth, left to right. With direction='auto' the map takes
+    the arrangement that needs the least page height at a legible scale: plain, top to
+    bottom, long levels split into staggered sub-columns (flat or fan-shaped courses), or
+    long rows wrapped into bands read like lines of text (prerequisite chains);
+    direction='lr' or 'tb' forces a plain layout. Box height grows with the topic weight,
     focus topics have a coloured frame and bold title, skipped topics are muted and dashed.
     """
     if direction not in ("auto", "lr", "tb"):
@@ -1525,47 +1700,51 @@ def topic_map(
         t.w = tw + 2 * NODE_PAD_X
         t.h = base_h * (1 + WEIGHT_EXTRA * (t.weight / w_max if w_max > 0 else 0.0))
 
-    # Layers with bend points for edges that skip layers.
-    n_layers = max(depth.values()) + 1
-    layers: list[list[str]] = [[] for _ in range(n_layers)]
-    for t in topics:
-        layers[depth[t.id]].append(t.id)
-    links: list[tuple[str, str]] = []
-    chains: list[tuple[str, str, list[str]]] = []
-    for t in topics:
-        for p in t.prereq:
-            chain = [p]
-            for li in range(depth[p] + 1, depth[t.id]):
-                key = f"{p}{DUMMY}{t.id}#{li}"
-                layers[li].append(key)
-                chain.append(key)
-            chain.append(t.id)
-            links += list(itertools.pairwise(chain))
-            chains.append((p, t.id, chain))
-    layers = _order_layers(layers, links)
-    crossings = _crossings(layers, links)
-
-    target_w = core.size(size)[0] * 72 / 18.0  # drawing units at natural scale
-    layout = _map_layout("lr" if direction != "tb" else "tb", layers, by_id, links)
-    reason = "requested" if direction != "auto" else "fits"
-    if direction == "auto" and layout.width * 0.72 > target_w:
-        tb = _map_layout("tb", layers, by_id, links)
-        if tb.width < layout.width:
-            layout, reason = tb, "left-to-right too wide"
+    choices = _map_choices(topics, depth, by_id, direction, size)
+    for choice in choices:
+        choice.cost = _map_cost(choice.layout, choice.split, size)
+    best = min(choices, key=lambda c: c.cost)  # the first of equals: the plainest
+    layout, links, chains = best.layout, best.links, best.chains
+    crossings = _crossings(best.layers, links)
+    if direction != "auto":
+        reason = "requested"
+    elif best is choices[0]:
+        reason = "fits"
+    elif best.layout.bands > 1:
+        reason = f"wrapped into {best.layout.bands} rows"
+    elif best.split:
+        reason = "long layers split"
+    else:
+        reason = "left-to-right too wide"
 
     sheet = Sheet()
     _draw_map(sheet, layout, by_id, chains)
     left = min(layout.centre[k][0] - layout.box[k][0] / 2 for k in by_id)
-    bottom = min(layout.centre[k][1] - layout.box[k][1] / 2 for k in by_id)
+    bottom = min(
+        [layout.centre[k][1] - layout.box[k][1] / 2 for k in layout.centre]
+        + [y_g for _, y_g, _ in layout.returns.values()]
+    )  # below every box, bend point and return route
     _draw_legend(sheet, left, bottom - 0.6, focus, skip)
 
     facts = {
         "template": "graph.topic_map",
         "direction": layout.direction,
         "direction_reason": reason,
-        "layers": [[k for k in layer if k in by_id] for layer in layout.layers],
+        # Topics by prerequisite depth, each level in drawing order.
+        "layers": [
+            [k for layer in layout.layers for k in layer if k in by_id and depth[k] == d]
+            for d in range(max(depth.values()) + 1)
+        ],
         "order": [k for layer in layout.layers for k in layer if k in by_id],
         "depth": depth,
+        # How the drawing wraps: rows of layers read like text, depth levels split into
+        # staggered sub-layers, and the drawn size in inches before scaling.
+        "wrap": {
+            "bands": layout.bands,
+            "split": {str(d): m for d, m in sorted(best.split.items())},
+            "returns": len(layout.returns),
+        },
+        "size_in": [round(layout.width * UNIT_IN, 3), round(layout.height * UNIT_IN, 3)],
         "crossings": crossings,
         "edges": [[p, t] for p, t, _ in chains],
         "focus": focus,
@@ -1613,7 +1792,7 @@ def _ports(
         side = layout.box[node][1] if lr else layout.box[node][0]
         ordered = sorted(others, key=lambda o: layout.centre[o][axis], reverse=lr)
         m = len(ordered)
-        step = min(PORT_GAP, max(side - 0.3, 0.0) / max(m, 1))
+        step = min(PORT_GAP, max(side - 2 * PORT_END, 0.0) / max(m - 1, 1))  # whole side
         sign = -1 if lr else 1  # first neighbour (top / left) gets the top / left port
         return {o: sign * (i - (m - 1) / 2) * step for i, o in enumerate(ordered)}
 
@@ -1656,6 +1835,11 @@ def _draw_map(sheet: Sheet, layout: _MapLayout, topics: dict[str, _Topic], chain
             p, q = ports[(a, b)]
             if i > 0:
                 pieces.append(["line", ports[(chain[i - 1], a)][1], p])
+            if (a, b) in layout.returns:  # to the next band: right, down, left, in
+                x_r, y_g, x_l = layout.returns[(a, b)]
+                corners = [p, _v(x_r, p[1]), _v(x_r, y_g), _v(x_l, y_g), _v(x_l, q[1]), q]
+                pieces += [["line", u, v] for u, v in itertools.pairwise(corners)]
+                continue
             straight = abs(p[1] - q[1]) < 1e-9 if lr else abs(p[0] - q[0]) < 1e-9
             pieces.append(["line" if straight else "curve", p, q])
         merged: list[list] = []
@@ -1663,6 +1847,9 @@ def _draw_map(sheet: Sheet, layout: _MapLayout, topics: dict[str, _Topic], chain
             if np.allclose(piece[1], piece[2]):
                 continue
             joins = merged and merged[-1][0] == "line" and np.allclose(merged[-1][2], piece[1])
+            if joins and piece[0] == "line":
+                d1, d2 = merged[-1][2] - merged[-1][1], piece[2] - piece[1]
+                joins = abs(d1[0] * d2[1] - d1[1] * d2[0]) < 1e-9 and np.dot(d1, d2) > 0
             if joins and piece[0] == "line":
                 merged[-1][2] = piece[2]
             else:
