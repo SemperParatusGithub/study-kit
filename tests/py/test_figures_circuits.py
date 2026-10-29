@@ -4,9 +4,12 @@ Assertions are on facts and on validate_svg(), never on SVG bytes.
 """
 
 import math
+import textwrap
 
 import numpy as np
 import pytest
+from schemdraw import drawing_stack
+from schemdraw.segments import SegmentText
 
 from studykit.figures import circuit
 from studykit.figures.validate import validate_svg
@@ -168,6 +171,61 @@ def test_drawing_rejects_duplicate_names_and_bad_sides():
         circuit.zaehlpfeil_u(r, "U", side="left")
     with pytest.raises(ValueError, match="unknown size"):
         circuit.drawing(alt="x", size="poster")
+
+
+def test_module_docstring_example_renders(locale):
+    block = circuit.__doc__.split("is `drawing`.")[1]
+    code = textwrap.dedent(block[block.index("    with") :].split("return c.figure")[0])
+    namespace = {"circuit": circuit}
+    exec(code, namespace)
+    fig = namespace["c"].figure
+    _assert_ok(fig)
+    assert _component(fig, "C")["nodes"] == ["2", "0"]
+    u1 = _arrow(fig, "U1")
+    assert (u1["element"], u1["from"], u1["to"]) == ("R1", "1", "2")
+
+
+def _text_xy(overlay):
+    return next(s.xy for s in overlay.segments if isinstance(s, SegmentText))
+
+
+def test_default_label_and_arrow_sides_are_complementary(en):
+    with circuit.drawing(alt="x", size="full") as c:
+        r = c.resistor("R", "4.7 kΩ").at((0, 0)).right()
+        r_left = c.resistor("R_b", "1 kΩ", loc="bottom").at((8, 0)).left()
+        cap = c.capacitor("C", "10 nF", loc="right").at((10, 0)).down()
+        ind = c.inductor("L", "1 mH").at((14, 0)).up()
+        u_r = circuit.zaehlpfeil_u(r, "U_R")
+        u_rb = circuit.zaehlpfeil_u(r_left, "U_b")
+        u_c = circuit.zaehlpfeil_u(cap, "U_C")
+        u_l = circuit.zaehlpfeil_u(ind, "U_L")
+        i_r = circuit.zaehlpfeil_i(r, "I_R")
+        i_c = circuit.zaehlpfeil_i(cap, "I_C")
+        i_l = circuit.zaehlpfeil_i(ind, "I_L")
+    _assert_ok(c.figure)
+    assert (r.label_sides, r_left.label_sides) == ({"top"}, {"bottom"})
+    assert (cap.label_sides, ind.label_sides) == ({"right"}, {"left"})
+    # Voltage arrows take the side the label leaves free.
+    assert all(p.y < 0 for p in u_r.segments[0].path)
+    assert all(p.y > 0 for p in u_rb.segments[0].path)
+    assert all(p.x < 10 for p in u_c.segments[0].path)
+    assert all(p.x > 14 for p in u_l.segments[0].path)
+    # Current labels: free side beside horizontal, label side beside vertical elements.
+    assert _text_xy(i_r).y < 0
+    assert _text_xy(i_c).x > 10
+    assert _text_xy(i_l).x < 14
+
+
+@pytest.mark.parametrize(
+    ("loc", "direction", "message"),
+    [("top", "down", "along the vertical"), ("left", "right", "along the horizontal")],
+)
+def test_label_side_along_the_element_is_an_error(loc, direction, message):
+    with pytest.raises(ValueError, match=message), circuit.drawing(alt="x") as c:
+        getattr(c.resistor("R", "1 kΩ", loc=loc), direction)()
+    # The failed drawing leaves no state behind for the next one.
+    assert drawing_stack.drawing_stack == {}
+    assert circuit._ACTIVE == []
 
 
 def test_current_arrow_needs_room_on_the_lead():

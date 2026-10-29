@@ -13,11 +13,13 @@ strings with units (``R1='4.7 kΩ'``), plain numbers in SI units (``C=1e-7``) or
 connects, every reference arrow with its nodes, and derived numbers (gain, cut-off frequency)
 so a verifier can check the figure against an exercise.
 
-The escape hatch for circuits no template covers is `drawing`:
+The escape hatch for circuits no template covers is `drawing`. A component label goes above
+a horizontal and left of a vertical element unless `loc` says otherwise; a voltage arrow
+without `side` takes the other side, so label and arrow never meet:
 
     with circuit.drawing(alt="...") as c:
         r = c.resistor("R_1", "1 kΩ", nodes=("1", "2")).right()
-        c.capacitor("C", "10 nF", nodes=("2", "0")).down()
+        c.capacitor("C", "10 nF", nodes=("2", "0"), loc="right").down()
         circuit.zaehlpfeil_u(r, "U_1")
     return c.figure
 """
@@ -33,6 +35,7 @@ from typing import Any, ClassVar
 
 import schemdraw
 import schemdraw.elements as elm
+from schemdraw import drawing_stack as schemdraw_stack
 from schemdraw.elements.elements import Element, Element2Term, gap
 from schemdraw.segments import Segment, SegmentCircle, SegmentPoly, SegmentText
 from schemdraw.util import Point
@@ -202,24 +205,57 @@ def value_label(symbol: str, q: Quantity | None, stacked: bool = False) -> str:
 # DIN EN 60617 elements
 # --------------------------------------------------------------------------------------
 
-# Absolute label side -> schemdraw's element-relative location for vertical elements.
-_VERTICAL_LOC = {"left": "top", "right": "bottom", "top": "right", "bottom": "left"}
+# Page side -> schemdraw's element-relative location for vertical elements.
+_VERTICAL_LOC = {"left": "top", "right": "bottom"}
+# Page sides as unit vectors, and the sides across an element with the label default first.
+_SIDES = {"left": (-1, 0), "right": (1, 0), "top": (0, 1), "bottom": (0, -1)}
+_ACROSS = {"horizontal": ("top", "bottom"), "vertical": ("left", "right")}
+
+
+def _orientation(theta: float) -> str:
+    """'horizontal', 'vertical' or 'diagonal' for a drawing angle in degrees."""
+    s = abs(math.sin(math.radians(theta)))
+    return "vertical" if s > 0.9 else "horizontal" if s < 0.45 else "diagonal"
 
 
 class _Din(Element2Term):
     """Two-terminal element whose label `loc` means the side on the page.
 
-    `loc='left'` puts the label left of the element whichever way it is drawn.
+    `loc='left'` puts the label left of the element whichever way it is drawn; 'auto' puts
+    it above a horizontal and left of a vertical element. A side along the element (top or
+    bottom of a vertical one) is an error, since the label would land on a lead end.
     `body_len` is the symbol length along the wire, `half_width` its half extent across.
+    The page sides the labels ended up on are in `label_sides` once the element is placed.
     """
 
     body_len = 1.0
     half_width = 0.2
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.label_sides: set[str] = set()
+
+    def _place(self, dwgxy, dwgtheta, **dwgparams):
+        self.label_sides = set()
+        return super()._place(dwgxy, dwgtheta, **dwgparams)
+
     def _place_label(self, label, theta=0):
-        if abs(math.sin(math.radians(theta))) > 0.9 and label.loc in _VERTICAL_LOC:
-            label = dataclasses.replace(label, loc=_VERTICAL_LOC[label.loc])
-        super()._place_label(label, theta)
+        orientation = _orientation(theta)
+        loc = label.loc
+        if orientation == "diagonal":
+            loc = "top" if loc == "auto" else loc
+        elif loc == "auto" or loc in _SIDES:
+            across = _ACROSS[orientation]
+            loc = across[0] if loc == "auto" else loc
+            if loc not in across:
+                raise ValueError(
+                    f"label {label.label!r}: side {loc!r} runs along the {orientation} "
+                    f"element, use {' or '.join(repr(s) for s in across)}"
+                )
+            self.label_sides.add(loc)
+            if orientation == "vertical":
+                loc = _VERTICAL_LOC[loc]
+        super()._place_label(dataclasses.replace(label, loc=loc), theta)
 
 
 class Resistor(_Din):
@@ -435,13 +471,25 @@ def _unit(p1: Point, p2: Point) -> tuple[Point, Point]:
     return u, Point((-u.y, u.x))
 
 
-_SIDES = {"left": (-1, 0), "right": (1, 0), "top": (0, 1), "bottom": (0, -1)}
+def _default_side(target, u: Point, kind: str) -> str:
+    """Default page side for a reference arrow label beside `target` (direction `u`).
+
+    A voltage arrow goes to the side the element's own label leaves free (right of a
+    vertical, above a horizontal element when there is no label). A current label sits on a
+    lead: beside a vertical element it shares the side of the element label, which is
+    centred on the body, and so stays clear of the voltage arrow; beside a horizontal
+    element the wide value label reaches over the leads, so it takes the free side.
+    """
+    vertical = abs(u.y) > abs(u.x)
+    labelled = getattr(target, "label_sides", set())
+    if kind == "current" and vertical:
+        return "left" if "left" in labelled or not labelled else "right"
+    order = ("right", "left") if vertical else ("top", "bottom")
+    return next((s for s in order if s not in labelled), order[0])
 
 
-def _side_normal(normal: Point, side: str | None, u: Point) -> Point:
+def _side_normal(normal: Point, side: str, u: Point) -> Point:
     """Normal pointing to the requested page side ('left', 'right', 'top', 'bottom')."""
-    if side is None:
-        side = "right" if abs(u.y) > abs(u.x) else "top"
     if side not in _SIDES:
         raise ValueError(f"side must be one of {', '.join(_SIDES)}, not {side!r}")
     sx, sy = _SIDES[side]
@@ -490,7 +538,9 @@ def zaehlpfeil_u(
     target: a placed or pending two-terminal element (the arrow runs parallel to it, from
     its start to its end) or a pair of points such as two terminals (the arrow joins them).
     label: TeX, e.g. 'U_1' or '\\underline{U}_C'. side: page side for arrow and label
-    ('left', 'right', 'top', 'bottom'); default right of vertical, above horizontal ones.
+    ('left', 'right', 'top', 'bottom'); default the side the element's own label does not
+    use (below a horizontal element labelled above it, right of a vertical one labelled on
+    the left), else right of vertical and above horizontal elements.
     reverse: point from end to start. The arrow points from + to - (DIN 5489).
     nodes: (from, to) for the facts when the target is not a recorded component.
     """
@@ -499,7 +549,7 @@ def zaehlpfeil_u(
         p1, p2 = p2, p1
     u, normal = _unit(p1, p2)
     is_points = not isinstance(target, Element)
-    normal = _side_normal(normal, side, u)
+    normal = _side_normal(normal, side or _default_side(target, u, "voltage"), u)
     mid = Point(((p1.x + p2.x) / 2, (p1.y + p2.y) / 2))
     if is_points:
         span = math.dist(p1, p2)
@@ -536,12 +586,15 @@ def zaehlpfeil_i(
 
     target: a two-terminal element (the head sits on its `end` lead, 'start' or 'end'),
     a Line, or a pair of points. pos: fraction along a line/point pair (default 0.5).
-    The head points from the target's start to its end unless `reverse`.
+    The head points from the target's start to its end unless `reverse`. side: page side
+    of the label; default left of vertical and above horizontal wires, and for an element
+    the side that stays clear of its value label and voltage arrow (see `_default_side`).
     nodes: (from, to) for the facts when the target is not a recorded component.
     """
     p1, p2 = _endpoints(target)
     u, normal = _unit(p1, p2)
     span = math.dist(p1, p2)
+    outward = None  # on an element lead: direction along the wire away from the body
     if not isinstance(target, Element2Term) or isinstance(target, elm.Line):
         center = p1 + u * (span * (0.5 if pos is None else pos))
     else:
@@ -553,6 +606,7 @@ def zaehlpfeil_i(
             raise ValueError("end must be 'start' or 'end'")
         along = lead / 2 if end == "start" else span - lead / 2
         center = p1 + u * along
+        outward = u * (-1 if end == "start" else 1)
     direction = u * (-1 if reverse else 1)
     hl, hw = I_HEAD
     tip = center + direction * (hl / 2)
@@ -560,10 +614,13 @@ def zaehlpfeil_i(
     stroke = ROLES.get(color, color)
     head = Segment([tail, tip], arrow="->", arrowlength=hl, arrowwidth=hw, color=stroke)
     if side is None:
-        side = "left" if abs(u.y) > abs(u.x) else "top"
+        side = _default_side(target, u, "current")
     normal = _side_normal(normal, side, u)
     text_at = center + normal * (hw / 2 + LABEL_GAP)
     halign, valign = _align(normal)
+    if outward is not None and abs(u.x) > abs(u.y):
+        # Beside a horizontal element the label runs outward, clear of the voltage arrow.
+        halign = "right" if outward.x < 0 else "left"
     el = _Overlay([head], [(text_at, _tex(label), halign, valign)], color=stroke, zorder=5)
     _record_arrow("current", target, label, reverse, nodes)
     return el
@@ -647,8 +704,16 @@ class drawing:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        self.d.__exit__(exc_type, exc, tb)
-        _ACTIVE.remove(self)
+        stack = schemdraw_stack.drawing_stack
+        try:
+            if exc_type is not None and self.d in stack:
+                # Nothing is rendered: drop the pending element instead of placing it, since
+                # placing it may be what failed (e.g. a label side along the element).
+                stack[self.d] = None
+            self.d.__exit__(exc_type, exc, tb)
+        finally:
+            _ACTIVE.remove(self)
+            stack.pop(self.d, None)  # schemdraw leaves it there when placing raised
         if exc_type is None and self._render_on_exit:
             self.figure = self._render()
 
@@ -661,16 +726,20 @@ class drawing:
         symbol: str,
         value: Value = None,
         nodes: Sequence[str] = ("", ""),
-        loc: str | None = "top",
+        loc: str | None = "auto",
         stacked: bool = False,
     ) -> Element:
         """Label `element` with symbol and value and record it in the facts.
 
-        loc: page side of the label ('top', 'bottom', 'left', 'right') or None for no label.
+        loc: page side of the label across the element ('top' or 'bottom' of a horizontal,
+        'left' or 'right' of a vertical element), 'auto' (above horizontal, left of vertical
+        elements) or None for no label. A voltage arrow without a `side` goes opposite.
         """
         q = quantity(value, kind)
         label = value_label(symbol, q, stacked) if loc is not None else None
         if label is not None:
+            if loc == "auto" and not isinstance(element, _Din):
+                loc = "top"
             element.label(label, loc=loc)
         if len(nodes) != 2:
             raise ValueError("nodes must name the two nodes the element connects")
@@ -691,14 +760,14 @@ class drawing:
         self.values[entry["name"]] = q
         return element
 
-    def resistor(self, symbol="R", value: Value = None, nodes=("", ""), loc="top", stacked=False):
+    def resistor(self, symbol="R", value: Value = None, nodes=("", ""), loc="auto", stacked=False):
         return self.component(Resistor(), "resistor", symbol, value, nodes, loc, stacked)
 
-    def capacitor(self, symbol="C", value: Value = None, nodes=("", ""), loc="top", stacked=False):
+    def capacitor(self, symbol="C", value: Value = None, nodes=("", ""), loc="auto", stacked=False):
         return self.component(Capacitor(), "capacitor", symbol, value, nodes, loc, stacked)
 
     def inductor(
-        self, symbol="L", value: Value = None, nodes=("", ""), loc="top", stacked=False, arcs=False
+        self, symbol="L", value: Value = None, nodes=("", ""), loc="auto", stacked=False, arcs=False
     ):
         el = Inductor(arcs=arcs)
         return self.component(el, "inductor", symbol, value, nodes, loc, stacked)
