@@ -19,7 +19,7 @@ them in the same change.
 
 ## 1. Repository layout
 
-Entries marked *(Phase n)* are planned and do not exist yet.
+Entries marked (Phase n) are planned and do not exist yet.
 
 ```
 study-kit/
@@ -797,7 +797,8 @@ and refreshes them when progress changes on the page or in another tab, and when
 comes back from the back/forward cache. `scripts/site.ts` holds the shell's small
 enhancements (search shortcut `/`, countdowns, plan day marks, list filters, table-of-contents
 spy, the current tab scrolled into view, `<details>` opened for printing); it never touches
-progress. Every page works without JavaScript.
+progress. Without JavaScript the content stays readable (hints and solutions are plain
+`<details>`); quizzes, answer checks and progress need it.
 
 **Language of parts.** UI chrome is English, course text follows `course.lang`. Inside a
 course page the shell marks its own text `lang="en"`; the elements mark their UI text
