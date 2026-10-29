@@ -856,31 +856,198 @@ def _flow_layout(nodes: list[_Node], edges: list[tuple[str, str, str]]) -> set[i
     for u in topo:
         preds = [by_id[a].layer for a, v in fwd if v == u]
         by_id[u].layer = max(preds) + 1 if preds else 0
+    # A node continues the column of the node whose first edge (straight down) reaches it;
+    # further branches go to the right.
+    first: dict[str, int] = {}
+    for i, (u, _, _) in enumerate(edges):
+        if i not in back:
+            first.setdefault(u, i)
+    main_parent: dict[str, str] = {}
+    for u in topo:
+        if u in first:
+            main_parent.setdefault(edges[first[u]][1], u)
     taken: set[tuple[int, int]] = set()
     placed: set[str] = set()
+
+    def put(node: _Node, col: int) -> None:
+        while (node.layer, col) in taken:
+            col += 1
+        node.col = col
+        taken.add((node.layer, col))
+        placed.add(node.id)
+
     for u in topo:
         node = by_id[u]
         if u not in placed:
-            col = 0
-            while (node.layer, col) in taken:
-                col += 1
-            node.col = col
-            taken.add((node.layer, col))
-            placed.add(u)
-        children = [edges[i][1] for i in out_edges[u] if i not in back]
+            put(node, 0)
         j = 0
-        for v in children:
-            if v in placed:
+        for i in out_edges[u]:
+            v = edges[i][1]
+            if i in back or v in placed or main_parent.get(v, u) != u:
                 continue
-            child = by_id[v]
-            col = node.col + j
-            while (child.layer, col) in taken:
-                col += 1
-            child.col = col
-            taken.add((child.layer, col))
-            placed.add(v)
-            j += 1
+            if i == first[u]:
+                put(by_id[v], node.col)
+            else:
+                j += 1
+                put(by_id[v], node.col + j)
     return back
+
+
+def _track_offset(i: int, outer: int) -> float:
+    """Offset of track i in a gap: alternating around the middle, outwards at the border."""
+    if outer:
+        return outer * i * TRACK
+    return (i + 1) // 2 * TRACK * (1 if i % 2 else -1)
+
+
+class _Tracks:
+    """Parallel tracks in a gap between columns or rows; one key shares one track."""
+
+    def __init__(self) -> None:
+        self.keys: dict[tuple[str, int], list] = {}
+
+    def take(self, axis: str, gap: int, key) -> int:
+        keys = self.keys.setdefault((axis, gap), [])
+        if key not in keys:
+            keys.append(key)
+        return keys.index(key)
+
+    def count(self, axis: str, gap: int) -> int:
+        return len(self.keys.get((axis, gap), []))
+
+
+BRANCH_ROOM = 0.3  # a branch label's line runs on this far past the label
+
+
+def _flow_routes(nodes, edges, back, cells, shape, col_w, row_h, gap_w, band_h):
+    """Orthogonal routes of all edges; also the gap widths and band heights they need.
+
+    Vertical runs use tracks in the gaps between columns, horizontal runs tracks in the
+    bands between rows; every track is a physical gap position, so two edges never share
+    one unless they enter the same node. Loops run up the outer lane: on the left when
+    they start in the first column, else on the right.
+    """
+    cols, rows = shape
+    by_id = {n.id: n for n in nodes}
+    col_x = [0.0]
+    for c in range(1, cols):
+        col_x.append(col_x[-1] + col_w[c - 1] / 2 + gap_w[c] + col_w[c] / 2)
+    row_y = [0.0]
+    for r in range(1, rows):
+        row_y.append(row_y[-1] - row_h[r - 1] / 2 - band_h[r] - row_h[r] / 2)
+    for n in nodes:
+        n.xy = np.array([col_x[n.col], row_y[n.layer]])
+    tracks = _Tracks()
+
+    def lane(g: int, key) -> float:
+        i = tracks.take("x", g, key)
+        if g == 0:
+            return col_x[0] - col_w[0] / 2 - gap_w[0] / 2 + _track_offset(i, -1)
+        if g == cols:
+            return col_x[-1] + col_w[-1] / 2 + gap_w[g] / 2 + _track_offset(i, 1)
+        left, right = col_x[g - 1] + col_w[g - 1] / 2, col_x[g] - col_w[g] / 2
+        return (left + right) / 2 + _track_offset(i, 0)
+
+    def band(b: int, key) -> float:
+        i = tracks.take("y", b, key)
+        if b == 0:
+            return row_y[0] + row_h[0] / 2 + band_h[0] / 2 + _track_offset(i, 1)
+        if b == rows:
+            return row_y[-1] - row_h[-1] / 2 - band_h[b] / 2 + _track_offset(i, -1)
+        top, bottom = row_y[b - 1] - row_h[b - 1] / 2, row_y[b] + row_h[b] / 2
+        return (top + bottom) / 2 + _track_offset(i, 0)
+
+    def column_clear(col: int, lo: int, hi: int) -> bool:
+        return all((layer, col) not in cells for layer in range(lo + 1, hi))
+
+    def row_clear(layer: int, a: int, b: int) -> bool:
+        lo, hi = min(a, b), max(a, b)
+        return all((layer, c) not in cells for c in range(lo, hi + 1))
+
+    used_ports: dict[str, set[str]] = {n.id: set() for n in nodes}
+    routes = []
+    room: dict[int, float] = {}  # gap -> extra width a branch label needs
+    for i, (u_id, v_id, label) in enumerate(edges):
+        u, v = by_id[u_id], by_id[v_id]
+        free = [p for p in ("S", "E", "W") if p not in used_ports[u_id]]
+        is_back = i in back
+        outer = "W" if u.col == 0 else "E"
+        if u.kind != "decision":
+            port = "S"
+        elif is_back:
+            sides = [outer, *(p for p in ("W", "E") if p != outer)]
+            out_of_row = {"W": range(u.col), "E": range(u.col + 1, cols)}
+            ok = [
+                p
+                for p in sides
+                if p in free and all((u.layer, c) not in cells for c in out_of_row[p])
+            ]
+            port = ok[0] if ok else ("S" if "S" in free else free[0] if free else "S")
+        elif v.col == u.col and "S" in free:
+            port = "S"
+        elif v.col > u.col and "E" in free:
+            port = "E"
+        elif v.col < u.col and "W" in free:
+            port = "W"
+        else:
+            port = free[0] if free else "S"
+        used_ports[u_id].add(port)
+        start, end = u.port(port), v.port("N")
+        if is_back:
+            side = port if port in ("W", "E") else outer
+            x_l = lane(0 if side == "W" else cols, i)
+            y_c = band(v.layer, ("in", v_id))
+            if port == "S":
+                y_b = band(u.layer + 1, ("out", i))
+                pts = [start, (u.xy[0], y_b), (x_l, y_b)]
+            else:
+                pts = [start, (x_l, start[1])]
+            pts += [(x_l, y_c), (v.xy[0], y_c), end]
+        elif port == "S" and v.col == u.col and column_clear(u.col, u.layer, v.layer):
+            pts = [start, end]
+        elif port == "S":
+            y_c = band(v.layer, ("in", v_id))
+            if column_clear(u.col, u.layer, v.layer):
+                pts = [start, (u.xy[0], y_c), (v.xy[0], y_c), end]
+            else:
+                x_l = lane(u.col + 1, i)
+                y_b = band(u.layer + 1, ("out", i))
+                pts = [start, (u.xy[0], y_b), (x_l, y_b), (x_l, y_c), (v.xy[0], y_c), end]
+        else:
+            step = 1 if port == "E" else -1
+            row_free = row_clear(u.layer, u.col + step, v.col)
+            if row_free and column_clear(v.col, u.layer - 1, v.layer) and v.col != u.col:
+                pts = [start, (v.xy[0], start[1]), end]
+            else:
+                g = u.col + 1 if port == "E" else u.col
+                x_l = lane(g, i)
+                y_c = band(v.layer, ("in", v_id))
+                pts = [start, (x_l, start[1]), (x_l, y_c), (v.xy[0], y_c), end]
+        pts = [np.asarray(p, dtype=float) for p in pts]
+        if label and port in ("E", "W") and len(pts) > 2:
+            shown, math_ = _rich(label)
+            need = text_size(shown, LABEL_PT, math=math_)[0] + BRANCH_ROOM
+            short = need - abs(pts[1][0] - pts[0][0])
+            if short > 0:
+                g = (u.col + 1 if port == "E" else u.col) if not is_back else (
+                    0 if port == "W" else cols)  # fmt: skip
+                room[g] = max(room.get(g, 0.0), short)
+        routes.append(
+            {"src": u_id, "dst": v_id, "label": label, "port": port, "back": is_back, "pts": pts}
+        )
+
+    def need(axis: str, gap: int, outer: bool, base: float, margin: float) -> float:
+        n = tracks.count(axis, gap)  # tracks alternate around the middle of an inner gap
+        spread = 0.0 if outer else 2 * (n // 2) * TRACK + margin
+        return max(base, spread)
+
+    # Widening a gap by 2 d moves its lanes by d, past a branch label that is d too long.
+    need_w = [
+        max(need("x", g, g in (0, cols), FLOW_H_GAP, 0.7), gap_w[g] + 2 * room.get(g, 0.0))
+        for g in range(cols + 1)
+    ]
+    need_h = [need("y", b, b in (0, rows), FLOW_V_GAP, 0.6) for b in range(rows + 1)]
+    return routes, need_w, need_h
 
 
 def flowchart(
@@ -894,8 +1061,11 @@ def flowchart(
 
     nodes: (id, kind, text) with kind in start, end, process, decision, io.
     edges: (src, dst) or (src, dst, label). The first edge out of a node continues straight
-    down; further branches of a decision go right; edges back to an earlier node (loops)
-    run up on the left and join the target from above.
+    down, and a node stays in the column of the node whose first edge reaches it; further
+    branches of a decision go right. Edges back to an earlier node (loops) run up the outer
+    lane, on the left (on the right when they start right of the first column), and join
+    the target from above. Node texts and edge labels follow `block.label` (plain text by
+    default, `$…$` for inline math).
     """
     nodes_ = _parse_nodes(nodes)
     by_id = {n.id: n for n in nodes_}
@@ -915,96 +1085,20 @@ def flowchart(
     rows = max(n.layer for n in nodes_) + 1
     col_w = [max((n.w for n in nodes_ if n.col == c), default=1.0) for c in range(cols)]
     row_h = [max((n.h for n in nodes_ if n.layer == r), default=1.0) for r in range(rows)]
-    col_x = np.cumsum(
-        [0.0] + [col_w[c] / 2 + col_w[c + 1] / 2 + FLOW_H_GAP for c in range(cols - 1)]
-    )
-    row_y = -np.cumsum(
-        [0.0] + [row_h[r] / 2 + row_h[r + 1] / 2 + FLOW_V_GAP for r in range(rows - 1)]
-    )
-    for n in nodes_:
-        n.xy = np.array([col_x[n.col], row_y[n.layer]])
     cells = {(n.layer, n.col) for n in nodes_}
-
-    def lane(col: int, side: str) -> float:
-        edge = col_x[col] + (col_w[col] / 2 if side == "E" else -col_w[col] / 2)
-        return edge + (FLOW_H_GAP / 2 if side == "E" else -FLOW_H_GAP / 2)
-
-    channel_targets: dict[int, list[str]] = {}
-    lane_use: dict[tuple[int, str], int] = {}
-
-    def channel_above(v: _Node) -> float:
-        targets = channel_targets.setdefault(v.layer, [])
-        if v.id not in targets:
-            targets.append(v.id)
-        i = targets.index(v.id)
-        offset = (0, TRACK, -TRACK, 2 * TRACK, -2 * TRACK)[min(i, 4)]
-        return row_y[v.layer] + row_h[v.layer] / 2 + FLOW_V_GAP / 2 + offset
-
-    def channel_below(u: _Node) -> float:
-        return row_y[u.layer] - row_h[u.layer] / 2 - FLOW_V_GAP / 2
-
-    def lane_x(col: int, side: str) -> float:
-        i = lane_use.get((col, side), 0)
-        lane_use[(col, side)] = i + 1
-        return lane(col, side) + (i * TRACK if side == "E" else -i * TRACK)
-
-    def column_clear(col: int, lo: int, hi: int) -> bool:
-        return all((layer, col) not in cells for layer in range(lo + 1, hi))
-
-    used_ports: dict[str, set[str]] = {n.id: set() for n in nodes_}
-    routes = []
-    for i, (u_id, v_id, label) in enumerate(edges_):
-        u, v = by_id[u_id], by_id[v_id]
-        free = [p for p in ("S", "E", "W") if p not in used_ports[u_id]]
-        is_back = i in back
-        if u.kind != "decision":
-            port = "S"
-        elif is_back:
-            port = "W" if "W" in free else ("E" if "E" in free else "S")
-        elif v.col == u.col and "S" in free:
-            port = "S"
-        elif v.col > u.col and "E" in free:
-            port = "E"
-        elif v.col < u.col and "W" in free:
-            port = "W"
-        else:
-            port = free[0] if free else "S"
-        used_ports[u_id].add(port)
-        start, end = u.port(port), v.port("N")
-        if is_back:
-            side = "E" if port == "E" else "W"
-            x_l = lane_x(u.col, side)
-            y_c = channel_above(v)
-            if port == "S":
-                pts = [start, (u.xy[0], channel_below(u)), (x_l, channel_below(u))]
-            else:
-                pts = [start, (x_l, start[1])]
-            pts += [(x_l, y_c), (v.xy[0], y_c), end]
-        elif port == "S" and v.col == u.col and column_clear(u.col, u.layer, v.layer):
-            pts = [start, end]
-        elif port == "S":
-            y_c = channel_above(v)
-            if column_clear(u.col, u.layer, v.layer):
-                pts = [start, (u.xy[0], y_c), (v.xy[0], y_c), end]
-            else:
-                x_l = lane_x(u.col, "E")
-                y_b = channel_below(u)
-                pts = [start, (u.xy[0], y_b), (x_l, y_b), (x_l, y_c), (v.xy[0], y_c), end]
-        else:
-            step = 1 if port == "E" else -1
-            row_free = all(
-                (u.layer, c) not in cells for c in range(u.col + step, v.col + step, step)
-            )
-            if row_free and column_clear(v.col, u.layer - 1, v.layer) and v.col != u.col:
-                pts = [start, (v.xy[0], start[1]), end]
-            else:
-                x_l = lane_x(u.col, port)
-                y_c = channel_above(v)
-                pts = [start, (x_l, start[1]), (x_l, y_c), (v.xy[0], y_c), end]
-        pts = [np.asarray(p, dtype=float) for p in pts]
-        routes.append(
-            {"src": u_id, "dst": v_id, "label": label, "port": port, "back": is_back, "pts": pts}
+    # Gap g lies left of column g (g = cols: right of the last one), band b above row b.
+    gap_w = [FLOW_H_GAP] * (cols + 1)
+    band_h = [FLOW_V_GAP] * (rows + 1)
+    for _ in range(3):
+        routes, need_w, need_h = _flow_routes(
+            nodes_, edges_, back, cells, (cols, rows), col_w, row_h, gap_w, band_h
         )
+        if all(n <= w + 1e-9 for n, w in zip(need_w, gap_w, strict=True)) and all(
+            n <= h + 1e-9 for n, h in zip(need_h, band_h, strict=True)
+        ):
+            break
+        gap_w = [max(w, n) for w, n in zip(gap_w, need_w, strict=True)]
+        band_h = [max(h, n) for h, n in zip(band_h, need_h, strict=True)]
 
     sheet = Sheet()
     for route in routes:
@@ -1056,10 +1150,36 @@ def flowchart(
         ],
         "layers": rows,
         "columns": cols,
+        # Pairs of collinear, overlapping segments of edges into different nodes (0: no
+        # route runs on top of another).
+        "shared_segments": _shared_segments(routes),
     }
     if alt is None:
         alt = _flow_alt(nodes_, edges_)
     return sheet.render(size, alt, facts)
+
+
+def _shared_segments(routes: list[dict]) -> int:
+    segments = []
+    for k, route in enumerate(routes):
+        for a, b in itertools.pairwise(route["pts"]):
+            if not np.allclose(a, b):
+                segments.append((k, route["dst"], a, b))
+    count = 0
+    for (k1, d1, a1, b1), (k2, d2, a2, b2) in itertools.combinations(segments, 2):
+        if k1 == k2 or d1 == d2:
+            continue  # edges into one node merge on purpose
+        for axis in (0, 1):  # 0: vertical segments (same x), 1: horizontal (same y)
+            if (
+                max(abs(a1[axis] - b1[axis]), abs(a2[axis] - b2[axis]), abs(a1[axis] - a2[axis]))
+                > 1e-6
+            ):
+                continue
+            o = 1 - axis
+            lo = max(min(a1[o], b1[o]), min(a2[o], b2[o]))
+            hi = min(max(a1[o], b1[o]), max(a2[o], b2[o]))
+            count += hi - lo > 1e-6
+    return count
 
 
 def _flow_alt(nodes: list[_Node], edges: list[tuple[str, str, str]]) -> str:

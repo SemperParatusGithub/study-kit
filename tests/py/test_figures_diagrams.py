@@ -342,6 +342,71 @@ def test_flowchart_loop_layout(locale):
     assert back[-1][1] > nodes["d"]["xy"][1]
 
 
+NESTED_NODES = [
+    ("s", "start", "Start"),
+    ("init", "process", "n = 0, s = 0"),
+    ("d1", "decision", "n < 10?"),
+    ("d2", "decision", "n gerade?"),
+    ("add", "process", "s = s + n"),
+    ("inc", "process", "n = n + 1"),
+    ("out", "io", "Ausgabe s"),
+    ("e", "end", "Ende"),
+]
+NESTED_EDGES = [
+    ("s", "init"),
+    ("init", "d1"),
+    ("d1", "d2", "ja"),
+    ("d2", "add", "ja"),
+    ("add", "inc"),
+    ("d2", "inc", "nein"),
+    ("inc", "d1"),
+    ("d1", "out", "nein"),
+    ("out", "e"),
+]
+
+
+def _xs(points) -> set[float]:
+    return {round(a[0], 3) for a, b in itertools.pairwise(points) if abs(a[0] - b[0]) < 1e-9}
+
+
+def test_flowchart_if_inside_a_loop(locale):
+    fig = graph.flowchart(NESTED_NODES, NESTED_EDGES)
+    assert validate_svg(fig.svg) == []
+    f = fig.facts
+    assert f["shared_segments"] == 0
+    nodes = {n["id"]: n for n in f["nodes"]}
+    # The loop body stays in the main column, under the inner branch, above nothing else.
+    assert [nodes[k]["column"] for k in ("init", "d1", "d2", "add", "inc")] == [0] * 5
+    assert nodes["inc"]["layer"] == nodes["add"]["layer"] + 1
+    assert [nodes[k]["column"] for k in ("out", "e")] == [1, 1]
+    edges = {(e["src"], e["dst"]): e for e in f["edges"]}
+    back, branch = edges[("inc", "d1")], edges[("d2", "inc")]
+    assert back["back"] and min(p[0] for p in back["points"]) < nodes["d1"]["xy"][0] - 1.0
+    # The loop runs up a lane left of every node, the 'nein' branch down a lane on the right.
+    centres = {round(n["xy"][0], 3) for n in f["nodes"]}
+    (back_lane,) = _xs(back["points"]) - centres
+    (branch_lane,) = _xs(branch["points"]) - centres
+    assert back_lane < min(centres) - 1.2
+    assert nodes["d2"]["xy"][0] < branch_lane < nodes["out"]["xy"][0]
+
+
+def test_flowchart_loop_from_a_side_column_runs_on_the_right(locale):
+    nodes = [("s", "start", "Start"), ("d", "decision", "fertig?"), ("e", "end", "Ende"),
+             ("w", "process", "Arbeite"), ("x", "process", "Zähle hoch")]  # fmt: skip
+    edges = [("s", "d"), ("d", "e", "ja"), ("d", "w", "nein"), ("w", "x"), ("x", "d")]
+    f = graph.flowchart(nodes, edges).facts
+    assert f["shared_segments"] == 0
+    xy = {n["id"]: n["xy"] for n in f["nodes"]}
+    back = next(e for e in f["edges"] if e["back"])
+    assert max(_xs(back["points"])) > max(x for x, _ in xy.values()) + 1.0
+    # Repeat-until: the loop leaves the decision to the left.
+    nodes = [("s", "start", "Start"), ("a", "process", "Messwert einlesen"),
+             ("d", "decision", "Wert gültig?"), ("p", "process", "Mittelwert bilden")]  # fmt: skip
+    f = graph.flowchart(nodes, [("s", "a"), ("a", "d"), ("d", "p", "ja"), ("d", "a", "nein")]).facts
+    back = next(e for e in f["edges"] if e["back"])
+    assert back["port"] == "W" and f["shared_segments"] == 0
+
+
 def test_state_and_flowchart_labels_follow_the_locale(monkeypatch):
     monkeypatch.setenv("STUDYKIT_LOCALE", "de")
     sm = graph.state_machine({"A": "0.5", "B": "1.5"}, [("A", "B", "x > 0.5")], initial="A")
