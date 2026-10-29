@@ -58,6 +58,11 @@ commit_file() {
   git -C "$repo" commit -q -m "test: add a file"
 }
 
+# literal_pathspecs <command...>: run <command> with git's pathspec magic switched off
+literal_pathspecs() {
+  GIT_LITERAL_PATHSPECS=1 "$@"
+}
+
 # commit_msg <message>: run the commit-msg hook on <message>
 commit_msg() {
   printf '%s\n' "$1" >"$tmp/msg"
@@ -67,11 +72,19 @@ commit_msg() {
 echo "pre-commit"
 rejected_by="pre-commit:"
 expect fail "course file" commit_file "courses/et1/overview.md"
+# git quotes names with non-ASCII characters or quotes in its path output
+expect fail "course file with an umlaut and a space" commit_file "courses/et1/sources/Übung 3.md"
+expect fail "course file with a double quote" commit_file 'courses/et1/sources/"draft".md'
 expect pass "courses/README.md" commit_file "courses/README.md"
 expect pass "ordinary file" commit_file "docs/notes.md"
+expect pass "ordinary file with an umlaut" commit_file "docs/Übersicht.md"
 expect fail "pdf" commit_file "docs/plain.pdf"
 expect fail "upper-case pdf at the top level" commit_file "Skript.PDF"
+expect fail "pdf with an umlaut and a space" commit_file "docs/Skript Ü.pdf"
 expect pass "pdf under tests/fixtures" commit_file "tests/fixtures/sample.pdf"
+expect pass "pdf with an umlaut under tests/fixtures" commit_file "tests/fixtures/Übung.pdf"
+# with literal pathspecs from the environment, the PDF pattern would match nothing
+expect fail "pdf with GIT_LITERAL_PATHSPECS set" literal_pathspecs commit_file "docs/plain.pdf"
 
 echo "commit-msg"
 rejected_by="commit-msg:"

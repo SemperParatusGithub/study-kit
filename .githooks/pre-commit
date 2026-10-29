@@ -2,20 +2,25 @@
 # Keep course material and generated course content out of this public repository.
 set -eu
 
-staged=$(git diff --cached --name-only --diff-filter=ACMR)
-[ -z "$staged" ] && exit 0
+# git matches the staged paths against pathspecs itself: its path output quotes names with
+# non-ASCII characters or quotes (common in lecture file names), so parsing it misses them.
+# The pathspec settings from the environment would change what the patterns mean.
+unset GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS GIT_ICASE_PATHSPECS
+staged() {
+  git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR -- "$@"
+}
 
-bad_courses=$(printf '%s\n' "$staged" | grep -E '^courses/' | grep -vx 'courses/README.md' || true)
+bad_courses=$(staged 'courses/' ':(exclude)courses/README.md')
 if [ -n "$bad_courses" ]; then
   echo "pre-commit: course data must never be committed (courses/ is local only):" >&2
-  printf '  %s\n' $bad_courses >&2
+  printf '%s\n' "$bad_courses" | sed 's/^/  /' >&2
   echo "unstage with: git restore --staged <path>" >&2
   exit 1
 fi
 
-bad_pdfs=$(printf '%s\n' "$staged" | grep -Ei '\.pdf$' | grep -Ev '^tests/fixtures/' || true)
+bad_pdfs=$(staged ':(glob,icase)**/*.pdf' ':(exclude,glob)tests/fixtures/**')
 if [ -n "$bad_pdfs" ]; then
   echo "pre-commit: PDFs may only be committed under tests/fixtures/:" >&2
-  printf '  %s\n' $bad_pdfs >&2
+  printf '%s\n' "$bad_pdfs" | sed 's/^/  /' >&2
   exit 1
 fi
