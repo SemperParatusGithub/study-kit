@@ -236,6 +236,10 @@ def style_findings(doc: Document, *, forbid_latex: bool = False) -> list[Finding
     return out
 
 
+def _codepoint(character: str | int) -> int:
+    return character if isinstance(character, int) else ord(character)
+
+
 def load(text: str, *, path: str, line_offset: int = 0, forbid_latex: bool = False) -> Document:
     """Parse one YAML document with the strict loader and lint its scalar styles.
 
@@ -247,7 +251,21 @@ def load(text: str, *, path: str, line_offset: int = 0, forbid_latex: bool = Fal
     if control:
         doc.findings.extend(control)
         return doc
-    loader = StrictLoader(text)
+    try:
+        loader = StrictLoader(text)
+    except yaml.reader.ReaderError as exc:  # non-characters such as U+FFFE
+        before = text[: exc.position]
+        doc.findings.append(
+            Finding(
+                path,
+                line_offset + before.count("\n") + 1,
+                len(before) - (before.rfind("\n") + 1) + 1,
+                "SK-YAML-CONTROL",
+                f"character U+{_codepoint(exc.character):04X} is not allowed in YAML",
+                "delete it; write symbols as UTF-8 text or inside inline math",
+            )
+        )
+        return doc
     try:
         try:
             doc.node = loader.get_single_node()

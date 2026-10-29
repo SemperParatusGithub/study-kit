@@ -251,3 +251,10 @@ def test_locate_uses_the_line_offset():
     doc = yamlio.load("a: 1\nb:\n  - c: 2\n", path="x.md", line_offset=1)
     assert doc.locate(["b", 0, "c"]) == (4, 5)
     assert doc.locate(["missing"]) == (2, 1)
+
+
+def test_loader_reports_non_characters_with_position():
+    doc = yamlio.load("a: 1\nb: x￾\n", path="x.md", line_offset=1)
+    (finding,) = doc.findings
+    assert (finding.code, finding.line, finding.col) == ("SK-YAML-CONTROL", 3, 5)
+    assert doc.data is None
