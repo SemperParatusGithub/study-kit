@@ -94,8 +94,8 @@ export class SkExam extends HTMLElement {
   private visible = new Map<string, number>();
   private observer: IntersectionObserver | null = null;
   /**
-   * Keeps --sk-exam-head at the sticky head's height (scroll-margin of the parts) and the
-   * page's scroll-padding-top below it, so a control that gets focus is never under it.
+   * Keeps --sk-exam-head at the sticky head's height and the page's scroll-padding-top
+   * just below it, so a jump to a part or a control that gets focus is never under it.
    */
   private headSize: ResizeObserver | null = null;
   private session: ExamSession | null = null;
