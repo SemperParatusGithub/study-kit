@@ -196,7 +196,7 @@ inside `mcq`.
 Fix: close the outer block before opening the next one.
 
 ### `SK-BLOCK-HINTS`
-**error.** An exercise has fewer than 1 or more than 3 hints (an exam task 0 to 3).
+**error.** An exercise or exam task has fewer than 1 or more than 3 hints.
 Fix: 1–3 hints, ordered principle → set-up → key intermediate result.
 
 ### `SK-BLOCK-SOLUTION`

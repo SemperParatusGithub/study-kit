@@ -466,15 +466,15 @@ def _check_block_order(ctx: Context, doc: Doc) -> None:
     blocks = [b for b in body.blocks if b.known]
     hints = [b for b in blocks if b.name == "hint"]
     solutions = [b for b in blocks if b.name == "solution"]
-    low = 1 if doc.kind == "exercise" else 0
-    if not low <= len(hints) <= 3:
+    if not 1 <= len(hints) <= 3:
         line = body.lines[hints[3].open_line].no if len(hints) > 3 else body.lines[-1].no
+        what = "an exercise" if doc.kind == "exercise" else "an exam task"
         ctx.at(
             doc,
             line if hints else 1,
             1,
             "SK-BLOCK-HINTS",
-            f"{len(hints)} hint blocks; an {'exercise' if low else 'exam task'} has {low} to 3",
+            f"{len(hints)} hint blocks; {what} has 1 to 3",
             "order hints principle -> set-up -> key intermediate result",
         )
     if len(solutions) != 1:

@@ -233,3 +233,12 @@ def test_paths_accept_directories(mini: Path, denylist: Path):
     overlay(mini, BAD / "SK-BLOCK-UNKNOWN")
     assert codes(run(mini, denylist, paths=[mini / "mc"])) == {"SK-MCQ-KEY"}
     assert codes(run(mini, denylist, paths=[mini])) == {"SK-MCQ-KEY", "SK-BLOCK-UNKNOWN"}
+
+
+def test_exam_tasks_need_hints_like_exercises(mini: Path, denylist: Path):
+    task = mini / "exams" / "probeklausur-1" / "01-pk1-t1.md"
+    text = task.read_text()
+    start = text.index("::: hint")
+    task.write_text(text[:start] + text[text.index(":::\n\n", start) + 5 :])
+    (finding,) = run(mini, denylist, quick=True).findings
+    assert finding.code == "SK-BLOCK-HINTS" and "exam task has 1 to 3" in finding.message
