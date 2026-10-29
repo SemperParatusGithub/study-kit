@@ -1,0 +1,37 @@
+---
+import type { Course } from '../lib/courses';
+import { route } from '../lib/courses';
+import type { Tab } from '../layouts/Base.astro';
+
+interface Props {
+  course: Course;
+  active?: Tab;
+}
+
+const { course, active } = Astro.props;
+const c = course.id;
+const tabs: { id: Tab; label: string; href: string }[] = [
+  { id: 'overview', label: 'Overview', href: route.course(c) },
+  { id: 'plan', label: 'Plan', href: route.plan(c) },
+  { id: 'summary', label: 'Summary', href: route.summaries(c) },
+  { id: 'exercises', label: 'Exercises', href: route.exercises(c) },
+  { id: 'mc', label: 'MC', href: route.mc(c) },
+  { id: 'cheatsheet', label: 'Cheat sheet', href: route.cheatsheet(c) },
+  { id: 'exams', label: 'Exams', href: route.exams(c) },
+  { id: 'progress', label: 'Progress', href: route.progress(c) },
+];
+---
+
+<nav class="course-nav" aria-label="Course sections">
+  <ul>
+    {
+      tabs.map((t) => (
+        <li>
+          <a href={t.href} aria-current={t.id === active ? 'page' : undefined}>
+            {t.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>

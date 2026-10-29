@@ -1,0 +1,389 @@
+/* Course content as the filter writes it (docs/architecture.md §3.1): prose, sk-* boxes,
+   hints and solutions, figures, math, tables, and a no-JS fallback for <sk-mc>. */
+
+.prose {
+  max-width: var(--measure);
+  line-height: var(--leading);
+  overflow-wrap: break-word;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose p,
+.prose ul,
+.prose ol {
+  margin: 0 0 var(--space-4);
+}
+
+.prose li + li {
+  margin-top: var(--space-1);
+}
+
+.prose h2 {
+  padding-top: var(--space-2);
+}
+
+.prose :is(h2, h3, h4)[id] {
+  scroll-margin-top: var(--space-5);
+}
+
+.prose strong {
+  font-weight: 650;
+}
+
+/* custom elements are inline until defined; the shell lays them out as blocks */
+sk-mc,
+sk-opt,
+sk-quiz,
+sk-hints,
+sk-reveal,
+sk-answer-check,
+sk-self-assess,
+sk-exam,
+sk-plan,
+sk-progress,
+sk-export {
+  display: block;
+}
+
+/* --- boxes (blocks.lua) ------------------------------------------------------------- */
+
+.sk-block {
+  --box: var(--box-note);
+  --box-bg: var(--box-note-bg);
+  margin: var(--space-5) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--box) 25%, transparent);
+  border-left: 4px solid var(--box);
+  border-radius: var(--radius-sm);
+  background: var(--box-bg);
+  break-inside: avoid;
+}
+
+.sk-block > :last-child {
+  margin-bottom: 0;
+}
+
+.sk-block-title {
+  margin-bottom: var(--space-2);
+  color: var(--box);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.sk-block-title::before {
+  margin-right: 0.45em;
+  font-weight: 700;
+}
+
+.sk-definition {
+  --box: var(--box-definition);
+  --box-bg: var(--box-definition-bg);
+}
+
+.sk-definition .sk-block-title::before {
+  content: '≡';
+}
+
+.sk-theorem {
+  --box: var(--box-theorem);
+  --box-bg: var(--box-theorem-bg);
+}
+
+.sk-theorem .sk-block-title::before {
+  content: '∴';
+}
+
+.sk-example {
+  --box: var(--box-example);
+  --box-bg: var(--box-example-bg);
+}
+
+.sk-example .sk-block-title::before {
+  content: '▸';
+}
+
+.sk-note .sk-block-title::before {
+  content: 'i';
+  display: inline-grid;
+  place-items: center;
+  width: 1.15em;
+  height: 1.15em;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.8em;
+  font-style: italic;
+  font-family: Georgia, serif;
+}
+
+.sk-warning {
+  --box: var(--box-warning);
+  --box-bg: var(--box-warning-bg);
+}
+
+.sk-warning .sk-block-title::before {
+  content: '⚠';
+}
+
+.sk-takeaways {
+  --box: var(--box-takeaways);
+  --box-bg: var(--box-takeaways-bg);
+}
+
+.sk-takeaways .sk-block-title::before {
+  content: '✓';
+}
+
+/* --- hints and solutions (details) --------------------------------------------------- */
+
+details.sk-hint,
+details.sk-solution {
+  margin: var(--space-3) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+details.sk-hint > summary,
+details.sk-solution > summary {
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+details.sk-hint[open] > summary,
+details.sk-solution[open] > summary {
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+details.sk-hint > :not(summary),
+details.sk-solution > :not(summary) {
+  margin-left: var(--space-4);
+  margin-right: var(--space-4);
+}
+
+details.sk-hint > :nth-child(2),
+details.sk-solution > :nth-child(2) {
+  margin-top: var(--space-3);
+}
+
+details.sk-solution {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
+}
+
+details.sk-solution > summary::marker {
+  color: var(--ok);
+}
+
+/* --- math (KaTeX) ----------------------------------------------------------------------- */
+
+.katex {
+  font-size: 1.08em;
+}
+
+.katex-display {
+  margin: var(--space-3) 0;
+  padding: var(--space-1) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+p:has(> .katex-display:only-child) {
+  margin: var(--space-4) 0;
+}
+
+.sk-math-error {
+  padding: 0.1em 0.3em;
+  border: 1px dashed var(--bad);
+  border-radius: 4px;
+  color: var(--bad);
+}
+
+/* --- figures (figures.lua + lib/figures.ts) --------------------------------------------- */
+
+.sk-fig {
+  margin: var(--space-5) 0;
+  break-inside: avoid;
+}
+
+.sk-fig-slot {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--fig-bg);
+}
+
+.sk-fig-svg {
+  display: block;
+  width: min(100%, calc(var(--fig-w, 300) * var(--fig-scale)));
+  height: auto;
+}
+
+.sk-fig figcaption {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* --- tables and code in content ------------------------------------------------------- */
+
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: var(--space-4) 0;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.prose th,
+.prose td {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.prose thead th {
+  background: var(--surface-2);
+}
+
+.prose :not(pre) > code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+/* --- references ----------------------------------------------------------------------- */
+
+a.sk-ref-src::after {
+  content: ' ↗';
+  font-size: 0.85em;
+}
+
+/* --- MC questions without JavaScript (the element restyles itself once defined) -------- */
+
+sk-mc:not(:defined) {
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+sk-mc:not(:defined) .sk-stem > :last-child {
+  margin-bottom: var(--space-3);
+}
+
+sk-mc:not(:defined) sk-opt {
+  display: flex;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+sk-mc:not(:defined) sk-opt::before {
+  content: attr(data-key);
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+sk-mc:not(:defined) .sk-opt-text {
+  align-self: center;
+}
+
+/* --- error cards (loader, figures) ---------------------------------------------------- */
+
+.sk-error-card {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--bad);
+  border-left-width: 5px;
+  border-radius: var(--radius-sm);
+  background: var(--bad-soft);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.sk-error-title {
+  margin: 0 0 var(--space-2);
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.sk-error-title::before {
+  content: '✕ ';
+}
+
+.sk-error-card ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.sk-error-card li + li {
+  margin-top: var(--space-2);
+}
+
+.sk-error-where {
+  font-weight: 600;
+}
+
+.sk-error-fix {
+  display: block;
+  color: var(--text-muted);
+}
+
+/* --- cheat sheet ---------------------------------------------------------------------- */
+
+.cheatsheet {
+  columns: 21rem auto;
+  column-gap: var(--space-6);
+  column-rule: 1px solid var(--border);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.cs-section {
+  break-inside: avoid;
+  margin: 0 0 var(--space-5);
+}
+
+.cs-section > :last-child {
+  margin-bottom: 0;
+}
+
+.cheatsheet h2 {
+  break-after: avoid;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: 2px solid var(--accent);
+  font-size: 1rem;
+}
+
+.cheatsheet .sk-block {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.cheatsheet .katex-display {
+  margin: var(--space-2) 0;
+}

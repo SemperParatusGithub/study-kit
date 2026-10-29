@@ -1,0 +1,48 @@
+---
+import type { Course, Session } from '../lib/courses';
+import { formatDay, formatMinutes, SESSION_KIND } from '../lib/format';
+import { sessionStart, taskView } from '../lib/plan';
+
+interface Props {
+  course: Course;
+  session: Session;
+  hidden?: boolean;
+}
+
+const { course, session, hidden } = Astro.props;
+const tasks = session.tasks.map((t) => taskView(course, t));
+const en = course.lang === 'en' ? undefined : 'en';
+---
+
+<article class="session-card" data-session-date={session.date} hidden={hidden}>
+  <p class="session-when" lang={en}>
+    <time datetime={session.date} data-countdown>
+      <strong>{formatDay(session.date)}</strong>
+      <span class="muted" data-countdown-text></span>
+    </time>
+    <span class="badge">{SESSION_KIND[session.kind] ?? session.kind}</span>
+    <span class="muted">{formatMinutes(session.minutes)}</span>
+  </p>
+  {session.goal && <p class="session-goal">{session.goal}</p>}
+  {
+    tasks.length > 0 && (
+      <ul class="session-tasks" lang={en}>
+        {tasks.map((t) => (
+          <li>
+            <span class="task-label">{t.label}</span>
+            {t.links.map((l, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={l.href} lang={course.lang}>
+                  {l.title}
+                </a>
+              </>
+            ))}
+            {t.detail && <span class="muted"> · {t.detail}</span>}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  <a class="button" href={sessionStart(course, session)} lang={en}>Start session</a>
+</article>
