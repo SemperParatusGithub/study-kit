@@ -167,6 +167,15 @@ def test_release_adds_coverage(mini: Path, denylist: Path):
     assert all(f.path.endswith("course.yaml") for f in report.findings)
 
 
+def test_explicit_mc_target_is_not_capped(mini: Path, denylist: Path):
+    # auto asks for 10 to 25 questions by weight; a number in course.yaml is taken as written
+    course = mini / "course.yaml"
+    course.write_text(course.read_text().replace("mc_per_topic: auto", "mc_per_topic: 30"))
+    report = run(mini, denylist, release=True)
+    needs = {f.message.rsplit(" ", 1)[-1] for f in report.findings if f.code == "SK-COV-MC"}
+    assert needs == {"30"}
+
+
 def test_coverage_reports_missing_parts(mini: Path, denylist: Path):
     (mini / "summary" / "01-spannungsteiler.md").unlink()
     (mini / "cheatsheet.md").unlink()

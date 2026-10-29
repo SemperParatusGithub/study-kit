@@ -1663,8 +1663,12 @@ def check_coverage(ctx: Context) -> None:
             )
         bank = banks.get(topic.id)
         questions = bank.body.questions if bank and bank.body else []
-        need_mc = mc_target if isinstance(mc_target, int) else max(10, math.ceil(25 * topic.weight))
-        need_mc = min(need_mc, 25)
+        # auto: 10 to 25 by weight; an explicit target is taken as written
+        need_mc = (
+            mc_target
+            if isinstance(mc_target, int)
+            else min(25, max(10, math.ceil(25 * topic.weight)))
+        )
         if len(questions) < need_mc:
             at_topic(
                 topic.id,
