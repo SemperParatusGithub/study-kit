@@ -1,10 +1,9 @@
 ---
 // Pagefind filters and metadata for the content element this sits in (docs/architecture.md
-// §3.5). Values come from attributes, so titles with commas stay one value and nothing here
-// is indexed as text.
+// §3.5). Filter values are identifiers (course id, type, topic id); the /search page shows
+// them by name. Values come from attributes, so nothing here is indexed as text.
 import type { Course } from '../lib/courses';
-
-export type SearchType = 'overview' | 'summary' | 'exercise' | 'mc' | 'exam' | 'cheatsheet';
+import type { SearchType } from '../lib/format';
 
 interface Props {
   course: Course;
@@ -14,18 +13,10 @@ interface Props {
 }
 
 const { course, type, topic, difficulty } = Astro.props;
-const LABEL: Record<SearchType, string> = {
-  overview: 'Overview',
-  summary: 'Summary',
-  exercise: 'Exercise',
-  mc: 'MC question',
-  exam: 'Mock exam',
-  cheatsheet: 'Cheat sheet',
-};
 ---
 
-<span data-pagefind-filter="course[data-value]" data-value={course.title}></span>
-<span data-pagefind-filter="type[data-value]" data-value={LABEL[type]}></span>
-{topic && <span data-pagefind-filter="topic[data-value]" data-value={course.topicTitle(topic)} />}
+<span data-pagefind-filter="course[data-value]" data-value={course.id}></span>
+<span data-pagefind-filter="type[data-value]" data-value={type}></span>
+{topic && <span data-pagefind-filter="topic[data-value]" data-value={topic} />}
 <span data-pagefind-meta="course[data-value]" data-value={course.title}></span>
 {difficulty ? <span data-pagefind-meta="difficulty[data-value]" data-value={String(difficulty)} /> : null}

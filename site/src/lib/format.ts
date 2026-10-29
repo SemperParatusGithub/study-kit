@@ -100,3 +100,15 @@ export const EXAM_FORMAT: Record<string, string> = {
   oral: 'Oral exam',
   mixed: 'Written exam with MC part',
 };
+
+/** Pagefind `type` filter values (docs/architecture.md §3.5) and how the search UI names them. */
+export const SEARCH_TYPE = {
+  overview: 'Overview',
+  summary: 'Summary',
+  exercise: 'Exercise',
+  mc: 'MC question',
+  exam: 'Mock exam',
+  cheatsheet: 'Cheat sheet',
+} as const;
+
+export type SearchType = keyof typeof SEARCH_TYPE;

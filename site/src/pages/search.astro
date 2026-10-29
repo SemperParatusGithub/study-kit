@@ -1,8 +1,18 @@
 ---
 // Full-text search over course content with Pagefind (docs/architecture.md §3.5). The index
 // is written by `pagefind --site dist` after the build (scripts/pagefind.mjs); `just dev`
-// serves the last built copy from public/pagefind/.
+// serves the last built copy from public/pagefind/. Filter values are identifiers; the
+// filter pane shows them by name (course and topic titles, type labels).
 import Base from '../layouts/Base.astro';
+import { listCourses } from '../lib/courses';
+import { SEARCH_TYPE } from '../lib/format';
+
+const courses = await listCourses();
+const filterNames = {
+  course: Object.fromEntries(courses.map((c) => [c.id, c.title])),
+  type: SEARCH_TYPE,
+  topic: Object.fromEntries(courses.flatMap((c) => c.topics.map((t) => [t.id, t.title]))),
+};
 ---
 
 <Base title="Search" description="Search all courses">
@@ -17,6 +27,11 @@ import Base from '../layouts/Base.astro';
 
     <div class="search-ui">
       <pagefind-config bundle-path="/pagefind/"></pagefind-config>
+      <script
+        type="application/json"
+        id="filter-names"
+        set:html={JSON.stringify(filterNames).replace(/</g, '\\u003c')}
+      />
       <pagefind-input placeholder="Search course content" autofocus></pagefind-input>
       <div class="search-cols">
         <aside class="search-filters" aria-label="Filters">
@@ -38,6 +53,25 @@ import Base from '../layouts/Base.astro';
   <link rel="stylesheet" href="/pagefind/pagefind-component-ui.css" />
   <script is:inline src="/pagefind/pagefind-component-ui.js" defer></script>
   <script>
+    type FilterNames = Record<string, Record<string, string>>;
+
+    /** Show filter values (ids) by name; the pane re-renders, so keep watching it. */
+    function nameFilters(): void {
+      const pane = document.querySelector('pagefind-filter-pane');
+      const json = document.getElementById('filter-names')?.textContent;
+      if (!pane || !json) return;
+      const names = JSON.parse(json) as FilterNames;
+      const apply = () => {
+        for (const input of pane.querySelectorAll<HTMLInputElement>('input[type="checkbox"][name]')) {
+          const name = names[input.name]?.[input.value];
+          const text = input.nextSibling;
+          if (name && text?.nodeType === Node.TEXT_NODE && text.textContent === input.value) text.textContent = name;
+        }
+      };
+      new MutationObserver(apply).observe(pane, { childList: true, subtree: true });
+      apply();
+    }
+
     // Run the query from the header search box (?q=…) once the Pagefind input is ready.
     function start(): void {
       const q = new URLSearchParams(location.search).get('q');
@@ -46,6 +80,7 @@ import Base from '../layouts/Base.astro';
         if (missing) missing.hidden = false;
         return;
       }
+      nameFilters();
       if (!q) return;
       let tries = 0;
       const timer = setInterval(() => {
