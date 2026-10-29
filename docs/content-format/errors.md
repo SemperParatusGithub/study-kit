@@ -332,6 +332,13 @@ U_2 = U \cdot \frac{R_2}{R_1 + R_2}
 $$
 ```
 
+### `SK-MATH-THINSPACE`
+**error.** A thin space `\,` stands between two digits: `10\,000` as a thousands separator
+or `1\,5` as a mistyped decimal comma. Both engines set a gap, so the number reads as two
+(„1 5 V“), and the Typst decimal-comma fix-up only rewrites `{,}`. Reported by the Math
+stage and, with the same code and token rule, by `math.lua`.
+Fix: write `10000`, `10^4`, or `{,}` for a decimal comma (`1{,}5\,\mathrm{V}`).
+
 ### `SK-MATH-HINT-LEAK`
 **warning.** A hint contains a number that matches an answer within its tolerance (also
 with an SI prefix, e.g. `1,59 kHz` for `1591.55 Hz`).

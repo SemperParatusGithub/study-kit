@@ -843,6 +843,7 @@ BEGIN_RE = re.compile(r"\\begin\s*\{([^}]*)\}")
 ENV_RE = re.compile(r"\\(begin|end)\s*\{([^}]*)\}")
 COMMENT_RE = re.compile(r"(?<!\\)%[^\n]*")
 MINUS = "\u2212"
+DIGITS = set("0123456789")
 NUMBER_RE = re.compile(rf"(?<![\w.,}}])[-{MINUS}]?[0-9]+(?:(?:\{{,\}}|,|\.)[0-9]+)?(?![0-9])")
 
 
@@ -893,6 +894,19 @@ def denied(tex: str, denylist: list[DenyEntry]) -> list[DenyEntry]:
         if n and any(tokens[i : i + n] == entry.tokens for i in range(len(tokens) - n + 1)):
             hits.append(entry)
     return hits
+
+
+def thin_space_in_number(tex: str) -> str | None:
+    """'1\\,5' when a thin space `\\,` stands between two digits, else None.
+
+    math.lua applies the same token rule (SK-MATH-THINSPACE). `10\\,000` and `1\\,5` show
+    as two numbers in both engines; a decimal comma is `{,}`.
+    """
+    tokens = tex_tokens(COMMENT_RE.sub("", tex))
+    for i in range(len(tokens) - 2):
+        if tokens[i] in DIGITS and tokens[i + 1] == "\\," and tokens[i + 2] in DIGITS:
+            return f"{tokens[i]}\\,{tokens[i + 2]}"
+    return None
 
 
 def _wraps(denylist: list[DenyEntry]) -> dict[str, list[Wrap]]:
@@ -1030,6 +1044,17 @@ def check_math(ctx: Context) -> None:
                 f"environment '{name}' is not allowed",
                 "use aligned, gathered, cases, pmatrix, bmatrix or Bmatrix "
                 "(a determinant is \\left|\\begin{matrix}…\\end{matrix}\\right|)",
+            )
+        number = thin_space_in_number(f.tex)
+        if number:
+            ctx.at(
+                doc,
+                f.line,
+                f.col,
+                "SK-MATH-THINSPACE",
+                f"thin space '\\,' between two digits ({number}): the number shows as two, "
+                "and a decimal comma written this way comes out as a gap",
+                "write 10000, 10^4, or {,} for a decimal comma",
             )
         if not hits and not env_problem:
             clean.append((doc, f))

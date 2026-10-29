@@ -13,7 +13,8 @@
 -- Environments are an allowlist (aligned, gathered, cases, pmatrix, bmatrix, Bmatrix):
 -- any other \begin{…} is a finding, with the hint of its env: entry (a starred name
 -- falls back to the unstarred one) or the allowlist. Beyond the list: non-ASCII outside
--- \text{…} (KaTeX strict rejects it).
+-- \text{…} (KaTeX strict rejects it), and a thin space \, between two digits, reported
+-- as SK-MATH-THINSPACE like validate does (10\,000 and 1\,5 show as two numbers).
 --
 -- HTML:  <sk-math data-tex="<base64 of the UTF-8 TeX>" data-display="0|1"></sk-math>
 -- Typst: each node is converted on its own with pandoc.write, any conversion warning is a
@@ -249,6 +250,28 @@ function M.check(tex, ctx)
       'put words in \\text{…} and write symbols as TeX commands, e.g. \\Omega'
     )
   end
+
+  local number = M.thin_space_in_number(toks)
+  if number then
+    ctx:fail(
+      'SK-MATH-THINSPACE',
+      "thin space '\\,' between two digits (" .. number .. ') in ' .. excerpt(tex)
+        .. ': the number shows as two, and a decimal comma written this way comes out as a gap',
+      'write 10000, 10^4, or {,} for a decimal comma'
+    )
+  end
+end
+
+--- '1\,5' when a thin space \, stands between two digit tokens, else nil. The same rule
+--- as validate.thin_space_in_number: 10\,000 and 1\,5 show as two numbers in KaTeX and
+--- Typst, and the decimal-comma fix-up below only rewrites {,}.
+function M.thin_space_in_number(toks)
+  for i = 1, #toks - 2 do
+    if toks[i]:match('^%d$') and toks[i + 1] == '\\,' and toks[i + 2]:match('^%d$') then
+      return toks[i] .. '\\,' .. toks[i + 2]
+    end
+  end
+  return nil
 end
 
 ---------------------------------------------------------------------------------------

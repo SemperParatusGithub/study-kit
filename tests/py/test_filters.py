@@ -597,6 +597,46 @@ def test_typst_math_fixups():
     assert 'cases(delim: "{", 1","5 & quad t < 0, 0 & quad upright("sonst"))' in typ
 
 
+THIN_SPACES = [
+    (r"10\,000", "0\\,0"),
+    (r"1\,5\,\mathrm{V}", "1\\,5"),
+    (r"x_{1 \, 2}", "1\\,2"),
+    ("1\\, % a comment\n5", "1\\,5"),
+    (r"3{,}3\,\mathrm{k\Omega} + 470\,\Omega", None),
+    (r"10^4\,\mathrm{Hz} = 10000\,\mathrm{Hz}", None),
+    (r"\lambda_{1{,}2} = a\,b", None),
+    (r"U_2 = 2\cdot 3\,\mathrm{V}", None),
+]
+
+
+@pytest.mark.parametrize(("tex", "number"), THIN_SPACES)
+def test_validate_and_the_filter_agree_on_thin_spaces_in_numbers(tex, number, workdir):
+    """SK-MATH-THINSPACE: one token rule in validate and math.lua."""
+    assert validate.thin_space_in_number(tex) == number
+    doc = document("summary/02-rc-filter.md", workdir)
+    if number is None:
+        pandoc.convert(f"Text ${tex}$.\n", doc, "json")
+        return
+    with pytest.raises(pandoc.FilterError) as info:
+        pandoc.convert(f"Text ${tex}$.\n", doc, "json")
+    (f,) = info.value.findings
+    assert f" SK-MATH-THINSPACE thin space '\\,' between two digits ({number}) in $" in f
+    assert f.endswith("(fix: write 10000, 10^4, or {,} for a decimal comma)")
+
+
+def test_golden_math_corpus_has_no_thin_space_in_a_number():
+    tex = [t for t, _ in pandoc.math_nodes((GOLDEN / "math.md").read_text(encoding="utf-8"))]
+    assert len(tex) > 100
+    assert [t for t in tex if validate.thin_space_in_number(t)] == []
+
+
+def test_typst_decimal_comma_fixup_leaves_thin_spaces_alone():
+    """pandoc writes TeX \\, as Typst `thin` and only {,} as `\\,`, which the fix-up rewrites."""
+    doc = pandoc.Document(course="c", lang="de", file="summary/01-x.md", index=INDEX)
+    typ = pandoc.convert("$3{,}3\\,\\mathrm{k\\Omega}$\n", doc, "typst")
+    assert '3","3 thin upright(k Omega)' in typ
+
+
 def test_typst_mcq_shuffle_is_deterministic_and_keeps_pin_last(workdir):
     body = pandoc.blank_frontmatter((OK / "mc/rc-filter.md").read_text(encoding="utf-8"))
     runs = [pandoc.convert(body, document("mc/rc-filter.md", workdir), "typst") for _ in range(2)]
