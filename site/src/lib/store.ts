@@ -7,7 +7,8 @@
 // Keys
 //   studykit:v1:<course>          the progress document (schema studykit-progress/1)
 //   studykit:v1:<course>:session  runtime state that is never exported (a running exam's
-//                                 start time, its MC answers and rubric ticks)
+//                                 start time, its MC answers and rubric ticks; the hints
+//                                 of an exercise review that is not rated yet)
 //   studykit:theme                light | dark | system
 //
 // The document is exactly the export format that `studykit.model.Progress` validates:
@@ -19,12 +20,18 @@
 // Misconceptions are not stored: an MC item whose last attempt was sure and not fully
 // right is one (scoring.isMisconception), and Leitner has put it in box 0.
 //
+// Exercise attempts: `hints` counts the hints of one attempt, the one the rating belongs to
+// (or, before the first rating, the one under way), and more than HINT_CAP of them cap that
+// rating at "partial". Once a rated exercise has come up for review (its due day has come),
+// working on it again is a new attempt that starts without hints: until it is rated, its
+// hints are kept in the session state (exHints), and rating it stores them with the rating.
+//
 // Migrations run on every read: a document without `schema` (written before the schema
 // was versioned) is version 0; its attempts carried `sure: boolean` instead of `conf`.
 // Entries that do not validate are dropped, so an export always validates. A document
 // with a newer schema is read as far as possible but never written (read-only).
 
-import { dayOf, ENTRY_BOX, isDay, review, type Conf, type Review } from './leitner.ts';
+import { dayOf, ENTRY_BOX, isDay, isDue, review, reviewDayOf, type Conf, type Review } from './leitner.ts';
 
 export const SCHEMA = 'studykit-progress/1';
 export const THEME_KEY = 'studykit:theme';
@@ -229,6 +236,22 @@ export function cappedRating(rating: Rating, hints: number): Rating {
 }
 
 const RATING_SCORE: Record<Rating, number> = { solved: 1, partial: 0.5, 'not-yet': 0 };
+
+/**
+ * A rated exercise has come up for review: its due day has come (also during the rest days
+ * before the exam, when nothing counts as due), or the exam clamp has made it due. Working on
+ * it now is a new attempt.
+ */
+export function reviewStarted(entry: ExEntry | undefined, today: string, examDate?: string | null): boolean {
+  if (!entry?.rating || !entry.due) return false;
+  return entry.due <= today || isDue(entry.due, reviewDayOf(entry.due, entry.box), today, examDate);
+}
+
+/** Session state of an exercise review that is not rated yet: the due day it answers. */
+interface ExReview {
+  due: string;
+  hints: number;
+}
 
 // Exercise entries have no time stamp, so the side whose review is due later stands for the
 // later self-assessment; its rating, box and due day are taken together (only rateEx sets
@@ -529,24 +552,50 @@ export class ProgressStore {
     })) as ExEntry;
   }
 
-  /**
-   * Self-assessment of an exercise; it also schedules the exercise for review. With more
-   * than HINT_CAP hints used, "solved" is stored as "partial".
-   */
-  rateEx(id: string, h: string | undefined, rating: Rating, when: When = {}): ExEntry {
-    const prev = this.get<ExEntry>(`ex:${id}`);
-    const capped = cappedRating(rating, prev?.hints ?? 0);
-    const r = review(prev?.box, RATING_SCORE[capped], 'unsure', when.today ?? dayOf(), when.examDate);
-    return this.updateEx(id, h, { rating: capped, box: r.box, due: r.due });
+  /** The open review of a rated exercise that has come up for review, else null. */
+  private openReview(id: string, entry: ExEntry | undefined, when: When): ExReview | null {
+    if (!entry?.due || !reviewStarted(entry, when.today ?? dayOf(), when.examDate)) return null;
+    const rec = this.session<Partial<ExReview>>(`ex:${id}`);
+    const hints = rec?.due === entry.due && isNum(rec.hints) && rec.hints >= 0 ? Math.trunc(rec.hints) : 0;
+    return { due: entry.due, hints };
   }
 
   /**
-   * `used` hints of an exercise are open; the stored count is the maximum ever used. When
-   * that passes HINT_CAP after the exercise was rated "solved", the rating becomes "partial"
-   * and the exercise is rescheduled as if it had been rated so.
+   * Hints used in the exercise's current attempt: those of its rating, or of the review under
+   * way once a rated exercise has come up for review (none until one is opened).
+   */
+  exHints(id: string, when: When = {}): number {
+    const entry = this.get<ExEntry>(`ex:${id}`);
+    return this.openReview(id, entry, when)?.hints ?? entry?.hints ?? 0;
+  }
+
+  /**
+   * Self-assessment of an exercise; it also schedules the exercise for review. With more
+   * than HINT_CAP hints used in this attempt, "solved" is stored as "partial".
+   */
+  rateEx(id: string, h: string | undefined, rating: Rating, when: When = {}): ExEntry {
+    const prev = this.get<ExEntry>(`ex:${id}`);
+    const open = this.openReview(id, prev, when);
+    const hints = open?.hints ?? prev?.hints ?? 0;
+    const capped = cappedRating(rating, hints);
+    const r = review(prev?.box, RATING_SCORE[capped], 'unsure', when.today ?? dayOf(), when.examDate);
+    if (open) this.setSession(`ex:${id}`, null);
+    return this.updateEx(id, h, { hints, rating: capped, box: r.box, due: r.due });
+  }
+
+  /**
+   * `used` hints of an exercise are open in this attempt; the count never goes down within
+   * it. In a review under way the count is kept in the session state until the rating.
+   * Otherwise, when it passes HINT_CAP after the exercise was rated "solved", the rating
+   * becomes "partial" and the exercise is rescheduled as if it had been rated so.
    */
   useHints(id: string, h: string | undefined, used: number, when: When = {}): ExEntry {
     const prev = this.get<ExEntry>(`ex:${id}`);
+    const open = this.openReview(id, prev, when);
+    if (prev && open) {
+      this.setSession(`ex:${id}`, { due: open.due, hints: Math.max(open.hints, used) } satisfies ExReview);
+      return prev;
+    }
     const hints = Math.max(prev?.hints ?? 0, used);
     const rating = prev?.rating ?? null;
     if (rating && cappedRating(rating, hints) !== rating) {

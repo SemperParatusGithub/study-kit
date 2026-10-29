@@ -222,9 +222,48 @@ test('more than one hint caps "solved" at "partial", also a rating given before 
   const two = s.useHints('ex-b', undefined, 2, { today: '2026-11-02' });
   assert.deepEqual(two, { h: '12345678', hints: 2, answer_ok: null, rating: 'partial', box: 1, due: '2026-11-03' });
   // the count never goes down, and other ratings are left alone
-  assert.equal(s.useHints('ex-b', undefined, 1).hints, 2);
+  assert.equal(s.useHints('ex-b', undefined, 1, { today: '2026-11-02' }).hints, 2);
   s.rateEx('ex-c', undefined, 'not-yet', { today: '2026-11-02' });
   assert.equal(s.useHints('ex-c', undefined, 3).rating, 'not-yet');
+});
+
+test('a review is a new attempt: the hints of the rating before it no longer count', () => {
+  const fake = new FakeStorage();
+  const s = new ProgressStore('c', fake);
+  const d1 = { today: '2026-11-23' };
+  s.useHints('ex-a', '12345678', 2, d1);
+  assert.deepEqual(s.rateEx('ex-a', undefined, 'solved', d1), {
+    h: '12345678', hints: 2, answer_ok: null, rating: 'partial', box: 1, due: '2026-11-24',
+  });
+  // the same day the rating's hints still count
+  assert.equal(s.exHints('ex-a', d1), 2);
+  // due the next day: a new attempt without hints, rated "solved" without the cap
+  const d2 = { today: '2026-11-24' };
+  assert.equal(s.exHints('ex-a', d2), 0);
+  assert.deepEqual(s.rateEx('ex-a', undefined, 'solved', d2), {
+    h: '12345678', hints: 0, answer_ok: null, rating: 'solved', box: 2, due: '2026-11-27',
+  });
+  // a later review with one hint: kept in the session state until rated, then stored
+  const d3 = { today: '2026-11-28' };
+  assert.equal(s.useHints('ex-a', undefined, 1, d3).hints, 0);
+  assert.equal(s.exHints('ex-a', d3), 1);
+  assert.equal(s.get<ExEntry>('ex:ex-a')?.rating, 'solved');
+  // a reload keeps the count; it never goes down within the attempt
+  const again = new ProgressStore('c', fake);
+  assert.equal(again.useHints('ex-a', undefined, 0, d3).hints, 0);
+  assert.equal(again.exHints('ex-a', d3), 1);
+  // two hints in the review cap it, and rating closes the review
+  again.useHints('ex-a', undefined, 2, d3);
+  assert.deepEqual(again.rateEx('ex-a', undefined, 'solved', d3), {
+    h: '12345678', hints: 2, answer_ok: null, rating: 'partial', box: 1, due: '2026-11-29',
+  });
+  assert.equal(again.session('ex:ex-a'), undefined);
+  assert.equal(again.exHints('ex-a', d3), 2);
+  // a review left from an older due day does not count
+  again.setSession('ex:ex-a', { due: '2026-11-24', hints: 3 });
+  assert.equal(again.exHints('ex-a', { today: '2026-11-29' }), 0);
+  // the rest days before the exam: nothing is due, but the due day has come
+  assert.equal(again.exHints('ex-a', { today: '2026-11-29', examDate: '2026-11-30' }), 0);
 });
 
 test('merge caps a "solved" that meets the other side\'s hints', () => {

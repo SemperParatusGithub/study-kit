@@ -1,13 +1,13 @@
 // <sk-hints data-item="ex:<id>">: the hint ladder (docs/architecture.md §3.2).
 //
 // Wraps the filter's <details class="sk-hint" data-index="n">. Unused hints are hidden and
-// revealed one at a time ("Show hint 2 of 3"); the number used is stored as `hints` of the
-// exercise entry (the maximum ever used; more than one caps a "Solved" rating at "Partly")
-// and announced as `sk:hint` {item, used, total}.
-// Hints used earlier stay visible after a reload. Without JS the hints are plain
-// collapsible <details>.
+// revealed one at a time ("Show hint 2 of 3"); the number used in this attempt is stored
+// (store.useHints: more than one caps a "Solved" rating at "Partly") and announced as
+// `sk:hint` {item, used, total}.
+// Hints used in this attempt stay visible after a reload; once a rated exercise has come up
+// for review, a new attempt starts with every hint closed again (store.exHints). Without JS
+// the hints are plain collapsible <details>.
 
-import type { ExEntry } from '../lib/store.ts';
 import { emit, examDate, h, hashOf, isPrinting, storeOf } from './util.ts';
 
 export class SkHints extends HTMLElement {
@@ -33,7 +33,7 @@ export class SkHints extends HTMLElement {
     );
     if (this.hints.length === 0) return;
     this.classList.add('sk-hints-ready');
-    const stored = this.exId ? (storeOf(this).get<ExEntry>(this.item)?.hints ?? 0) : 0;
+    const stored = this.exId ? storeOf(this).exHints(this.exId, { examDate: examDate() }) : 0;
     this.used = Math.min(stored, this.hints.length);
     this.hints.forEach((d, i) => {
       const shown = i < this.used;
