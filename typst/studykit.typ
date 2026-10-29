@@ -7,7 +7,9 @@
 // Compile with `typst compile --root <repo> --ignore-system-fonts`: only Typst's embedded
 // fonts are used (New Computer Modern, New Computer Modern Math, DejaVu Sans Mono), so a
 // document has the same page count on every machine. The cheat sheet reads
-// `--input density=0..4` (9, 8.5, 8, 7.5, 7 pt).
+// `--input density=0..4` (9, 8.5, 8, 7.5, 7 pt) and records its page geometry under
+// <cs-page>, so `studykit cheatsheet fit` can turn the position of <cs-end> and of each
+// section heading (`typst eval … --in cheatsheet.typ`) into pages.
 //
 // Colours are print-friendly versions of the site's roles (site/src/styles/tokens.css):
 // a box is a light tint with a coloured rule and title, and colour is never the only
@@ -77,11 +79,12 @@
   (size: 7pt, leading: 0.38em, spacing: 0.55em, margin: 0.8cm, gutter: 0.5cm),
 )
 
-#let sk-density() = {
+#let sk-density-level() = {
   let raw = sys.inputs.at("density", default: "0")
-  let n = if raw in ("0", "1", "2", "3", "4") { int(raw) } else { 0 }
-  sk-densities.at(n)
+  if raw in ("0", "1", "2", "3", "4") { int(raw) } else { 0 }
 }
+
+#let sk-density() = sk-densities.at(sk-density-level())
 
 // --- document info (written once by the filter, read by footers) --------------------------
 
@@ -256,6 +259,17 @@
   })
 
   sk-kind.update(kind)
+  if cs {
+    // the page as `studykit cheatsheet fit` measures it (A4, equal margins, two columns)
+    [#metadata((
+      density: sk-density-level(),
+      width: 210mm,
+      height: 297mm,
+      margin: dens.margin,
+      columns: 2,
+      gutter: dens.gutter,
+    )) <cs-page>]
+  }
   body
 }
 

@@ -16,8 +16,10 @@ Each document goes through three explicit steps:
 Documents: overview, summary (the overview is its first chapter), exercises (hints and
 solutions in appendices), exercises-blank, mc (answer key appendix), `<exam>` (cover,
 „Seite x von y“, MC part, no solutions), `<exam>-solutions` (solutions with rubric),
-cheatsheet (`--input density=<n>`, 0 here; `studykit cheatsheet fit` picks the level) and
-plan. A document whose sources do not exist is not built.
+cheatsheet and plan. A document whose sources do not exist is not built. The cheat sheet is
+compiled at `--input density=0..4` until it fits its page limit (studykit.cheatsheet); when
+even density 4 overflows, the build fails with the overflow measured and the previous
+cheatsheet.pdf stays in place.
 
 **Manifest** (`_build/pdf/manifest.json`, read by the site):
 
@@ -34,11 +36,12 @@ Documents whose sources are gone leave the manifest and their PDF is deleted.
 
 **Incremental builds:** a document is skipped when its PDF exists and the digest of its
 inputs (assembled Markdown, the figures it uses, the index, the filter, the house library,
-the studykit sources, the tool versions, the density) equals the one stored in
-`_build/typ/<doc>.digest` by its last successful build.
+the studykit sources, the tool versions, the cheat sheet's page limit) equals the one
+stored in `_build/typ/<doc>.digest` by its last successful build (the cheat sheet's
+density goes on a second line).
 
 `make()` returns the outcomes as objects, with each problem typed (filter finding, pandoc
-or Typst diagnostic) for the PDF stage of validate; `build()` is its JSON form.
+or Typst diagnostic, overflow) for the PDF stage of validate; `build()` is its JSON form.
 """
 
 from __future__ import annotations
@@ -454,12 +457,13 @@ class Plan:
     markdown: str
     solutions: pandoc.Solutions = "none"
     exam: str | None = None
-    density: int | None = None
-    max_pages: int | None = None
+    max_pages: int | None = None  # the cheat sheet's limit (studykit.cheatsheet.limit)
     # course files it is built from (course.yaml first), and the one that defines it
     # (overview.md, cheatsheet.md, plan.yaml, exams/<e>/exam.yaml; None for collections)
     sources: list[str] = field(default_factory=list)
     primary: str | None = None
+    # the cheat sheet's `##` headings as (file line, title), to name measured sections
+    sections: list[tuple[int, str]] = field(default_factory=list)
 
     @property
     def file(self) -> str:
@@ -808,7 +812,9 @@ class Assembler:
             exam=exam_id,
         )
 
-    def cheatsheet(self, density: int = 0) -> Plan | None:
+    def cheatsheet(self) -> Plan | None:
+        from studykit import cheatsheet
+
         doc = self.tree.get("cheatsheet.md")
         if doc is None or not self.course.cheatsheet.allowed:
             return None
@@ -823,8 +829,8 @@ class Assembler:
             title,
             md,
             primary=doc.rel,
-            density=density,
-            max_pages=cheatsheet_limit(self.course, data),
+            max_pages=cheatsheet.limit(self.course, data),
+            sections=doc.body.headings(2) if doc.body else [],
         )
 
     def plan(self) -> Plan | None:
@@ -949,15 +955,6 @@ def available(tree: content.CourseTree) -> list[str]:
     return ids
 
 
-def cheatsheet_limit(course: model.Course, frontmatter: dict[str, Any]) -> int:
-    """max = min(3, course.cheatsheet.max_pages, frontmatter max_pages) (§3.3)."""
-    limit = min(3, course.cheatsheet.max_pages)
-    fm = frontmatter.get("max_pages")
-    if isinstance(fm, int) and not isinstance(fm, bool):
-        limit = min(limit, fm)
-    return limit
-
-
 SINGLE_KINDS = ("overview", "summary", "exercises", "exercises-blank", "mc", "cheatsheet", "plan")
 
 
@@ -987,7 +984,8 @@ class Problem:
     kind: `finding` (a filter finding, `message` is the formatted line with the course file
     and line), `typst-error`, `typst-warning` (with the position Typst reported, its path
     relative to the repository), `pandoc-warning`, `pandoc` (pandoc failed without a
-    finding), `assembly` (the course files do not make the document).
+    finding), `assembly` (the course files do not make the document), `overflow` (the cheat
+    sheet is longer than its limit even at the densest setting).
     """
 
     kind: str
@@ -1042,6 +1040,7 @@ class Outcome:
     seconds: float = 0.0
     sources: list[str] = field(default_factory=list)
     primary: str | None = None
+    overflow: dict[str, Any] | None = None  # the cheat sheet's, when it does not fit
 
     @property
     def ok(self) -> bool:
@@ -1062,7 +1061,10 @@ class Outcome:
         return out
 
     def to_json(self) -> dict[str, Any]:
-        return {**self.entry(), "status": self.status, "errors": self.errors}
+        out = {**self.entry(), "status": self.status, "errors": self.errors}
+        if self.overflow is not None:
+            out["overflow"] = self.overflow
+        return out
 
 
 def typst_bin() -> Path:
@@ -1199,6 +1201,37 @@ def compile_typst(
     return problems
 
 
+def eval_typst(ctx: Context, typ: Path, expression: str, inputs: dict[str, str] | None = None):
+    """`typst eval <expression> --in <typ>`: the value as JSON (introspects the layout)."""
+    args, env = _typst(ctx, "eval", inputs)
+    proc = subprocess.run(
+        [*args, "--in", str(typ), expression],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+        env=env,
+        cwd=ctx.root,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or f"typst eval exited with {proc.returncode}")
+    return json.loads(proc.stdout)
+
+
+def _stamp(path: Path) -> tuple[str, int | None] | None:
+    """(digest, cheat-sheet density) of the last successful build, or None."""
+    try:
+        lines = path.read_text(encoding="utf-8").split()
+    except OSError:
+        return None
+    if not lines:
+        return None
+    density = None
+    if len(lines) >= 3 and lines[1] == "density" and lines[2].isdigit():
+        density = int(lines[2])
+    return lines[0], density
+
+
 def _digest(ctx: Context, plan: Plan) -> str:
     figures = ctx.build / "figures"
     h = hashlib.sha256()
@@ -1210,7 +1243,7 @@ def _digest(ctx: Context, plan: Plan) -> str:
         (ctx.build / "index.json").read_bytes(),
         plan.kind.encode(),
         plan.solutions.encode(),
-        str(plan.density).encode(),
+        str(plan.max_pages).encode(),
         plan.markdown.encode(),
     ):
         h.update(part + b"\0")
@@ -1232,7 +1265,6 @@ def build_one(ctx: Context, plan: Plan) -> Outcome:
         "failed",
         exam=plan.exam,
         max_pages=plan.max_pages,
-        density=plan.density,
         sources=plan.sources,
         primary=plan.primary,
     )
@@ -1246,14 +1278,18 @@ def build_one(ctx: Context, plan: Plan) -> Outcome:
     digest = _digest(ctx, plan)
     digest_path = typ_dir / f"{plan.id}.digest"
     pdf_path = pdf_dir / plan.file
+    stamp = _stamp(digest_path)
+    fitted = plan.kind == "cheatsheet"
     if (
         not ctx.force
         and pdf_path.is_file()
-        and digest_path.is_file()
-        and digest_path.read_text(encoding="utf-8").strip() == digest
+        and stamp is not None
+        and stamp[0] == digest
+        and (not fitted or stamp[1] is not None)
     ):
         out.status = "cached"
         out.pages, out.bytes = page_count(pdf_path), pdf_path.stat().st_size
+        out.density = stamp[1]
         out.seconds = time.monotonic() - started
         return out
 
@@ -1278,18 +1314,49 @@ def build_one(ctx: Context, plan: Plan) -> Outcome:
     if not out.problems:
         tmp = pdf_dir / f".{plan.id}.partial.pdf"
         tmp.unlink(missing_ok=True)
-        inputs = {"density": str(plan.density)} if plan.density is not None else None
-        out.problems = compile_typst(ctx, typ_path, tmp, inputs)
-        if out.problems:
+        if fitted:
+            _fit_cheatsheet(ctx, plan, typ_path, tmp, out)
+        else:
+            out.problems = compile_typst(ctx, typ_path, tmp)
+            if not out.problems:
+                out.pages = page_count(tmp)
+        if out.problems or out.pages is None:
             tmp.unlink(missing_ok=True)
         else:
-            out.pages = page_count(tmp)
             os.replace(tmp, pdf_path)
             out.bytes = pdf_path.stat().st_size
-            digest_path.write_text(digest + "\n", encoding="utf-8")
+            line = digest if out.density is None else f"{digest}\ndensity {out.density}"
+            digest_path.write_text(line + "\n", encoding="utf-8")
             out.status = "built"
     out.seconds = time.monotonic() - started
     return out
+
+
+def _fit_cheatsheet(ctx: Context, plan: Plan, typ: Path, tmp: Path, out: Outcome) -> None:
+    """Compile at densities 0 to 4 and keep the first that fits (studykit.cheatsheet)."""
+    from studykit import cheatsheet  # it imports this module
+
+    limit = plan.max_pages or cheatsheet.HARD_LIMIT
+    result = cheatsheet.fit(
+        lambda density: compile_typst(ctx, typ, tmp, {"density": str(density)}),
+        lambda: page_count(tmp),
+        limit,
+    )
+    out.density = result.density
+    if result.problems:
+        out.problems = result.problems
+        return
+    if result.fits:
+        out.pages = result.pages
+        return
+    floor = cheatsheet.DENSITIES[-1]
+    try:
+        layout = eval_typst(ctx, typ, cheatsheet.MEASURE, {"density": str(floor)})
+        out.overflow = cheatsheet.overflow(layout, limit, result.pages or 0, plan.sections)
+    except (RuntimeError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as exc:
+        out.overflow = cheatsheet.overflow_unmeasured(limit, result.pages or 0, str(exc))
+    out.problems = [Problem("overflow", cheatsheet.overflow_message(out.overflow))]
+    out.pages = None
 
 
 def manifest_path(course_dir: Path) -> Path:
@@ -1498,8 +1565,7 @@ def format_text(result: dict[str, Any]) -> str:
             size = f"{(r['bytes'] or 0) / 1024:.0f} KB"
             limit = ""
             if r["kind"] == "cheatsheet":
-                over = " over the limit" if r["pages"] > r["max_pages"] else ""
-                limit = f"  (limit {r['max_pages']}, density {r['density']}{over})"
+                limit = f"  (limit {r['max_pages']}, density {r['density']})"
             lines.append(
                 f"  {r['status']:<7} {r['file']:<{width}}  {pages:>9}  {size:>7}  {r['title']}"
                 + limit

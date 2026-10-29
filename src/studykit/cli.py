@@ -110,6 +110,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_pdf.add_argument("--json", action="store_true", help="machine-readable output")
     p_pdf.set_defaults(func=cmd_pdf)
 
+    p_cs = sub.add_parser("cheatsheet", help="the cheat sheet PDF and its page limit")
+    cs_sub = p_cs.add_subparsers(dest="cheatsheet_command", metavar="<action>", required=True)
+    p_fit = cs_sub.add_parser(
+        "fit",
+        help="build cheatsheet.pdf at the first density (0-4) within its page limit; "
+        "exit 3 with the overflow when none fits",
+    )
+    p_fit.add_argument("course", help="course id or directory")
+    p_fit.add_argument("--force", action="store_true", help="rebuild even if up to date")
+    p_fit.add_argument(
+        "--no-figures", action="store_true", help="do not build the figures (cached) first"
+    )
+    p_fit.add_argument("--json", action="store_true", help="machine-readable output")
+    p_fit.set_defaults(func=cmd_cheatsheet_fit)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -333,6 +348,24 @@ def cmd_pdf(args: argparse.Namespace) -> int:
     else:
         print(pdf.format_text(result))
     return 1 if any(d["status"] == "failed" for d in result["docs"]) else 0
+
+
+def cmd_cheatsheet_fit(args: argparse.Namespace) -> int:
+    from studykit import cheatsheet
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        code, result = cheatsheet.run(tree.root, force=args.force, figures=not args.no_figures)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(cheatsheet.format_text(result))
+    return code
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:
