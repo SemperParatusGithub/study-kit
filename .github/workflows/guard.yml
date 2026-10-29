@@ -22,39 +22,10 @@ jobs:
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          if [ "$EVENT" = pull_request ]; then
-            range="$PR_BASE..$PR_HEAD"
-          elif [ -z "$PUSH_BEFORE" ] || [ "$PUSH_BEFORE" = 0000000000000000000000000000000000000000 ]; then
-            range="origin/$DEFAULT_BRANCH..HEAD"
-          else
-            range="$PUSH_BEFORE..HEAD"
-          fi
-          echo "checking $range"
-          status=0
-          for sha in $(git rev-list --no-merges "$range"); do
-            git log -1 --format=%B "$sha" > "$RUNNER_TEMP/msg"
-            if ! sh .githooks/commit-msg "$RUNNER_TEMP/msg"; then
-              echo "::error::commit $sha violates the commit rules"
-              status=1
-            fi
-          done
-          exit $status
+        run: bash .github/scripts/guard.sh commits
 
       - name: No course data is tracked
-        run: |
-          tracked=$(git ls-files courses)
-          if [ "$tracked" != "courses/README.md" ]; then
-            echo "::error::only courses/README.md may be tracked under courses/"
-            printf '%s\n' "$tracked"
-            exit 1
-          fi
+        run: bash .github/scripts/guard.sh courses
 
       - name: No PDFs outside tests/fixtures
-        run: |
-          pdfs=$(git ls-files '*.pdf' '*.PDF' | grep -v '^tests/fixtures/' || true)
-          if [ -n "$pdfs" ]; then
-            echo "::error::PDFs may only be tracked under tests/fixtures/"
-            printf '%s\n' "$pdfs"
-            exit 1
-          fi
+        run: bash .github/scripts/guard.sh pdfs

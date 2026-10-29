@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Tests for the git hooks in .githooks. Every case runs in a throwaway repository, so the
-# checkout that runs the tests is never touched. Usage: bash .github/scripts/test-hooks.sh
+# Tests for the git hooks in .githooks and the guard workflow's checks (guard.sh). Every
+# case runs in a throwaway repository, so the checkout that runs the tests is never touched.
+# Usage: bash .github/scripts/test-hooks.sh
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
 hooks="$root/.githooks"
+guard="$root/.github/scripts/guard.sh"
 
 # Ignore the caller's git setup: no repository from the environment, no global or system
 # config (hooks, signing, templates) and a fixed identity.
@@ -69,6 +71,54 @@ commit_msg() {
   sh "$hooks/commit-msg" "$tmp/msg"
 }
 
+# guard_in <checkout> <check> [NAME=value...]: run a guard check in <checkout> with the
+# given environment, as the guard workflow runs it
+guard_in() {
+  local checkout=$1 check=$2
+  shift 2
+  (cd "$checkout" && env "$@" bash "$guard" "$check")
+}
+
+# tracked <path...>: print the path of a new repository whose index holds <path...>
+tracked() {
+  local repo path
+  repo=$(mktemp -d "$tmp/tracked.XXXXXX")
+  git init -q -b main "$repo"
+  for path in "$@"; do
+    mkdir -p "$repo/$(dirname "$path")"
+    printf 'x\n' >"$repo/$path"
+  done
+  git -C "$repo" add -A
+  printf '%s\n' "$repo"
+}
+
+# new_remote: print the path of a directory with a bare repository origin.git and a clone
+# of it, work, whose commits skip the hooks (it has none)
+new_remote() {
+  local dir
+  dir=$(mktemp -d "$tmp/remote.XXXXXX")
+  git init -q --bare -b main "$dir/origin.git"
+  git clone -q "$dir/origin.git" "$dir/work" 2>/dev/null
+  printf '%s\n' "$dir"
+}
+
+# commit_in <work> <subject> [body]: an empty commit in <work>; print its sha
+commit_in() {
+  git -C "$1" commit -q --allow-empty -m "$2" ${3:+-m "$3"}
+  git -C "$1" rev-parse HEAD
+}
+
+# checkout <remote> <branch>: print the path of a fresh clone of <remote>/origin.git at
+# <branch>, as actions/checkout with fetch-depth 0 makes it: it holds every branch, but no
+# commit that no branch reaches any more
+checkout() {
+  local dir
+  dir=$(mktemp -d "$tmp/checkout.XXXXXX")
+  git clone -q --no-local "$1/origin.git" "$dir"
+  git -C "$dir" checkout -q --detach "origin/$2"
+  printf '%s\n' "$dir"
+}
+
 echo "pre-commit"
 rejected_by="pre-commit:"
 expect fail "course file" commit_file "courses/et1/overview.md"
@@ -106,6 +156,42 @@ for subject in 'Merge branch '\''main'\'' into topic' 'Revert "feat: add a tab"'
 
 $trailer"
 done
+
+echo "guard: commits"
+rejected_by="::error::"
+zero=0000000000000000000000000000000000000000
+remote=$(new_remote)
+work="$remote/work"
+a=$(commit_in "$work" "feat: add a")
+git -C "$work" push -q origin main
+b=$(commit_in "$work" "feat: add b")
+git -C "$work" push -q origin main
+expect pass "push of conventional commits" guard_in "$(checkout "$remote" main)" commits \
+  EVENT=push PUSH_BEFORE="$a" PUSH_REF=refs/heads/main DEFAULT_BRANCH=main
+c=$(commit_in "$work" "feat: add c" "$trailer")
+git -C "$work" push -q origin main
+expect fail "push of a commit with a co-author trailer" guard_in "$(checkout "$remote" main)" \
+  commits EVENT=push PUSH_BEFORE="$b" PUSH_REF=refs/heads/main DEFAULT_BRANCH=main
+git -C "$work" checkout -q -b topic "$b"
+d=$(commit_in "$work" "fix: add d")
+git -C "$work" push -q origin topic
+expect pass "new branch of conventional commits" guard_in "$(checkout "$remote" topic)" \
+  commits EVENT=push PUSH_BEFORE="$zero" PUSH_REF=refs/heads/topic DEFAULT_BRANCH=main
+expect pass "pull request of conventional commits" guard_in "$(checkout "$remote" topic)" \
+  commits EVENT=pull_request PR_BASE="$b" PR_HEAD="$d" DEFAULT_BRANCH=main
+expect fail "pull request with a co-author trailer" guard_in "$(checkout "$remote" main)" \
+  commits EVENT=pull_request PR_BASE="$a" PR_HEAD="$c" DEFAULT_BRANCH=main
+
+echo "guard: courses"
+expect pass "only courses/README.md" guard_in "$(tracked courses/README.md docs/a.md)" courses
+expect fail "course file" guard_in "$(tracked courses/README.md courses/et1/a.md)" courses
+expect fail "course file with an umlaut" \
+  guard_in "$(tracked courses/README.md "courses/et1/Übung 3.md")" courses
+
+echo "guard: pdfs"
+expect pass "pdf under tests/fixtures" guard_in "$(tracked tests/fixtures/a.pdf)" pdfs
+expect fail "pdf" guard_in "$(tracked docs/a.pdf)" pdfs
+expect fail "upper-case pdf" guard_in "$(tracked docs/A.PDF)" pdfs
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures hook test(s) failed" >&2
