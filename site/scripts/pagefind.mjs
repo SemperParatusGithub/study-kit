@@ -23,6 +23,8 @@ function courseLanguage() {
 }
 
 const lang = courseLanguage();
+// dist/pagefind may hold the previous index (copied from public/); start clean.
+rmSync(join(dist, 'pagefind'), { recursive: true, force: true });
 const bin = join(site, 'node_modules', '.bin', process.platform === 'win32' ? 'pagefind.cmd' : 'pagefind');
 const run = spawnSync(bin, ['--site', 'dist', '--force-language', lang], { cwd: site, stdio: 'inherit' });
 if (run.status !== 0) {
