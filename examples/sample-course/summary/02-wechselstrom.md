@@ -83,11 +83,12 @@ $\underline{Y} = 1/\underline{Z}$. Es gelten dieselben Regeln wie für Widerstä
 Gleichstromkreis, nur mit komplexen Zahlen.
 :::
 
-![Blindwiderstände einer Spule mit 10 mH und eines Kondensators mit 1 µF über der Frequenz; bei 1,59 kHz betragen beide 100 Ω](fig:ws-impedanz-frequenz)
+![Blindwiderstände einer Spule mit 10 mH und eines Kondensators mit 1 µF über der Frequenz; bei 1,59 kHz betragen beide 100 Ω. Gestrichelt zum Vergleich ein Widerstand R = 100 Ω](fig:ws-impedanz-frequenz)
 
-Der Blindwiderstand der Spule wächst mit der Frequenz, der des Kondensators fällt. Bei
-Gleichspannung wirkt die Spule wie ein Kurzschluss und der Kondensator wie ein Leerlauf;
-bei sehr hohen Frequenzen ist es umgekehrt.
+Der Blindwiderstand der Spule wächst mit der Frequenz, der des Kondensators fällt; ein
+ohmscher Widerstand hängt nicht von der Frequenz ab. Bei Gleichspannung wirkt die Spule
+wie ein Kurzschluss und der Kondensator wie ein Leerlauf; bei sehr hohen Frequenzen ist es
+umgekehrt.
 
 ::: warning
 **Vorzeichen beim Kondensator**
