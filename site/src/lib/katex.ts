@@ -94,6 +94,61 @@ function glue(html: string, lead: string, trail: string): string {
   return out;
 }
 
+const QQUAD = /^\\qquad(?![A-Za-z])/;
+/** A `.base` that KaTeX ended at a top-level \allowbreak (and the glue after it). */
+const ENDS_AT_BREAK = /<span class="mspace allowbreak"><\/span>(?:<span class="mspace"[^>]*><\/span>)*<\/span>$/;
+const DISPLAY_OPEN = '<span class="katex-display">';
+
+/**
+ * `\allowbreak` before every `\qquad` outside braces (where math mode is certain; KaTeX
+ * rejects it in text mode). It changes nothing on screen, but KaTeX ends a `.base` there.
+ */
+export function markQquadBreaks(tex: string): string {
+  let out = '';
+  let depth = 0;
+  for (let i = 0; i < tex.length; i++) {
+    const ch = tex[i];
+    if (ch === '\\') {
+      if (depth === 0 && QQUAD.test(tex.slice(i))) out += '\\allowbreak';
+      const name = /^\\(?:[A-Za-z]+|.)/s.exec(tex.slice(i))?.[0] ?? ch;
+      out += name;
+      i += name.length - 1;
+      continue;
+    }
+    if (ch === '{') depth++;
+    else if (ch === '}') depth = Math.max(0, depth - 1);
+    out += ch;
+  }
+  return out;
+}
+
+/**
+ * A display formula that sets several formulas apart with `\qquad` ("a = b, \qquad c = d")
+ * may wrap between them, never inside one: the bases up to each `\allowbreak` that
+ * markQquadBreaks put in go into one no-wrap group. Where display math may wrap at all is
+ * up to the CSS (the cheat sheet's narrow columns, content.css); elsewhere it stays on one
+ * line and scrolls. For any other shape of output the plain rendering is kept.
+ */
+function groupDisplay(plain: string, marked: string): string {
+  const parts = (html: string) =>
+    html.startsWith(DISPLAY_OPEN) && html.endsWith('</span>')
+      ? splitBases(html.slice(DISPLAY_OPEN.length, -'</span>'.length))
+      : null;
+  const original = parts(plain);
+  const split = parts(marked);
+  if (!original || !split) return plain;
+  const groups: string[][] = [[]];
+  for (const base of split.bases) {
+    groups.at(-1)?.push(base);
+    if (ENDS_AT_BREAK.test(base)) groups.push([]);
+  }
+  const filled = groups.filter((g) => g.length > 0);
+  if (filled.length < 2) return plain;
+  const inner = filled.map((g) => (g.length > 1 ? `<span class="sk-nobr">${g.join('')}</span>` : g[0])).join('');
+  // the MathML (and its TeX annotation) of the formula as written
+  return `${DISPLAY_OPEN}<span class="katex">${original.mathml}${HTML_OPEN}${inner}${KATEX_CLOSE}</span>`;
+}
+
 /**
  * Replace every <sk-math> in `html` with KaTeX output. A formula KaTeX rejects becomes a
  * marked <code> element and is passed to `onError`.
@@ -110,7 +165,16 @@ export function renderMath(html: string, onError: (err: MathError) => void): str
       onError({ tex, display, message });
       return `${lead}<code class="sk-math-error" title="${escapeHtml(message)}">${escapeHtml(tex)}</code>${trail}`;
     }
-    return display ? lead + out + trail : glue(out, lead, trail);
+    if (!display) return glue(out, lead, trail);
+    const marked = markQquadBreaks(tex);
+    if (marked !== tex) {
+      try {
+        out = groupDisplay(out, renderTex(marked, true));
+      } catch {
+        // keep the plain rendering
+      }
+    }
+    return lead + out + trail;
   });
 }
 
