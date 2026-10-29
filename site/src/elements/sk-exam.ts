@@ -90,7 +90,10 @@ export class SkExam extends HTMLElement {
   private ticks = 0;
   private visible = new Map<string, number>();
   private observer: IntersectionObserver | null = null;
-  /** Keeps --sk-exam-head at the sticky head's height (scroll-margin of the parts). */
+  /**
+   * Keeps --sk-exam-head at the sticky head's height (scroll-margin of the parts) and the
+   * page's scroll-padding-top below it, so a control that gets focus is never under it.
+   */
   private headSize: ResizeObserver | null = null;
   private session: ExamSession | null = null;
   private announceTimeUp = false;
@@ -299,7 +302,11 @@ export class SkExam extends HTMLElement {
     document.addEventListener('visibilitychange', this.onVisibility);
     this.observe();
     // now (the Start button scrolls to the first task right away) and on every resize
-    const headHeight = () => this.style.setProperty('--sk-exam-head', `${this.head.offsetHeight}px`);
+    const headHeight = () => {
+      const px = `${this.head.offsetHeight}px`;
+      this.style.setProperty('--sk-exam-head', px);
+      document.documentElement.style.scrollPaddingTop = `calc(${px} + 0.5rem)`;
+    };
     headHeight();
     if (typeof ResizeObserver !== 'undefined') {
       this.headSize = new ResizeObserver(headHeight);
@@ -413,6 +420,7 @@ export class SkExam extends HTMLElement {
     this.headSize?.disconnect();
     this.headSize = null;
     this.style.removeProperty('--sk-exam-head');
+    document.documentElement.style.removeProperty('scroll-padding-top');
     this.lastTick = 0;
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     window.removeEventListener('pagehide', this.onPageHide);

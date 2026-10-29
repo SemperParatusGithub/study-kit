@@ -157,6 +157,11 @@ test('keyboard: focus moves to the first task on Start and back to Submit after 
   const firstHeading = exam.locator('section.sk-exam-task').first().getByRole('heading').first();
   await expect(firstHeading).toBeFocused();
 
+  // while the exam runs, a control that gets focus is scrolled below the sticky head
+  const head = await exam.locator('.sk-exam-head').evaluate((el) => el.getBoundingClientRect().height);
+  const padding = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop));
+  expect(padding).toBeGreaterThanOrEqual(head);
+
   const submit = exam.getByRole('button', { name: 'Submit', exact: true });
   await submit.focus();
   await page.keyboard.press('Enter');
@@ -164,4 +169,10 @@ test('keyboard: focus moves to the first task on Start and back to Submit after 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(submit).toBeFocused();
+
+  // submitted: the page's own scroll padding is back
+  await submit.click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(exam.locator('.sk-exam-result').getByRole('heading', { name: 'Result' })).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.style.scrollPaddingTop)).toBe('');
 });
