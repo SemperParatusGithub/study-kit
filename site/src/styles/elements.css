@@ -1482,6 +1482,8 @@ sk-theme {
 
 .sk-theme-opt:has(input:checked) {
   background: var(--ske-surface-2);
+  /* the ring marks the choice at 3:1 or more against the bar; the fill alone is too faint */
+  box-shadow: inset 0 0 0 1.5px var(--ske-muted);
   color: var(--ske-fg);
 }
 
