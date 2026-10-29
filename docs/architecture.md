@@ -37,8 +37,9 @@ study-kit/
 │   ├── content.py                  # discovery, frontmatter split, id index, fence-line scanner
 │   ├── pandoc.py                   # run pandoc with shared defaults (targets: html5 | typst | json)
 │   ├── lint.py  validate.py        # per-file lint (hook) / full validation, findings as SK-codes
-│   ├── figures/                    # house.mplstyle palette.py keypoints.py plot.py circuit.py
-│   │                               # block.py graph.py finalize.py runner.py
+│   ├── figures/                    # house.mplstyle palette.py core.py keypoints.py plot.py signals.py
+│   │                               # circuit.py block.py graph.py labels.py builtins.py
+│   │                               # finalize.py validate.py child.py runner.py
 │   ├── check.py  verify.py  blind.py   # check-script API, runner + ledger, blind views
 │   ├── pdf.py  cheatsheet.py       # assemble → pandoc → typst; page-fit loop
 │   ├── ingest.py                   # scan, copy, page text, chunk plan
@@ -561,7 +562,7 @@ title: Überblick
   (English: Big picture, Topic map, How the topics connect, Exam at a glance, How to study
   this subject, Prerequisites); lint checks them by position and count, not by text.
 - `fig:topic-map` is built automatically for every course by `graph.topic_map(course)`
-  from `course.yaml` topics and `prereq`: node size encodes weight, focus topics are
+  from `course.yaml` topics and `prereq`: box height encodes weight, focus topics are
   highlighted, skipped topics are greyed out. No figure script is needed.
 - "Exam at a glance" is written from `analysis/exam-profile.yaml` (format, duration, points,
   archetypes and their share, MC part, allowed aids).
@@ -757,15 +758,37 @@ German hyphenation comes from `set text(lang: "de")`.
 - **Function plots:** `plot.functions([('f','x**2-2'),('g','exp(-x)')], x=(-3,3), mark=('roots','intersections','extrema','inflections'), exact=True)`.
   - Numeric results are the truth: dense sign scan, then `brentq` or `scipy.optimize.elementwise.find_root`, a residual check to reject poles, and touching roots via h′.
   - SymPy `solveset` supplies exact forms for display only, and only when they agree with the numeric roots.
-- **Control and signals:** `plot.bode(G, w=…, unit='rad/s'|'Hz', asymptotes=True, margins=True)`, `plot.nyquist(G, mark_critical=True)`, `plot.pole_zero(G, discrete=False)`, `plot.step_response(G, annotate=(…))`, `plot.root_locus(G)`, `plot.signals(t, {…}, stem=False)`.
+  - Points at one location share a label; labels and the legend are placed clear of
+    curves, axes and tick labels; crossed axes show a single 0 at the origin.
+- **Control and signals** (defined in `signals.py`, re-exported by `plot`; facts name them
+  `signals.*`): `plot.bode(G, w=…, unit='rad/s'|'Hz', asymptotes=True, margins=True)`, `plot.nyquist(G, mark_critical=True)`, `plot.pole_zero(G, discrete=False)`, `plot.step_response(G, annotate=(…))`, `plot.root_locus(G)`, `plot.signals(t, {…}, stem=False)`.
+  - `G` is a `control.TransferFunction`, a `(num, den)` pair or a SymPy string in `s` (or `z`
+    for `pole_zero`/`root_locus`); dead time is rejected.
   - python-control only computes; the house code draws.
-  - `scipy.signal` and brentq independently re-check margins and crossover frequencies.
+  - `scipy.signal` and brentq independently re-check margins and crossover frequencies; a
+    disagreement is an error, not a silent pick.
 - **Phasors:** `plot.phasor({'U_R': (5, 0), 'U_L': (3, 90)}, chain=True)`.
 - **Circuits** (IEC style): `circuit.voltage_divider / rc / rl / rlc / opamp / bridge`, plus house DIN EN 60617 sources, `zaehlpfeil_u`/`zaehlpfeil_i` reference arrows, a filled inductor, and the escape hatch `circuit.drawing()`.
-- **Block diagrams:** `block.feedback_loop(forward=[…], feedback='H(s)', signals={…}, disturbance=None, sign='-')`, `block.chain`, `block.parallel` (`schemdraw.dsp`).
+  - Values are strings with units (`'4,7 kΩ'`, `'100 nF'`), SI numbers, or symbols (`'R'`,
+    `'2R'`); a wrong unit or SPICE shorthand such as `'4.7k'` is an error. facts list every
+    component with its nodes and SI value, every reference arrow with its nodes, and derived
+    values (divider ratio, τ, f_c, ω_0, Q, gain).
+  - Conventions: voltage arrows point from + to − (DIN 5489), ground is the IEC earth symbol,
+    the AC source is a circle with ~, the Wheatstone bridge is drawn as an H, the op-amp is
+    the DIN box (`symbol='triangle'` for the US form).
+- **Block diagrams:** `block.feedback_loop(forward=[…], feedback='H(s)', signals={…}, disturbance=None, sign='-')`, `block.chain`, `block.parallel` (`schemdraw.dsp`). facts carry the loop, reference, error and disturbance transfer functions, solved with SymPy from the drawn loop.
 - **Graphs:** `graph.state_machine(states, transitions, initial, accepting, kind='moore'|'mealy', layout='ring'|'row'|'grid'|coords)` and `graph.flowchart(nodes, edges)`, built on `schemdraw.flow` State, StateEnd, Arc2 and ArcLoop.
+- **Topic map:** `graph.topic_map(course_dir, size='full', direction='auto'|'lr'|'tb')`,
+  registered in `builtins.py` and built for every course as `topic-map` (§2.12). Topics sit in
+  layers by prerequisite depth with few crossings; box height grows with weight, focus topics
+  get a c1 frame, skipped ones are muted and dashed.
 - **Raw Matplotlib:** `plot.custom()`, a context manager that yields a house-styled axis. It is the only route to raw Matplotlib.
 - MC questions can use the same builders for distractor figures, for example four Bode plots. `facts.json` then proves which one is correct.
+- Labels go through `labels.place`, which tries candidate spots and keeps the first whose box
+  covers no drawn point, axes edge or earlier label (otherwise the nearest free spot with a
+  leader line).
+- **Gallery:** `tests/fixtures/figures/gallery/` has one script per template; the tests build
+  it with the runner and compare every `facts.json` with `tests/golden/figures/`.
 
 **Runner** (`studykit fig build [course] [--only slug]`):
 - Each `figures/<slug>.py` defines `build()` and runs in its own subprocess (`python -I`, 60 s timeout), in parallel up to the CPU count.
