@@ -22,7 +22,8 @@ reasons say what to do instead.
   without a path.
 - `pre-git` (project-wide, on `Bash(git *)`): denies `git add` with `-f`/`--force` or a
   path under `courses/` (except `courses/README.md`), and `git commit` with a course path,
-  `--no-verify`, or course files already staged.
+  `--no-verify`, or course files already staged, and any git command that sets
+  `core.hooksPath` for itself.
 """
 
 from __future__ import annotations
@@ -371,7 +372,36 @@ def verifier_guard(payload: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
-GIT_OPTS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
+GIT_OPTS_WITH_VALUE = {
+    "-C",
+    "-c",
+    "--config-env",
+    "--git-dir",
+    "--work-tree",
+    "--namespace",
+    "--exec-path",
+}
+
+
+def _overrides_hooks(words: list[str]) -> bool:
+    """True if a git command line sets core.hooksPath for this run (`-c`, `--config-env`,
+    GIT_CONFIG_* in the environment), which would skip .githooks."""
+    if any(re.match(r"GIT_CONFIG_\w*=", w) and "hookspath" in w.lower() for w in words):
+        return True
+    words = _strip_env(words)
+    i = 1
+    while i < len(words) and words[i].startswith("-"):
+        word, value = words[i], None
+        if word in ("-c", "--config-env") and i + 1 < len(words):
+            value = words[i + 1]
+        elif word.startswith("--config-env="):
+            value = word.split("=", 1)[1]
+        elif word.startswith("-c") and len(word) > 2:
+            value = word[2:]
+        if value is not None and value.split("=", 1)[0].strip().lower() == "core.hookspath":
+            return True
+        i += 2 if word in GIT_OPTS_WITH_VALUE else 1
+    return False
 
 
 def _git(words: list[str], cwd: Path) -> tuple[str, list[str], Path] | None:
@@ -474,6 +504,11 @@ def pre_git(payload: dict[str, Any]) -> dict[str, Any] | None:
         if parsed is None:
             continue
         sub, args, where = parsed
+        if _overrides_hooks(words):
+            return deny(
+                "pre-git: setting core.hooksPath for one git command would skip the course "
+                "and commit-message hooks of .githooks." + GIT_HINT
+            )
         if sub in ("add", "stage"):
             for arg in args:
                 if _long_option(arg, "--force", 3) or (

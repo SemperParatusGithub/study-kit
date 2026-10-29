@@ -1640,7 +1640,8 @@ call the CLI as `uv run --frozen studykit …`.
     prefix such as `--forc`, which git accepts) or a path under `courses/` (pathspecs such
     as `:/courses` too; `courses/README.md` is allowed), and `git commit` with a course
     path, `--no-verify` (or a prefix down to `--no-v`) or `-n`, or course files already
-    staged. It prints the documented deny JSON
+    staged, and any git command that sets `core.hooksPath` for itself (`-c`,
+    `--config-env`, `GIT_CONFIG_*`), which would skip `.githooks`. It prints the documented deny JSON
     (`hookSpecificOutput.permissionDecision: "deny"` with a reason) and exits 0; input it
     cannot read never blocks.
   - The verifier's guard is a hook of that agent only (§5.3).

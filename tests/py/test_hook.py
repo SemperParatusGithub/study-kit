@@ -263,6 +263,11 @@ def test_guard_allows_the_protocol(repo: Path, command: str):
         "git commit --no-verif -m 'feat: x'",
         "git commit --no-veri -m 'feat: x'",
         "git add --forc . && git commit --no-verif -m x",
+        # the hooks switched off for one command
+        "git -c core.hooksPath=/dev/null commit -m 'feat: x'",
+        "git -c core.hookspath= commit -m 'feat: x'",
+        "git --config-env=core.hooksPath=EMPTY commit -m 'feat: x'",
+        "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=x git commit",
     ],
 )
 def test_pre_git_blocks(repo: Path, command: str):
@@ -284,6 +289,7 @@ def test_pre_git_blocks(repo: Path, command: str):
         "echo git add -f",
         "git commit --amend --no-edit",
         "git add --dry-run src",
+        "git -c core.quotePath=false status",
     ],
 )
 def test_pre_git_allows(repo: Path, command: str):
