@@ -83,7 +83,7 @@ def study_status(
     if state_at == progress.EPOCH:
         hints.append(f"no browser progress imported yet: `/import-progress {c}`")
     if due_mc or due_ex:
-        hints.append("reviews are due: the site's MC hub (mode Due) or `/examine " + c + " weak`")
+        hints.append(f"reviews are due: the site's MC hub (mode Due) or `/examine {c} mc`")
     if exam and last_mock is None and info.exams and days_left is not None and days_left <= 14:
         hints.append(f"no mock exam taken yet, {days_left} day(s) before the exam")
     if exam is None:

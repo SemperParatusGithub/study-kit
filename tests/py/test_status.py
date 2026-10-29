@@ -97,6 +97,8 @@ def test_status_reports_days_adherence_and_reviews(course: Path, capsys):
     assert r["due"] == {"mc": 2, "exercises": 1}
     assert r["last_mock"]["total"] == 64 and r["last_mock"]["passed"] is True
     assert any("studykit plan" in h for h in r["hints"])
+    # due reviews point to the examiner mode that asks them first
+    assert any("`/examine sample-course mc`" in h for h in r["hints"])
 
 
 def test_status_matches_the_report(course: Path):
