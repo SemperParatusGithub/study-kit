@@ -858,6 +858,17 @@ def _row(
             problems=entry.problems,
             warnings=entry.warnings,
             note=entry.note,
+            # whether the last dispute of this version was confirmed by a second method
+            confirmed=bool(
+                entry.disputes
+                and entry.disputes[-1].confirmed
+                and entry.disputes[-1].content_sha256 == item.content_sha256
+            ),
+            confirmations=[
+                {"check": c.check, "method": c.method, "result": c.result}
+                for c in entry.confirmations
+                if c.content_sha256 == item.content_sha256
+            ],
         )
         if not show_key:
             for r in row["results"]:

@@ -24,10 +24,11 @@ Never put a key value, a solution or an item file path into a verifier's prompt.
    target (stale entries are checked against the new content). Exit 1 only means some
    item is disputed or failed.
 3. `uv run --frozen studykit verify $0 <target> --status --json` lists every item with its
-   `status`, `outcome` and `check`. Items to send to a verifier:
+   `status`, `outcome`, `check`, `confirmed` (a second method reproduced the dispute) and
+   `confirmations`. Items to send to a verifier:
    - an explicit item id as target: always (a fresh blind check);
    - otherwise: every item that is `unverified` (no check, or a check that errored) and
-     every `disputed` item whose dispute has not been confirmed by a second method.
+     every `disputed` item that is not `confirmed`.
 
 ## 2. Verifier wave
 
@@ -48,8 +49,9 @@ with the item's solution yourself. If they disagree, record it:
 ## 3. Dispute loop (at most 2 author rounds per item)
 
 For each disputed item, with the ledger entry from
-`uv run --frozen studykit verify $0 <id> --status --show-key --json` (the verifier's
-`computed` values, the key's `expected`, confirmations):
+`uv run --frozen studykit verify $0 <id> --status --show-key --json` (in `results` the
+verifier's `computed` values and the key's `expected`, `ok: false` for a mismatch; MC: the
+letters; `confirmed` and `confirmations`):
 
 1. Start an `author` agent: "Course `<dir>`. Fix round for `<id>` (`<file>`). The verifier
    computed: `<key>=<value> <unit>` for each mismatched key (MC: its letters), confirmed by

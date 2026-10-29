@@ -335,6 +335,16 @@ def test_second_method_confirms_or_contradicts(course: Path, capsys):
     entry = ledger(course, "ex-rc-tp-grenzfrequenz")
     assert entry["disputes"][-1]["confirmed"] is True
     assert entry["confirmations"][0]["method"] == "brentq on |H|"
+    # /verify reads whether a dispute is confirmed from the status rows
+    row = verify.status(tree(course), "ex-rc-tp-grenzfrequenz")["items"][0]
+    assert row["confirmed"] is True
+    assert row["confirmations"] == [
+        {
+            "check": "checks/ex-rc-tp-grenzfrequenz.numeric.py",
+            "method": "brentq on |H|",
+            "result": "mismatch",
+        }
+    ]
     # a second method that sides with the key: the first check is suspect
     alt.write_text(
         "from studykit.check import answers\nanswers(tau=103.4, fg=1608.0, Hdb=-3.01, phi=-45)\n"
