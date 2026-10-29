@@ -1,8 +1,9 @@
 // Built PDFs and source documents (docs/architecture.md §3.2, §3.3): the routes serve
 // _build/pdf/ and sources/raw/ byte for byte, and each page links exactly the documents that
-// _build/pdf/manifest.json lists, with their page count and size. The suite checks whatever
-// the build had: the pipeline's PDFs, the fake ones of tests/fake-pdfs.mjs, or none at all,
-// in which case no page shows a trace of them.
+// _build/pdf/manifest.json lists, with their page count and size. `just build` runs
+// `studykit pdf` before the site build, so the suite expects the pipeline's PDFs of every
+// sample-course document. A course without _build/pdf/ gets no routes and no links; the unit
+// tests (tests/unit/pdf.test.ts) cover that, since it would need a second site build here.
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -41,7 +42,7 @@ const manifestPath = join(COURSE_DIR, '_build', 'pdf', 'manifest.json');
 if (builtPdfs.length && !existsSync(manifestPath)) {
   throw new Error(`site/dist has PDFs of ${COURSE}, but ${manifestPath} is gone: rebuild the site`);
 }
-const docs: Doc[] = builtPdfs.length ? JSON.parse(readFileSync(manifestPath, 'utf8')).docs : [];
+const docs: Doc[] = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')).docs : [];
 const doc = (kind: string, exam?: string) => docs.find((d) => d.kind === kind && (!exam || d.exam === exam));
 const EXAM = 'probeklausur-1';
 
@@ -79,8 +80,29 @@ async function open(page: Page, path: string): Promise<void> {
   await elementsReady(page);
 }
 
-test.describe('with built PDFs', () => {
-  test.skip(builtPdfs.length === 0, 'the build has no PDFs (tests/fake-pdfs.mjs makes some)');
+/** The documents `studykit pdf` builds for the sample course: kind and file. */
+const SAMPLE_DOCS = [
+  ['overview', 'overview.pdf'],
+  ['summary', 'summary.pdf'],
+  ['exercises', 'exercises.pdf'],
+  ['exercises-blank', 'exercises-blank.pdf'],
+  ['mc', 'mc.pdf'],
+  ['exam', `${EXAM}.pdf`],
+  ['exam-solutions', `${EXAM}-solutions.pdf`],
+  ['cheatsheet', 'cheatsheet.pdf'],
+  ['plan', 'plan.pdf'],
+];
+
+test.describe('built PDFs', () => {
+  test('the pipeline built every document of the sample course with Typst', () => {
+    expect(docs.map((d) => [d.kind, d.file]), `${manifestPath}: build with \`just build\``).toEqual(SAMPLE_DOCS);
+    for (const d of docs) {
+      const bytes = readFileSync(join(COURSE_DIR, '_build', 'pdf', d.file));
+      // the producer of `studykit pdf` (§3.3), not a stand-in
+      expect(bytes.subarray(0, 5).toString('latin1'), d.file).toBe('%PDF-');
+      expect(bytes.includes('Typst'), d.file).toBe(true);
+    }
+  });
 
   test('the build has exactly the PDFs of the manifest, byte for byte, served inline', async ({ request }) => {
     expect(builtPdfs).toEqual(docs.map((d) => d.file).sort());
@@ -101,10 +123,8 @@ test.describe('with built PDFs', () => {
       await open(page, path);
       const links = page.locator(`a.pdf-link[data-sk-pdf="${kind}"]`);
       const d = doc(kind, exam);
-      if (!d) {
-        await expect(links).toHaveCount(0);
-        return;
-      }
+      expect(d, `${kind} in the manifest`).toBeDefined();
+      if (!d) return;
       await expect(links).toHaveCount(1);
       await expect(links).toBeVisible();
       await expectLink(links, d, name);
@@ -123,7 +143,7 @@ test.describe('with built PDFs', () => {
 
   test('exam solutions: behind a label on the index, on the exam page only after submitting', async ({ page }) => {
     const d = doc('exam-solutions', EXAM);
-    test.skip(!d, 'no solutions PDF built');
+    expect(d).toBeDefined();
     if (!d) return;
     await open(page, `${C}/exams/`);
     const spoiler = page.locator('details.pdf-spoiler');
@@ -151,7 +171,7 @@ test.describe('with built PDFs', () => {
 
   test('the cheat sheet badge shows the page count against the limit from the manifest', async ({ page }) => {
     const d = doc('cheatsheet');
-    test.skip(!d, 'no cheat-sheet PDF built');
+    expect(d).toBeDefined();
     if (!d) return;
     await open(page, `${C}/cheatsheet/`);
     const badge = page.locator('[data-sk-pdf-pages]');
@@ -163,25 +183,23 @@ test.describe('with built PDFs', () => {
   });
 
   test('a download is the PDF itself, named after the course', async ({ page }) => {
-    const d = doc('summary') ?? docs[0];
-    test.skip(!d, 'no PDF built');
+    const d = doc('summary');
+    expect(d).toBeDefined();
     if (!d) return;
     await open(page, `${C}/summary/`);
-    const link = page.locator('a.pdf-link').first();
+    const link = page.locator('a.pdf-link[data-sk-pdf="summary"]');
     const download = page.waitForEvent('download');
     await link.click();
     const file = await download;
-    const want = (await link.getAttribute('download')) ?? '';
-    expect(file.suggestedFilename()).toBe(want);
-    const kind = await link.getAttribute('data-sk-pdf');
-    const source = readFileSync(join(COURSE_DIR, '_build', 'pdf', docs.find((x) => x.kind === kind)?.file ?? ''));
+    expect(file.suggestedFilename()).toBe(`${COURSE}-${d.file}`);
+    const source = readFileSync(join(COURSE_DIR, '_build', 'pdf', d.file));
     expect(sha(readFileSync((await file.path()) ?? ''))).toBe(sha(source));
   });
 
   test('printing a page leaves its PDF links out', async ({ page }) => {
     await open(page, `${C}/exercises/`);
     const links = page.locator('a.pdf-link');
-    test.skip((await links.count()) === 0, 'no exercise PDFs built');
+    await expect(links).toHaveCount(2);
     await expect(links.first()).toBeVisible();
     await page.emulateMedia({ media: 'print' });
     for (const link of await links.all()) await expect(link).toBeHidden();
@@ -189,28 +207,8 @@ test.describe('with built PDFs', () => {
   });
 });
 
-test.describe('without built PDFs', () => {
-  test.skip(builtPdfs.length > 0, 'the build has PDFs');
-
-  test('no page links a PDF, and there are no PDF routes', async ({ page, request }) => {
-    const html = ls(DIST).filter((f) => f.endsWith('.html') && !f.startsWith('pagefind'));
-    expect(html.length).toBeGreaterThan(20);
-    for (const f of html) {
-      const text = readFileSync(join(DIST, f), 'utf8');
-      expect(text, f).not.toContain('pdf-link');
-      expect(text, f).not.toContain(`${C}/pdf/`);
-      expect(text, f).not.toContain('data-sk-exam-solutions');
-    }
-    expect((await request.get(`${C}/pdf/summary.pdf`)).status()).toBe(404);
-    await open(page, `${C}/cheatsheet/`);
-    await expect(page.locator('[data-sk-pdf-pages]')).toHaveText('PDF not built yet · limit 2 pages');
-    await open(page, `${C}/exams/`);
-    await expect(page.locator('.exam-pdfs')).toHaveCount(0);
-  });
-});
-
 test('source documents are served byte for byte as listed in sources/manifest.yaml', async ({ request }) => {
-  test.skip(builtSources.length === 0, 'the course has no source documents (tests/fake-pdfs.mjs --sources adds two)');
+  test.skip(builtSources.length === 0, 'the course has no source documents (sources/manifest.yaml)');
   const yaml = readFileSync(join(COURSE_DIR, 'sources', 'manifest.yaml'), 'utf8');
   for (const name of builtSources) {
     const id = name.replace(/\.pdf$/, '');
@@ -232,8 +230,8 @@ test('search never finds the text of a PDF', async ({ page }) => {
     const pagefind = await import(/* @vite-ignore */ '/pagefind/pagefind.js');
     await pagefind.init?.();
     const urls: string[] = [];
-    // a word only the fake PDFs hold, and words every course PDF has on its pages
-    for (const term of ['Platzhalterdokument', 'Seite', 'Probeklausur']) {
+    // words only the PDFs hold, and words the PDFs share with the pages
+    for (const term of ['Lösungsschlüssel', 'Seite', 'Probeklausur']) {
       const search = await pagefind.search(term);
       for (const r of search.results) urls.push((await r.data()).url as string);
     }
