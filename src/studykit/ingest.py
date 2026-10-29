@@ -173,7 +173,8 @@ def _v(value: Any) -> str:
     if isinstance(value, dt.date):
         return value.isoformat()
     text = str(value)
-    if re.fullmatch(r"[a-z][a-z0-9-]*", text) and text not in {"null", "true", "false"}:
+    plain = re.fullmatch(r"[a-z][a-z0-9-]*", text) and not re.fullmatch(r"[0-9a-f]{64}", text)
+    if plain and text not in {"null", "true", "false"}:
         return text
     if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", text):
         return text
