@@ -1525,103 +1525,236 @@ characters or quotes are caught too.
 
 ## 5. Claude Code layer
 
-*Phase 5 and 6.* What exists (Phase 5): `.claude/settings.json` with attribution,
-permissions and hooks (§5.1), the skills and agents of §5.2 and §5.3 except `ingest`,
-`/register-new-subject`, `/add-material`, `ingester` and `exam-analyst` (Phase 6), and the
-commands they run: `lint --hook`, `calc`, `blind`, `verify`, `hook` (`verifier-guard`,
-`pre-git`), `plan`, `progress` and `status`. The command `ingest` is planned.
+Phase 5 built this layer; Phase 6 adds the ingest side. What exists:
+- `.claude/settings.json` with attribution, permissions and hooks, and `CLAUDE.md` (§5.1);
+- the user commands `/regenerate`, `/verify`, `/tutor`, `/examine`, `/import-progress` and
+  `/study-status`, and the internal skills `content-format`, `authoring`, `figures` and
+  `verify-protocol` (§5.2);
+- the agents `author`, `verifier`, `tutor` and `examiner` (§5.3);
+- the commands they run: `ls`, `index`, `lint` (and `lint --hook`), `validate`, `fig build`,
+  `cheatsheet fit`, `pdf`, `calc`, `blind`, `verify`, `hook verifier-guard|pre-git`,
+  `plan`, `progress import|log|report` and `status`, and the recipes `just verify`,
+  `just status`, `just tutor` and `just examine` (§4.2).
+
+Planned for Phase 6: `/register-new-subject` and `/add-material`, the `ingest` skill, the
+`ingester` and `exam-analyst` agents, `studykit ingest` and the output-derived pipeline
+status (§5.4). `tests/py/test_claude.py` keeps the layer in line with this section and the
+CLI (§4.4).
+
+Every procedure finds course files with `studykit ls` and ids with `studykit index --json`
+and reads them by explicit path, because Grep and Glob may skip the gitignored `courses/`
+(§7 risk 10), and computes every number with `studykit calc` or Python. Skills and agents
+call the CLI as `uv run --frozen studykit …`.
 
 ### 5.1 Project configuration
 
 **`.claude/settings.json`:**
-- `"attribution": {"commit": "", "pr": ""}`. The docs confirm that an empty string hides the trailer, and the `commit-msg` hook enforces it anyway.
-- `permissions.allow` covers what background subagents need, because their permission prompts surface in the main session:
+- `"attribution": {"commit": "", "pr": ""}`. The docs confirm that an empty string hides the
+  trailer, and the `commit-msg` hook enforces it anyway.
+- `permissions.allow` covers what background subagents need, because their permission
+  prompts surface in the main session:
   - `Bash(just *)`, `Bash(uv run --frozen studykit *)`, `Bash(uv run --frozen python courses/*)`
-  - `Read(courses/**)`, `Write(courses/**)`, `Edit(courses/**)`
-- `permissions.deny`: `Bash(git add -f *)`, `Bash(git add --force *)`. There is no deny on `.claude/**`, so Claude can build Phase 5.
-- **Hooks:**
-  - `PostToolUse`, matcher `Write|Edit`: `uv run --frozen --project "${CLAUDE_PROJECT_DIR}" studykit lint --hook`. It reads `tool_input.file_path` from stdin and ignores anything outside `courses/**` and `examples/**`. On findings it exits 2 with them on stderr, so Claude fixes them immediately.
-  - `PreToolUse`, matcher `Bash`, with `"if": "Bash(git *)"`: `studykit hook pre-git` blocks `git add` and `git commit` that touch course paths (`courses/` except `courses/README.md`, also course files already staged), `git add -f`/`--force` and `git commit --no-verify`. It prints the documented deny JSON (`hookSpecificOutput.permissionDecision: "deny"`) and exits 0.
-- **No `memory:` field on any agent.** Course-specific state lives in `courses/<c>/progress` and `state`, and `.claude/agent-memory*/` is gitignored as a safety net.
+  - `Read(/courses/**)`, `Edit(/courses/**)`: project-relative paths; Claude Code checks
+    every tool that writes files against Edit rules, so there is no `Write(…)` rule.
+- `permissions.deny`: `Bash(git add -f *)`, `Bash(git add --force *)`. There is no deny on
+  `.claude/**`, so Claude can change its own skills and agents.
+- A command's `allowed-tools` pre-approves what it runs while it is active: every command
+  except `/tutor` and `/examine` has `Bash(uv run --frozen studykit *)`; `/regenerate` adds
+  `Bash(date -u *)`, `Bash(mkdir -p *)` and `Bash(cp -p *)` for `_history/`, and
+  `/import-progress` adds `Bash(ls *)` to find the export.
+- **Hooks** (each runs `uv run --frozen --project "${CLAUDE_PROJECT_DIR}" studykit …`, so it
+  works from any working directory):
+  - `PostToolUse`, matcher `Write|Edit`: `studykit lint --hook` (status message
+    "studykit lint"). It reads the event on stdin and lints `tool_input.file_path` when it
+    is a `.md`, `.yaml` or `.yml` file under `courses/`, `examples/` or
+    `$STUDYKIT_COURSES_DIR`. On errors or warnings it exits 2 with the findings and a
+    pointer to `content-format/errors.md` on stderr, so Claude fixes them at once; anything
+    else exits 0 without output.
+  - `PreToolUse`, matcher `Bash`, with `"if": "Bash(git *)"`: `studykit hook pre-git`
+    checks every simple command of the line (`&&`, `;`, `|`, following `git -C <dir>`). It
+    denies `git add` or `git stage` with `-f`/`--force` (also inside a flag cluster) or a
+    path under `courses/` (pathspecs such as `:/courses` too; `courses/README.md` is
+    allowed), and `git commit` with a course path, `--no-verify` or `-n`, or course files
+    already staged. It prints the documented deny JSON
+    (`hookSpecificOutput.permissionDecision: "deny"` with a reason) and exits 0; input it
+    cannot read never blocks.
+  - The verifier's guard is a hook of that agent only (§5.3).
+- **No `memory:` field on any agent.** Course-specific state lives in `courses/<c>/progress`
+  and `state`, and `.claude/agent-memory*/` is gitignored as a safety net.
 
-**`CLAUDE.md`:**
-- Never commit `courses/`, nor PDFs outside `tests/fixtures/`.
-- Conventional Commits, one logical change each, no Co-Authored-By.
-- Skills and UI are in English; generated content follows `course.lang`.
-- Figures are code. Never compute numbers in your head; use Python.
-- Run `studykit validate` before finishing.
-- Find course files with `studykit ls`, because Grep and Glob may skip gitignored paths.
+**`CLAUDE.md`** holds the rules for every session, and `test_claude.py` checks that it
+states them:
+- hard rules: never commit `courses/` (never `git add -f`), nor PDFs outside
+  `tests/fixtures/`; Conventional Commits, one logical change each, no Co-Authored-By or
+  other AI attribution; a branch per phase, push and merge only when asked; code, skills,
+  agents and UI in English, generated content in `course.lang`;
+- how to work: the entry points (`just`, `uv run --frozen studykit`, `pnpm -C site`);
+  figures are code; never compute numbers in your head (Python or `studykit calc`); run
+  `studykit validate` before finishing; look at the pages after changing how PDFs look;
+  find course files with `studykit ls`; exact pins;
+- the Claude Code layer: the commands, agents and hooks, and `test_claude.py` after any
+  change to a skill or an agent.
 
 ### 5.2 Skills
 
-**User commands** (`disable-model-invocation: true`; they run in the main thread, so they can use AskUserQuestion):
+**User commands** (`disable-model-invocation: true`, so only the user starts them, by
+typing them in a Claude Code session in the repository; no forked context, so they run in
+the main thread and can use AskUserQuestion and start agents). `just tutor` and
+`just examine` open `/tutor` and `/examine` with their agent as the main thread (§4.2).
 
 | Skill | Arguments | Purpose and output |
 |---|---|---|
-| `/register-new-subject` | `<folder> [course-id]` | Full pipeline (§5.4). Produces `courses/<id>/`, a green `validate --release`, the PDFs, and a report. |
-| `/regenerate` | `<course> <overview\|plan\|summary\|exercises\|mc\|figures\|exams\|cheatsheet\|all> [--topic t] [--add n] [--replace] [note]` | Copies the files it replaces into `_history/`. Re-runs the step and everything downstream of it (author → verify → validate → PDF). Keeps the IDs of items that survive. Asks before `--replace`. |
-| `/add-material` | `<course> <file\|folder>` | Incremental ingest, topic-map diff, then suggests which parts to regenerate. |
-| `/verify` | `<course> [id\|topic\|all]` | Blind re-verification with the dispute loop. |
-| `/tutor` | `<course> [topic\|ex-id]` | Socratic tutoring persona. |
-| `/examine` | `<course> [diagnostic\|topic <t>\|mc\|weak\|misconceptions\|exam <id>\|oral]` | Strict examiner persona. |
-| `/import-progress` | `<course> [file]` | Validates and copies a browser export (by default, after confirmation, the newest `~/Downloads/studykit-progress-<course>-*.json`). Runs `progress report` and offers a replan. |
-| `/study-status` | `<course>` | Days left, plan adherence, weak topics, next sessions, due reviews. |
+| `/register-new-subject` | `<folder> [course-id]` | *(Phase 6)* Full pipeline (§5.4). Produces `courses/<id>/`, a green `validate --release`, the PDFs, and a report. |
+| `/regenerate` | `<course> <overview\|plan\|summary\|exercises\|mc\|figures\|exams\|cheatsheet\|all> [--topic t] [--add n] [--replace] [note]` | Re-runs one authoring step and everything downstream of it. Copies every content file the run may overwrite (downstream ones too) to `_history/<UTC timestamp>/` and asks before `--replace` or `all`. Without a mode it improves the part in place; `--add n` adds n items, `--replace` rewrites the part. Items that survive keep their ids; removed ids go into `retired_ids`. Authors: one per topic for summary, exercises and mc (at most 6 in parallel), one per mock exam (at most 3), one for the overview or the cheat sheet (then its fit loop); figures and the plan it runs itself. Downstream: the cheat sheet after a summary, `/verify` of the added and changed items, `studykit plan` after exercises or exams, then `validate` (errors routed to the owning author, at most 3 rounds) and `pdf`. Reports what was added, changed and removed, the verification counts, validate, the PDFs and the `_history/` directory. |
+| `/add-material` | `<course> <file\|folder>` | *(Phase 6)* Incremental ingest, topic-map diff, then suggests which parts to regenerate. |
+| `/verify` | `<course> [id\|topic\|exam\|all]` | Blind re-verification with the dispute loop (§5.3); ends with `state/verify/report.md`, a validate run and a table of verified, fixed, disputed, quarantined and unverified items with reasons. |
+| `/tutor` | `<course> [topic\|ex-id]` | Socratic tutoring persona (below). Writes nothing. |
+| `/examine` | `<course> [diagnostic\|topic <t>\|mc\|weak\|misconceptions\|exam <id>\|oral]` | Strict examiner persona (below), `mc` without a mode. Logs every graded item. |
+| `/import-progress` | `<course> [file]` | Takes the given browser export, or the newest `~/Downloads/studykit-progress-<course>-*.json`, shown with its date and size and read only after confirmation. Previews with `progress import --dry-run` (SK-PROGRESS findings stop it), imports, runs `progress report` and `status`, and offers a replan when sessions are behind or the weakest topics changed (`studykit plan`, the missing goals, `validate --paths plan.yaml`, `pdf <c> plan`). |
+| `/study-status` | `<course>` | `studykit status` unchanged in a code block, then at most four lines: plan adherence, the weakest topic and the reviews due, and one next step (the next session, `/import-progress`, `/examine <c> mc`, `/tutor <c> <topic>`, `/regenerate <c> plan`, or a mock exam in the last three weeks). Read-only. |
 
-**Internal skills** (`user-invocable: false`, each under 500 lines):
+**`/tutor`** prepares quietly from `studykit status --json` and `studykit index --json`
+(never using a quarantined id), the topic's summary chapter, the exercise with its hints
+and solution, the student's misconceptions (`progress/mastery.json`) and the `why` lines
+of the topic's MC bank. It takes the given exercise, an unsolved exercise of the given
+topic (easy to hard), or offers the weakest topic and that of the next session. It talks
+in the student's language, asks one question per message along the exercise's hint ladder
+(principle → set-up → key intermediate result), exposes a wrong step with a question
+(units, a limit case, a sign, an estimate), gives the exercise's next hint in its own
+words after two stuck attempts, and shows the full solution only when the student asks
+after trying. Every number, the student's and its own, is checked with `studykit calc`
+against the key's tolerance. It closes with what the student can do now, the misconception
+that came up and one next step, and logs nothing.
+
+**`/examine`** reads `studykit status --json`, `progress report --json` and
+`index --json` (no quarantined ids), picks the items of its mode and reads their keys,
+`why`s, explanations, answers and rubrics without showing any of them:
+
+| Mode | Items |
+|---|---|
+| `diagnostic` | 15 MC questions over the topics not skipped, by weight (at least 2 each), mixed types and difficulties; seeds the Leitner boxes and the plan |
+| `topic <t>` | 8 MC questions of the topic, then one unsolved exercise of difficulty 2–3 |
+| `mc` | 10 MC questions: due reviews first, then the weakest topics, then unanswered ones |
+| `weak` | the 3 weakest topics, 4 MC questions each, then one exercise of the weakest |
+| `misconceptions` | every misconception question again, each followed by another one on the same concept |
+| `exam <id>` | the mock exam under time: its tasks, then its MC part without feedback; quarantined tasks and questions are left out and the pass mark keeps its share |
+| `oral` | 5–8 open questions over the weakest and the focus topics, one follow-up each, judged 0 to 1 in quarters against the summary |
+
+Exercises and exam tasks are graded key by key with `studykit calc`
+(`|x − value| ≤ atol + rtol·|value|`, `--units` to convert; a symbolic answer is right
+when its difference to the key is exactly 0), exam tasks by their rubric (a criterion's points, half of them
+with a stated reason, or none). Every graded item is logged with `studykit progress log`
+(`mode`, `kind`, `topic`, `item`, for MC `chosen` in source letters and `conf`, optional
+`points` and `max_points`, a `finding` naming the mistake); the command computes an MC
+score from `chosen` and refuses one that differs (§2.11). The session closes with
+`progress report`, the score per topic, the misconceptions found, the reviews due and one
+next step.
+
+**Internal skills** (`user-invocable: false`, each under 500 lines; agents preload them
+through `skills:`):
 
 | Skill | Contents |
 |---|---|
-| `content-format` | Schemas, the dialect from §2.3, copy-ready templates, `errors.md` (SK-codes and fixes), links to the sample course |
-| `authoring` | Shared quality rules, plus `parts/{overview,summary,exercises,mc,exam,cheatsheet,plan}.md`. The agent reads the part it needs by path, so not every part is preloaded. `parts/mc.md` holds the misconception catalogue, the type-mix rules, "one concept per stem", options of similar length, and the requirement that every distractor's `why` names its mistake. |
-| `figures` | API reference, gallery, and the rule "render → look at the PNG → fix" with an overlap, clipping and anchor checklist |
-| `ingest` | Chunk digest procedure, notes template, exam-profile template |
-| `verify-protocol` | Blind procedure, check-script recipes (MNA, phasors, Laplace, margins), the two-method rule |
+| `content-format` | The format in brief (layout, ids, YAML rules, frontmatter per kind, the dialect of §2.3), how to find and check files (`ls`, `index`, the lint hook, `validate --paths`), copy-ready `templates/` for every file kind (each passes lint in a copy of the sample course), and the SK codes with a pointer to `errors.md` |
+| `authoring` | Shared quality rules for every part, id handling, the finishing steps (look at the figure PNGs, `validate --paths`), the compact result JSON, and the fix round after a dispute (re-derive independently, then `fixed` or `key-correct` with the step the verifier got wrong). `parts/{overview,summary,exercises,mc,exam,cheatsheet,plan}.md` hold each part's procedure; the agent reads the part it needs by path, so not every part is preloaded. `parts/mc.md` holds the misconception catalogue, the type-mix rules, "one concept per stem", options of similar length, and the requirement that every distractor's `why` names its mistake; `parts/cheatsheet.md` the condense loop (§3.3); `parts/plan.md` the goals after `studykit plan`. |
+| `figures` | Which template for which figure, how to write `figures/<slug>.py`, the rule "render → look at the PNG → fix" with an overlap, clipping and anchor checklist, and the validator's rules; `reference.md` is the API reference |
+| `ingest` | *(Phase 6)* Chunk digest procedure, notes template, exam-profile template |
+| `verify-protocol` | Blindness, the procedure for one item, the two-method rule and the dispute, fix and quarantine loop; `recipes.md` has check scripts that run as written: nodal analysis with a mesh-current second method, phasors, a Laplace step response with a simulated second method, stability margins with brentq, numeric MC with `mc_numeric`, conceptual MC and review |
 
-The persona text for `tutor` and `examiner` lives in the `/tutor` and `/examine` skills. The agents of the same name preload them, so there is one source.
+The persona text for `tutor` and `examiner` lives only in the `/tutor` and `/examine`
+skills. A skill with `disable-model-invocation: true` cannot be preloaded, so the agents of
+the same name preload nothing: `just tutor` and `just examine` start them with the command
+as the first message, and an agent whose first message is something else reads the skill
+file by path and follows it.
 
 ### 5.3 Agents (`.claude/agents/*.md`)
 
-No agent has the `Agent` tool, so nothing spawns further agents.
+No agent has the `Agent` tool, so nothing spawns further agents: the commands of §5.2 and
+the `just` recipes start them. No agent has memory, and only the verifier has a hook.
 
 | Agent | Model / effort | Tools | Preloaded skills | Writes |
 |---|---|---|---|---|
-| `ingester` | sonnet / medium, maxTurns 40 | Read, Write, Glob, Bash | ingest, content-format | `sources/notes/<chunk>.md`; transcriptions of scanned pages into `sources/text/` |
-| `exam-analyst` | opus / high, maxTurns 50 | Read, Write, Glob, Grep, Bash | ingest | `analysis/exam-profile.yaml` (archetypes, frequencies, points, minutes per point, MC share, types, scoring, negative marking, topic weights, confidence) and `notation.yaml` (j vs. i, ε(t) vs. σ(t), underlined phasors) |
-| `author` | opus / high, maxTurns 80 | Read, Write, Edit, Glob, Grep, Bash | content-format, authoring, figures | One (topic, part) per call: summary, exercises, MC bank, mock exam or cheat sheet, plus figure scripts. Must end with `studykit validate --paths <own files>` green and return compact JSON. |
-| `verifier` | opus / high, maxTurns 50 | Read, Write, Bash | verify-protocol, content-format | `checks/**` only |
-| `tutor` | opus | Read, Grep, Glob, Bash | tutor | nothing; started via `just tutor` (main thread) |
-| `examiner` | opus | Read, Grep, Glob, Bash, AskUserQuestion | examine | `progress/examiner.jsonl` via `studykit progress log`; started via `just examine` (main thread) |
+| `ingester` | *(Phase 6)* sonnet / medium, maxTurns 40 | Read, Write, Glob, Bash | ingest, content-format | `sources/notes/<chunk>.md`; transcriptions of scanned pages into `sources/text/` |
+| `exam-analyst` | *(Phase 6)* opus / high, maxTurns 50 | Read, Write, Glob, Grep, Bash | ingest | `analysis/exam-profile.yaml` (archetypes, frequencies, points, minutes per point, MC share, types, scoring, negative marking, topic weights, confidence) and `notation.yaml` (j vs. i, ε(t) vs. σ(t), underlined phasors) |
+| `author` | opus / high, maxTurns 80 | Read, Write, Edit, Glob, Grep, Bash | content-format, authoring, figures | One part per call: the overview, one topic's summary, exercises or MC bank, a mock exam or the cheat sheet, plus its figure scripts; mode new, `add <n>`, `replace` or `fix <id>`. Never `course.yaml`, `checks/`, `state/`, `progress/`, `_build/`, `_history/` or git. Must end with `studykit validate --paths <own files>` free of errors and return the compact JSON (`{"error": …}` when the assignment is impossible). |
+| `verifier` | opus / high, maxTurns 50 | Read, Write, Bash | verify-protocol, content-format | `checks/**` only, one item per call |
+| `tutor` | opus | Read, Grep, Glob, Bash | none (§5.2) | nothing, not even through Bash; started via `just tutor` (main thread) |
+| `examiner` | opus | Read, Grep, Glob, Bash, AskUserQuestion | none (§5.2) | `progress/examiner.jsonl` only through `studykit progress log`, and the report through `studykit progress report`; started via `just examine` (main thread) |
 
-**Verifier blindness** is enforced by an agent-scoped `PreToolUse` hook, `studykit hook verifier-guard`:
+**Verifier blindness** is enforced by an agent-scoped `PreToolUse` hook in `verifier.md`
+(matcher `Read|Write|Edit|MultiEdit|NotebookEdit|Grep|Glob|Bash`),
+`studykit hook verifier-guard`:
 - It denies Read, Grep and Glob on `exercises/`, `mc/` and `exams/`, and on what else holds
   keys or solutions: `state/`, `_history/`, `_build/` except `blind/` and the figure images,
-  figure facts, the built site and `.cache/`; Grep and Glob over a tree that contains a course.
-- It denies Bash commands that mention those paths, except `studykit` and `python checks/…`;
-  of `studykit` only `blind`, `calc`, `verify` (without `--json` and `--show-key`), `ls`,
-  `lint`, `validate`, `fig`, `index` and `doctor` are allowed.
-- It denies Write and Edit outside a course's `checks/`, and check code that names those paths.
+  figure facts, the built site and `.cache/`; Grep and Glob over a tree that contains a
+  course, and Glob patterns or Grep globs that name those paths.
+- It denies Bash commands that mention those paths (command substitution included), except
+  `studykit` and `python checks/…`; of `studykit` only `blind`, `calc`, `verify` (without
+  `--json` and `--show-key`), `ls`, `lint`, `validate`, `fig`, `index` and `doctor` are
+  allowed, with or without a path.
+- It denies Write, Edit, MultiEdit and NotebookEdit outside a course's `checks/`, and check
+  code that names those paths.
 - The verifier works only from `studykit blind <c> <id>`, which writes `_build/blind/<id>.md`:
   the statement with no solution, hints, rubric, answer values or `[x]` marks, the answer
-  keys to compute (key, label, unit or symbols), and MC options in source order labelled A–F.
+  keys to compute (key, label, unit or symbols), and MC options in source order labelled A–F
+  without their `why` or the explanation; figures point at their PNG, course links keep
+  their text only.
 
-**Verifier protocol:**
-1. Compute in Python.
-2. Write `checks/<id>.py` or `checks/<id>.json`.
-3. Run `studykit verify`, which compares against the answer key and writes the ledger.
-4. If they disagree, confirm with a second method (for example nodal vs. mesh analysis, or symbolic vs. numeric simulation) before recording a dispute.
-5. Disputes go to an author fix agent together with the verifier's numbers, for at most 2 rounds. Whatever is still disputed becomes **quarantined**: hidden from the site and the PDFs, and listed in the report.
+**Verifier protocol** (the `verify-protocol` skill):
+1. `studykit blind <c> <id>`, then read the view and the figure PNGs it lists.
+2. Compute in Python (`studykit calc` for quick values).
+3. Write `checks/<id>.py` (or `checks/<id>.json` for a conceptual MC question), ending
+   with one `studykit.check` call.
+4. Run `studykit verify <c> <id>`, which compares against the answer key and writes the
+   ledger.
+5. If it is disputed, confirm with an independent second method (nodal vs. mesh analysis,
+   symbolic vs. numeric, closed form vs. simulation) in `checks/<id>.<tag>.py` (an MC
+   answer: `checks/<id>.recheck.json`) and `studykit verify <c> <id> --confirm …`. If the
+   second method sides with the key, fix the first check and run verify again.
+6. Return a compact JSON with the status the verify output showed.
 
-**Examiner MC in the terminal** uses AskUserQuestion:
+**Dispute loop** (`/verify`, the orchestrator; it may read keys, the verifiers never get one):
+1. `studykit verify <c> <target>` re-runs every existing check, then `--status --json`
+   picks the items for a verifier: the named item always, otherwise every unverified item
+   and every disputed one that no second method confirmed.
+2. A verifier wave, at most 6 at a time, whose prompt holds only the course directory and
+   the id. The ledger is the truth, not an agent's report; an item without a working check
+   gets one more attempt, then stays unverified. The orchestrator compares a `review`
+   check's reason with the solution itself and records a disagreement with `--dispute`.
+3. Each disputed item goes to an `author` fix round with the verifier's values from
+   `--status --show-key --json` and whether a second method confirmed them (at most 6 in
+   parallel, never two items of one file). `fixed`: verify runs the same check on the new
+   version. `key-correct`: a fresh verifier checks its method with a second one; if both
+   still disagree with the key, the user decides with AskUserQuestion between quarantine
+   and leaving the item disputed.
+4. At most 2 author rounds: the dispute after the second fix round quarantines the item by
+   itself; an item still not verified after two rounds is quarantined by hand
+   (`--quarantine --note`). Quarantined items are hidden from the site and the PDFs and
+   listed in the report.
+5. `verify --report`, then `validate`, which rebuilds the PDFs without quarantined items.
+
+**Examiner MC in the terminal** uses AskUserQuestion (1–4 questions of 2–4 choices per
+call, headers of at most 12 characters). The options are shuffled and labelled anew (a
+`pin-last` option stays last), with math as plain Unicode text:
 - single with ≤ 4 options: one question
 - multi with ≤ 4 options: `multiSelect`
-- Kprim: four True/False questions in one call
-- larger questions: shown as text, answered by letter
+- Kprim: four true/false questions in one call
+- 5 or 6 options: shown as text, answered by letter
+- the confidence question joins the same call when there is room, else a second call
+  (always for Kprim)
 
-The examiner asks for confidence before revealing anything, never reveals an answer before the user commits, and grades calculations with the rubric using `studykit calc`.
+The examiner asks for confidence before revealing anything, logs the answer in source
+letters before it reveals the result, never reveals an answer before the user commits, and
+grades calculations with the rubric using `studykit calc`.
 
 ### 5.4 `/register-new-subject <folder> [course-id]`
 
-The state is derived from outputs by `studykit status <c> --json` (manifest hashes plus file presence plus ledger). There is no separate state file. Running the command again resumes at the first unfinished step. Success is judged from files and gates, never from an agent's own report.
+*Phase 6, planned.* It reuses what Phase 5 built: the `author` and `verifier` agents, the
+dispute loop of `/verify`, `studykit plan`, `validate` and `pdf`.
+
+The state is derived from outputs by a pipeline status command (manifest hashes plus file
+presence plus ledger; `studykit status` is already the student's status, §2.11, so this one
+gets another name). There is no separate state file. Running the command again resumes at the first unfinished step. Success is judged from files and gates, never from an agent's own report.
 
 0. **Preflight:**
    - `just doctor --quick`
