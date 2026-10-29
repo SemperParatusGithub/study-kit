@@ -1320,7 +1320,7 @@ are planned.
 - **No `memory:` field on any agent.** Course-specific state lives in `courses/<c>/progress` and `state`, and `.claude/agent-memory*/` is gitignored as a safety net.
 
 **`CLAUDE.md`:**
-- Never commit `courses/`.
+- Never commit `courses/`, nor PDFs outside `tests/fixtures/`.
 - Conventional Commits, one logical change each, no Co-Authored-By.
 - Skills and UI are in English; generated content follows `course.lang`.
 - Figures are code. Never compute numbers in your head; use Python.
