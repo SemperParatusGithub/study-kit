@@ -4,10 +4,12 @@
 import Base from '../../../../layouts/Base.astro';
 import Difficulty from '../../../../components/Difficulty.astro';
 import Html from '../../../../components/Html.astro';
+import PdfLinks from '../../../../components/PdfLinks.astro';
 import QuizSlot from '../../../../components/QuizSlot.astro';
 import SearchTags from '../../../../components/SearchTags.astro';
 import Toc from '../../../../components/Toc.astro';
 import { labelHtml, listCourses, route, sourceTitle, type Course, type Doc } from '../../../../lib/courses';
+import { findPdf } from '../../../../lib/pdf';
 import type { SummaryFm } from '../../../../lib/types';
 
 export async function getStaticPaths() {
@@ -87,6 +89,7 @@ const extra = [
               </p>
             )
           }
+          <PdfLinks course={course} items={[{ doc: findPdf(course.pdfs, 'summary'), label: 'Summary PDF' }]} />
         </header>
 
         {

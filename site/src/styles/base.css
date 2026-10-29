@@ -478,6 +478,56 @@ sk-theme {
   border-color: var(--border-strong);
 }
 
+/* PDF downloads (components/PdfLink.astro): "PDF · 4 pages · 120 kB"; print hides them */
+
+.pdf-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+}
+
+.pdf-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  max-width: 100%;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.pdf-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pdf-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pdf-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  color: var(--accent);
+}
+
+.pdf-meta {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .difficulty {
   display: inline-flex;
   align-items: center;

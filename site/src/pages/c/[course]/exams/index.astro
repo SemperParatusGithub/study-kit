@@ -1,8 +1,10 @@
 ---
 // Mock exams of the course.
 import Base from '../../../../layouts/Base.astro';
+import PdfLink from '../../../../components/PdfLink.astro';
 import { coursePaths, route, type Course } from '../../../../lib/courses';
 import { formatMinutes, formatNumber, plural } from '../../../../lib/format';
+import { findPdf } from '../../../../lib/pdf';
 
 export const getStaticPaths = coursePaths;
 
@@ -27,37 +29,55 @@ const en = course.lang === 'en' ? undefined : 'en';
       </div>
     ) : (
       <ul class="grid exam-cards" role="list">
-        {course.exams.map((exam) => (
-          <li class="card exam-card">
-            <h2>
-              <a href={route.exam(c, exam.id)}>{exam.doc.data.title}</a>
-            </h2>
-            <dl class="stats" lang={en}>
-              <div>
-                <dt>Time</dt>
-                <dd>{formatMinutes(exam.fm.duration_min)}</dd>
-              </div>
-              <div>
-                <dt>Points</dt>
-                <dd>{formatNumber(exam.fm.points)}</dd>
-              </div>
-              <div>
-                <dt>Pass</dt>
-                <dd>{formatNumber(exam.fm.pass_points)}</dd>
-              </div>
-            </dl>
-            <p class="small muted" lang={en}>
-              {plural(exam.tasks.length, 'task')}
-              {exam.mc && ` · ${plural(exam.mc.data.questions.length, 'MC question')}`}
-            </p>
-            <p class="small" lang={en}>
-              Best result: <span data-sk-fill data-sk-exam-best data-course={c} data-exam={exam.id} />
-            </p>
-            <a class="button" href={route.exam(c, exam.id)} lang={en}>
-              Open exam
-            </a>
-          </li>
-        ))}
+        {course.exams.map((exam) => {
+          const pdf = findPdf(course.pdfs, 'exam', exam.id);
+          const solutions = findPdf(course.pdfs, 'exam-solutions', exam.id);
+          return (
+            <li class="card exam-card">
+              <h2>
+                <a href={route.exam(c, exam.id)}>{exam.doc.data.title}</a>
+              </h2>
+              <dl class="stats" lang={en}>
+                <div>
+                  <dt>Time</dt>
+                  <dd>{formatMinutes(exam.fm.duration_min)}</dd>
+                </div>
+                <div>
+                  <dt>Points</dt>
+                  <dd>{formatNumber(exam.fm.points)}</dd>
+                </div>
+                <div>
+                  <dt>Pass</dt>
+                  <dd>{formatNumber(exam.fm.pass_points)}</dd>
+                </div>
+              </dl>
+              <p class="small muted" lang={en}>
+                {plural(exam.tasks.length, 'task')}
+                {exam.mc && ` · ${plural(exam.mc.data.questions.length, 'MC question')}`}
+              </p>
+              <p class="small" lang={en}>
+                Best result: <span data-sk-fill data-sk-exam-best data-course={c} data-exam={exam.id} />
+              </p>
+              <a class="button" href={route.exam(c, exam.id)} lang={en}>
+                Open exam
+              </a>
+              {(pdf || solutions) && (
+                <div class="exam-pdfs" lang={en} data-pagefind-ignore>
+                  <PdfLink course={course} doc={pdf} label="Exam PDF" />
+                  {solutions && (
+                    <details class="pdf-spoiler">
+                      <summary>Solutions PDF, for after the exam</summary>
+                      <p class="small muted">
+                        Every solution with its rubric. Open it after you have written the exam.
+                      </p>
+                      <PdfLink course={course} doc={solutions} label="Solutions PDF" />
+                    </details>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     )
   }
@@ -88,5 +108,26 @@ const en = course.lang === 'en' ? undefined : 'en';
 
   .exam-card p {
     margin: 0;
+  }
+
+  .exam-pdfs {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    width: 100%;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+  }
+
+  .pdf-spoiler > summary {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .pdf-spoiler > p {
+    margin: var(--space-2) 0;
   }
 </style>

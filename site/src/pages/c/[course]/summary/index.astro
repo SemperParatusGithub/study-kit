@@ -1,8 +1,10 @@
 ---
 // Chapter list of the summary, in teaching order.
 import Base from '../../../../layouts/Base.astro';
+import PdfLinks from '../../../../components/PdfLinks.astro';
 import { coursePaths, labelHtml, route, type Course } from '../../../../lib/courses';
 import { plural } from '../../../../lib/format';
+import { findPdf } from '../../../../lib/pdf';
 import type { SummaryFm } from '../../../../lib/types';
 
 export const getStaticPaths = coursePaths;
@@ -28,6 +30,7 @@ const selfTest =
     <p class="muted">
       {plural(course.summaries.length, 'chapter')}, one per topic, in teaching order.{selfTest}
     </p>
+    <PdfLinks course={course} items={[{ doc: findPdf(course.pdfs, 'summary') }]} />
   </div>
 
   {
