@@ -35,13 +35,23 @@ url = "https://github.com/typst/typst/releases/download/v0.15.1/typst-x86_64-unk
 sha256 = "a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c"
 binary = "typst-x86_64-unknown-linux-musl/typst"
 
-# Tools installed by the system package manager (Homebrew locally, setup actions in CI).
-# `doctor` checks that they exist and meet the minimum version.
-[system.just]
-min_version = "1.59.0"
+[binaries.just]
+version = "1.59.0"
 version_args = ["--version"]
 version_regex = '^just (\S+)'
 
+[binaries.just.platforms.macos-arm64]
+url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-aarch64-apple-darwin.tar.gz"
+sha256 = "6574cea774ed4cae12e24b6aa11857de33e80dab4667cf628fd5840df96a2a9d"
+binary = "just"
+
+[binaries.just.platforms.linux-x86_64]
+url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-unknown-linux-musl.tar.gz"
+sha256 = "409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e"
+binary = "just"
+
+# Tools installed by the system (Homebrew, nvm, corepack, setup actions in CI).
+# `doctor` checks that they exist and meet the minimum version.
 [system.uv]
 min_version = "0.11.30"
 version_args = ["--version"]

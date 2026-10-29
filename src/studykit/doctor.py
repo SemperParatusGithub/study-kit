@@ -56,7 +56,7 @@ def check_system_tools(toolchain: dict) -> list[Check]:
                 name=name,
                 ok=ok,
                 detail=f"{found or 'missing'} (want >= {spec['min_version']})",
-                fix=f"brew install {name}" if name != "pnpm" else "corepack enable pnpm",
+                fix="corepack enable pnpm" if name == "pnpm" else f"install {name} (see README)",
             )
         )
     return checks
