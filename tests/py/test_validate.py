@@ -208,7 +208,8 @@ def test_missing_course_files_warn_while_authoring(mini: Path, denylist: Path):
 def test_skipped_stages_explain_why(mini: Path, denylist: Path):
     report = run(mini, denylist)
     stages = {s.name: s for s in report.courses[0].stages}
-    for name in ("Verification", "PDF", "Site"):
+    # PDF is not among them since studykit.pdf exists (Phase 4)
+    for name in ("Verification", "Site"):
         assert stages[name].status == "skipped"
         assert stages[name].notes and stages[name].notes[0].startswith("skipped: ")
 
