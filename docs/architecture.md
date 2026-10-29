@@ -1592,8 +1592,9 @@ states them:
   figures are code; never compute numbers in your head (Python or `studykit calc`); run
   `studykit validate` before finishing; look at the pages after changing how PDFs look;
   find course files with `studykit ls`; exact pins;
-- the Claude Code layer: the commands, agents and hooks, and `test_claude.py` after any
-  change to a skill or an agent.
+- the Claude Code layer: the commands, agents and hooks, the files only the CLI writes
+  (`state/verify/`, `progress/`, `plan.yaml` but its goals and notes), what Phase 6 adds,
+  and `test_claude.py` after any change to a skill or an agent.
 
 ### 5.2 Skills
 
