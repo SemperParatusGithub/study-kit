@@ -8,6 +8,13 @@
 <!--#include partials/header.html-->
 <main>
 <h1>Probeklausur 1</h1>
+<!-- The page head's PDF links (components/PdfLinks.astro): the solutions PDF of this exam
+     starts hidden and comes out with the solutions; another exam's link stays hidden. -->
+<div class="pdf-links">
+<a class="pdf-link" href="/pdf/probeklausur-1.pdf" download>Exam PDF</a>
+<span data-sk-exam-solutions="probeklausur-1" hidden><a class="pdf-link" href="/pdf/probeklausur-1-solutions.pdf" download>Solutions PDF</a></span>
+<span data-sk-exam-solutions="probeklausur-2" hidden><a class="pdf-link" href="/pdf/probeklausur-2-solutions.pdf" download>Other solutions PDF</a></span>
+</div>
 <!--#include fixtures/exam.html-->
 </main>
 </body>
