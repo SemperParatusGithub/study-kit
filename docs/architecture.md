@@ -1405,11 +1405,11 @@ characters or quotes are caught too.
 
 ## 5. Claude Code layer
 
-*Phase 5 and 6.* What exists: `.claude/settings.json` with `attribution` only, empty
-`.claude/agents/` and `.claude/skills/`, `studykit lint --hook`, the command the
-PostToolUse hook below runs, and the commands `calc`, `blind`, `verify` and `hook`
-(`verifier-guard`, `pre-git`). The commands `plan`, `progress`, `ingest` and `status` are
-planned.
+*Phase 5 and 6.* What exists (Phase 5): `.claude/settings.json` with attribution,
+permissions and hooks (§5.1), the skills and agents of §5.2 and §5.3 except `ingest`,
+`/register-new-subject`, `/add-material`, `ingester` and `exam-analyst` (Phase 6), and the
+commands they run: `lint --hook`, `calc`, `blind`, `verify`, `hook` (`verifier-guard`,
+`pre-git`), `plan`, `progress` and `status`. The command `ingest` is planned.
 
 ### 5.1 Project configuration
 
