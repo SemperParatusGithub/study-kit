@@ -64,6 +64,40 @@ test('practice: feedback per question, result per topic with summary links', asy
   expect((await progress(page)).items).toEqual(before);
 });
 
+test('the result fits a phone, also with a long German topic title', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/quiz.html?n=2&topics=rc-filter');
+  const q = quiz(page);
+  await q.evaluate((el: HTMLElement) => {
+    el.dataset.topicTitles = JSON.stringify({ 'rc-filter': 'Komplexe Wechselstromrechnung' });
+  });
+  await q.getByRole('button', { name: 'Start' }).click();
+  for (let i = 1; i <= 2; i++) {
+    const mc = current(page);
+    await answer(mc, i === 1, 'Sure');
+    await mc.getByRole('button', { name: 'Check' }).click();
+    await q.getByRole('button', { name: i === 2 ? 'See result' : 'Next' }).click();
+  }
+  const table = q.locator('.sk-quiz-topics');
+  await expect(table).toBeVisible();
+  // the row names the topic; its link reads "Read" but keeps the topic in its name
+  const link = table.getByRole('link', { name: 'Read “Komplexe Wechselstromrechnung”' });
+  await expect(link).toBeVisible();
+  const named = link.locator('.sk-quiz-link-topic');
+  expect((await named.boundingBox())?.width).toBeLessThanOrEqual(1);
+  const box = await table.boundingBox();
+  const card = await q.locator('.sk-quiz-result').boundingBox();
+  expect(box && card && box.x + box.width <= card.x + card.width + 0.5).toBe(true);
+  const { scroll, client } = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(scroll).toBeLessThanOrEqual(client);
+  // wider screens name the topic in the link
+  await page.setViewportSize({ width: 1000, height: 844 });
+  expect((await named.boundingBox())?.width).toBeGreaterThan(100);
+});
+
 test('N and Enter on the question move to the next one in practice', async ({ page }) => {
   await started(page, '/quiz.html?n=2&topics=rc-filter', '3 questions available.');
   const mc = current(page);

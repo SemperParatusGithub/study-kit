@@ -475,8 +475,12 @@ export class SkQuiz extends HTMLElement {
   private renderResult(): void {
     const titles = this.titles;
     const base = this.dataset.summaryBase;
+    // "Read “<topic>”"; on a phone the result table shows only "Read" (the row names the topic)
     const link = (topic: string) =>
-      base ? h('a', { href: `${base.replace(/\/?$/, '/')}${topic}/` }, `Read “${titles[topic] ?? topic}”`) : null;
+      base
+        ? h('a', { href: `${base.replace(/\/?$/, '/')}${topic}/` },
+            'Read', h('span', { class: 'sk-quiz-link-topic' }, ` “${titles[topic] ?? topic}”`))
+        : null;
     let total = 0;
     const byTopic = new Map<string, { score: number; n: number }>();
     for (const q of this.list) {

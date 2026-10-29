@@ -768,6 +768,9 @@ sk-quiz[data-frame='none'] :is(.sk-quiz-start, .sk-quiz-result) {
 
 :is(.sk-quiz-topics, .sk-exam-table, .sk-exam-history) tbody th {
   font-weight: 500;
+  /* long German compounds ("Wechselstromrechnung") must not widen the table past a phone */
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .sk-quiz-bar-cell {
@@ -1589,6 +1592,16 @@ sk-theme {
 
   .sk-quiz-bar-cell {
     display: none;
+  }
+
+  /* the row already names the topic: the link reads "Read" (screen readers hear it all) */
+  .sk-quiz-topics .sk-quiz-link-topic {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 
