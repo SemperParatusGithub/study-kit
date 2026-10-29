@@ -733,6 +733,72 @@ def _check_bias(ctx: Context, doc: Doc) -> None:
             "make distractors as long and as specific as the correct option",
             "warning",
         )
+    _check_letters(
+        ctx, doc, [q for q in singles if q.id and sum(o.correct for o in q.options) == 1]
+    )
+
+
+PDF_KEYS = "ABCDEFGHIJ"
+U32 = 0xFFFFFFFF
+
+
+def _fnv1a(text: str) -> int:
+    h = 0x811C9DC5
+    for byte in text.encode("utf-8"):
+        h = ((h ^ byte) * 0x01000193) & U32
+    return h
+
+
+def _mulberry32(seed: int) -> Callable[[], float]:
+    state = seed & U32
+
+    def rand() -> float:
+        nonlocal state
+        state = (state + 0x6D2B79F5) & U32
+        t = state
+        t = ((t ^ (t >> 15)) * (t | 1)) & U32
+        t = (t ^ ((t + (((t ^ (t >> 7)) * (t | 61)) & U32)) & U32)) & U32
+        return ((t ^ (t >> 14)) & U32) / 4294967296
+
+    return rand
+
+
+def pdf_order(question_id: str, n: int, pin_last: bool = False) -> list[int]:
+    """Source indices (0-based) in PDF display order; mirrors `M.order` in mcq.lua.
+
+    FNV-1a 32-bit of the id seeds mulberry32, then Fisher-Yates from the end; pin-last
+    keeps the last option in place.
+    """
+    order = list(range(n))
+    rand = _mulberry32(_fnv1a(question_id))
+    for i in range(n - 1 if pin_last else n, 1, -1):
+        j = int(rand() * i)
+        order[i - 1], order[j] = order[j], order[i - 1]
+    return order
+
+
+def _check_letters(ctx: Context, doc: Doc, singles: list) -> None:
+    """Warn when one letter carries most correct answers after the PDF shuffle."""
+    if len(singles) < 4:
+        return
+    letters: dict[str, list[str]] = {}
+    for q in singles:
+        order = pdf_order(q.id, len(q.options), q.block.attrs.get("pin-last") == "true")
+        shown = next(k for k, src in enumerate(order) if q.options[src].correct)
+        letters.setdefault(PDF_KEYS[shown], []).append(q.id)
+    letter, ids = max(letters.items(), key=lambda kv: len(kv[1]))
+    if len(ids) / len(singles) > 0.5:
+        ctx.at(
+            doc,
+            1,
+            1,
+            "SK-MCQ-BIAS",
+            f"after the PDF shuffle the correct answer is ({letter}) in {len(ids)} of "
+            f"{len(singles)} single-choice questions: {', '.join(ids)}",
+            "move the correct option to another place in the source of some of these questions; "
+            "the shuffle is seeded by the id, so the letter follows the source position",
+            "warning",
+        )
 
 
 # --- Math (SK-MATH) -----------------------------------------------------------------------

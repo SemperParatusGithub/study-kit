@@ -242,3 +242,47 @@ def test_exam_tasks_need_hints_like_exercises(mini: Path, denylist: Path):
     task.write_text(text[:start] + text[text.index(":::\n\n", start) + 5 :])
     (finding,) = run(mini, denylist, quick=True).findings
     assert finding.code == "SK-BLOCK-HINTS" and "exam task has 1 to 3" in finding.message
+
+
+@pytest.mark.parametrize(
+    ("qid", "n", "pin_last", "lua"),
+    [  # reference orders printed by `M.order` in pandoc/filters/lib/mcq.lua (1-based)
+        ("mc-rc-tiefpass-001", 4, False, [2, 1, 3, 4]),
+        ("mc-rc-tiefpass-001", 6, False, [3, 2, 6, 1, 4, 5]),
+        ("mc-rc-tiefpass-001", 6, True, [2, 5, 1, 3, 4, 6]),
+        ("mc-spannungsteiler-101", 3, False, [3, 1, 2]),
+        ("mc-spannungsteiler-101", 5, False, [4, 5, 1, 2, 3]),
+        ("mc-spannungsteiler-101", 5, True, [4, 1, 2, 3, 5]),
+    ],
+)
+def test_pdf_order_mirrors_the_typst_shuffle(qid, n, pin_last, lua):
+    assert [i + 1 for i in validate.pdf_order(qid, n, pin_last)] == lua
+
+
+def test_skewed_answer_letters_after_the_pdf_shuffle_warn(mini: Path, denylist: Path):
+    question = """:::: {{.mcq #mc-spannungsteiler-00{n} type="single" difficulty="1"}}
+Frage {n}?
+
+- [x] Antwort eins
+
+  Richtig.
+
+- [ ] Antwort zwei
+
+  Falsch.
+
+- [ ] Antwort drei
+
+  Falsch.
+
+::: explanation
+Darum.
+:::
+::::
+"""
+    bank = "---\ntopic: spannungsteiler\ntitle: Spannungsteiler\n---\n\n"
+    bank += "\n".join(question.format(n=n) for n in range(1, 5))
+    (mini / "mc" / "spannungsteiler.md").write_text(bank)
+    (finding,) = run(mini, denylist, quick=True).findings
+    assert finding.code == "SK-MCQ-BIAS" and finding.severity == "warning"
+    assert "correct answer is (A) in 3 of 4" in finding.message

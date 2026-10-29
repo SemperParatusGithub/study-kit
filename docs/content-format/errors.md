@@ -264,8 +264,11 @@ general remarks go into the explanation.
 
 ### `SK-MCQ-BIAS`
 **warning.** In a bank with at least four single-choice questions, the correct option is
-the strictly longest in more than half of them, so length gives the answer away.
-Fix: make distractors as long and as specific as the correct option.
+the strictly longest in more than half of them, so length gives the answer away; or, after
+the deterministic PDF shuffle (seeded by the question id, as in `mcq.lua`), one letter is
+the correct answer in more than half of them.
+Fix: make distractors as long and as specific as the correct option; for a skewed letter,
+move the correct option to another place in the source of some of the listed questions.
 
 ## Math (SK-MATH)
 
