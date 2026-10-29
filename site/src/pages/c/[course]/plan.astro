@@ -227,12 +227,13 @@ const examDate = plan?.exam_date ?? course.examDate;
     margin: var(--space-1) 0;
   }
 
+  /* a coloured inner edge keeps the card geometry, so the timeline dots stay aligned */
   .kind-mock-exam {
-    border-left: 4px solid var(--box-warning);
+    box-shadow: inset 4px 0 0 var(--box-warning);
   }
 
   .kind-review {
-    border-left: 4px solid var(--box-example);
+    box-shadow: inset 4px 0 0 var(--box-example);
   }
 
   .notice {
