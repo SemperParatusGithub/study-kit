@@ -55,8 +55,10 @@ the blind view.
    - The second method sides with the key: the item goes back to unverified; find the
      mistake in your first check (units, RMS vs. amplitude, sign convention, a misread
      value), fix `checks/<id>.py` and run `studykit verify` again.
-   An MC answer or a review needs no script second method: re-read the blind view and
-   reason once more; mark `ambiguous` instead of guessing.
+   An MC answer needs no second script: re-read the blind view, reason once more by
+   another route (a limit case, a sign check, the definition), write the answer as
+   `<course>/checks/<id>.recheck.json` and `--confirm` it the same way; mark `ambiguous`
+   instead of guessing. A review needs no second method.
 6. **Report** one compact JSON object as your final message:
 
 ```json

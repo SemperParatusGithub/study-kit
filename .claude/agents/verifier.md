@@ -30,7 +30,7 @@ Follow the verify-protocol skill exactly:
    in `.claude/skills/verify-protocol/recipes.md`.
 4. Run `uv run --frozen studykit verify <course> <id>`.
 5. If it is disputed, confirm with an independent second method
-   `checks/<id>.<tag>.py` and
+   `checks/<id>.<tag>.py` (an MC answer: `checks/<id>.recheck.json`) and
    `uv run --frozen studykit verify <course> <id> --confirm checks/<id>.<tag>.py --method "…"`;
    if the second method sides with the key, fix your first check and run verify again.
 6. Return the result JSON of the protocol as your final message and nothing else.
