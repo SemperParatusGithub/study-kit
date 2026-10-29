@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import cmath
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
 
@@ -23,7 +23,8 @@ import control as ct
 import numpy as np
 import sympy as sp
 from matplotlib import ticker
-from matplotlib.patches import Circle, FancyArrowPatch
+from matplotlib.lines import Line2D
+from matplotlib.patches import Arc, Circle, FancyArrowPatch
 from scipy import signal as sps
 from scipy.optimize import brentq
 
@@ -1538,6 +1539,336 @@ def _annotate_step(
         )
 
 
+# --------------------------------------------------------------------------------------
+# Phasors
+# --------------------------------------------------------------------------------------
+
+
+def _phasor_tex(name: str) -> str:
+    """'U_R' -> '$\\underline{U}_R$'; names already in $...$ are used as they are."""
+    if name.startswith("$"):
+        return name
+    base, _, sub = name.partition("_")
+    sub = sub if not sub or sub.startswith("{") else f"{{{sub}}}"
+    return f"$\\underline{{{base}}}" + (f"_{sub}$" if sub else "$")
+
+
+def _label_offset(direction: complex, dist: float = 7.0) -> dict:
+    d = direction / abs(direction) if abs(direction) else 1j
+    ha = "left" if d.real > 0.35 else "right" if d.real < -0.35 else "center"
+    va = "bottom" if d.imag > 0.35 else "top" if d.imag < -0.35 else "center"
+    return {"xytext": (dist * d.real, dist * d.imag), "ha": ha, "va": va}
+
+
+def phasor(
+    vectors: Mapping[str, tuple[float, float]],
+    chain: bool = False,
+    total: str | None = None,
+    show_angle: bool = True,
+    size: str = "col",
+    alt: str | None = None,
+) -> core.Figure:
+    """Phasor diagram in the complex plane: {name: (magnitude, angle in degrees)}.
+
+    chain: draw the phasors head to tail and their sum from the origin (U_R + U_L = U);
+    `total` names the sum (default: the common letter, e.g. 'U'), `show_angle` marks its
+    phase angle. Names are rendered underlined: 'U_R' -> U_R with an underlined U.
+    """
+    if not vectors:
+        raise ValueError("phasor needs at least one vector")
+    names = list(vectors)
+    comps = []
+    for nm in names:
+        mag, ang = vectors[nm]
+        if mag < 0:
+            raise ValueError(f"magnitude of {nm} must be >= 0")
+        comps.append(float(mag) * cmath.exp(1j * math.radians(float(ang))))
+    starts = list(np.cumsum([0j, *comps[:-1]])) if chain else [0j] * len(comps)
+    tips = [s + c for s, c in zip(starts, comps, strict=True)]
+    resultant = complex(sum(comps))
+    if total is None:
+        bases = {nm.partition("_")[0] for nm in names}
+        total = bases.pop() if len(bases) == 1 and not names[0].startswith("$") else r"\Sigma"
+
+    fig, ax = core.new_figure(size)
+    ax.set_axis_off()
+    pts = [0j, *starts, *tips]
+    re_lo, re_hi = min(z.real for z in pts), max(z.real for z in pts)
+    im_lo, im_hi = min(z.imag for z in pts), max(z.imag for z in pts)
+    span = max(re_hi - re_lo, im_hi - im_lo, 1e-9)
+    pad = 0.18 * span
+    box = ((min(re_lo, 0) - pad, re_hi + pad), (min(im_lo, 0) - pad, im_hi + pad))
+    box = _fit_equal(ax, box, frame=(0.1, 0.1))
+    axis_style = {"arrowstyle": "-|>", "mutation_scale": 8, "color": FG, "lw": 0.8}
+    ax.add_patch(
+        FancyArrowPatch((box[0][0], 0), (box[0][1], 0), shrinkA=0, shrinkB=0, **axis_style)
+    )
+    ax.add_patch(
+        FancyArrowPatch((0, box[1][0]), (0, box[1][1]), shrinkA=0, shrinkB=0, **axis_style)
+    )
+    ax.annotate(
+        r"$\mathrm{Re}$",
+        (box[0][1], 0),
+        xytext=(0, -4),
+        textcoords="offset points",
+        ha="right",
+        va="top",
+        fontsize=8,
+        color=FG,
+    )
+    ax.annotate(
+        r"$\mathrm{Im}$",
+        (0, box[1][1]),
+        xytext=(-4, 0),
+        textcoords="offset points",
+        ha="right",
+        va="top",
+        fontsize=8,
+        color=FG,
+    )
+
+    centre = complex(np.mean(pts))
+    for i, (nm, s, c) in enumerate(zip(names, starts, comps, strict=True)):
+        col = color(i)
+        if abs(c) > 0:
+            ax.add_patch(
+                FancyArrowPatch(
+                    (s.real, s.imag),
+                    ((s + c).real, (s + c).imag),
+                    arrowstyle="-|>",
+                    mutation_scale=10,
+                    color=col,
+                    lw=1.6,
+                    shrinkA=0,
+                    shrinkB=0,
+                    zorder=5,
+                )
+            )
+        if chain:
+            mid = s + c / 2
+            normal = 1j * c / abs(c) if abs(c) else 1j
+            if (normal.conjugate() * (mid - centre)).real < 0:
+                normal = -normal
+            where, direction = mid, normal
+        else:
+            # Beyond the tip, turned 30 degrees counter-clockwise so a phasor along an
+            # axis does not put its name on the axis line.
+            where, direction = s + c, (c if abs(c) else 1j) * cmath.exp(1j * math.pi / 6)
+        ax.annotate(
+            _phasor_tex(nm),
+            (where.real, where.imag),
+            textcoords="offset points",
+            fontsize=9,
+            color=col,
+            zorder=7,
+            **_label_offset(direction),
+        )
+    phi = math.degrees(cmath.phase(resultant)) if abs(resultant) > 0 else 0.0
+    if chain:
+        ax.add_patch(
+            FancyArrowPatch(
+                (0, 0),
+                (resultant.real, resultant.imag),
+                arrowstyle="-|>",
+                mutation_scale=11,
+                color=FG,
+                lw=2.0,
+                shrinkA=0,
+                shrinkB=0,
+                zorder=6,
+            )
+        )
+        mid = resultant / 2
+        normal = 1j * resultant / abs(resultant) if abs(resultant) else 1j
+        tip_centre = complex(np.mean(tips))
+        if (normal.conjugate() * (tip_centre - mid)).real > 0:
+            normal = -normal
+        ax.annotate(
+            _phasor_tex(total),
+            (mid.real, mid.imag),
+            textcoords="offset points",
+            fontsize=9,
+            color=FG,
+            zorder=7,
+            **_label_offset(normal),
+        )
+        if show_angle and abs(phi) > 3 and abs(resultant) > 0:
+            radius = 0.3 * abs(resultant)
+            a0, a1 = sorted((0.0, phi))
+            ax.add_patch(
+                Arc(
+                    (0, 0), 2 * radius, 2 * radius, theta1=a0, theta2=a1, color=FG, lw=0.8, zorder=4
+                )
+            )
+            label_at = radius * 1.12 * cmath.exp(1j * math.radians(phi / 2))
+            ax.annotate(
+                rf"$\varphi = {_num_tex(phi)}^\circ$",
+                (label_at.real, label_at.imag),
+                textcoords="offset points",
+                fontsize=7,
+                color=FG,
+                **_label_offset(cmath.exp(1j * math.radians(phi / 2)), 2.0),
+            )
+    facts = {
+        "template": "signals.phasor",
+        "chain": chain,
+        "vectors": [
+            {
+                "name": nm,
+                "magnitude": abs(c),
+                "angle_deg": float(vectors[nm][1]),
+                "re": c.real,
+                "im": c.imag,
+                "start": _pair(s),
+            }
+            for nm, s, c in zip(names, starts, comps, strict=True)
+        ],
+        "resultant": {
+            "name": total,
+            "magnitude": abs(resultant),
+            "angle_deg": phi,
+            "re": resultant.real,
+            "im": resultant.imag,
+        },
+    }
+    if alt is None:
+        listing = ", ".join(
+            f"{nm} = {vectors[nm][0]:g} at {float(vectors[nm][1]):g} degrees" for nm in names
+        )
+        alt = f"Phasor diagram in the complex plane: {listing}"
+        if chain:
+            alt += (
+                f"; drawn head to tail, their sum {total} has magnitude {abs(resultant):.4g} "
+                f"at {phi:.4g} degrees"
+            )
+        alt += "."
+    return core.finish(fig, alt, facts)
+
+
+# --------------------------------------------------------------------------------------
+# Time-domain signals
+# --------------------------------------------------------------------------------------
+
+
+def _signal_tex(name: str, stem: bool) -> str:
+    if "$" in name:
+        return name
+    if "(" in name or "[" in name:
+        return f"${name}$"
+    return f"${name}[n]$" if stem else f"${name}(t)$"
+
+
+def signals(
+    t: Sequence[float] | np.ndarray,
+    series: Mapping[str, np.ndarray | Sequence[float] | Callable[[np.ndarray], np.ndarray]],
+    stem: bool = False,
+    unit: str | None = "s",
+    y_label: str | None = None,
+    y_unit: str | None = None,
+    legend: bool | None = None,
+    size: str = "col",
+    alt: str | None = None,
+) -> core.Figure:
+    """Time-domain plot of one or more signals; stem=True draws sequences x[n].
+
+    t: sample times (in seconds when unit='s'; the axis then switches to ms, us or ns as
+    the range calls for) or the indices n of a sequence.
+    series: {name: samples or a callable of t}; 'u_C' is labelled u_C(t) (or u_C[n]).
+    y_label: TeX quantity for the y axis (default: the single series' name).
+    """
+    if not series:
+        raise ValueError("signals needs at least one series")
+    tt = np.asarray(t, dtype=float)
+    if tt.ndim != 1 or tt.size < 2:
+        raise ValueError("t must be a 1-D array with at least two samples")
+    data: dict[str, np.ndarray] = {}
+    for nm, v in series.items():
+        y = v(tt) if callable(v) else v
+        data[nm] = np.broadcast_to(np.asarray(y, dtype=float), tt.shape).copy()
+
+    scale, shown_unit = (1.0, None) if stem else _time_display(float(np.max(np.abs(tt))), unit)
+    x = tt * scale
+    fig, ax = core.new_figure(size)
+    k = len(data)
+    step = float(np.min(np.diff(tt)))
+    width = 0.12 * step if stem and k > 1 else 0.0
+    handles = []
+    for i, (nm, y) in enumerate(data.items()):
+        label = _signal_tex(nm, stem)
+        if stem:
+            cont = ax.stem(x + (i - (k - 1) / 2) * width, y)
+            cont.markerline.set(color=color(i), mfc=color(i), mec=color(i), ms=3.5, zorder=5)
+            cont.stemlines.set(color=color(i), lw=1.1)
+            cont.baseline.set(color=FG, lw=0.8)
+            handles.append(Line2D([], [], color=color(i), marker="o", ms=3.5, lw=1.1, label=label))
+        else:
+            handles += ax.plot(x, y, color=color(i), label=label, zorder=4)
+    all_y = np.concatenate(list(data.values()))
+    finite = all_y[np.isfinite(all_y)]
+    lo, hi = (float(finite.min()), float(finite.max())) if finite.size else (-1.0, 1.0)
+    if stem:
+        lo, hi = min(lo, 0.0), max(hi, 0.0)
+        ax.set_xlim(x[0] - 0.6 * step, x[-1] + 0.6 * step)
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+        ax.set_xlabel("$n$")
+    else:
+        ax.set_xlim(x[0], x[-1])
+        ax.set_xlabel(core.axis_label("t", _unit_text(shown_unit)))
+        if lo < 0 < hi:
+            ax.axhline(0, color=FG, lw=0.7, zorder=2)
+    ax.set_ylim(*_pad_range(lo, hi))
+    if y_label is not None:
+        ax.set_ylabel(core.axis_label(y_label, y_unit))
+    elif k == 1:
+        quantity = _signal_tex(next(iter(data)), stem).strip("$")
+        ax.set_ylabel(core.axis_label(quantity, y_unit))
+    if (legend if legend is not None else k > 1) and stem:
+        # Stems fill the whole plot area, so the legend goes above it in one row.
+        ax.legend(
+            handles=handles,
+            loc="lower right",
+            bbox_to_anchor=(1.0, 1.0),
+            ncol=k,
+            labelcolor=FG,
+            borderaxespad=0.2,
+        )
+    elif legend if legend is not None else k > 1:
+        ax.legend(handles=handles, loc="best", labelcolor=FG)
+    core.apply_locale(ax)
+
+    facts: dict = {
+        "template": "signals.signals",
+        "stem": stem,
+        "t_range": [float(tt[0]), float(tt[-1])],
+        "time_axis": None if stem else {"unit": shown_unit, "scale": scale},
+        "samples": int(tt.size),
+        "series": {},
+    }
+    duration = float(tt[-1] - tt[0])
+    for nm, y in data.items():
+        if stem:
+            mean, rms = float(np.nanmean(y)), float(np.sqrt(np.nanmean(y**2)))
+        else:  # time averages over [t0, t1] by the trapezoidal rule
+            mean = float(np.trapezoid(y, tt) / duration)
+            rms = float(np.sqrt(np.trapezoid(y**2, tt) / duration))
+        entry = {"min": float(np.nanmin(y)) + 0.0, "max": float(np.nanmax(y)) + 0.0}
+        entry |= {"mean": mean, "rms": rms}
+        if stem and tt.size <= 64:
+            entry["values"] = [float(v) + 0.0 for v in y]
+        facts["series"][nm] = entry
+    if alt is None:
+        kind = "Stem plot of the sequence" if stem else "Time-domain plot of"
+        listing = ", ".join(
+            f"{nm} (from {e['min']:.3g} to {e['max']:.3g})" for nm, e in facts["series"].items()
+        )
+        if stem:
+            span = f"n from {tt[0]:g} to {tt[-1]:g}"
+        else:
+            span = f"t from {tt[0]:g} to {tt[-1]:g}" + (f" {unit}" if unit else "")
+        alt = f"{kind} {listing} for {span}."
+    return core.finish(fig, alt, facts)
+
+
 __all__ = [
     "ANNOTATIONS",
     "Plant",
@@ -1545,9 +1876,11 @@ __all__ = [
     "bode_asymptotes",
     "nyquist",
     "phase_deg",
+    "phasor",
     "plant",
     "pole_zero",
     "root_locus",
+    "signals",
     "stability_margins",
     "step_metrics",
     "step_response",

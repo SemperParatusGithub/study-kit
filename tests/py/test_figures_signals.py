@@ -251,3 +251,38 @@ def test_root_locus(locale):
     assert [b["s"] for b in circle.facts["breakaway"]] == pytest.approx([-2 - math.sqrt(5)])
     disc = signals.root_locus("(z+0.5)/((z-1)*(z-0.5))")
     assert validate_svg(disc.svg) == [] and disc.facts["discrete"]
+
+
+def test_phasor(locale):
+    fig = signals.phasor({"U_R": (5, 0), "U_L": (3, 90)}, chain=True)
+    assert validate_svg(fig.svg) == []
+    res = fig.facts["resultant"]
+    assert res["name"] == "U"
+    assert res["magnitude"] == pytest.approx(math.sqrt(34))
+    assert res["angle_deg"] == pytest.approx(math.degrees(math.atan2(3, 5)))
+    assert fig.facts["vectors"][1]["start"] == pytest.approx([5, 0])
+    star = signals.phasor({"U_1": (230, 0), "U_2": (230, -120), "U_3": (230, 120)})
+    assert validate_svg(star.svg) == []
+    assert star.facts["resultant"]["magnitude"] == pytest.approx(0, abs=1e-9)
+    assert signals._phasor_tex("U_R") == r"$\underline{U}_{R}$"
+    assert signals._phasor_tex("I") == r"$\underline{I}$"
+    with pytest.raises(ValueError):
+        signals.phasor({"U": (-1, 0)})
+
+
+def test_signals(locale):
+    t = np.linspace(0, 2e-3, 2001)
+    fig = signals.signals(t, {"u": lambda t: np.sin(2 * np.pi * 1e3 * t)}, y_unit="V")
+    assert validate_svg(fig.svg) == []
+    s = fig.facts["series"]["u"]
+    assert s["mean"] == pytest.approx(0, abs=1e-9)
+    assert s["rms"] == pytest.approx(1 / math.sqrt(2), rel=1e-5)
+    assert fig.facts["time_axis"]["unit"] == "ms"
+
+    n = np.arange(0, 8)
+    seq = signals.signals(n, {"x": 0.5**n, "y": np.ones(8)}, stem=True)
+    assert validate_svg(seq.svg) == []
+    assert seq.facts["series"]["x"]["values"] == pytest.approx(list(0.5**n))
+    assert seq.facts["series"]["y"]["mean"] == pytest.approx(1)
+    with pytest.raises(ValueError):
+        signals.signals([0.0], {"x": [1.0]})
