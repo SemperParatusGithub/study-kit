@@ -127,8 +127,9 @@ Short worked reasoning. Never refer to an option by letter (options are shuffled
   `=`, `-`, `+`, `*`, `#`, `>` or `1.` (keep `=` at the end of the previous line).
 - Units and numbers: `3{,}3\,\mathrm{k\Omega}`, decimal comma `{,}` in German, imaginary
   unit `\mathrm{j}`, phasors `\underline{U}`, subscripts in `\mathrm{…}` (`f_\mathrm{g}`),
-  words in `\text{…}`. No space command between two digits (`10000` or `10^4`, never
-  `10\,000`).
+  words in `\text{…}`. A course's `analysis/notation.yaml` overrides these defaults
+  (`decimal: point`, `imaginary_unit: i`, its symbols). No space command between two
+  digits (`10000` or `10^4`, never `10\,000`).
 - Environments: `aligned`, `gathered`, `cases`, `pmatrix`, `bmatrix`, `Bmatrix` only.
 - Denied (the lint prints the replacement; list in `pandoc/math-denylist.json`):
   `\overset`, `\stackrel`, `\xrightarrow`, `\underset`, `\color`, `\textcolor`, `\tag`,

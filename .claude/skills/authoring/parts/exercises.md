@@ -24,7 +24,8 @@ Practice exercises of one topic, one file each, with a machine-checkable answer 
    `symbols`. Keys are short (`fg`, `Hdb`, `phi`, `U2`).
 4. 1-3 hints (principle → set-up → key intermediate result), no answer values.
 5. One `solution` block, the last block, with every subtask: formula, numbers inserted,
-   result rounded as a student would write it (decimal comma in German).
+   result rounded as a student would write it (the decimal sign of `notation.yaml`, else
+   a comma in German).
 6. Frontmatter: `difficulty`, `kind`, `minutes` (realistic working time),
    `source: {doc, page, relation}` when adapted from course material.
 
