@@ -42,8 +42,10 @@ The file format is in the content-format skill; figures follow the figures skill
   same quantity everywhere).
 - **Numbers are computed, never guessed.** Every value in a statement, solution, answer
   key or distractor comes from Python: `uv run --frozen studykit calc "<expr>"`
-  (`--subs R=2.2e3`, `--units`) or a short `uv run --frozen python -c "…"` with
-  NumPy/SymPy. Round answer values to 4-5 significant digits; numeric keys get
+  (`--subs R=2.2e3`, `--units`) or, for more than one expression, a short NumPy/SymPy
+  script written to `courses/<course>/_build/calc/<topic>.py` (gitignored) and run with
+  `uv run --frozen python courses/<course>/_build/calc/<topic>.py`. Both are allowed
+  without a prompt, which a background author cannot answer; `python -c` is not. Round answer values to 4-5 significant digits; numeric keys get
   `rtol: 5.0e-3`, dB and degree keys an `atol`.
 - **Self-contained:** a student can solve each item from its statement and the summary;
   every given value has a unit; every asked quantity has an answer key (or is a sketch or
