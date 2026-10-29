@@ -384,6 +384,52 @@ def test_phasor(locale):
         signals.phasor({"U": (-1, 0)})
 
 
+def test_phasor_reference(locale):
+    """A reference phasor (the current of a series circuit) drawn to its own scale."""
+    rl = signals.phasor({"U_R": (60, 0), "U_L": (80, 90)}, chain=True, reference={"I": (2, 0)})
+    assert validate_svg(rl.svg) == []
+    ref = rl.facts["reference"]
+    assert (ref["name"], ref["magnitude"], ref["angle_deg"], ref["own_scale"]) == ("I", 2, 0, True)
+    assert (ref["re"], ref["im"]) == pytest.approx((2, 0))
+    # Along +Re, about half as long as the diagram reaches there (U_R = 60), and beside
+    # the axis on the side away from the triangle (U_L points up, so below).
+    assert ref["drawn_length"] == pytest.approx(0.45 * 60)
+    assert ref["drawn_start"][0] == pytest.approx(0) and ref["drawn_start"][1] < 0
+    assert rl.facts["resultant"]["angle_to_reference_deg"] == pytest.approx(
+        math.degrees(math.atan2(80, 60))
+    )
+    assert "the reference I = 2 at 0 degrees is drawn to its own scale" in rl.alt
+    # Capacitive: the triangle hangs below the axis, so the reference goes above it.
+    rc = signals.phasor(
+        {"U_R": (2.2, 0), "U_C": (3.3, -90)},
+        chain=True,
+        reference={"I": (0.01, 0)},
+        angle_name=r"\varphi_u",
+    )
+    assert validate_svg(rc.svg) == []
+    assert rc.facts["reference"]["drawn_start"][1] > 0
+    assert rc.facts["resultant"]["angle_to_reference_deg"] == pytest.approx(
+        -math.degrees(math.atan2(3.3, 2.2))
+    )
+    # The angle is measured from a rotated reference, which runs beside its own axis.
+    rot = signals.phasor({"U_R": (3, 30), "U_L": (2, 120)}, chain=True, reference={"I": (1, 30)})
+    assert validate_svg(rot.svg) == []
+    phi = rot.facts["resultant"]["angle_deg"]
+    assert rot.facts["resultant"]["angle_to_reference_deg"] == pytest.approx(phi - 30)
+    start = complex(*rot.facts["reference"]["drawn_start"])
+    along = start * complex(math.cos(math.radians(-30)), math.sin(math.radians(-30)))
+    assert along.real == pytest.approx(0, abs=1e-12) and along.imag < 0
+    # Without chain the vectors and the reference are drawn from the origin.
+    star = signals.phasor({"U": (230, 30)}, reference={"I": (5, 0)})
+    assert validate_svg(star.svg) == []
+    assert star.facts["resultant"]["angle_to_reference_deg"] == pytest.approx(30)
+    assert "reference" not in signals.phasor({"U": (1, 0)}).facts
+    with pytest.raises(ValueError, match="one phasor"):
+        signals.phasor({"U": (1, 0)}, reference={"I": (1, 0), "J": (1, 90)})
+    with pytest.raises(ValueError, match="> 0"):
+        signals.phasor({"U": (1, 0)}, reference={"I": (0, 0)})
+
+
 def test_signals(locale):
     t = np.linspace(0, 2e-3, 2001)
     fig = signals.signals(t, {"u": lambda t: np.sin(2 * np.pi * 1e3 * t)}, y_unit="V")

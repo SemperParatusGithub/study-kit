@@ -1761,6 +1761,30 @@ def _free_stretch(length: float, taken: list[tuple[float, float]]) -> tuple[floa
     return max(gaps, key=lambda g: g[1] - g[0])
 
 
+def _clear_of(fig, label, start: complex, c: complex, other) -> None:
+    """Slide a phasor's name from 0.8 towards its tip until it clears `other` (the angle).
+
+    A small phase angle puts its label low beside the phasor the name sits on.
+    """
+    fig.draw_without_rendering()
+    renderer = fig.canvas.get_renderer()
+    taken = other.get_window_extent(renderer).padded(2.0)
+    for frac in (0.8, 0.84, 0.88, 0.92):
+        at = start + frac * c
+        label.xy = (at.real, at.imag)
+        if not label.get_window_extent(renderer).overlaps(taken):
+            return
+
+
+def _reference(reference: Mapping[str, tuple[float, float]]) -> tuple[str, float, float]:
+    if len(reference) != 1:
+        raise ValueError("reference takes one phasor, e.g. {'I': (2, 0)}")
+    ((name, (mag, ang)),) = reference.items()
+    if mag <= 0:
+        raise ValueError(f"magnitude of the reference {name} must be > 0")
+    return name, float(mag), float(ang)
+
+
 def phasor(
     vectors: Mapping[str, tuple[float, float]],
     chain: bool = False,
@@ -1768,15 +1792,25 @@ def phasor(
     show_angle: bool = True,
     size: str = "col",
     alt: str | None = None,
+    reference: Mapping[str, tuple[float, float]] | None = None,
+    angle_name: str = r"\varphi",
 ) -> core.Figure:
     """Phasor diagram in the complex plane: {name: (magnitude, angle in degrees)}.
 
     chain: draw the phasors head to tail and their sum from the origin (U_R + U_L = U);
     `total` names the sum (default: the common letter, e.g. 'U'), `show_angle` marks its
-    phase angle. Names are rendered underlined: 'U_R' -> U_R with an underlined U.
+    phase angle, named `angle_name` (TeX, e.g. '\\varphi_u'). Names are rendered
+    underlined: 'U_R' -> U_R with an underlined U.
+
+    reference: one phasor of another quantity that the others refer to, drawn to its own
+    scale, e.g. {'I': (2, 0)}, the current of a series circuit. It runs from the origin
+    along its angle, shifted beside that axis to the side away from the diagram, so it
+    hides nothing; the names of phasors on that axis move to the other side, and the phase
+    angle is measured from the reference.
     """
     if not vectors:
         raise ValueError("phasor needs at least one vector")
+    ref = _reference(reference) if reference is not None else None
     names = list(vectors)
     comps = []
     for nm in names:
@@ -1803,6 +1837,18 @@ def phasor(
     )
     pts += [s + o for s, o in zip(starts, offsets, strict=True) if o]
     pts += [t + o for t, o in zip(tips, offsets, strict=True) if o]
+    ref_dir = cmath.exp(1j * math.radians(ref[2])) if ref else 1 + 0j
+    ref_side = 0j  # unit normal of the reference axis pointing to the reference phasor
+    if ref:
+        # Own scale: about half of the diagram's extent along the reference axis.
+        along = max((ref_dir.conjugate() * z).real for z in pts)
+        ref_len = 0.45 * (along if along > 0.2 * span else span)
+        ref_side = 1j * ref_dir
+        if (ref_side.conjugate() * centre).real > 0:  # the diagram lies on that side
+            ref_side = -ref_side
+        ref_start = 0.07 * span * ref_side
+        ref_tip = ref_start + ref_len * ref_dir
+        pts += [ref_start, ref_tip]
     re_lo, re_hi = min(z.real for z in pts), max(z.real for z in pts)
     im_lo, im_hi = min(z.imag for z in pts), max(z.imag for z in pts)
     pad = 0.18 * span
@@ -1836,9 +1882,11 @@ def phasor(
         color=FG,
     )
 
+    inner = None  # (label, start, phasor) of a name moved off the reference, from the origin
     for i, (nm, s0, c) in enumerate(zip(names, starts, comps, strict=True)):
         col = color(i)
         s = s0 + offsets[i]  # drawn start: shifted sideways off a phasor it would cover
+        moved = False
         if abs(c) > 0:
             ax.add_patch(
                 FancyArrowPatch(
@@ -1858,6 +1906,18 @@ def phasor(
             normal = 1j * c / abs(c) if abs(c) else 1j
             if (normal.conjugate() * (mid - centre)).real < 0:
                 normal = -normal
+            on_ref_axis = (
+                ref is not None
+                and abs((ref_dir.conjugate() * s).imag) <= 1e-9 * span
+                and abs((ref_dir.conjugate() * c).imag) <= 1e-9 * span
+            )
+            moved = on_ref_axis and (normal.conjugate() * ref_side).real > 0
+            if moved:
+                # The reference runs beside this phasor: its name goes to the other side,
+                # past the angle arc when it starts at the origin.
+                normal = -normal
+                if abs(s) <= 1e-9 * span:
+                    mid = s + 0.8 * c
             if i in covered:  # a shifted phasor runs alongside on the outer side
                 lo, hi = _free_stretch(abs(c), covered[i])
                 if hi - lo >= 0.3 * abs(c):  # name beside the part left free
@@ -1869,7 +1929,7 @@ def phasor(
             # Beyond the tip, turned 30 degrees counter-clockwise so a phasor along an
             # axis does not put its name on the axis line.
             where, direction = s + c, (c if abs(c) else 1j) * cmath.exp(1j * math.pi / 6)
-        ax.annotate(
+        label = ax.annotate(
             _phasor_tex(nm),
             (where.real, where.imag),
             textcoords="offset points",
@@ -1878,7 +1938,36 @@ def phasor(
             zorder=7,
             **_label_offset(direction),
         )
+        if chain and moved and abs(s) <= 1e-9 * span:
+            inner = (label, s, c)
+    if ref:
+        ax.add_patch(
+            FancyArrowPatch(
+                (ref_start.real, ref_start.imag),
+                (ref_tip.real, ref_tip.imag),
+                arrowstyle="-|>",
+                mutation_scale=9,
+                color=color(len(names)),
+                lw=1.2,
+                shrinkA=0,
+                shrinkB=0,
+                zorder=5,
+            )
+        )
+        ax.annotate(
+            _phasor_tex(ref[0]),
+            (ref_tip.real, ref_tip.imag),
+            textcoords="offset points",
+            fontsize=9,
+            color=color(len(names)),
+            zorder=7,
+            **_label_offset(ref_dir, 3.0),
+        )
     phi = math.degrees(cmath.phase(resultant)) if abs(resultant) > 0 else 0.0
+    base, rel = 0.0, phi  # the phase angle is measured from Re, or from the reference
+    if ref:
+        base, rel = ref[2], (phi - ref[2]) % 360.0
+        rel = rel - 360.0 if rel > 180.0 else rel  # in (-180, 180]
     if chain:
         ax.add_patch(
             FancyArrowPatch(
@@ -1907,23 +1996,26 @@ def phasor(
             zorder=7,
             **_label_offset(normal),
         )
-        if show_angle and abs(phi) > 3 and abs(resultant) > 0:
+        if show_angle and abs(rel) > 3 and abs(resultant) > 0:
             radius = 0.3 * abs(resultant)
-            a0, a1 = sorted((0.0, phi))
+            a0, a1 = sorted((base, base + rel))
             ax.add_patch(
                 Arc(
                     (0, 0), 2 * radius, 2 * radius, theta1=a0, theta2=a1, color=FG, lw=0.8, zorder=4
                 )
             )
-            label_at = radius * 1.12 * cmath.exp(1j * math.radians(phi / 2))
-            ax.annotate(
-                rf"$\varphi = {_num_tex(phi)}^\circ$",
+            half = cmath.exp(1j * math.radians(base + rel / 2))
+            label_at = radius * 1.12 * half
+            angle_label = ax.annotate(
+                rf"${angle_name} = {_num_tex(rel)}^\circ$",
                 (label_at.real, label_at.imag),
                 textcoords="offset points",
                 fontsize=7,
                 color=FG,
-                **_label_offset(cmath.exp(1j * math.radians(phi / 2)), 2.0),
+                **_label_offset(half, 2.0),
             )
+            if inner is not None:
+                _clear_of(fig, *inner, angle_label)
     facts = {
         "template": "signals.phasor",
         "chain": chain,
@@ -1947,6 +2039,18 @@ def phasor(
             "im": resultant.imag,
         },
     }
+    if ref:
+        facts["resultant"]["angle_to_reference_deg"] = rel
+        facts["reference"] = {
+            "name": ref[0],
+            "magnitude": ref[1],
+            "angle_deg": ref[2],
+            "re": (ref[1] * ref_dir).real,
+            "im": (ref[1] * ref_dir).imag,
+            "own_scale": True,
+            "drawn_start": _pair(ref_start),
+            "drawn_length": ref_len,
+        }
     if alt is None:
         listing = ", ".join(
             f"{nm} = {vectors[nm][0]:g} at {float(vectors[nm][1]):g} degrees" for nm in names
@@ -1957,6 +2061,13 @@ def phasor(
                 f"; drawn head to tail, their sum {total} has magnitude {abs(resultant):.4g} "
                 f"at {phi:.4g} degrees"
             )
+        if ref:
+            alt += (
+                f"; the reference {ref[0]} = {ref[1]:g} at {ref[2]:g} degrees is drawn to "
+                f"its own scale"
+            )
+            if chain:
+                alt += f", {total} is {rel:.4g} degrees from it"
         alt += "."
     return core.finish(fig, alt, facts)
 
