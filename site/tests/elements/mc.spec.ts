@@ -148,6 +148,10 @@ test('the last attempt shows after a reload; changed content is flagged', async 
   await mc.getByRole('button', { name: 'Check' }).click();
   await page.reload();
   await expect(mc.locator('.sk-mc-note')).toHaveText('Last time: wrong (unsure), today · next review tomorrow.');
+  await page.reload();
+  await answer(mc, true, 'Sure');
+  await mc.getByRole('button', { name: 'Check' }).click();
+  await expect(mc.locator('.sk-mc-note')).toBeHidden(); // it described the state before this answer
   await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('studykit:v1:mini') ?? '{}');
     doc.items['mc:mc-rc-tiefpass-001'].h = 'ffffffff';

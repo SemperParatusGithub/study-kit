@@ -42,6 +42,10 @@ test('practice: feedback per question, result per topic with summary links', asy
   const items = (await progress(page)).items;
   expect(Object.keys(items).filter((k) => k.startsWith('mc:mc-rc-tiefpass-')).length).toBe(3);
 
+  // the review shows the answer, not a "Last time" note from before the quiz
+  await expect(result.locator('.sk-mc-note')).toHaveCount(3);
+  for (const note of await result.locator('.sk-mc-note').all()) await expect(note).toBeHidden();
+
   await result.getByRole('button', { name: 'Retry mistakes (1)' }).click();
   await expect(q.locator('.sk-quiz-pos')).toHaveText('Question 1 of 1');
 });

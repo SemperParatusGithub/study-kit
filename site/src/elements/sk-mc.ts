@@ -516,6 +516,7 @@ export class SkMc extends HTMLElement {
       if (o.why) o.why.hidden = false;
     }
     if (this.explanation) this.explanation.hidden = false;
+    if (this.note) this.note.hidden = true; // "Last time" describes the state before this answer
     this.classList.add('is-checked');
     const verdict =
       r.correct ? 'Correct.' : r.score > 0 ? `Partly correct: ${pts(r.score)} of 1 point.` : 'Not correct.';
