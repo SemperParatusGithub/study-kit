@@ -151,6 +151,11 @@ async function build(id: string): Promise<Course> {
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const titles = new Map(topics.map((t) => [t.id, t.title]));
+  // Dev keeps a page's props (this course) until content changes, and PDFs are built while
+  // it runs: there the getters below read them again on every render.
+  const live = !import.meta.env.PROD;
+  const pdfs = live ? [] : readPdfs(id);
+  const sources = live ? [] : readSources(id);
   return {
     id,
     data,
@@ -169,8 +174,12 @@ async function build(id: string): Promise<Course> {
     exams,
     plan,
     mastery,
-    pdfs: readPdfs(id),
-    sources: readSources(id),
+    get pdfs() {
+      return live ? readPdfs(id) : pdfs;
+    },
+    get sources() {
+      return live ? readSources(id) : sources;
+    },
   };
 }
 
