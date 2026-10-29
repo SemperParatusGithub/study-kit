@@ -81,6 +81,11 @@ test('Practice: instant feedback per question, ?n= sets the length, result per t
   await expect(result.locator('.sk-quiz-meta')).toContainText('Practice · 4 of 4 answered');
   await expect(result.locator('.sk-quiz-misconceptions a').first()).toHaveAttribute('href', `#review-${misconception}`);
   await expect(result.getByRole('button', { name: 'Retry mistakes (1)' })).toBeVisible();
+
+  // "New quiz" replaces the result screen: focus goes to the start form, not to the page
+  await result.getByRole('button', { name: 'New quiz' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(quiz.getByLabel('Questions')).toBeFocused();
 });
 
 test('Test: ?n= and ?minutes= pre-fill the form, feedback waits for the end, time-up ends the quiz', async ({ page }) => {

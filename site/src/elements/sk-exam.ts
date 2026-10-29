@@ -231,7 +231,14 @@ export class SkExam extends HTMLElement {
       this.save();
       this.body.hidden = false;
       this.run();
-      this.tasks[0]?.el.scrollIntoView({ block: 'start' });
+      // The button is gone now: focus goes to the first part, where reading starts.
+      const first = this.tasks[0]?.el ?? this.mcEl;
+      first?.scrollIntoView({ block: 'start' });
+      const target = first?.querySelector<HTMLElement>('h1, h2, h3, h4') ?? first;
+      if (target) {
+        if (target.tabIndex < 0) target.tabIndex = -1;
+        target.focus({ preventScroll: true });
+      }
     });
     const titleId = uid('cover');
     this.head.classList.remove('is-sticky');
@@ -434,7 +441,12 @@ export class SkExam extends HTMLElement {
       close();
       trigger.focus();
     });
-    dialog.addEventListener('cancel', () => dialog.remove());
+    // Escape: the same as "Keep working" (removing the dialog would lose focus)
+    dialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      close();
+      trigger.focus();
+    });
     this.append(dialog);
     if (typeof dialog.showModal === 'function') dialog.showModal();
     no.focus();

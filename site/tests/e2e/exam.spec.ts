@@ -145,3 +145,23 @@ test('the timer survives a reload; submitting shows solutions, rubrics and the s
   await expect(exam.locator('.sk-exam-result').getByRole('heading', { name: 'Result' })).toBeVisible();
   await expect(rubrics.first().getByRole('checkbox').first()).toBeChecked();
 });
+
+test('keyboard: focus moves to the first task on Start and back to Submit after Escape', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept());
+  await freezeDay(page);
+  await page.goto(`${C}/exams/${EXAM}/`);
+  await elementsReady(page);
+  const exam = page.locator('sk-exam');
+  await exam.getByRole('button', { name: 'Start exam' }).focus();
+  await page.keyboard.press('Enter');
+  const firstHeading = exam.locator('section.sk-exam-task').first().getByRole('heading').first();
+  await expect(firstHeading).toBeFocused();
+
+  const submit = exam.getByRole('button', { name: 'Submit', exact: true });
+  await submit.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Submit the exam?' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(submit).toBeFocused();
+});

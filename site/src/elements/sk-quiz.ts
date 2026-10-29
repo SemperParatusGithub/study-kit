@@ -338,6 +338,18 @@ export class SkQuiz extends HTMLElement {
     );
   }
 
+  /** Focus the start screen (its first usable control) after the result screen is gone. */
+  private focusStart(): void {
+    const start = this.screen.querySelector<HTMLElement>('.sk-quiz-start');
+    const control = [...this.screen.querySelectorAll<HTMLElement>('input, button')].find(
+      (el) => !el.closest('[hidden]') && !(el as HTMLInputElement | HTMLButtonElement).disabled,
+    );
+    const target = control ?? start;
+    if (!target) return;
+    if (target === start) start.tabIndex = -1;
+    target.focus();
+  }
+
   private emptyText(available: number): string | null {
     if (available > 0) return null;
     if (this.all.length === 0) return 'There are no questions here yet.';
@@ -545,6 +557,7 @@ export class SkQuiz extends HTMLElement {
     again.addEventListener('click', () => {
       this.seed = randomSeed();
       this.renderStart();
+      this.focusStart();
     });
 
     const heading = h('h2', { class: 'sk-quiz-title', tabindex: '-1' }, 'Result');
