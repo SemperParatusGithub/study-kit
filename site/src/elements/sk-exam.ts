@@ -22,6 +22,9 @@
 //    content.
 // The exam's own text (cover, bar, dialog, rubric, result) is English; tasks, aids, task
 // titles and rubric criteria keep the course language.
+// The same exam open in two tabs: a tab never writes its copy of the session over one that
+// another tab has submitted, retaken or restarted since; it follows that tab instead (on
+// its next save, and at once on a storage event or when the page is shown again).
 
 import { examPartPoints, examPoints, gradeEstimate, multiRule, type MultiRule } from '../lib/scoring.ts';
 import type { ExamEntry } from '../lib/store.ts';
@@ -96,6 +99,8 @@ export class SkExam extends HTMLElement {
    */
   private headSize: ResizeObserver | null = null;
   private session: ExamSession | null = null;
+  /** This tab has read or written the stored session (it is not a fresh Start). */
+  private synced = false;
   private announceTimeUp = false;
   /** lang for the exam's own (English) text and for course text inside it. */
   private ui: string | undefined;
@@ -114,6 +119,12 @@ export class SkExam extends HTMLElement {
     this.account();
     this.save();
   };
+  private onStorage = (e: StorageEvent) => {
+    if (e.key === null || e.key === storeOf(this).sessionKey) this.follow(true);
+  };
+  private onPageShow = (e: PageTransitionEvent) => {
+    if (e.persisted) this.follow(true);
+  };
 
   private get sessionKey(): string {
     return `exam:${this.examId}`;
@@ -124,6 +135,8 @@ export class SkExam extends HTMLElement {
   }
 
   connectedCallback(): void {
+    window.addEventListener('storage', this.onStorage);
+    window.addEventListener('pageshow', this.onPageShow);
     if (this.ready) return;
     this.ready = true;
     // The MC part calls <sk-mc> methods, so wait for its definition if index.ts is not used.
@@ -182,6 +195,7 @@ export class SkExam extends HTMLElement {
     this.points = Number(this.dataset.points) || this.tasks.reduce((s, t) => s + t.points, 0) + this.mcPoints;
 
     this.session = storeOf(this).session<ExamSession>(this.sessionKey) ?? null;
+    this.synced = this.session !== null;
     if (!this.session?.started) this.renderCover();
     else if (this.session.submitted) this.renderGraded();
     else if (this.left() <= 0) {
@@ -192,10 +206,53 @@ export class SkExam extends HTMLElement {
 
   disconnectedCallback(): void {
     this.stop();
+    window.removeEventListener('storage', this.onStorage);
+    window.removeEventListener('pageshow', this.onPageShow);
   }
 
   private save(): void {
-    if (this.session) storeOf(this).setSession(this.sessionKey, this.session);
+    if (!this.session || this.follow(false)) return;
+    storeOf(this).setSession(this.sessionKey, this.session);
+    this.synced = true;
+  }
+
+  /**
+   * Follow another tab's change of the stored session; true when this tab's copy is stale
+   * and must not be written. Submitted there: show the graded exam. Retaken or restarted
+   * there: reload. `rubric`: also take the other tab's rubric ticks of the same submission.
+   */
+  private follow(rubric: boolean): boolean {
+    const mine = this.session;
+    if (!mine || !this.synced) return false;
+    const stored = storeOf(this).session<ExamSession>(this.sessionKey) ?? null;
+    if (stored?.started === mine.started) {
+      if (!stored.submitted || stored.submitted === mine.submitted) {
+        if (rubric && stored.submitted && JSON.stringify(stored.rubric ?? {}) !== JSON.stringify(mine.rubric ?? {})) {
+          mine.rubric = stored.rubric ?? {};
+          this.syncRubric();
+        }
+        return false;
+      }
+      this.stop();
+      this.session = stored;
+      this.renderGraded();
+      return true;
+    }
+    this.stop();
+    this.session = null;
+    location.reload();
+    return true;
+  }
+
+  /** Tick the rubric checkboxes as the session has them (another tab graded). */
+  private syncRubric(): void {
+    for (const t of this.tasks) {
+      const ticked = new Set(this.session?.rubric?.[t.id] ?? []);
+      for (const box of t.el.querySelectorAll<HTMLInputElement>('.sk-rubric input[type=checkbox]')) {
+        box.checked = ticked.has(Number(box.dataset.index));
+      }
+    }
+    this.renderResult();
   }
 
   private left(now = Date.now()): number {
@@ -539,6 +596,11 @@ export class SkExam extends HTMLElement {
 
   private onRubric(t: Task, fs: HTMLElement): void {
     if (!this.session) return;
+    // ticks another tab gave the same submission stay; this task's are the ones on screen
+    const stored = storeOf(this).session<ExamSession>(this.sessionKey);
+    if (stored?.started === this.session.started && stored.submitted === this.session.submitted) {
+      this.session.rubric = { ...stored.rubric };
+    }
     this.session.rubric ??= {};
     this.session.rubric[t.id] = [...fs.querySelectorAll<HTMLInputElement>('input[type=checkbox]')]
       .filter((b) => b.checked)
