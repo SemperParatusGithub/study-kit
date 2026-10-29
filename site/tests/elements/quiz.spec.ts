@@ -196,6 +196,26 @@ test('URL parameters pre-fill the start form', async ({ page }) => {
   await expect(q.getByLabel('Level 2')).not.toBeChecked();
 });
 
+test('data-n sets the default size; data-intro="false" leaves out the mode title', async ({ page }) => {
+  await page.goto('/quiz-hub.html');
+  const practice = page.locator('#quiz-practice');
+  await expect(practice.locator('.sk-quiz-count')).toHaveText('6 questions available.');
+  await expect(practice.getByRole('spinbutton', { name: 'Questions' })).toHaveValue('2');
+  await expect(practice.locator('.sk-quiz-mode, .sk-quiz-desc')).toHaveCount(0);
+  await practice.getByRole('button', { name: 'Start' }).click();
+  await expect(practice.locator('.sk-quiz-pos')).toHaveText('Question 1 of 2');
+});
+
+test('with several quizzes each keeps its mode; URL parameters go to the quiz of ?mode=', async ({ page }) => {
+  await page.goto('/quiz-hub.html?mode=test&n=3&minutes=5');
+  const practice = page.locator('#quiz-practice');
+  const testQuiz = page.locator('#quiz-test');
+  await expect(practice.getByRole('spinbutton', { name: 'Questions' })).toHaveValue('2');
+  await expect(practice.getByRole('spinbutton', { name: 'Time limit (minutes)' })).toHaveCount(0);
+  await expect(testQuiz.getByRole('spinbutton', { name: 'Questions' })).toHaveValue('3');
+  await expect(testQuiz.getByRole('spinbutton', { name: 'Time limit (minutes)' })).toHaveValue('5');
+});
+
 test('without JavaScript the fallback text stays', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();

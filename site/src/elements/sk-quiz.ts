@@ -1,6 +1,8 @@
 // <sk-quiz data-course data-mode="practice|test|mistakes|due|mixed" data-pools='["…json"]'
-//          data-topic-titles='{"id":"Title"}' data-summary-base="/c/<c>/summary/">
-// (docs/architecture.md §3.2).
+//          data-topic-titles='{"id":"Title"}' data-summary-base="/c/<c>/summary/"
+//          [data-n="3"] [data-intro="false"]>
+// (docs/architecture.md §3.2). data-n is the default number of questions; data-intro="false"
+// leaves out the mode title and description (the page already shows them).
 //
 // Each pool URL returns {topic, questions:[{id, type, difficulty, topic, h, html}]}, html
 // being an <sk-mc> outerHTML. Modes:
@@ -10,7 +12,9 @@
 //   due       questions the Leitner schedule says are due (exam clamp included)
 //   mixed     every pool together, instant feedback
 // URL parameters: ?n=10&minutes=15&topics=a,b&difficulty=1,2 (or 1-3)&mode=… pre-fill the
-// start form. The result screen shows the score per topic, the time, the misconceptions
+// start form. With several quizzes on a page (the MC hub has one per mode) each keeps its
+// data-mode and the parameters go to the quiz of ?mode= (or to all without it); a quiz
+// alone on its page takes ?mode= as its mode. The result screen shows the score per topic, the time, the misconceptions
 // (sure but wrong) and links to the topic summaries. Every answer is recorded by <sk-mc>,
 // once: a question has no "Try again" inside a quiz, the first answer is the quiz result,
 // and "Retry mistakes" (after the solutions were shown) is a practice round that records
@@ -134,11 +138,17 @@ export class SkQuiz extends HTMLElement {
   connectedCallback(): void {
     if (this.ready) return;
     this.ready = true;
-    const q = new URLSearchParams(location.search);
-    const wanted = (q.get('mode') ?? this.dataset.mode ?? 'practice') as QuizMode;
-    this.mode = MODES.includes(wanted) ? wanted : 'practice';
+    const url = new URLSearchParams(location.search);
+    const valid = (m: string | null | undefined): m is QuizMode => MODES.includes(m as QuizMode);
+    const urlMode = url.get('mode');
+    const own = this.dataset.mode;
+    const alone = document.querySelectorAll('sk-quiz').length <= 1;
+    this.mode = alone
+      ? valid(urlMode) ? urlMode : valid(own) ? own : 'practice'
+      : valid(own) ? own : valid(urlMode) ? urlMode : 'practice';
+    const q = alone || !valid(urlMode) || urlMode === this.mode ? url : new URLSearchParams();
     this.settings = {
-      n: posInt(q.get('n')),
+      n: posInt(q.get('n')) ?? posInt(this.dataset.n ?? null),
       minutes: posInt(q.get('minutes')),
       topics: q.get('topics')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null,
       difficulty: difficulties(q.get('difficulty')),
@@ -287,10 +297,11 @@ export class SkQuiz extends HTMLElement {
       this.begin(picked.slice(0, s.n ?? picked.length), this.mode === 'test' ? s.minutes : null, false);
     });
     update();
+    const intro = this.dataset.intro !== 'false';
     this.screen.replaceChildren(
       h('div', { class: 'sk-quiz-start' },
-        h('p', { class: 'sk-quiz-mode' }, info.title),
-        h('p', { class: 'sk-quiz-desc' }, info.text),
+        intro ? h('p', { class: 'sk-quiz-mode' }, info.title) : null,
+        intro ? h('p', { class: 'sk-quiz-desc' }, info.text) : null,
         this.errors.length
           ? h('p', { class: 'sk-quiz-error', role: 'alert' }, `Some questions could not be loaded (${this.errors.length} of ${this.errors.length + new Set(this.all.map((q) => q.topic)).size} banks).`)
           : null,
