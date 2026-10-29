@@ -237,6 +237,34 @@ def test_row_layout_bends_edges_around_states():
     assert grid.facts["layout"] == "coords"
 
 
+SEQ1011_MEALY = [
+    ("A", "B", "1", "0"),
+    ("A", "A", "0", "0"),
+    ("B", "B", "1", "0"),
+    ("B", "C", "0", "0"),
+    ("C", "D", "1", "0"),
+    ("C", "A", "0", "0"),
+    ("D", "B", "1", "1"),
+    ("D", "C", "0", "0"),
+]
+
+
+@pytest.mark.parametrize("layout", ["ring", "row"])
+def test_sequence_detector_labels_sit_by_their_own_edge(locale, layout):
+    fig = graph.state_machine(["A", "B", "C", "D"], SEQ1011_MEALY, initial="A", kind="mealy",
+                              layout=layout)  # fmt: skip
+    assert validate_svg(fig.svg) == []
+    f = fig.facts
+    assert f["label_overlaps"] == 0 and f["label_state_gap"] > 0
+    # Every label is nearer to its own arrow than to any other, the crossing diagonals of
+    # the ring (D -> B and C -> A) included.
+    assert all(e["label_margin"] > 0 for e in f["edges"])
+    assert f["label_own_margin"] == min(e["label_margin"] for e in f["edges"])
+    if layout == "ring":
+        assert _edge(f, "D", "B")["label_margin"] > 0.2
+        assert _edge(f, "C", "A")["label_margin"] > 0.2
+
+
 def _angle_on(state_xy, point) -> float:
     return math.degrees(math.atan2(point[1] - state_xy[1], point[0] - state_xy[0])) % 360
 
@@ -258,11 +286,19 @@ def test_moore_edges_and_entry_arrow_keep_off_the_divider(locale):
                 assert _off_divider(_angle_on(xy[e["src"]], e["ends"][0])) > 20
                 assert _off_divider(_angle_on(xy[e["dst"]], e["ends"][1])) > 20
         assert _off_divider(f["initial_angle"]) > 25
+        assert all(e["label_margin"] > 0 for e in f["edges"])
     row = graph.state_machine(moore, t, initial="S0", layout="row").facts
     assert _edge(row, "S0", "S1")["route"] == "line"  # straight, just above the divider
     # Plain automata keep centre-to-centre lines and the entry arrow from the left.
     plain = graph.state_machine(["a", "b"], [("a", "b", "x")], initial="a", layout="row").facts
     assert _edge(plain, "a", "b")["ends"][0][1] == 0.0 and plain["initial_angle"] == 180.0
+
+
+def test_state_machine_refuses_illegible_labels():
+    coords = {"a": (0, 0), "b": (0.55, 0), "c": (0.27, 0.4)}
+    t = [(x, y, "lange Eingabe/1") for x in coords for y in coords if x != y]
+    with pytest.raises(ValueError, match="cannot be placed legibly"):
+        graph.state_machine(list(coords), t, layout=coords)
 
 
 # --- flowcharts --------------------------------------------------------------------------

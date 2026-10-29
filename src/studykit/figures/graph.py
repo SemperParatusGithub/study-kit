@@ -145,6 +145,7 @@ class _Edge:
     samples: np.ndarray = field(default_factory=lambda: np.zeros((0, 2)))
     direction: float = 0.0  # self-loops: angle of the loop on its state
     label_xy: np.ndarray | None = None
+    loop: tuple[np.ndarray, float] | None = None  # self-loops: centre and radius of the arc
 
     @property
     def text(self) -> str:
@@ -312,8 +313,7 @@ def _loop_geometry(c: np.ndarray, r: float, theta: float):
     ts = np.linspace(0, 2 * math.pi, 60)
     ring = centre + radius * np.column_stack([np.cos(ts), np.sin(ts)])
     ring = ring[np.linalg.norm(ring - c, axis=1) > r]
-    far = float(np.linalg.norm(centre - c) + radius)
-    return a, b, radius, ring, far
+    return a, b, radius, ring, centre
 
 
 def _extent_along(direction: np.ndarray, w: float, h: float) -> float:
@@ -328,45 +328,148 @@ def _rect_points_dist(rect: Rect, pts: np.ndarray) -> float:
     return float(np.min(np.hypot(dx, dy)))
 
 
-NEAR = 0.35  # labels keep this distance from edges they do not belong to
+LABEL_MARGIN = 0.4  # each label is this much nearer to its own edge than to any other
+ON_LINE_COST = 0.3  # a label on its line (which breaks for it) over one beside the line
+ON_LINE_ENDS = 0.45  # ... and only where this much of the line shows on either side
+LABEL_CLEAR = 0.06  # label box to states and to other labels
 
 
-def _place_edge_label(
-    edge: _Edge,
-    w: float,
-    h: float,
-    pos: dict[str, np.ndarray],
-    r: float,
-    placed: list[Rect],
-    others: list[np.ndarray],
-) -> np.ndarray:
-    """Beside the edge (outside of its bend), clear of states, labels and other edges."""
-    sides = [1.0, -1.0] if abs(edge.k) < 1e-9 else [math.copysign(1.0, edge.k)]
-    best, best_score = None, math.inf
-    index = 0
-    for t in (0.5, 0.42, 0.58, 0.34, 0.66):
+def _label_candidates(edge: _Edge, w: float, h: float) -> list[tuple[np.ndarray, float]]:
+    """(centre, cost) of the spots a label may take, cheapest first in spirit.
+
+    Beside the edge on either side or on it (the line then breaks for the label), from the
+    middle outwards; arcs prefer their outer side. A self-loop's label goes beyond the loop
+    or beside it.
+    """
+    if edge.loop is not None:
+        centre, radius = edge.loop
+        out = []
+        for phi in (0, 40, -40, 80, -80, 120, -120):
+            u = _unit(edge.direction + phi)
+            out.append((centre + u * (radius + LABEL_GAP + _extent_along(u, w, h)), abs(phi) / 200))
+        return out
+    outer = math.copysign(1.0, edge.k) if abs(edge.k) > 1e-9 else None
+    out = []
+    for t in np.linspace(0.15, 0.85, 15):
         pt = _quad(edge.q0, edge.q1, edge.q2, t)[0]
         tan = _quad_tangent(edge.q0, edge.q1, edge.q2, t)
         tan = tan / (np.linalg.norm(tan) or 1.0)
         normal = np.array([-tan[1], tan[0]])
-        for side in sides:
+        cost = 0.8 * abs(t - 0.5)
+        for side in (1.0, -1.0):
             n = side * normal
-            centre = pt + n * (LABEL_GAP + _extent_along(n, w, h))
-            rect = _rect(centre, w, h)
-            score = 0.04 * index
-            index += 1
-            for c in pos.values():
-                gap = _rect_circle_gap(rect, c, r)
-                if gap < 0.06:
-                    score += 10 + 20 * (0.06 - gap)
-            score += sum(25 * _overlap(rect, other) for other in placed)
-            score += 2.0 * _inside(rect, edge.samples)
-            for path in others:
-                score += 2.0 * _inside(rect, path)
-                score += 4.0 * max(NEAR - _rect_points_dist(rect, path), 0.0)
-            if score < best_score:
-                best, best_score = centre, score
-    return best
+            inner = outer is not None and side != outer
+            out.append((pt + n * (LABEL_GAP + _extent_along(n, w, h)), cost + 0.2 * inner))
+        ends = np.array([edge.q0, edge.q2])
+        if 0.3 <= t <= 0.7 and _rect_points_dist(_rect(pt, w, h), ends) > ON_LINE_ENDS:
+            out.append((pt, cost + ON_LINE_COST))  # the arrow stays visible on both sides
+    return out
+
+
+@dataclass
+class _LabelCheck:
+    state_gap: float  # to the nearest state (negative: on a state)
+    label_gap: float  # to the nearest other label box (negative: overlapping)
+    crossed: int  # sample points of other edges inside the box
+    own: float  # distance to its own edge
+    foreign: float  # distance to the nearest other edge or arrow
+
+    @property
+    def margin(self) -> float:
+        return self.foreign - self.own
+
+
+def _rect_gap(a: Rect, b: Rect) -> float:
+    dx = max(a[0] - b[2], b[0] - a[2])
+    dy = max(a[1] - b[3], b[1] - a[3])
+    if dx < 0 and dy < 0:
+        return max(dx, dy)  # overlapping: minus the smaller penetration
+    return math.hypot(max(dx, 0.0), max(dy, 0.0))
+
+
+def _check_label(
+    rect: Rect,
+    edge: _Edge,
+    pos: dict[str, np.ndarray],
+    r: float,
+    placed: list[Rect],
+    others: list[np.ndarray],
+) -> _LabelCheck:
+    return _LabelCheck(
+        state_gap=min((_rect_circle_gap(rect, c, r) for c in pos.values()), default=math.inf),
+        label_gap=min((_rect_gap(rect, o) for o in placed), default=math.inf),
+        crossed=sum(_inside(rect, path) for path in others),
+        own=_rect_points_dist(rect, edge.samples),
+        foreign=min((_rect_points_dist(rect, path) for path in others), default=math.inf),
+    )
+
+
+def _label_penalty(c: _LabelCheck) -> float:
+    """Zero for a clean spot; collisions and doubtful attribution cost far more than taste."""
+    penalty = 0.0
+    if c.state_gap < LABEL_CLEAR:
+        penalty += 20 + 40 * (LABEL_CLEAR - c.state_gap)
+    if c.label_gap < LABEL_CLEAR:
+        penalty += 20 + 40 * (LABEL_CLEAR - c.label_gap)
+    penalty += 20 * c.crossed
+    if c.margin < LABEL_MARGIN:
+        penalty += 5 + 20 * (LABEL_MARGIN - c.margin)
+    return penalty
+
+
+def _place_labels(
+    edges: list[_Edge],
+    sizes: dict[tuple[str, str], tuple[float, float]],
+    pos: dict[str, np.ndarray],
+    r: float,
+    paths: list[np.ndarray],
+) -> None:
+    """Most constrained label first, then rounds of re-placing each against the others.
+
+    A label still in trouble afterwards is re-placed together with each nearby label (all
+    pairs of their best spots), which settles two labels competing for one gap.
+    """
+    rects: dict[int, Rect] = {}
+    spots = {i: _label_candidates(e, *sizes[(e.src, e.dst)]) for i, e in enumerate(edges)}
+
+    def score(i: int, centre: np.ndarray, cost: float, skip: int | None = None) -> float:
+        e = edges[i]
+        w, h = sizes[(e.src, e.dst)]
+        others = [p for p in paths if p is not e.samples]
+        placed = [rect for j, rect in rects.items() if j not in (i, skip)]
+        return cost + _label_penalty(_check_label(_rect(centre, w, h), e, pos, r, placed, others))
+
+    def place(i: int, centre: np.ndarray) -> None:
+        edges[i].label_xy = centre
+        rects[i] = _rect(centre, *sizes[(edges[i].src, edges[i].dst)])
+
+    def ranked(i: int, skip: int | None = None) -> list[tuple[float, np.ndarray, float]]:
+        out = [(score(i, c, cost, skip), c, cost) for c, cost in spots[i]]
+        return sorted(out, key=lambda x: x[0])
+
+    clean = [sum(sc < 1.0 for sc, _, _ in ranked(i)) for i in range(len(edges))]
+    for _ in range(3):
+        for i in sorted(range(len(edges)), key=lambda i: clean[i]):
+            place(i, ranked(i)[0][1])
+    for i in range(len(edges)):
+        current = score(i, edges[i].label_xy, 0.0)
+        if current < 1.0:
+            continue
+        for j in range(len(edges)):
+            if j == i or _rect_gap(rects[i], rects[j]) > 1.0:
+                continue
+            old_i, old_j = edges[i].label_xy, edges[j].label_xy
+            best = score(i, old_i, 0.0) + score(j, old_j, 0.0)
+            choice = (old_i, old_j)
+            for _, ci, cost_i in ranked(i, skip=j)[:8]:
+                place(i, ci)
+                for _, cj, cost_j in ranked(j, skip=i)[:8]:
+                    place(j, cj)
+                    total = score(i, ci, cost_i) + score(j, cj, cost_j)
+                    if total < best - 1e-9:
+                        best, choice = total, (ci, cj)
+            place(i, choice[0])
+            place(j, choice[1])
 
 
 def state_machine(
@@ -447,7 +550,6 @@ def state_machine(
         return (0.0, 180.0) if name in divided else ()
 
     paths: list[np.ndarray] = []
-    placed: list[Rect] = []
     loops = {}
     for (src, dst), e in edges.items():
         if src != dst:
@@ -456,14 +558,10 @@ def state_machine(
             occupied[src], [(outward(src), 40.0), (90.0, 8.0)], avoid=divider(src)
         )
         occupied[src] += [theta, theta + LOOP_HALF, theta - LOOP_HALF]
-        a, b, radius, ring, far = _loop_geometry(pos[src], r, theta)
+        a, b, radius, ring, centre = _loop_geometry(pos[src], r, theta)
         e.route, e.direction, e.q0, e.q2, e.samples = "loop", theta, a, b, ring
+        e.loop = (centre, radius)
         loops[src] = (a, b, radius)
-        if e.text:
-            w, h = label_sizes[(src, dst)]
-            u = _unit(theta)
-            e.label_xy = pos[src] + u * (far + LABEL_GAP + _extent_along(u, w, h))
-            placed.append(_rect(e.label_xy, w, h))
     init_dir = None
     if initial is not None:
         init_dir = _free_direction(
@@ -476,12 +574,21 @@ def state_machine(
         paths.append(np.linspace(start, pos[initial] + u * r, 12))
     for e in edges.values():
         paths.append(e.samples)
-    for key, e in edges.items():
-        if e.route != "loop" and e.text:
-            w, h = label_sizes[key]
-            others = [p for p in paths if p is not e.samples]
-            e.label_xy = _place_edge_label(e, w, h, pos, r, placed, others)
-            placed.append(_rect(e.label_xy, w, h))
+    labelled = [e for e in edges.values() if e.text]
+    _place_labels(labelled, label_sizes, pos, r, paths)
+    placed = [_rect(e.label_xy, *label_sizes[(e.src, e.dst)]) for e in labelled]
+    checks = {
+        (e.src, e.dst): _check_label(
+            rect,
+            e,
+            pos,
+            r,
+            [o for o in placed if o is not rect],
+            [p for p in paths if p is not e.samples],
+        )
+        for e, rect in zip(labelled, placed, strict=True)
+    }
+    _require_legible(checks)
 
     # Draw: edges, then states on top (filled), then texts.
     sheet = Sheet()
@@ -547,6 +654,9 @@ def state_machine(
                 "k": round(e.k, 3),
                 "ends": [_round(e.q0), _round(e.q2)],
                 "label_xy": _round(e.label_xy) if e.label_xy is not None else None,
+                "label_margin": (
+                    round(checks[(e.src, e.dst)].margin, 3) if (e.src, e.dst) in checks else None
+                ),
             }
             for e in edges.values()
         ],
@@ -559,16 +669,34 @@ def state_machine(
         "spacing": round(spacing, 3),
         "label_overlaps": _count_overlaps(placed),
         # Smallest distance from any label box to any state (negative = label on a state).
-        "label_state_gap": round(
-            min(
-                (_rect_circle_gap(rect, c, r) for rect in placed for c in pos.values()), default=0.0
-            ),
-            3,
-        ),
+        "label_state_gap": round(min((c.state_gap for c in checks.values()), default=0.0), 3),
+        # Smallest (distance to the nearest other edge) - (distance to its own edge) over all
+        # labels: positive means every label sits nearer to the arrow it belongs to.
+        "label_own_margin": round(min((c.margin for c in checks.values()), default=0.0), 3),
     }
     if alt is None:
         alt = _state_alt(kind, names, outputs, trans, initial, accepting)
     return sheet.render(size, alt, facts)
+
+
+def _require_legible(checks: dict[tuple[str, str], _LabelCheck]) -> None:
+    """Refuse to draw a diagram whose labels collide or sit nearer to a foreign edge."""
+    bad = []
+    for (src, dst), c in checks.items():
+        if c.state_gap < 0:
+            bad.append(f"{src}→{dst} lies on a state")
+        elif c.label_gap < 0:
+            bad.append(f"{src}→{dst} overlaps another label")
+        elif c.crossed:
+            bad.append(f"{src}→{dst} is crossed by another edge")
+        elif c.margin <= 0:
+            bad.append(f"{src}→{dst} is nearer to another edge than to its own")
+    if bad:
+        raise ValueError(
+            "state diagram labels cannot be placed legibly ("
+            + "; ".join(bad)
+            + "); use another layout or layout= coordinates that spread the states"
+        )
 
 
 def _reachable(initial: str, trans: list[tuple[str, str, str]]) -> list[str]:
