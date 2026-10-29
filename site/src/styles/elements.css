@@ -1510,6 +1510,37 @@ sk-theme {
     padding: 0.8rem;
   }
 
+  /* the running exam's bar stays one row on a phone: smaller task links, the clock's
+   * "left" only for screen readers */
+  .sk-exam-bar {
+    gap: 0.4rem 0.5rem;
+    padding: 0.4rem 0.55rem;
+  }
+
+  .sk-exam-time-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .sk-exam-nav {
+    gap: 0.2rem;
+  }
+
+  .sk-exam-nav a {
+    min-width: 1.85rem;
+    height: 1.85rem;
+    padding-inline: 0.25rem;
+  }
+
+  .sk-exam-bar .sk-btn {
+    min-height: 2rem;
+    padding-inline: 0.7rem;
+  }
+
   .sk-mc-conf legend {
     float: none;
     width: 100%;

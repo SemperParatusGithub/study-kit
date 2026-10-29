@@ -284,8 +284,11 @@ export class SkExam extends HTMLElement {
     window.addEventListener('pagehide', this.onPageHide);
     document.addEventListener('visibilitychange', this.onVisibility);
     this.observe();
+    // now (the Start button scrolls to the first task right away) and on every resize
+    const headHeight = () => this.style.setProperty('--sk-exam-head', `${this.head.offsetHeight}px`);
+    headHeight();
     if (typeof ResizeObserver !== 'undefined') {
-      this.headSize = new ResizeObserver(() => this.style.setProperty('--sk-exam-head', `${this.head.offsetHeight}px`));
+      this.headSize = new ResizeObserver(headHeight);
       this.headSize.observe(this.head);
     }
     this.resumeClock(Date.now());
