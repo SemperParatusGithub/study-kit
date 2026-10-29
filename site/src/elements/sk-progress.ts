@@ -1,21 +1,21 @@
-// <sk-progress data-course data-topics='[{id, title}]' [data-exams='{"id":{"title","points"}}']>
+// <sk-progress data-course data-topics='[{id, title, mc?, ex?}]'
+//   [data-exams='[{id, title, points}]' (or {"id": {title, points}})] [data-exam-date]>
 // (docs/architecture.md §2.11, §3.2).
 //
 // Reads the progress document and shows: an overall ring, per-topic bars (accuracy over the
-// last 10 attempts of the topic, as progress.py computes it), due reviews, misconceptions
-// (last answer sure but not fully right), sure/unsure calibration and the mock exam history.
-// The MC topic comes from the question id (mc-<topic>-NNN); exam-only questions are left out.
-// Updates live when progress changes on this page or in another tab.
+// last 10 attempts of the topic, as progress.py computes it), MC reviews due, exercises to
+// review, misconceptions (last answer sure but not fully right), sure/unsure calibration and
+// the mock exam history. A question belongs to the topic whose `mc` list has it (else the
+// topic in its id mc-<topic>-NNN); exam-only questions count for calibration only. The
+// figures come from lib/stats.ts, like the shell's placeholders (dashboard.ts). Updates live
+// when progress changes on this page or in another tab.
 
-import { dayOf, isDue } from '../lib/leitner.ts';
-import { isCorrect } from '../lib/scoring.ts';
+import { isDay } from '../lib/leitner.ts';
+import { dueCount, exercisesDue, isMisconceived, mean, RECENT, topicStats, type TopicInfo, type TopicStat } from '../lib/stats.ts';
 import type { ExamEntry, ExEntry, McEntry } from '../lib/store.ts';
 import { courseOf, duration, examDate, h, parseJson, percent, pts, storeFor, today } from './util.ts';
 
-interface TopicInfo {
-  id: string;
-  title: string;
-}
+export { RECENT };
 
 interface Scored {
   t: string;
@@ -23,23 +23,20 @@ interface Scored {
   conf: string;
 }
 
-interface TopicStat extends TopicInfo {
-  questions: number;
-  recent: Scored[];
-  due: number;
-  misconceptions: number;
+interface ExamMeta {
+  title?: string;
+  points?: number;
 }
 
-export const RECENT = 10;
-
-/** The topic of a practice question id mc-<topic>-NNN, if it is one of `topics`. */
-export function mcTopic(id: string, topics: readonly string[]): string | null {
-  const m = /^mc-(.+)-\d{3}$/.exec(id);
-  return m && topics.includes(m[1] ?? '') ? (m[1] ?? null) : null;
+/** data-exams as an array [{id, title, points}] or a map {id: {title, points}}. */
+function examMeta(raw: unknown): Record<string, ExamMeta> {
+  if (Array.isArray(raw)) {
+    return Object.fromEntries(
+      raw.filter((e): e is ExamMeta & { id: string } => typeof e?.id === 'string').map((e) => [e.id, e]),
+    );
+  }
+  return raw && typeof raw === 'object' ? (raw as Record<string, ExamMeta>) : {};
 }
-
-const mean = (xs: readonly number[]): number | null =>
-  xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 
 export class SkProgress extends HTMLElement {
   private ready = false;
@@ -47,6 +44,11 @@ export class SkProgress extends HTMLElement {
 
   private get course(): string {
     return this.dataset.course || courseOf(this);
+  }
+
+  private get examDate(): string | null {
+    const own = this.dataset.examDate;
+    return isDay(own) ? own : examDate();
   }
 
   connectedCallback(): void {
@@ -66,53 +68,34 @@ export class SkProgress extends HTMLElement {
   private render(): void {
     const topics = parseJson<unknown[]>(this.dataset.topics, [])
       .filter((t): t is TopicInfo => typeof (t as TopicInfo)?.id === 'string')
-      .map((t) => ({ id: t.id, title: t.title || t.id }));
-    const exams = parseJson<Record<string, { title?: string; points?: number }>>(this.dataset.exams, {});
-    const ids = topics.map((t) => t.id);
+      .map((t) => ({ ...t, title: t.title || t.id }));
+    const exams = examMeta(parseJson<unknown>(this.dataset.exams, {}));
     const items = storeFor(this.course).read().items;
     const day = today();
-    const exam = examDate();
-    const stats = new Map<string, TopicStat>(
-      topics.map((t) => [t.id, { ...t, questions: 0, recent: [], due: 0, misconceptions: 0 }]),
-    );
+    const exam = this.examDate;
+    const stats = topicStats(items, topics, day, exam);
     const all: Scored[] = [];
-    let dueTotal = 0;
     let misTotal = 0;
-    const ratings = { solved: 0, partial: 0, 'not-yet': 0 };
+    let solved = 0;
     const examRows: Array<{ id: string; started: string; total: number; duration_s: number }> = [];
 
     for (const [key, entry] of Object.entries(items)) {
-      const [kind, id = ''] = key.split(/:(.*)/s);
+      const sep = key.indexOf(':');
+      const kind = key.slice(0, sep);
+      const id = key.slice(sep + 1);
       if (kind === 'mc') {
         const e = entry as McEntry;
-        const last = e.attempts.at(-1);
-        const lastDay = last ? dayOf(new Date(last.t)) : null;
-        const due = isDue(e.due, lastDay, day, exam);
-        const mis = last !== undefined && last.conf === 'sure' && !isCorrect(last.score);
         all.push(...e.attempts);
-        const topic = mcTopic(id, ids);
-        const st = topic ? stats.get(topic) : undefined;
-        if (due) dueTotal++;
-        if (mis) misTotal++;
-        if (!st) continue;
-        if (e.attempts.length) st.questions++;
-        st.recent.push(...e.attempts);
-        if (due) st.due++;
-        if (mis) st.misconceptions++;
+        if (isMisconceived(e)) misTotal++;
       } else if (kind === 'ex') {
-        const r = (entry as ExEntry).rating;
-        if (r) ratings[r]++;
-        const e = entry as ExEntry;
-        if (isDue(e.due, null, day, exam)) dueTotal++;
+        if ((entry as ExEntry).rating === 'solved') solved++;
       } else if (kind === 'exam') {
         for (const a of (entry as ExamEntry).attempts) examRows.push({ id, ...a });
       }
     }
-    for (const st of stats.values()) {
-      st.recent = st.recent.sort((a, b) => (a.t < b.t ? -1 : 1)).slice(-RECENT);
-    }
-    const recentAll = [...stats.values()].flatMap((s) => s.recent.map((r) => r.score));
-    const overall = mean(recentAll);
+    const due = dueCount(items, topics, day, exam);
+    const exDue = exercisesDue(items, day, exam);
+    const overall = mean(stats.flatMap((s) => s.recent.map((r) => r.score)));
     const sure = all.filter((a) => a.conf === 'sure').map((a) => a.score);
     const unsure = all.filter((a) => a.conf === 'unsure').map((a) => a.score);
 
@@ -121,12 +104,13 @@ export class SkProgress extends HTMLElement {
         ring(overall),
         h('ul', { class: 'sk-stats' },
           stat(all.length, all.length === 1 ? 'answer' : 'answers'),
-          stat(dueTotal, 'due today'),
+          stat(due, due === 1 ? 'review due' : 'reviews due'),
           stat(misTotal, misTotal === 1 ? 'misconception' : 'misconceptions'),
-          stat(ratings.solved, 'exercises solved'))),
+          stat(solved, solved === 1 ? 'exercise solved' : 'exercises solved'),
+          exDue ? stat(exDue, exDue === 1 ? 'exercise to review' : 'exercises to review') : null)),
       h('h3', {}, 'Topics'),
       topics.length
-        ? h('ul', { class: 'sk-topic-list' }, ...[...stats.values()].map((s) => topicRow(s)))
+        ? h('ul', { class: 'sk-topic-list' }, ...stats.map((s) => topicRow(s)))
         : h('p', { class: 'sk-muted' }, 'No topics.'),
       h('h3', {}, 'Sure or unsure?'),
       calibration(sure, unsure),
@@ -149,7 +133,10 @@ function ring(value: number | null): HTMLElement {
   wrap.innerHTML =
     `<svg viewBox="0 0 88 88" width="88" height="88" aria-hidden="true">` +
     `<circle class="sk-ring-track" cx="44" cy="44" r="${r}"/>` +
-    `<circle class="sk-ring-fill" cx="44" cy="44" r="${r}" stroke-dasharray="${(frac * c).toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 44 44)"/>` +
+    // no fill at 0: a round line cap would still draw a dot
+    (frac > 0
+      ? `<circle class="sk-ring-fill" cx="44" cy="44" r="${r}" stroke-dasharray="${(frac * c).toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 44 44)"/>`
+      : '') +
     `</svg>`;
   wrap.append(
     h('span', { class: 'sk-ring-value', 'aria-hidden': 'true' }, value === null ? '–' : percent(value)),
@@ -164,10 +151,10 @@ function meter(value: number | null, label: string): HTMLElement {
 }
 
 function topicRow(s: TopicStat): HTMLElement {
-  const acc = mean(s.recent.map((r) => r.score));
-  const meta = s.questions
+  const acc = s.accuracy;
+  const meta = s.answered
     ? [
-        `${s.questions} ${s.questions === 1 ? 'question' : 'questions'} answered`,
+        `${s.answered} ${s.answered === 1 ? 'question' : 'questions'} answered`,
         s.due ? `${s.due} due` : '',
         s.misconceptions ? `${s.misconceptions} ${s.misconceptions === 1 ? 'misconception' : 'misconceptions'}` : '',
       ].filter(Boolean).join(' · ')
@@ -205,7 +192,7 @@ function calibration(sure: number[], unsure: number[]): HTMLElement {
 
 function examTable(
   rows: Array<{ id: string; started: string; total: number; duration_s: number }>,
-  exams: Record<string, { title?: string; points?: number }>,
+  exams: Record<string, ExamMeta>,
 ): HTMLElement {
   if (rows.length === 0) return h('p', { class: 'sk-muted' }, 'No mock exam taken yet.');
   rows.sort((a, b) => (a.started < b.started ? 1 : -1));

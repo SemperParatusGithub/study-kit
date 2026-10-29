@@ -2,23 +2,14 @@
 // Progress (docs/architecture.md §2.11, §3.2): <sk-progress> draws topic bars, sure/unsure
 // calibration and exam history from browser progress; <sk-export> exports and imports it.
 import Base from '../../../layouts/Base.astro';
-import { coursePaths, overallMastery, type Course } from '../../../lib/courses';
+import { clientInfo, coursePaths, overallMastery, type Course } from '../../../lib/courses';
 
 export const getStaticPaths = coursePaths;
 
 const { course } = Astro.props as { course: Course };
 const c = course.id;
 const en = course.lang === 'en' ? undefined : 'en';
-const topics = course.topics.map((t) => ({
-  id: t.id,
-  title: t.title,
-  weight: t.weight,
-  focus: t.focus,
-  skip: t.skip,
-  mc: course.banks.filter((b) => b.data.topic === t.id).flatMap((b) => b.data.questions.map((q) => q.id)),
-  exercises: course.exercises.filter((e) => e.data.topic === t.id).map((e) => e.data.id),
-}));
-const exams = course.exams.map((e) => ({ id: e.id, title: e.doc.data.title, points: e.fm.points }));
+const { topics, exams } = clientInfo(course);
 const mastery = overallMastery(course);
 ---
 

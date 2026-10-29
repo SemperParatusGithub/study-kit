@@ -33,9 +33,10 @@ test.describe('sk-progress', () => {
     // rc-tiefpass: last attempts 0, 1, 0 → 33%; rc-filter: 1 → 100%; overall 2 of 4 → 50%
     await expect(p.locator('.sk-ring')).toHaveAttribute('aria-label', '50% right in the last 10 answers per topic');
     await expect(p.locator('.sk-stats')).toContainText('5 answers');
-    await expect(p.locator('.sk-stats')).toContainText('3 due today'); // 002, filter-003, the exercise
+    await expect(p.locator('.sk-stats')).toContainText('2 reviews due'); // 002, filter-003
+    await expect(p.locator('.sk-stats')).toContainText('1 exercise to review');
     await expect(p.locator('.sk-stats')).toContainText('1 misconception');
-    await expect(p.locator('.sk-stats')).toContainText('1 exercises solved');
+    await expect(p.locator('.sk-stats')).toContainText('1 exercise solved');
     const topics = p.locator('.sk-topic');
     await expect(topics).toHaveCount(3);
     await expect(topics.nth(0)).toContainText('Spannungsteiler');
