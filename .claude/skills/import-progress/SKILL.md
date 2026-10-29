@@ -5,6 +5,7 @@ disable-model-invocation: true
 argument-hint: <course> [file]
 allowed-tools:
   - Bash(uv run --frozen studykit *)
+  - Bash(ls *)
 ---
 
 # /import-progress $ARGUMENTS
@@ -16,6 +17,8 @@ course, so that `studykit status`, `studykit plan` and the examiner see it
 ## 1. Find the file
 
 1. `uv run --frozen studykit ls $0` must find the course; its id is the directory name.
+   Note the weakest topics before the import from `uv run --frozen studykit status $0 --json`
+   (`weak_topics`); step 4 compares them.
 2. With a file argument, use that file. Without one, find the newest export of this course:
    `ls -t ~/Downloads/studykit-progress-<course-id>-*.json | head -n 1`. None found: tell
    the student to use "Export" on the site's progress page
@@ -45,8 +48,9 @@ course, so that `studykit status`, `studykit plan` and the examiner see it
 
 ## 4. Offer a replan
 
-When the status shows past sessions not done, or the weak topics changed, ask with
-AskUserQuestion whether to replan from today (Replan / Keep the plan). On yes:
+When the status shows past sessions not done (`plan.behind` in `--json`), or the weakest
+topics differ from those noted in step 1, ask with AskUserQuestion whether to replan from
+today (Replan / Keep the plan). On yes:
 
 1. `uv run --frozen studykit plan $0` (done sessions and unchanged goals are kept), then
    write the missing goals as `.claude/skills/authoring/parts/plan.md` describes.

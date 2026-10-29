@@ -5,6 +5,7 @@ disable-model-invocation: true
 argument-hint: <course> <overview|plan|summary|exercises|mc|figures|exams|cheatsheet|all> [--topic t] [--add n] [--replace] [note]
 allowed-tools:
   - Bash(uv run --frozen studykit *)
+  - Bash(date -u *)
   - Bash(mkdir -p *)
   - Bash(cp -p *)
 ---
@@ -30,10 +31,12 @@ optional `--topic <t>`, `--add <n>`, `--replace` and a free-text note for the au
 
 ## 2. Save what will change
 
-Take a UTC timestamp (`date -u +%Y%m%dT%H%M%SZ`) and copy every file this run may
-overwrite, including the downstream files below, to
-`<course>/_history/<timestamp>/<same relative path>` (`mkdir -p`, then `cp -p`). Nothing
-is deleted from `_history/`; discovery and validation never read it.
+Take a UTC timestamp (`date -u +%Y%m%dT%H%M%SZ`) and copy every content file this run may
+overwrite, including the downstream content files below (for `mc`: `mc/<topic>.md`; for
+`summary`: also `cheatsheet.md`; for `exercises` and `exams`: also `plan.yaml`), to
+`<course>/_history/<timestamp>/<same relative path>` (`mkdir -p`, then `cp -p`). Ledger
+entries, checks and `_build/` are not copied. Nothing is deleted from `_history/`;
+discovery and validation never read it.
 
 ## 3. Write the part
 
