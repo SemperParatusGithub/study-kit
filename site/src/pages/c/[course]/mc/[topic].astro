@@ -41,7 +41,7 @@ const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
   <section class="practice card" aria-labelledby="practice-title" lang={en}>
     <h2 id="practice-title">Practice this topic</h2>
     <p class="muted small">Questions from this bank in random order, with feedback after each answer.</p>
-    <QuizSlot course={course} mode="practice" topics={[topicId]} intro={false} />
+    <QuizSlot course={course} mode="practice" topics={[topicId]} intro={false} framed={false} />
   </section>
 
   <section aria-labelledby="questions-title" data-pagefind-body>

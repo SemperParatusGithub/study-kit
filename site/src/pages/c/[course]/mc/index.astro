@@ -110,7 +110,7 @@ const scoring = course.data.exam.mc?.scoring ?? 'all-or-nothing';
                 <span class="muted">{m.text}</span>
               </summary>
               <div class="mode-body">
-                <QuizSlot course={course} mode={m.id} topics={topics} intro={false} />
+                <QuizSlot course={course} mode={m.id} topics={topics} intro={false} framed={false} />
               </div>
             </details>
           ))}

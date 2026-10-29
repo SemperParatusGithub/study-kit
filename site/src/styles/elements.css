@@ -569,6 +569,17 @@ sk-quiz {
   background: var(--ske-raised);
 }
 
+/* data-frame="none": the page already frames the quiz (a card, the MC hub's disclosures) */
+sk-quiz[data-frame='none'] {
+  margin-block: 0;
+}
+
+sk-quiz[data-frame='none'] :is(.sk-quiz-start, .sk-quiz-result) {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
 .sk-quiz-mode {
   margin: 0;
   font-size: 1.15rem;

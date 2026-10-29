@@ -1,8 +1,9 @@
 // <sk-quiz data-course data-mode="practice|test|mistakes|due|mixed" data-pools='["…json"]'
 //          data-topic-titles='{"id":"Title"}' data-summary-base="/c/<c>/summary/"
-//          [data-n="3"] [data-intro="false"]>
+//          [data-n="3"] [data-intro="false"] [data-frame="none"]>
 // (docs/architecture.md §3.2). data-n is the default number of questions; data-intro="false"
-// leaves out the mode title and description (the page already shows them).
+// leaves out the mode title and description (the page already shows them); data-frame="none"
+// drops the start and result screens' own frame inside a box that is framed already.
 //
 // Each pool URL returns {topic, questions:[{id, type, difficulty, topic, h, html}]}, html
 // being an <sk-mc> outerHTML. Modes:
