@@ -220,6 +220,15 @@ escaped cell border there, so `$\|x\|$` turns into `|x|`.
 Fix: in math `\lvert\underline{Z}\rvert` (absolute value), `\lVert x \rVert` (norm),
 `P(A \mid B)`; in code escape it, `` `a\|b` ``, which shows `a|b`.
 
+### `SK-BLOCK-HYPHEN`
+**warning.** A line ends in a letter and a hyphen and the next line of the paragraph
+starts with a letter: `[RC-` / `Tiefpass](topic:rc-filter)`. Markdown joins the lines with a
+space, so the page shows „RC- Tiefpass“. A next line starting with „und“, „oder“, „bzw.“,
+„sowie“, „bis“, „wie“, „noch“, „and“, „or“ or „to“ is a suspended compound („Ein- und
+Ausgang“) and not reported.
+Fix: keep the hyphenated word on one line, e.g. move `[RC-Tiefpass](topic:rc-filter)` to
+the next line as a whole.
+
 ## MC (SK-MCQ)
 
 ### `SK-MCQ-ATTR`

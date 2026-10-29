@@ -271,6 +271,11 @@ HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]|$)")
 # The delimiter row of a pipe table (`|---|:--:|`); it needs a `|`, or `---` is a rule.
 TABLE_DELIMITER_RE = re.compile(r"^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$")
 UNESCAPED_PIPE_RE = re.compile(r"(?<!\\)\|")
+# A word broken with a hyphen at the end of a line: `[RC-` + newline + `Tiefpass]`.
+LINE_END_HYPHEN_RE = re.compile(r"[^\W\d_]-$")
+LINE_START_LETTER_RE = re.compile(r"^[^\W\d_]")
+# Words after which a line-final hyphen is a suspended compound („Ein- und Ausgang“).
+SUSPENDED_HYPHEN_WORDS = {"und", "oder", "bzw.", "sowie", "bis", "wie", "noch", "and", "or", "to"}
 
 
 def _mask(text: str, start: int, end: int) -> str:
@@ -1005,7 +1010,7 @@ class Body:
             )
         return out
 
-    # --- tables ---
+    # --- tables and line breaks ---
 
     @cached_property
     def table_rows(self) -> set[int]:
@@ -1037,6 +1042,42 @@ class Body:
                     "'|' inside inline code on a table row ends the cell there",
                     "escape it as \\| inside the code span; pandoc shows a plain '|'",
                 )
+
+    @cached_property
+    def hyphen_breaks(self) -> list[Finding]:
+        """Warnings for a word broken across lines after a hyphen (`[RC-` / `Tiefpass]`).
+
+        Markdown joins the lines with a space, so the text reads „RC- Tiefpass“. A line
+        that continues with „und“, „oder“, „bzw.“ … is a suspended compound and fine.
+        """
+        out = []
+        for para in self.paragraphs:
+            lines = para.masked.split("\n")
+            for k in range(len(lines) - 1):
+                if para.display[k] or para.display[k + 1]:
+                    continue
+                end, rest = lines[k].rstrip(), lines[k + 1].lstrip()
+                if not LINE_END_HYPHEN_RE.search(end) or not LINE_START_LETTER_RE.match(rest):
+                    continue
+                if rest.split()[0].casefold() in SUSPENDED_HYPHEN_WORDS:
+                    continue
+                before = para.lines[k].text.rstrip().split()[-1]
+                after = para.lines[k + 1].text.split()[0]
+                out.append(
+                    Finding(
+                        self.path,
+                        para.lines[k].no,
+                        len(end),
+                        "SK-BLOCK-HYPHEN",
+                        f"a word is broken after the hyphen at the end of the line: Markdown "
+                        f"joins the lines with a space, so it reads '{before} {after}'",
+                        "keep the hyphenated word on one line (a line break is only fine "
+                        "before „und“, „oder“, „bzw.“, „sowie“: „Ein- und Ausgang“)",
+                        "warning",
+                    )
+                )
+        self.findings.extend(out)
+        return out
 
     # --- links and figures ---
 

@@ -16,7 +16,7 @@ def body(text: str, kind: str = "summary", first_line: int = 1) -> content.Body:
 
 
 def codes(b: content.Body) -> list[str]:
-    b.blocks, b.questions, b.formulas, b.links  # noqa: B018 - run every scanner
+    b.blocks, b.questions, b.formulas, b.links, b.hyphen_breaks  # noqa: B018 - every scanner
     return [f.code for f in b.findings]
 
 
@@ -176,6 +176,39 @@ def test_table_rows_end_with_the_paragraph():
     b = body("| a | b |\n|---|---|\n| 1 | 2 |\n\nDanach $|x|$.\n")
     assert b.table_rows == {1, 3}
     assert codes(b) == []
+
+
+@pytest.mark.parametrize(
+    ("text", "line", "col"),
+    [
+        ("Der [RC-\nTiefpass](topic:rc) filtert.\n", 1, 8),
+        ("Ein Spannungs-\nteiler.\n", 1, 14),
+        ("- Ein Spannungs-\n  teiler.\n", 1, 16),
+    ],
+)
+def test_word_broken_after_a_hyphen(text, line, col):
+    b = body(text)
+    assert codes(b) == ["SK-BLOCK-HYPHEN"]
+    (f,) = b.hyphen_breaks
+    assert (f.line, f.col, f.severity) == (line, col, "warning")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Ein-\nund Ausgang.\n",
+        "Hoch-\noder Tiefpass, Hoch-\nbzw. Tiefpass, Hoch-\nsowie Tiefpass.\n",
+        "Zwei-\nbis dreimal; high-\nand low-pass.\n",
+        "Der Term $a-$\nbleibt.\n",  # math ends the line
+        "Ein Wert von 5-\n10 V.\n",  # a range, not a word
+        "Ein Wort am Ende-\n\nNeuer Absatz.\n",  # the paragraph ends
+        "Code `a-`\nb.\n",
+        "$$\nx = a-\nb\n$$\n",
+        "```text\nein Spannungs-\nteiler\n```\n",
+    ],
+)
+def test_suspended_compounds_and_other_line_ends_are_fine(text):
+    assert codes(body(text)) == []
 
 
 def test_display_math_in_list_items_and_markers():
