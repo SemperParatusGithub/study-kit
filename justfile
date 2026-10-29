@@ -34,6 +34,18 @@ doctor *flags:
 sample-materials *args:
     uv run --frozen python examples/sample-materials/build.py {{args}}
 
+# Ingest (docs/architecture.md §5.4): `just ingest scan <folder>`, `just ingest init <folder>
+# <course> --exam-date … `, `just ingest extract <course>`, `just ingest add <course> <path>`.
+# scan, copy and read lecture PDFs: the actions and flags go to `studykit ingest`
+[positional-arguments]
+ingest *args:
+    {{sk}} ingest "$@"
+
+# where /register-new-subject stands for a course: each step and the step to resume at (--json)
+[positional-arguments]
+pipeline course *flags:
+    {{sk}} pipeline status "$@"
+
 # render the figure scripts of one course (or all)
 figures course="":
     {{sk}} fig build {{course}}

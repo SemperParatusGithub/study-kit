@@ -1361,6 +1361,12 @@ doctor *flags:               # toolchain.toml versions, site packages, Typst fon
     {{sk}} doctor {{flags}}
 sample-materials *args:      # examples/sample-materials → its gitignored _build/materials (§5.4)
     uv run --frozen python examples/sample-materials/build.py {{args}}
+[positional-arguments]
+ingest *args:                # scan | init | extract | add | round2 (§5.4)
+    {{sk}} ingest "$@"
+[positional-arguments]
+pipeline course *flags:      # the pipeline status of /register-new-subject (§5.4); --json
+    {{sk}} pipeline status "$@"
 figures course="":
     {{sk}} fig build {{course}}
 dev: (figures "")            # http://localhost:4321 (strictPort)
@@ -1417,8 +1423,8 @@ lint-code:
 site build, which copies every PDF its manifest lists into `site/dist`; `check-links`. It
 sets `STUDYKIT_STRICT=1` itself and builds the whole site (all courses); its `course`
 argument picks what figures, validation and PDFs cover. `cheatsheet` is the fit on its own
-(exit code 3 with the overflow, §3.3). `verify` and `status` pass their arguments to the CLI
-unchanged (`[positional-arguments]`, so a `--note` with spaces survives). `tutor` and
+(exit code 3 with the overflow, §3.3). `verify`, `status`, `ingest` and `pipeline` pass
+their arguments to the CLI unchanged (`[positional-arguments]`, so a `--note` with spaces survives). `tutor` and
 `examine` need the `claude` CLI: they start Claude Code with the `tutor` or `examiner`
 agent as the main thread and its command as the first message (`just tutor get2 rc-filter`
 runs `/tutor get2 rc-filter`), so the persona talks with the student directly and the
