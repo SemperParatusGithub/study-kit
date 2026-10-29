@@ -48,7 +48,7 @@ discovery and validation never read it.
 | cheatsheet | one `author` | `cheatsheet.md`, then the fit loop of its procedure |
 | figures | you: `uv run --frozen studykit fig build $0 --force`; an `author` per failing or flawed figure | `figures/*.py` |
 | plan | you, with `.claude/skills/authoring/parts/plan.md` | `plan.yaml` |
-| all | overview first, then summary, exercises and mc per topic, then exams, cheatsheet, plan | everything |
+| all | overview first, then summary, exercises and mc per topic, then exams, cheatsheet, plan; last the overview and each summary again in mode `fix` to link the exercises (`ex:`) and mock exams (`exam:`) that now exist | everything |
 
 Each author prompt names the course directory, the part, the topic, the mode with `n`,
 the ids to keep (from the index) and the user's note. When the course has

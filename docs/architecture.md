@@ -873,7 +873,7 @@ title: Überblick
   `/regenerate <course> overview` re-runs it, and `/regenerate <course> all` (like the
   Phase 6 author wave) writes it first so the other parts can link to it. It links only
   what exists, so the exercises and mock exams get their links when the course is
-  published (§5.4 step 13).
+  published (§5.4 step 13) or at the end of `/regenerate <course> all`.
 - Web: `/c/<c>/` (the Overview tab). PDF: `overview.pdf`, also the first chapter of
   `summary.pdf`.
 - A missing `overview.md` is SK-STRUCT-MISSING (a warning, an error with `--release`); the
@@ -1827,7 +1827,7 @@ report.
 10. **Mock exams:** `author` with `parts/exam.md` (at most 3 in parallel), including `mc.md` when `exam.mc.present`, then verification. Gate: points, time and archetypes match the profile.
 11. **Cheat sheet:** `author` with `parts/cheatsheet.md`, the fit loop, then a formula audit: every display formula must appear with the same symbols in its topic's summary chapter (the main thread checks it until the verifier's `checks/sum-*.py` audits exist, §2.10). Gate: page count ≤ the limit.
 12. **Plan:** `studykit plan` (deterministic), then the main thread writes the session goals.
-13. **Publish:** the overview gets its `exam:` and `ex:` links (it was written before the exercises and mock exams existed), `just pdf <c>`, `studykit validate <c> --release`, then `status: ready` and `just build <c>` (back to draft if the build fails). Failures are routed by SK-code to the owning agent, for at most 3 rounds. `status` is set to `ready` only when everything is green. With `scope: core` the Coverage stage still asks for the deferred parts, so the course is built as a draft and becomes ready after them.
+13. **Publish:** the overview gets its `exam:` and `ex:` links and each summary chapter the `ex:` links of its topic's exercises (both were written before the exercises and mock exams existed), `just pdf <c>`, `studykit validate <c> --release`, then `status: ready` and `just build <c>` (back to draft if the build fails). Failures are routed by SK-code to the owning agent, for at most 3 rounds. `status` is set to `ready` only when everything is green. With `scope: core` the Coverage stage still asks for the deferred parts, so the course is built as a draft and becomes ready after them.
 14. **Report:**
     - counts per part (exercises by difficulty, MC by type, exams, figures)
     - share verified, fixed and quarantined, with reasons

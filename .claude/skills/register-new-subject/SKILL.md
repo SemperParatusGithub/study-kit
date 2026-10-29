@@ -287,11 +287,15 @@ to the user (exam date, weekly budget).
 
 ## 13. Publish
 
-1. The overview was written before any exercise or mock exam existed, so it could not link
-   them. When `overview.md` has no `exam:` link although `exams/` has a mock exam, or no
-   `ex:` link although exercises exist, start one `author`: "Course: `<dir>`. Part:
-   `overview`. Mode: replace. Link the mock exams (`exam:`) and the first exercises to
-   start with (`ex:`) that now exist." Its gate is step 7's.
+1. The overview and the summaries were written before any exercise or mock exam existed,
+   so they could not link them. When `overview.md` has no `exam:` link although `exams/`
+   has a mock exam, or no `ex:` link although exercises exist, start one `author`:
+   "Course: `<dir>`. Part: `overview`. Mode: replace. Link the mock exams (`exam:`) and the
+   first exercises to start with (`ex:`) that now exist." For each summary chapter that
+   does not link every exercise of its topic (`studykit index <c> --json` lists them),
+   start one `author` alongside: "Course: `<dir>`. Part: `summary`. Topic: `<t>`. Mode:
+   fix. Link each exercise of the topic once (`Übung: [title](ex:<id>)`) after the
+   section it practises; change nothing else." Their gate is step 7's.
 2. `just pdf <c>`; a failed document is routed by its findings.
 3. `uv run --frozen studykit validate <c> --release`; route every error (table above), at
    most 3 rounds, re-running the step whose files changed (figures, verify, plan).

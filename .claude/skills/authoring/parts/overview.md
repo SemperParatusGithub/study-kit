@@ -39,7 +39,8 @@ Prerequisites). Lint checks them by position and count (SK-STRUCT-SECTIONS).
 - Link only ids that `uv run --frozen studykit index <course> --json` lists (anything else
   is SK-REF-MISSING). In an author wave the overview comes first, before any exercise or
   mock exam exists: name them in words without a link; /register-new-subject adds the
-  links before it publishes (its step 13), `/regenerate <course> overview` does too.
+  links before it publishes (its step 13), `/regenerate <course> all` at its end, and
+  `/regenerate <course> overview` links what exists by then.
 - Numbers about the exam come from `course.yaml` and the profile, not from memory; compute
   shares, minutes per point and sums with `studykit calc`. When the notes' course facts
   differ from `course.yaml` (another exam date, say), give the `course.yaml` value and
