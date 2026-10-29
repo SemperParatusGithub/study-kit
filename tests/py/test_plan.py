@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from conftest import REPO
-from studykit import cli, model, plan, progress, validate, yamlio
+from studykit import cli, content, model, plan, progress, validate, verify, yamlio
 
 SAMPLE = REPO / "examples" / "sample-course"
 
@@ -103,6 +103,24 @@ def test_sample_course_plan(course: Path, capsys):
     assert reads == ["topic:spannungsteiler", "topic:wechselstrom", "topic:rc-filter"]
     text = (course / "plan.yaml").read_text()
     assert text.startswith("# yaml-language-server: $schema=") or "schema: 1" in text
+
+
+def test_quarantined_items_are_left_out_as_on_the_site(course: Path):
+    """The plan, the report and the status see the course the site shows (§2.10): no
+    quarantined exercise or question, and an exam without the quarantined task's points."""
+    tree = content.CourseTree(course)
+    for item_id in ("ex-rc-tp-grenzfrequenz", "mc-rc-filter-001", "pk1-t1"):
+        verify.quarantine(tree, item_id, note="seeded for the test")
+    info = progress.course_info(content.CourseTree(course))
+    rc = next(t for t in info.topics if t.id == "rc-filter")
+    assert "ex-rc-tp-grenzfrequenz" not in rc.ex and "ex-rc-tp-grenzfrequenz" not in info.exercises
+    assert "mc-rc-filter-001" not in rc.mc and "mc-rc-filter-002" in rc.mc
+    exam = next(e for e in info.exams if e.id == "probeklausur-1")
+    assert "pk1-t1" not in [t.id for t in exam.tasks]
+    assert (exam.points, exam.pass_points) == (80.0, 40.0)
+    make(course)
+    text = (course / "plan.yaml").read_text()
+    assert "ex:ex-rc-tp-grenzfrequenz" not in text and "ex:ex-rc-tp-messung" in text
 
 
 def test_spaced_repeats_follow_learning(course: Path):

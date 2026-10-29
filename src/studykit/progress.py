@@ -43,7 +43,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from studykit import content, model
+from studykit import content, model, verify
 from studykit.findings import Finding
 
 SCHEMA = "studykit-progress/1"
@@ -998,19 +998,26 @@ def behind_count(sessions: list[dict], items: dict, today: str) -> int:
 
 def course_info(tree: content.CourseTree) -> CourseInfo:
     """Topics with their questions and exercises, exams and plan sessions (lib/courses.ts
-    `clientInfo`, plus what the report and the scheduler need)."""
+    `clientInfo`, plus what the report and the scheduler need).
+
+    Quarantined items (§2.10) are left out as the site leaves them out: their questions
+    and exercises are gone, and an exam loses their tasks and points
+    (`verify.exam_without`), so stats, mock-exam verdicts and the plan match the site."""
     course = tree.model
     if course is None:
         raise ValueError(f"{tree.id}: course.yaml does not validate; run studykit validate")
+    hidden = set(verify.quarantined_ids(tree.root))
     banks: dict[str, list[str]] = {}
     for doc in tree.of_kind("mc"):
         topic = doc.get("topic")
         if isinstance(topic, str) and doc.body is not None:
-            banks.setdefault(topic, []).extend(q.id for q in doc.body.questions if q.id)
+            banks.setdefault(topic, []).extend(
+                q.id for q in doc.body.questions if q.id and q.id not in hidden
+            )
     exercises: dict[str, dict] = {}
     for doc in tree.of_kind("exercise"):
         ident, topic = doc.get("id"), doc.get("topic")
-        if isinstance(ident, str):
+        if isinstance(ident, str) and ident not in hidden:
             diff_ = doc.get("difficulty")
             minutes = doc.get("minutes")
             exercises[ident] = {
@@ -1037,8 +1044,11 @@ def course_info(tree: content.CourseTree) -> CourseInfo:
         if exam is None:
             continue
         folder = doc.rel.rsplit("/", 1)[0]
+        shown = exam.model_dump(mode="json", by_alias=True)
+        if hidden:
+            shown = verify.exam_without(tree, doc, shown, hidden)
         tasks = []
-        for name in exam.tasks:
+        for name in shown["tasks"]:
             task = tree.get(f"{folder}/{name}")
             if task is not None and isinstance(task.get("id"), str):
                 pts = task.get("points")
@@ -1053,8 +1063,8 @@ def course_info(tree: content.CourseTree) -> CourseInfo:
             ExamInfo(
                 exam.id,
                 exam.title,
-                exam.points,
-                exam.pass_points,
+                shown["points"],
+                shown["pass_points"],
                 exam.duration_min,
                 tasks,
             )

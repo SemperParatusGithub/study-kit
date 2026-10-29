@@ -687,7 +687,9 @@ writes one ledger file per exercise, exam task and MC question (`model.VerifyEnt
 - Quarantined items are hidden from the site and the PDFs (§0): the course index lists them
   under `quarantined`, the render bridge skips their exercise and exam-task files, the filter
   drops their MC questions from HTML and Typst and turns links to them into plain text, and
-  an exam loses their tasks and points (its pass mark keeps its share). `verify --report`
+  an exam loses their tasks and points (its pass mark keeps its share). `plan`, `progress
+  report` and `status` read the course the same way, so their stats, plans and mock-exam
+  verdicts match the site. `verify --report`
   writes `state/verify/report.md` with the counts and every item that is not verified.
 - The text output never shows the key (the verifier reads it); `--json` and `--show-key` do.
 - Summary chapters and the cheat sheet get formula audits too, in `checks/sum-<topic>.py`
