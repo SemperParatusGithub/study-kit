@@ -94,6 +94,7 @@ def test_status_reports_days_adherence_and_reviews(course: Path, capsys):
         "s-2026-11-18-a",
     ]
     assert [t["id"] for t in r["weak_topics"]] == ["spannungsteiler", "rc-filter"]
+    assert [t["id"] for t in r["unanswered_topics"]] == ["wechselstrom"]
     assert r["due"] == {"mc": 2, "exercises": 1}
     assert r["last_mock"]["total"] == 64 and r["last_mock"]["passed"] is True
     assert any("studykit plan" in h for h in r["hints"])
@@ -119,6 +120,14 @@ def test_status_text_without_progress(course: Path, capsys):
     assert "mastery - " in out
     assert "next 2026-11-02 learn (spannungsteiler) 120 min:" in out
     assert "/import-progress sample-course" in out
+    assert "not practised yet" not in out  # no mastery yet: nothing to explain
+
+
+def test_status_text_names_topics_not_practised(course: Path, capsys):
+    seed(course)
+    assert cli.main(["status", str(course), "--today", "2026-11-12"]) == 0
+    out = capsys.readouterr().out
+    assert "not practised yet (count 0 in the mastery): Komplexe Wechselstromrechnung" in out
 
 
 def test_status_without_a_plan(course: Path, capsys):

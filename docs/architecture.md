@@ -777,7 +777,8 @@ TypeScript on the shared cases in `tests/fixtures/progress/` and compares every 
   - examiner results per topic (mean of the last 10) and the last 20 findings
 - `studykit status <course> [--today D] [--json]` (`status.py`, what `/study-status`
   prints): days left, plan adherence (done sessions, and past sessions not done as the
-  site's banner counts them), the next three sessions, the three weakest topics, reviews
+  site's banner counts them), the next three sessions, the three weakest answered topics and
+  the topics not practised yet (they count 0 in the mastery), reviews
   due, the last mock exam and hints for the next step. It is the student's status; the
   pipeline status of §5.4 needs another name.
 - The site reads `mastery.json` at build time (`lib/courses.ts`, straight from the course directory: `overall`, else the mean of `topics.<id>.mastery`), so examiner results show up on the course home page until the browser has answers of its own.

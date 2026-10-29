@@ -66,6 +66,13 @@ def study_status(
         {"id": s["id"], "title": by_id[s["id"]].title, "accuracy": s["accuracy"]}
         for s in progress.weakest_topics(stats, info.topics)
     ]
+    # topics that count 0 in the mastery because nothing was answered yet
+    accuracy = {st["id"]: st["accuracy"] for st in stats}
+    unanswered = [
+        {"id": t.id, "title": t.title}
+        for t in info.topics
+        if not t.skip and accuracy.get(t.id) is None
+    ]
     due_mc = progress.due_count(items, info.topics, today, exam, tz=tz)
     due_ex = progress.exercises_due(items, today, exam)
     state_at = snap.state["exported_at"]
@@ -105,6 +112,7 @@ def study_status(
             "next": [_session(s) for s in progress.upcoming_sessions(sessions, items, today, NEXT)],
         },
         "weak_topics": weak,
+        "unanswered_topics": unanswered,
         "due": {"mc": due_mc, "exercises": due_ex},
         "last_mock": last_mock,
         "progress": {
@@ -138,6 +146,9 @@ def format_text(r: dict) -> str:
     if r["weak_topics"]:
         weak = ", ".join(f"{t['title']} {progress.pct(t['accuracy'])}" for t in r["weak_topics"])
         lines.append(f"weakest topics: {weak}")
+    if r["unanswered_topics"] and r["mastery"] is not None:
+        names = ", ".join(t["title"] for t in r["unanswered_topics"])
+        lines.append(f"not practised yet (count 0 in the mastery): {names}")
     m = r["last_mock"]
     if m:
         verdict = "passed" if m["passed"] else "not passed"
