@@ -10,7 +10,7 @@ them in the same change.
 | Area | Decision |
 |---|---|
 | License | MIT |
-| Unverified items | Quarantined: hidden on the site and in PDFs, listed in the report |
+| Unverified items | Quarantined: hidden on the site and in PDFs, listed in the report. As built, an item is quarantined when it is still disputed or unverified after two author fix rounds (§2.10, §5.3); an item no verifier has checked yet stays visible, and `validate --release` warns about it |
 | MC defaults (no past exams) | 10–25 questions per topic by weight; 60% single, 25% multi, 15% Kprim; multi all-or-nothing; no negative marking. Past exams override. |
 | Search | Pagefind in v1 (§3.5) |
 | Course data | `courses/` inside the repo, gitignored; never committed |
