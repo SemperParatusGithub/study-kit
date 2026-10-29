@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../schemas/course.schema.json
+schema: 1
+id: sample-course
+title: Grundlagen RC-Netzwerke (Beispielkurs)
+short: RC-Netze
+lang: de
+semester: WS 2026/27
+status: ready
+exam:
+  date: 2027-02-15
+  duration_min: 120
+  points: 100
+  format: mixed
+  aids: ['Nicht programmierbarer Taschenrechner', 'Selbst geschriebenes Formelblatt (zwei Seiten)']
+  mc:
+    present: true
+    types: [single, multi, kprim]
+    scoring: all-or-nothing
+    negative_marking: false
+cheatsheet: {allowed: true, max_pages: 2}
+study: {start: 2026-11-02, hours_per_week: 6, blocked: ['2026-12-21..2027-01-06']}
+topics:
+  - {id: spannungsteiler, title: Spannungsteiler und Ersatzquellen, weight: 0.25, prereq: []}
+  - {id: wechselstrom, title: Komplexe Wechselstromrechnung, weight: 0.35, prereq: [spannungsteiler]}
+  - {id: rc-filter, title: RC-Filter und Bode-Diagramm, weight: 0.40, prereq: [spannungsteiler, wechselstrom]}
+focus: [rc-filter]
+skip: []
+targets: {exercises_per_topic: auto, mc_per_topic: auto, mock_exams: 1}
+retired_ids: []
