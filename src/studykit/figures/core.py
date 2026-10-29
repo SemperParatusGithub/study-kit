@@ -44,6 +44,18 @@ def locale() -> str:
     return os.environ.get("STUDYKIT_LOCALE", "en")
 
 
+def decimal_comma() -> bool:
+    """Whether numbers get a decimal comma.
+
+    The runner sets STUDYKIT_DECIMAL (comma or point) from the course's notation.yaml;
+    without it German figures get a comma and the others a point.
+    """
+    mark = os.environ.get("STUDYKIT_DECIMAL")
+    if mark in ("comma", "point"):
+        return mark == "comma"
+    return locale() == "de"
+
+
 def size(name: str) -> tuple[float, float]:
     if name not in SIZES:
         raise ValueError(f"unknown size {name!r}; use one of {', '.join(SIZES)}")
@@ -56,17 +68,17 @@ def new_figure(size_name: str = "col", **subplot_kw):
 
 
 def fmt_number(value: float, digits: int = 3) -> str:
-    """Format a number for labels in the figure locale (decimal comma for German)."""
+    """Format a number for labels with the figure's decimal sign (`decimal_comma`)."""
     text = f"{value:.{digits}g}"
     if "e" in text:
         mantissa, exp = text.split("e")
         text = rf"{mantissa}\cdot 10^{{{int(exp)}}}"
-    return text.replace(".", "{,}") if locale() == "de" else text
+    return text.replace(".", "{,}") if decimal_comma() else text
 
 
 def localize_tex(tex: str) -> str:
-    """Decimal comma inside TeX for German figures: 0.5 -> 0{,}5."""
-    return re.sub(r"(\d)\.(\d)", r"\1{,}\2", tex) if locale() == "de" else tex
+    """Decimal comma inside TeX when the figure uses one: 0.5 -> 0{,}5."""
+    return re.sub(r"(\d)\.(\d)", r"\1{,}\2", tex) if decimal_comma() else tex
 
 
 def axis_label(quantity: str, unit: str | None = None) -> str:
@@ -105,12 +117,12 @@ class TickFormatter(ticker.ScalarFormatter):
 
 
 def apply_locale(ax, blank_zero: str = "") -> None:
-    """Decimal comma in tick labels for German courses.
+    """Decimal comma in tick labels when the figure uses one (`decimal_comma`).
 
     blank_zero names the axes ('x', 'y' or 'xy') whose 0 tick label is left out because
     the other axis crosses there.
     """
-    comma = locale() == "de"
+    comma = decimal_comma()
     for name, axis in (("x", ax.xaxis), ("y", ax.yaxis)):
         if type(axis.get_major_formatter()) is not ticker.ScalarFormatter:
             continue

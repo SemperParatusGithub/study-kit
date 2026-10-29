@@ -2,8 +2,9 @@
 
 Import from `studykit.figures` (`from studykit.figures import plot, circuit, block, graph`).
 Every builder returns `Figure(svg, png, alt, facts)` and takes `size=` (`'col'` 3.6×2.4 in,
-`'half'` 2.9×2.1, `'full'` 6.2×3.0, `'cs'` 2.4×1.6) and `alt=`. The locale (decimal comma,
-`U in V` axis labels) comes from the course. Source: `src/studykit/figures/`.
+`'half'` 2.9×2.1, `'full'` 6.2×3.0, `'cs'` 2.4×1.6) and `alt=`. The locale (`U in V` axis
+labels) comes from `course.lang`, the decimal sign from `notation.yaml` (`decimal`; a comma
+for German courses without it). Source: `src/studykit/figures/`.
 
 ## plot (function plots, control and signals)
 

@@ -1225,9 +1225,12 @@ The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`.
 - Fonts are Matplotlib's bundled DejaVu Sans for text and `mathtext.fontset: cm` for math, so no fonts are vendored.
 - Environment of every figure child: `SOURCE_DATE_EPOCH=0`, `MPL_IGNORE_SYSTEM_FONTS=1`,
   `MPLBACKEND=Agg`, `MPLCONFIGDIR=.cache/mpl-nosys` (Matplotlib keys its font cache by its
-  version only, so this cache never holds system fonts), `STUDYKIT_LOCALE` from the course.
+  version only, so this cache never holds system fonts), `STUDYKIT_LOCALE` from
+  `course.lang` and `STUDYKIT_DECIMAL` (`comma` or `point`) from `analysis/notation.yaml`'s
+  `decimal`, else a comma for German courses; both are part of each figure's cache key.
   The runner builds the font cache once before the children start in parallel.
-- With `locale='de'`: a house decimal-comma formatter and "U in V" axis labels.
+- With `locale='de'`: "U in V" axis labels; with a decimal comma: a house decimal-comma
+  formatter for ticks, values and labels.
 - **Palette** of fixed, unique hex values:
 
   | Role | Hex |

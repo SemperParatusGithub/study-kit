@@ -475,13 +475,13 @@ def step_figures(inp: Inputs, s: Step) -> None:
     except OSError, ValueError:
         built = {}
     tree_key = runner._tree_digest(tools.repo_root()).encode()
-    locale = runner.course_locale(inp.root).encode()
+    style = runner.style_key(inp.root)
     expected: dict[str, str] = {}
     for script in sorted((inp.root / "figures").glob("*.py")):
-        expected[script.stem] = runner._key([script.read_bytes(), tree_key, locale])
+        expected[script.stem] = runner._key([script.read_bytes(), tree_key, style])
     course_bytes = (inp.root / "course.yaml").read_bytes()
     for name in sorted(runner.BUILTINS):
-        expected[name] = runner._key([name.encode(), course_bytes, tree_key, locale])
+        expected[name] = runner._key([name.encode(), course_bytes, tree_key, style])
     missing = [
         slug for slug in expected if slug not in built or not runner._outputs_exist(out_dir, slug)
     ]

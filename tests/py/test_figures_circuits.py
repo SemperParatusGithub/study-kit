@@ -92,6 +92,17 @@ def test_quantity_tex_follows_locale(monkeypatch):
     assert circuit.quantity("4,7 kΩ", "resistor").tex == r"4.7\,\mathrm{k\Omega}"
 
 
+def test_quantity_tex_follows_the_course_decimal_sign(monkeypatch):
+    """notation.yaml's `decimal: point` keeps German figures at a decimal point."""
+    monkeypatch.setenv("STUDYKIT_LOCALE", "de")
+    monkeypatch.setenv("STUDYKIT_DECIMAL", "point")
+    assert circuit.quantity("4.7 kΩ", "resistor").tex == r"4.7\,\mathrm{k\Omega}"
+    assert circuit.quantity("2.5 mA", "current_source").plain == "2.5 mA"
+    monkeypatch.setenv("STUDYKIT_LOCALE", "en")
+    monkeypatch.setenv("STUDYKIT_DECIMAL", "comma")
+    assert circuit.quantity("4.7 kΩ", "resistor").tex == r"4{,}7\,\mathrm{k\Omega}"
+
+
 def test_quantity_symbolic_and_invalid_values():
     for text in ("R", "2R", "R_0", "2 R_A", r"2\pi f L"):
         q = circuit.quantity(text, "resistor")

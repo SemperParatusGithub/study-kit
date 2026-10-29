@@ -116,10 +116,10 @@ class Quantity:
 
     @property
     def plain(self) -> str:
-        """Readable text for alt text, with a decimal comma in German figures."""
+        """Readable text for alt text, with the figure's decimal sign."""
         if self.si is None:
             return self.text
-        return self.text.replace(".", ",") if core.locale() == "de" else self.text
+        return self.text.replace(".", ",") if core.decimal_comma() else self.text
 
 
 def _unit_tex(prefix: str, unit: str) -> str:

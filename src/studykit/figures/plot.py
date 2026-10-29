@@ -187,7 +187,7 @@ def _point_label(p: Point, index: int) -> str:
 def _coord_text(p: Point) -> str:
     x = p.exact_x if p.exact_x else core.fmt_number(p.x)
     y = core.fmt_number(p.y if abs(p.y) > 1e-12 else 0.0)
-    sep = r"\,|\," if core.locale() == "de" else r",\ "
+    sep = r"\,|\," if core.decimal_comma() else r",\ "
     return f"$({x}{sep}{y})$"
 
 

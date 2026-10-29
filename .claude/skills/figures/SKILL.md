@@ -72,7 +72,7 @@ template cannot do it, say so in your result instead of shipping a broken figure
   lines point at the right element; reference arrows go from + to − (voltage) and along
   the current direction.
 - **Correctness:** values, units and names match the item text exactly (same symbols,
-  decimal comma in German); the facts (`facts.json`: divider ratio, τ, f_c, margins,
+  the decimal sign of `notation.yaml`, a comma in German without it); the facts (`facts.json`: divider ratio, τ, f_c, margins,
   roots) agree with the solution; the curve shape is right (slope, sign, asymptotes).
 - **Readability:** text at its default size, nothing squeezed; axes labelled
   `U in V` style (the templates do this); colour is never the only key.
