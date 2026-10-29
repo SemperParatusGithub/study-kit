@@ -392,6 +392,7 @@ export class ProgressStore {
     if (this.readOnly) return false;
     const ok = safeSet(this.backend, this.key, JSON.stringify(doc));
     if (!ok) this.persistent = false;
+    if (ok && this.backend !== memoryBackend) void requestPersist();
     this.notify(keys);
     return ok;
   }
@@ -466,6 +467,15 @@ export class ProgressStore {
   addExamAttempt(id: string, attempt: ExamAttempt): ExamEntry {
     return this.update<ExamEntry>(`exam:${id}`, (prev) => ({
       attempts: [...(prev?.attempts ?? []), attempt],
+    })) as ExamEntry;
+  }
+
+  /** Add an exam attempt, or replace the one with the same start time (regrading). */
+  saveExamAttempt(id: string, attempt: ExamAttempt): ExamEntry {
+    return this.update<ExamEntry>(`exam:${id}`, (prev) => ({
+      attempts: [...(prev?.attempts ?? []).filter((a) => a.started !== attempt.started), attempt].sort(
+        (a, b) => (a.started < b.started ? -1 : 1),
+      ),
     })) as ExamEntry;
   }
 

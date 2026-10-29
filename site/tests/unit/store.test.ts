@@ -259,6 +259,16 @@ test('session state is separate from the exported document', () => {
   assert.equal(fake.data.has('studykit:v1:c:session'), false);
 });
 
+test('saveExamAttempt replaces the attempt with the same start time', () => {
+  const s = new ProgressStore('c', new FakeStorage());
+  const a = { started: '2026-11-02T09:00:00.000Z', duration_s: 60, points: { t1: 0, mc: 4 }, total: 4 };
+  s.saveExamAttempt('e', a);
+  s.saveExamAttempt('e', { ...a, points: { t1: 6, mc: 4 }, total: 10 });
+  s.saveExamAttempt('e', { ...a, started: '2026-11-01T09:00:00.000Z' });
+  const e = s.get<{ attempts: Array<{ started: string; total: number }> }>('exam:e');
+  assert.deepEqual(e?.attempts.map((x) => [x.started.slice(0, 10), x.total]), [['2026-11-01', 4], ['2026-11-02', 10]]);
+});
+
 test('update rejects keys outside the schema', () => {
   const s = new ProgressStore('c', new FakeStorage());
   assert.throws(() => s.update('quiz:x', () => ({ done: true })), /invalid progress key/);
