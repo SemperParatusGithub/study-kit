@@ -118,21 +118,27 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── mc/<topic>.md                   # one MC bank per topic  ← MC section
 ├── exams/<exam-id>/exam.yaml  NN-<task-id>.md  mc.md?
 ├── cheatsheet.md
-├── plan.yaml                       # written by `studykit plan`, never by an LLM
+├── plan.yaml                       # written by `studykit plan` (Phase 5), never by an LLM; until then by hand
 ├── figures/<slug>.py
-├── checks/<item-id>.py | <item-id>.json    # verifier output
+├── checks/<item-id>.py | <item-id>.json    # (Phase 5) verifier output
 ├── sources/raw/*.pdf  manifest.yaml  text/<doc>/p0001.txt  notes/<chunk>.md  outline.md
 ├── analysis/exam-profile.yaml  notation.yaml
-├── state/verify/<item-id>.json     # ledger, one file per item (no locking)
-├── progress/browser/*.json  examiner.jsonl  mastery.json  report.md
-├── _history/<timestamp>/…          # copies saved by /regenerate before overwriting
-└── _build/{figures,typ,pdf,blind,logs}
+├── state/verify/<item-id>.json     # (Phase 5) ledger, one file per item (no locking)
+├── progress/browser/*.json  examiner.jsonl  mastery.json  report.md    # (Phase 5)
+├── _history/<timestamp>/…          # (Phase 5) copies saved by /regenerate before overwriting
+└── _build/{index.json,figures,typ,pdf,blind,logs}
 ```
 
-**Schemas.** The pydantic models in `model.py` are the single source. `just schema` exports them to `schemas/*.schema.json`, which editors use through `# yaml-language-server: $schema=…`. The site declares only a minimal `astro/zod` schema for the fields it renders. Any drift shows up when CI does the strict build of the sample course.
+Discovery (`content.py`) knows the content kinds above (course, overview, summary, exercise,
+mc, exam, exam task, exam MC, cheat sheet, plan, figure scripts, exam profile, notation,
+manifest, outline). It never enters `_build`, `_history`, `state`, `progress`, `checks`,
+`sources/raw`, `sources/text` and `sources/notes`; any other file in the course is
+SK-STRUCT-PATH.
+
+**Schemas.** The pydantic models in `model.py` are the single source. `just schema` exports them to `schemas/*.schema.json`, which editors use through `# yaml-language-server: $schema=…`; `just test` fails when the committed files are stale (`schema export --check`). `analysis/exam-profile.yaml`, `analysis/notation.yaml` and `sources/manifest.yaml` have no model yet and get only the YAML lint; validate reads the profile's archetype ids and the manifest's document ids and page counts. The site declares only a minimal `astro/zod` schema for the fields it renders, so a site that no longer matches the data fails the strict build of the sample course.
 
 **IDs.**
-- Kebab-case ASCII, unique per course, with prefixes `ex-`, `mc-<topic>-NNN`, `<exam>-tN`.
+- Kebab-case ASCII, unique per course, with prefixes `ex-`, `mc-<topic>-NNN`, and `<prefix>-tN` for exam tasks (any kebab prefix, e.g. `pk1-t1` in `probeklausur-1`).
 - IDs are never renamed. Retired IDs go into `course.yaml: retired_ids`, and lint rejects reusing one.
 
 **YAML rules** (linted from PyYAML parser events):
@@ -178,11 +184,12 @@ status: draft                   # draft | ready; /register-new-subject sets read
 ### 2.3 Markdown conventions: one dialect, one parser
 
 **Reader:** `commonmark_x-smart-raw_html-raw_attribute-yaml_metadata_block-alerts-emoji`.
-- `studykit` and the site loader both strip frontmatter before calling pandoc.
+- `studykit.pandoc` blanks the frontmatter (line numbers stay right) before pandoc reads a
+  file; the site renders through `studykit render`, so there is one pandoc call site.
 - Smart quotes are off; write „…“ directly.
-- Raw HTML is an error. pandoc 3.13 still produces RawBlock/RawInline for commonmark_x
-  despite `-raw_html`, so `guard.lua` rejects them; raw Typst needs `raw_attribute`,
-  which is off.
+- Raw HTML is an error (SK-BLOCK-RAW). pandoc 3.13 still produces RawBlock/RawInline for
+  commonmark_x despite `-raw_html`, so `guard.lua` rejects them; raw Typst needs
+  `raw_attribute`, which is off.
 
 **Container blocks.** This is a closed list. Every fence has a blank line before and after it. Unknown classes, and any paragraph that starts with `:::`, are hard errors in `guard.lua`.
 
@@ -203,22 +210,34 @@ status: draft                   # draft | ready; /register-new-subject sets read
 
   | Denied | Use instead |
   |---|---|
-  | `\overset`, `\stackrel`, `\xrightarrow` | `:=`, `\Rightarrow`, or `\;\circ\!-\!\bullet\;` for a Laplace correspondence |
-  | `\color`, `\textcolor` | (none) |
+  | `\overset`, `\stackrel` | `:=`, `\Rightarrow`, or `\;\circ\!-\!\bullet\;` for a Laplace correspondence |
+  | `\xrightarrow`, `\xleftarrow` | `\Rightarrow`/`\to` (`\Leftarrow`/`\gets`), with the condition in prose |
+  | `\underset` | a plain subscript, or say it in prose |
+  | `\color`, `\textcolor` | no colour in formulas; emphasise in the text |
   | `\tag`, `\label`, `\eqref`, `\ref` | name the formula in prose |
-  | `vmatrix`, `Vmatrix` | `\left|\begin{matrix}…\end{matrix}\right|` |
-  | `array`; `matrix` outside `\left( \right)`, `\left[ \right]`, `\left| \right|`, `\left\{ \right\}`; `\hline` | `pmatrix`/`bmatrix`/`Bmatrix`, or a Markdown table |
-  | `\big…`/`\bigg…` delimiters, `\|`, `\left\|…\right\|`, `\left\lVert` | `\lVert … \rVert`; `\left.…\right|_{…}` for an evaluation bar |
+  | `vmatrix`, `Vmatrix` | `\left\|\begin{matrix}…\end{matrix}\right\|` |
+  | `array`; `matrix` outside `\left( \right)`, `\left[ \right]`, `\left\| \right\|`, `\left\{ \right\}`; `\hline` | `pmatrix`/`bmatrix`/`Bmatrix`, or a Markdown table |
+  | `\big`, `\Big`, `\bigg`, `\Bigg` and their `l`/`r`/`m` forms | `\left( … \right)`, or plain delimiters |
+  | `\\|`, `\left\lVert` | `\lVert … \rVert` without `\left`/`\right`; `\left.…\right\|_{…}` for an evaluation bar |
   | `\mathsf` | `\mathrm` (e.g. `^\mathrm{T}`) |
-  | `\operatorname*`, `\limits` | (none) |
-  | `\SI`, `\qty`, `\si` | `\,\mathrm{…}` |
+  | `\operatorname*` | `\operatorname{…}` with a normal subscript, or `\max`, `\min`, `\lim` |
+  | `\limits` | a normal subscript and superscript |
+  | `\SI`, `\qty`, `\si`, `\pu` | `\,\mathrm{…}`, e.g. `3{,}3\,\mathrm{k\Omega}` |
   | `\R`, `\N` | `\mathbb{R}`, `\mathbb{N}` |
-  | `\ce`, `\pu` | (none) |
+  | `\ce` | `\mathrm{…}` with sub- and superscripts, e.g. `\mathrm{H_2O}` |
+  | `\def`, `\gdef`, `\edef`, `\let`, `\newcommand`, `\renewcommand`, `\providecommand`, `\DeclareMathOperator` | write the expansion out |
 
-- **No custom macros:** no `\newcommand` and no `\def`.
+  `pandoc/math-denylist.json` holds these entries with the exact hints the lint prints.
+
+- **No custom macros:** no `\newcommand` and no `\def` (SK-MATH-DENIED).
 - **No Markdown block markers inside display math:** a line inside `$$ … $$` must not start
   with `=`, `-`, `+`, `*`, `#`, `>` or `1.`; pandoc then reads a heading or list instead of
   math, on the website *and* in the PDF. Keep `=` at the end of the previous line.
+- **No space command between two digits** (`10\,000`, `1\,5`; also `\:` `\;` `~` …): both
+  engines set a gap, so the number reads as two (SK-MATH-THINSPACE). Write `10000`, `10^4`
+  or `1{,}5`.
+- **Non-ASCII characters only inside `\text{…}`**; KaTeX strict rejects them elsewhere
+  (SK-MATH-KATEX).
 
 **Verified in Phase 1** (`tests/golden/`, pandoc 3.13, Typst 0.15.1, KaTeX 0.16.47):
 - 109 corpus formulas render in KaTeX strict and compile through pandoc → Typst without
@@ -240,11 +259,13 @@ status: draft                   # draft | ready; /register-new-subject sets read
     each column separator inside `cases(…)`.
 
 **Other rules:**
-- **Figures:** `![Caption, doubles as alt text](fig:<slug>)` alone in its paragraph, with no attributes. The size comes from the figure script.
-- **Links:** `[…](ex:<id>)`, `(mc:<id>)`, `(topic:<id>)`, `(exam:<id>)`, and `(src:<doc>#p=12)`, which opens the lecture PDF at that page (`src:<doc>` alone opens the PDF). Every target must exist. `mc:` reaches practice-bank questions only; link an exam with `exam:`.
+- **Figures:** `![Caption, doubles as alt text](fig:<slug>)` alone in its paragraph, with no attributes. The size comes from the figure script. The caption may hold inline math: the page and the PDF render it, and the PDF's alt text reads it as plain text (`lib/alttext.lua`: `$\underline{U}_C$` → U_C).
+- **Links:** `[…](ex:<id>)`, `(mc:<id>)`, `(topic:<id>)`, `(exam:<id>)`, and `(src:<doc>#p=12)`, which opens the lecture PDF at that page (`src:<doc>` alone opens the PDF). Every target must exist. `mc:` reaches practice-bank questions only; link an exam with `exam:`. External `https://` and `mailto:` links need descriptive text.
+- **Tables:** pipe tables split a row at every `|` before they read math or code, so a table row has no `|` inside inline math (write `\lvert … \rvert`, `\lVert … \rVert`, `\mid`) and only escaped `\|` inside inline code (SK-BLOCK-TABLE).
+- **Line breaks:** a line that ends in a letter and a hyphen, followed by a line that starts with a letter, shows as „RC- Tiefpass“; keep the hyphenated word on one line (warning SK-BLOCK-HYPHEN; suspended compounds such as „Ein- und Ausgang“ are not reported).
 - **Subtasks:** `**a)**` paragraphs.
-- **Code:** fenced, with a language from `python matlab octave c cpp vhdl verilog systemverilog julia text`.
-- **Forbidden:** raw HTML, H1 in the body, heading attributes, footnotes, bare URLs, and any image that isn't `fig:`.
+- **Code:** fenced, with exactly one language from `python matlab octave c cpp vhdl verilog systemverilog julia text` and no attributes.
+- **Forbidden:** raw HTML or any raw block (SK-BLOCK-RAW); H1 in the body, heading attributes, footnotes, and `{…}` attributes on spans, inline code and tables (SK-BLOCK-MARKDOWN), because the HTML writer copies attributes onto the element, so an `onclick` would reach the page; `mcq` is the only element with attributes; bare URLs, autolinks, links whose text is their URL, `www.…`, and links with attributes (SK-REF-LINK); any image that isn't `fig:`.
 
 ### 2.4 Summary chapter (`summary/03-rc-filter.md`)
 
@@ -288,7 +309,7 @@ difficulty: 2                     # 1 worked-example level … 4 exam-hard
 kind: compute                     # compute | derive | concept | sketch | code
 minutes: 10
 source: {doc: uebung-04, page: 2, relation: adapted}    # original | adapted | inspired
-answers:                          # the key; the website's answer check and verify.py both use it
+answers:                          # the key; the website's answer check and verify.py (Phase 5) both use it
   - {key: fg,  label: '$f_\mathrm{g}$', value: 1591.55, unit: Hz, rtol: 1.0e-3}
   - {key: Hdb, label: '$|\underline{H}(f_\mathrm{g})|$', value: -3.0103, unit: dB, atol: 0.01}
 ---
@@ -317,8 +338,9 @@ Setzen Sie $R = \frac{1}{2\pi f_\mathrm{g} C}$ und lösen Sie nach $f_\mathrm{g}
 ```
 
 - Answer `label`, and the rubric text in exam tasks, are plain text plus inline `$…$` math only. They are linted for that and rendered by a 20-line splitter, the same way on the web and in the PDF.
-- Symbolic answers are written `{key: H, expr: '1/(1+s*R*C)', symbols: [s, R, C]}`. They are compared with SymPy simplification plus evaluation at random sample points.
-- The hint-leak lint flags any `answers` value that appears in a hint.
+- Symbolic answers are written `{key: H, expr: '1/(1+s*R*C)', symbols: [s, R, C]}`. The website's answer check (`lib/answer.ts`) evaluates input and reference at random positive sample points with complex arithmetic; `verify.py` (Phase 5) adds SymPy simplification.
+- The website reads numbers in German or English notation with an SI prefix and unit (`1,59 kHz`) and accepts them within `atol + rtol·|value|` in the answer's unit; `rad/s` and `1/s` count as the same unit.
+- The hint-leak lint (warning SK-MATH-HINT-LEAK) flags a number in a hint that matches an `answers` value within its tolerance.
 
 ### 2.6 MC bank: the multiple-choice section (`mc/rc-filter.md`)
 
@@ -424,45 +446,61 @@ Beurteilen Sie für den RC-Tiefpass:
   mulberry32, then Fisher-Yates runs from the last option down (a `pin-last` option is left
   out), and the keys (A)–(F) are assigned after shuffling.
 
-**Lint rules** (`mcq.lua` plus `lint.py`):
+**Lint rules** (`mcq.lua` and the MC stage of `validate.py`, which `lint` runs too):
 - `single` has 3–5 options with exactly one `[x]`.
 - `multi` has 4–6 options with at least one `[x]` and at least one `[ ]`.
 - `kprim` has exactly 4 options.
 - Every option has a `why`, and there is exactly one explanation.
 - No "all of the above".
 - Explanations never refer to options by letter, because options are shuffled.
-- Numeric questions require a check script.
+- *(Phase 5)* Numeric questions require a check script. The verifier writes it after
+  authoring, so the Verification stage checks this, not lint.
 
-**Bank-level warnings:**
-- the correct option is the longest one more than 50% of the time
-- the letter distribution of correct answers after the deterministic PDF shuffle is skewed
+**Bank-level warnings** (SK-MCQ-BIAS, for banks with at least four single-choice questions):
+- the correct option is the strictly longest one in more than half of them
+- after the deterministic PDF shuffle, one letter is the correct answer in more than half of them
 
 **Generation targets.**
-- `mc_per_topic: auto` gives 10–25 questions per topic, scaled by weight.
+- `mc_per_topic: auto` gives 10–25 questions per topic, scaled by weight
+  (`max(10, ⌈25 · weight⌉)`, at most 25; SK-COV-MC).
 - The type mix follows the exam profile. Without one it is 60% single, 25% multi and 15% Kprim.
+  Validation only warns when a type of `course.exam.mc.types` is missing from a bank.
 - Distractors come from a catalogue of electrical-engineering misconceptions: a forgotten 2π, √2 (amplitude vs. RMS), dB vs. linear, the sign of the phase, series vs. parallel, a wrong power of ten, degrees vs. radians.
 
-**Scoring** (`score.ts`, mirrored in `progress.py`):
+**Scoring** (`site/src/lib/scoring.ts`; the Phase 5 `progress.py` must mirror it). An option is
+decided right when it is selected and correct or unselected and wrong; a Kprim statement
+left open is wrong.
 
 | Type | Score |
 |---|---|
 | single | 1 or 0 |
 | multi, all-or-nothing | 1 only if the selected set equals the correct set |
 | multi, partial | max(0, (options decided right − options decided wrong) / n) |
+| multi, kprim | the Kprim rule over the n options: all right → 1, one wrong → 0.5, otherwise 0 |
 | kprim | 4/4 → 1, 3/4 → 0.5, otherwise 0 |
 
-`course.exam.mc.scoring` sets the default for multi-select. Exam mode uses the real exam's rule, including negative marking if it applies.
+`course.exam.mc.scoring` (`all-or-nothing` | `partial` | `kprim`) picks the multi-select
+rule, in practice and in exams. Practice scores lie in [0, 1]. Only exam mode applies
+negative marking, when `course.exam.mc.negative_marking` is true (`examScore`):
+- a question left blank scores 0;
+- multi with the partial rule scores (decided right − decided wrong) / n, down to −1;
+- any other answered question scores its normal score when that is above 0, else −1;
+- the MC part as a whole never goes below 0 (`examPartPoints`).
 
-**Check script for a numeric question** (`checks/mc-rc-filter-003.py`, written blind by the verifier):
+**Check script for a numeric question** (*Phase 5*; `checks/mc-rc-filter-003.py`, written blind by the verifier):
 
 ```python
 from math import pi
 from studykit.check import mc_numeric
+
 R, C = 1e3, 100e-9
-mc_numeric(correct=1/(2*pi*R*C),
-           options={"A": 1.59e3, "B": 10e3, "C": 159.0, "D": 62.8e3},   # source order, SI values
-           mistakes={"B": 1/(R*C), "C": 1/(2*pi*R*1e-6), "D": 2*pi/(R*C)},
-           rtol=5e-3, min_separation=0.05)
+mc_numeric(
+    correct=1 / (2 * pi * R * C),
+    options={"A": 1.59e3, "B": 10e3, "C": 159.0, "D": 62.8e3},  # source order, SI values
+    mistakes={"B": 1 / (R * C), "C": 1 / (2 * pi * R * 1e-6), "D": 2 * pi / (R * C)},
+    rtol=5e-3,
+    min_separation=0.05,
+)
 ```
 
 The runner asserts four things:
@@ -471,7 +509,7 @@ The runner asserts four things:
 3. Every distractor differs from the correct value by more than 5%.
 4. Each option's text parses to its stated value. If the text can't be parsed, this is a warning.
 
-**Conceptual questions:** the verifier answers blind into `checks/<id>.json`:
+**Conceptual questions** (*Phase 5*): the verifier answers blind into `checks/<id>.json`:
 
 ```json
 {"answer": ["A","C"], "confidence": "high", "ambiguous": false, "reason": "…"}
@@ -495,13 +533,15 @@ tasks: [01-pk1-t1.md, 02-pk1-t2.md, 03-pk1-t3.md, 04-pk1-t4.md]
 mc: {file: mc.md, points_each: 2}        # present only if course.exam.mc.present
 ```
 
-- Task files use the exercise schema plus `kind: exam-task`, `points`, an `archetype` (which must exist in `exam-profile.yaml`), and a `rubric`. The rubric is a list of `{points, criterion}`, and its points must add up to `points`.
+- Task files use the exercise schema plus `kind: exam-task`, `points`, an `archetype` (which must exist in `analysis/exam-profile.yaml`, SK-REF-MISSING; without a profile the check is skipped with a note), and a `rubric`. The rubric is a list of `{points, criterion}`, and its points must add up to `points` (SK-SCHEMA-RUBRIC).
+- Task ids are `<prefix>-tN` with any kebab prefix; task file names are `NN-<task-id>.md`.
 - `mc.md` is a normal MC bank, but its questions appear only inside the exam, never in the practice banks.
 - **Validation:**
-  - task and MC points sum to `points`
-  - points and time fall within ±10% of the exam profile
-  - the archetype mix matches the profile
-  - an n-gram similarity above 0.6 to the extracted past-exam text produces a "too close to source" warning
+  - task and MC points sum to `points` (SK-STRUCT-POINTS); `pass_points` ≤ `points`
+  - with `--release`: points and time within ±10% of the real exam in `course.yaml: exam`
+    (SK-COV-EXAM)
+  - *(planned)* the archetype mix matches the profile, and an n-gram similarity above 0.6 to
+    the extracted past-exam text produces a "too close to source" warning
 
 ### 2.8 Cheat sheet (`cheatsheet.md`)
 
@@ -511,7 +551,10 @@ mc: {file: mc.md, points_each: 2}        # present only if course.exam.mc.presen
 
 ### 2.9 Study plan (`plan.yaml`)
 
-`studykit plan` is deterministic. Claude writes only the `goal` and `note` text afterwards.
+`studykit plan` (Phase 5) is deterministic. Claude writes only the `goal` and `note` text
+afterwards. Until the scheduler exists, `plan.yaml` is written by hand against
+`schemas/plan.schema.json`, as in the sample course; the site and validate already read it
+(plan refs are checked as SK-REF-SCHEME and SK-REF-MISSING).
 
 ```yaml
 schema: 1
@@ -537,7 +580,7 @@ How the scheduler places sessions:
 - Mock exams go into the last 14 days, and the last day is for the cheat sheet.
 - `--replan` keeps past sessions and puts weak topics from `progress/mastery.json` first.
 
-### 2.10 Verification ledger (`state/verify/<item-id>.json`)
+### 2.10 Verification ledger (`state/verify/<item-id>.json`, Phase 5)
 
 ```json
 {"item":"ex-rc-tp-grenzfrequenz","content_sha256":"…","check_sha256":"…","method":"script",
@@ -557,24 +600,61 @@ How the scheduler places sessions:
 {"schema":"studykit-progress/1","course":"get2","exported_at":"2026-11-20T18:03:00Z","items":{
   "mc:mc-rc-filter-003":{"h":"9c01aa12","box":3,"due":"2026-11-24",
      "attempts":[{"t":"…","chosen":["A"],"score":1,"conf":"sure","ms":42000}]},
-  "ex:ex-rc-tp-grenzfrequenz":{"h":"3f2a91c0","hints":2,"answer_ok":true,"rating":"partial","box":2},
+  "ex:ex-rc-tp-grenzfrequenz":{"h":"3f2a91c0","hints":2,"answer_ok":true,"rating":"partial","box":1,"due":"2026-11-21"},
   "exam:probeklausur-1":{"attempts":[{"started":"…","duration_s":6900,"points":{"pk1-t3":12,"mc":14},"total":71}]},
   "plan:s-2026-11-02-a":{"done":true}}}
 ```
 
-- `h` is a content hash computed at build time. When it changes, the site shows "content changed since your attempt".
-- An export button downloads `studykit-progress-<course>-<date>.json`. Import merges the file back in as a union.
-- The site requests `navigator.storage.persist()`.
+- The document is the export format; `studykit.model.Progress` validates it and
+  `schemas/progress.schema.json` is its schema. `lib/store.ts` owns it: every access is
+  wrapped in try/catch, a write that fails is kept in memory so the page still works, and
+  a document with a newer schema is read but never written.
+- `h` is a content hash computed at build time (the first 8 hex digits of the sha256 of the
+  rendered `<sk-mc>`, exercise or exam task). When it changes, the site shows "Content
+  changed since your attempt."
+- MC entries keep at most 100 attempts. Exercise entries keep no review day: `box` and
+  `due` come from the self-assessment (§3.2, Leitner).
+- `hints` counts the hints of the attempt the rating belongs to (before the first rating,
+  of the attempt under way). Once a rated exercise's due day has come, working on it again
+  is a new attempt: its hints are kept in the session key until it is rated, and the
+  rating stores them.
+- Misconceptions are not stored: an MC item whose last attempt was `sure` with a score
+  below 1 is one.
+- An export button downloads `studykit-progress-<course>-<date>.json`. Import merges the
+  file back in as a union: attempts are combined without duplicates, schedules come from
+  the side with the later attempt (for exercises, the later due day), hint counts take the
+  maximum, and a correct answer check or a done session stays done. Reading and import
+  drop what does not validate, so an export always validates: an attempt needs an ISO 8601
+  timestamp (as Python's `datetime.fromisoformat` reads it), and `ms`, `hints` and
+  `duration_s` become safe integers. A file that names no course is refused.
+- Two more keys are never exported: `studykit:v1:<course>:session` holds runtime state (a
+  running exam's start time, MC answers and rubric ticks; `ex:<id>` `{due, hints}` for an
+  exercise review that is not rated yet), and `studykit:theme` holds `light`, `dark` or
+  `system`.
+- The site requests `navigator.storage.persist()`; the progress page says whether the
+  browser granted it.
 
-**Repo side:**
+**Figures in the browser** (`lib/stats.ts`, shown by the shell's placeholders and `<sk-progress>`):
+- Accuracy of a topic: the mean score of its last 10 MC attempts.
+- Mastery: topic accuracies weighted by topic weight over the topics not skipped; a topic
+  without attempts counts 0; none until something is answered. The course cards and the
+  progress page show it, and it replaces the build-time value from `mastery.json` once this
+  browser has answers.
+- Reviews due: MC questions the Leitner schedule has due today; the progress page also
+  counts exercises due for review.
+- Exercise status: `new`, `started` (hints opened or the answer checked, not rated yet),
+  `not-yet`, `partial` or `solved`.
+
+**Repo side** (Phase 5):
 - `/import-progress` copies an export into `progress/browser/`.
 - The examiner appends results through `studykit progress log`.
-- `studykit progress report` computes `mastery.json` and `report.md` deterministically:
+- `studykit progress report` computes `mastery.json` and `report.md` deterministically, with
+  the same accuracy and mastery as `lib/stats.ts`:
   - per-topic accuracy over the last 10 attempts
   - exam-task score fraction
   - examiner results
-  - sure-but-wrong "misconceptions"
-- The site reads `mastery.json` at build time, so examiner findings show up on the course home page.
+  - misconceptions (last attempt sure but not fully right)
+- The site reads `mastery.json` at build time (the `mastery` collection), so examiner findings show up on the course home page.
 
 ### 2.12 Overview (`overview.md`)
 
@@ -605,11 +685,13 @@ title: Überblick
 - "Exam at a glance" is written from `analysis/exam-profile.yaml` (format, duration, points,
   archetypes and their share, MC part, allowed aids).
 - Links to topics use `topic:` references; every topic must be linked at least once.
-- Authored by `author` with `authoring/parts/overview.md`, first in the author wave so
-  other parts can link to it. `/regenerate <course> overview` re-runs it.
-- Web: `/c/<c>/` (the Overview tab). PDF: `overview.pdf`, also the first chapter of
-  `summary.pdf`.
-- SK-COV requires `overview.md` with all six sections.
+- *(Phase 5)* Authored by `author` with `authoring/parts/overview.md`, first in the author
+  wave so other parts can link to it. `/regenerate <course> overview` re-runs it.
+- Web: `/c/<c>/` (the Overview tab). PDF *(Phase 4)*: `overview.pdf`, also the first chapter
+  of `summary.pdf`.
+- A missing `overview.md` is SK-STRUCT-MISSING (a warning, an error with `--release`); the
+  six sections are SK-STRUCT-SECTIONS, checked on every run; SK-COV-OVERVIEW (`--release`)
+  requires a `topic:` link to every topic that is not skipped.
 
 ## 3. Rendering pipelines
 
