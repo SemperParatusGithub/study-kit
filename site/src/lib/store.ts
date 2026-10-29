@@ -1,6 +1,8 @@
 // Progress store (docs/architecture.md §2.11). This module is the only code that touches
-// localStorage; every access is wrapped in try/catch and falls back to memory, so a page
-// works (without persistence) in private windows or when storage is blocked or full.
+// localStorage; every access is wrapped in try/catch. Reading and writing fail separately:
+// when storage is full, stored progress stays readable and a write that fails is kept in a
+// memory overlay that reads see first, so the page (and an export) still has everything.
+// Without any storage (blocked, private windows) the page works from memory alone.
 //
 // Keys
 //   studykit:v1:<course>          the progress document (schema studykit-progress/1)
@@ -282,50 +284,94 @@ export function merge(local: ProgressDoc, incoming: ProgressDoc): MergeResult {
 
 // --- storage ----------------------------------------------------------------------------
 
-const memory = new Map<string, string>();
-const memoryBackend: Backend = {
-  getItem: (k) => memory.get(k) ?? null,
-  setItem: (k, v) => void memory.set(k, v),
-  removeItem: (k) => void memory.delete(k),
-};
+/**
+ * A storage backend behind try/catch with a memory overlay. Reads see the overlay first,
+ * then the backend; a write that fails (quota exceeded, storage blocked) goes to the
+ * overlay, so this page keeps seeing it, and a later successful write clears it again.
+ */
+export class SafeStorage {
+  private readonly backend: Backend | null;
+  /** Values whose write or removal failed; null marks a removal. */
+  private readonly overlay = new Map<string, string | null>();
 
-function browserBackend(): Backend | null {
+  constructor(backend: Backend | null) {
+    this.backend = backend;
+  }
+
+  /** There is a backend to read stored progress from. */
+  get readable(): boolean {
+    return this.backend !== null;
+  }
+
+  /** True when a write reaches the backend now (it is not full or blocked). */
+  probe(): boolean {
+    if (!this.backend) return false;
+    try {
+      this.backend.setItem('studykit:probe', '1');
+      this.backend.removeItem('studykit:probe');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  get(key: string): string | null {
+    if (this.overlay.has(key)) return this.overlay.get(key) ?? null;
+    if (!this.backend) return null;
+    try {
+      return this.backend.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  /** Store a value; false when it only reached memory. */
+  set(key: string, value: string): boolean {
+    if (this.backend) {
+      try {
+        this.backend.setItem(key, value);
+        this.overlay.delete(key);
+        return true;
+      } catch {
+        // full or blocked: keep it for this page below
+      }
+    }
+    this.overlay.set(key, value);
+    return false;
+  }
+
+  remove(key: string): void {
+    if (this.backend) {
+      try {
+        this.backend.removeItem(key);
+        this.overlay.delete(key);
+        return;
+      } catch {
+        // blocked: hide it for this page below
+      }
+    }
+    this.overlay.set(key, null);
+  }
+}
+
+/** localStorage when it can be read (it may still refuse writes), else null. */
+function localStorageBackend(): Backend | null {
   try {
     const ls = globalThis.localStorage;
     if (!ls) return null;
-    const probe = 'studykit:probe';
-    ls.setItem(probe, '1');
-    ls.removeItem(probe);
+    ls.getItem('studykit:probe');
     return ls;
   } catch {
     return null;
   }
 }
 
-function safeGet(backend: Backend, key: string): string | null {
-  try {
-    return backend.getItem(key);
-  } catch {
-    return memory.get(key) ?? null;
-  }
-}
+let browser: SafeStorage | null = null;
 
-function safeSet(backend: Backend, key: string, value: string): boolean {
-  try {
-    backend.setItem(key, value);
-    return true;
-  } catch {
-    memory.set(key, value); // quota exceeded or storage blocked: keep it for this page
-    return false;
-  }
-}
-
-function safeRemove(backend: Backend, key: string): void {
-  try {
-    backend.removeItem(key);
-  } catch {
-    memory.delete(key);
-  }
+/** The page's one view of localStorage, shared by every course store and the theme. */
+function browserStorage(): SafeStorage {
+  browser ??= new SafeStorage(localStorageBackend());
+  return browser;
 }
 
 function parse(text: string | null): unknown {
@@ -362,21 +408,26 @@ export class ProgressStore {
   readonly course: string;
   readonly key: string;
   readonly sessionKey: string;
-  private backend: Backend;
+  private readonly storage: SafeStorage;
   /** False when writes only reach memory (storage blocked or full). */
   persistent: boolean;
 
+  /** `backend`: localStorage when omitted; null for memory only. */
   constructor(course: string, backend?: Backend | null) {
     this.course = course;
     this.key = `studykit:v1:${course}`;
     this.sessionKey = `studykit:v1:${course}:session`;
-    const real = backend === undefined ? browserBackend() : backend;
-    this.backend = real ?? memoryBackend;
-    this.persistent = real !== null;
+    this.storage = backend === undefined ? browserStorage() : new SafeStorage(backend);
+    this.persistent = this.storage.probe();
+  }
+
+  /** Stored progress can be read (false: no storage at all, everything is in memory). */
+  get readable(): boolean {
+    return this.storage.readable;
   }
 
   private loadMigrated(): Migrated {
-    return migrate(parse(safeGet(this.backend, this.key)), this.course);
+    return migrate(parse(this.storage.get(this.key)), this.course);
   }
 
   read(): ProgressDoc {
@@ -390,9 +441,9 @@ export class ProgressStore {
 
   private write(doc: ProgressDoc, keys: string[]): boolean {
     if (this.readOnly) return false;
-    const ok = safeSet(this.backend, this.key, JSON.stringify(doc));
-    if (!ok) this.persistent = false;
-    if (ok && this.backend !== memoryBackend) void requestPersist();
+    const ok = this.storage.set(this.key, JSON.stringify(doc));
+    this.persistent = ok;
+    if (ok) void requestPersist();
     this.notify(keys);
     return ok;
   }
@@ -524,17 +575,17 @@ export class ProgressStore {
   // --- runtime state (never exported) ---
 
   session<T>(name: string): T | undefined {
-    const all = parse(safeGet(this.backend, this.sessionKey));
+    const all = parse(this.storage.get(this.sessionKey));
     return isObj(all) ? (all[name] as T | undefined) : undefined;
   }
 
   setSession(name: string, value: unknown): void {
-    const all = parse(safeGet(this.backend, this.sessionKey));
+    const all = parse(this.storage.get(this.sessionKey));
     const next: Raw = isObj(all) ? all : {};
     if (value === undefined || value === null) delete next[name];
     else next[name] = value;
-    if (Object.keys(next).length === 0) safeRemove(this.backend, this.sessionKey);
-    else safeSet(this.backend, this.sessionKey, JSON.stringify(next));
+    if (Object.keys(next).length === 0) this.storage.remove(this.sessionKey);
+    else this.storage.set(this.sessionKey, JSON.stringify(next));
   }
 
   // --- change notification ---
@@ -599,11 +650,10 @@ export function requestPersist(): Promise<boolean | null> {
 // --- theme ------------------------------------------------------------------------------
 
 export function getTheme(): Theme {
-  const b = browserBackend();
-  const v = b ? safeGet(b, THEME_KEY) : memory.get(THEME_KEY);
+  const v = browserStorage().get(THEME_KEY);
   return v === 'light' || v === 'dark' ? v : 'system';
 }
 
 export function setTheme(theme: Theme): void {
-  safeSet(browserBackend() ?? memoryBackend, THEME_KEY, theme);
+  browserStorage().set(THEME_KEY, theme);
 }

@@ -120,6 +120,42 @@ test('sk-export: export downloads the progress file, import merges a file', asyn
   await expect(ex.locator('.sk-export-status')).toHaveClass(/is-bad/);
 });
 
+test('full storage: stored progress stays visible and exportable, new progress lives for the page', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-10T12:00:00') });
+  await seed(page, ITEMS);
+  await page.goto('/progress.html');
+  // Another site on the same origin (localhost:4321) uses up the quota.
+  const probeOk = await page.evaluate(() => {
+    let chunk = 'x'.repeat(1 << 20);
+    for (let i = 0; chunk.length > 0; ) {
+      try {
+        localStorage.setItem(`filler-${i++}`, chunk);
+      } catch {
+        chunk = chunk.slice(0, chunk.length / 2);
+      }
+    }
+    try {
+      localStorage.setItem('studykit:probe', '1');
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  expect(probeOk).toBe(false);
+  await page.reload();
+  const p = page.locator('sk-progress');
+  await expect(p.locator('.sk-stats')).toContainText('5 answers');
+  await expect(page.locator('.sk-export-note')).toContainText('storage for this site is full');
+  await page.locator('sk-plan').getByRole('checkbox').first().check(); // only in memory
+  await expect(page.locator('sk-plan').getByRole('checkbox').first()).toBeChecked();
+
+  const download = page.waitForEvent('download');
+  await page.locator('sk-export').getByRole('button', { name: 'Export progress' }).click();
+  const data = JSON.parse(await readFile((await (await download).path()) ?? '', 'utf8'));
+  expect(Object.keys(data.items).sort()).toEqual([...Object.keys(ITEMS), 'plan:s-2026-11-02-a'].sort());
+  expect(data.items['plan:s-2026-11-02-a']).toEqual({ done: true });
+});
+
 test('sk-theme: light, dark and system are stored and applied', async ({ page }) => {
   await page.goto('/progress.html');
   const theme = page.locator('sk-theme');

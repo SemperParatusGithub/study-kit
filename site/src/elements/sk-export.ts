@@ -60,7 +60,9 @@ export class SkExport extends HTMLElement {
         note),
     );
     if (!store.persistent) {
-      note.textContent = 'This browser does not let the site store progress. Export it before you close the page.';
+      note.textContent = store.readable
+        ? 'The browser’s storage for this site is full, so new progress is kept only while this page is open. Export it before you close the page.'
+        : 'This browser does not let the site store progress. Export it before you close the page.';
       return;
     }
     void requestPersist().then((granted) => {

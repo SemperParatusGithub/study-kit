@@ -244,8 +244,36 @@ test('storage failures fall back to memory without throwing', () => {
   assert.deepEqual(b.get('plan:a'), { done: true });
   const none = new ProgressStore('n', null);
   assert.equal(none.persistent, false);
+  assert.equal(none.readable, false);
   none.setPlanDone('a', true);
   assert.deepEqual(none.get('plan:a'), { done: true });
+});
+
+test('full storage: stored progress stays readable, failed writes stay visible, export has both', () => {
+  const fake = new FakeStorage();
+  const before = new ProgressStore('mini', fake);
+  before.recordMc('mc-a-001', { h: 'abcdef12', chosen: ['A'], score: 1, conf: 'sure', ms: 5 }, { today: '2026-11-02' });
+  fake.failWrites = true; // the origin's quota is used up (e.g. by another site on localhost)
+
+  const s = new ProgressStore('mini', fake); // the next page load
+  assert.equal(s.persistent, false);
+  assert.equal(s.readable, true);
+  assert.equal(s.get<McEntry>('mc:mc-a-001')?.box, 2);
+  s.setPlanDone('s-1', true);
+  s.recordMc('mc-a-001', { chosen: ['B'], score: 0, conf: 'sure', ms: 5 }, { today: '2026-11-05' });
+  assert.deepEqual(s.get('plan:s-1'), { done: true });
+  assert.equal(s.get<McEntry>('mc:mc-a-001')?.attempts.length, 2);
+  assert.deepEqual(Object.keys(JSON.parse(s.exportFile().text).items).sort(), ['mc:mc-a-001', 'plan:s-1']);
+  // the stored document is untouched; the session state works the same way
+  assert.equal((JSON.parse(fake.data.get(s.key) ?? '{}').items['mc:mc-a-001'] as McEntry).attempts.length, 1);
+  s.setSession('exam:e', { started: 'x' });
+  assert.deepEqual(s.session('exam:e'), { started: 'x' });
+
+  // once space is free again the next write stores everything
+  fake.failWrites = false;
+  s.setPlanDone('s-2', true);
+  assert.equal(s.persistent, true);
+  assert.deepEqual(Object.keys(JSON.parse(fake.data.get(s.key) ?? '{}').items).sort(), ['mc:mc-a-001', 'plan:s-1', 'plan:s-2']);
 });
 
 test('session state is separate from the exported document', () => {
