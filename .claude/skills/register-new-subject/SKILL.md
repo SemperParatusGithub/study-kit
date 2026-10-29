@@ -119,7 +119,7 @@ uv run --frozen studykit ingest init "$0" <c> --exam-date <date|unknown> --exam-
 ```
 
 Add `--exam-minutes` and `--exam-points` only when the context of a found exam date states
-them ("90 Minuten"). It copies the PDFs to `sources/raw/`, writes `sources/manifest.yaml`
+them ("90 Minuten"), also when the user typed another date for the same exam. It copies the PDFs to `sources/raw/`, writes `sources/manifest.yaml`
 with the round-1 answers and a draft `course.yaml`. Exit 1 stops with the findings.
 
 **Gate:** pipeline step 2 (`scaffold`) is `done`, and
