@@ -93,7 +93,14 @@ function courseIds(dir: string): string[] {
 
 async function syncAll(ctx: LoaderContext, dir: string): Promise<void> {
   const ids = courseIds(dir);
-  if (!ids.length) ctx.logger.warn(`no courses in ${dir} (set STUDYKIT_COURSES_DIR)`);
+  if (!ids.length) {
+    // A strict build without a course is a wrong STUDYKIT_COURSES_DIR, not an empty site.
+    const message =
+      `no courses in ${dir}: set STUDYKIT_COURSES_DIR to the directory that holds ` +
+      `<course>/course.yaml (a relative value is relative to site/; just makes it absolute)`;
+    if (strict()) throw new Error(message);
+    ctx.logger.warn(message);
+  }
   for (const key of ctx.store.keys()) {
     if (!ids.includes(key.split('/')[0])) ctx.store.delete(key);
   }
