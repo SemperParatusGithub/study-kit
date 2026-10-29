@@ -12,6 +12,17 @@ from studykit.figures import core, keypoints
 from studykit.figures.keypoints import Point
 from studykit.figures.palette import BG, FG, MUTED, color
 
+# The control and signal templates live in signals.py; scripts call them as plot.bode etc.
+from studykit.figures.signals import (
+    bode,
+    nyquist,
+    phasor,
+    pole_zero,
+    root_locus,
+    signals,
+    step_response,
+)
+
 MARKS = ("roots", "intersections", "extrema", "inflections")
 MARK_PREFIX = {"root": "N", "intersection": "S", "maximum": "H", "minimum": "T", "inflection": "W"}
 MARK_PREFIX_EN = {
@@ -191,4 +202,16 @@ class custom:
             self.figure = core.finish(self.fig, self.alt, self.facts)
 
 
-__all__ = ["MARKS", "MUTED", "custom", "functions"]
+__all__ = [
+    "MARKS",
+    "MUTED",
+    "bode",
+    "custom",
+    "functions",
+    "nyquist",
+    "phasor",
+    "pole_zero",
+    "root_locus",
+    "signals",
+    "step_response",
+]
