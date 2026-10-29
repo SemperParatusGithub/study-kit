@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
 from datetime import date
 
 import pytest
@@ -23,6 +26,58 @@ def test_committed_schemas_match_the_models():
     assert sorted(p.name for p in out_dir.glob("*.schema.json")) == sorted(wanted)
     for name, text in wanted.items():
         assert (out_dir / name).read_text() == text, f"run `studykit schema export` ({name})"
+
+
+def _schema_patterns() -> list[str]:
+    found: list[str] = []
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "pattern" and isinstance(value, str):
+                    found.append(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    for path in sorted((REPO / "schemas").glob("*.schema.json")):
+        walk(json.loads(path.read_text()))
+    return sorted(set(found))
+
+
+# Python-only regex syntax that ECMA-262 (JSON Schema `pattern`) rejects or reads differently.
+PYTHON_ONLY = ("(?P<", "(?P=", "(?#", "\\A", "\\Z", "(?i", "(?m", "(?s", "(?x", "(?a")
+
+
+def test_schema_patterns_avoid_python_only_syntax():
+    patterns = _schema_patterns()
+    assert patterns
+    bad = [p for p in patterns if any(token in p for token in PYTHON_ONLY)]
+    assert bad == []
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def test_schema_patterns_compile_as_ecma_regexes():
+    # ajv (and yaml-language-server) compile `pattern` with the `u` flag.
+    script = (
+        "const ps = JSON.parse(require('fs').readFileSync(0, 'utf8'));"
+        "const bad = [];"
+        "for (const p of ps) {"
+        "  try { new RegExp(p, 'u'); } catch (e) { bad.push(p + ': ' + e.message); }"
+        "}"
+        "process.stdout.write(JSON.stringify(bad));"
+    )
+    patterns = _schema_patterns()
+    proc = subprocess.run(
+        ["node", "-e", script],
+        input=json.dumps(patterns),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert json.loads(proc.stdout) == []
 
 
 def test_schema_export_check_passes(capsys, monkeypatch):

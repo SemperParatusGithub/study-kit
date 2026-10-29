@@ -19,7 +19,7 @@
         "ref": {
           "anyOf": [
             {
-              "pattern": "^(?P<scheme>ex|mc|topic|exam|src|fig):(?P<target>\\S+)$",
+              "pattern": "^(ex|mc|topic|exam|src|fig):(\\S+)$",
               "type": "string"
             },
             {
@@ -32,7 +32,7 @@
         "refs": {
           "default": [],
           "items": {
-            "pattern": "^(?P<scheme>ex|mc|topic|exam|src|fig):(?P<target>\\S+)$",
+            "pattern": "^(ex|mc|topic|exam|src|fig):(\\S+)$",
             "type": "string"
           },
           "title": "Refs",

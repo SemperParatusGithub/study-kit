@@ -64,7 +64,9 @@ EXAMPLES = {
     "task-file": "01-pk1-t1.md",
 }
 MC_ID_RE = re.compile(rf"^mc-(?P<topic>{KEBAB})-(?P<num>[0-9]{{3}})$")
-REF_RE = re.compile(r"^(?P<scheme>ex|mc|topic|exam|src|fig):(?P<target>\S+)$")
+# Patterns that end up in schemas/*.json must also be valid ECMA-262 regexes (editors and
+# JS validators read them), so they use plain groups, never Python's (?P<name>…).
+REF_RE = re.compile(r"^(ex|mc|topic|exam|src|fig):(\S+)$")
 MC_TYPES = ("single", "multi", "kprim")
 
 
@@ -196,9 +198,7 @@ def _check_label(value: str) -> str:
 
 Label = Annotated[Text, AfterValidator(_check_label)]
 
-DATE_RANGE_RE = re.compile(
-    r"^(?P<a>[0-9]{4}-[0-9]{2}-[0-9]{2})(?:\.\.(?P<b>[0-9]{4}-[0-9]{2}-[0-9]{2}))?$"
-)
+DATE_RANGE_RE = re.compile(r"^([0-9]{4}-[0-9]{2}-[0-9]{2})(?:\.\.([0-9]{4}-[0-9]{2}-[0-9]{2}))?$")
 
 
 def _check_range(value: str) -> str:
@@ -207,8 +207,8 @@ def _check_range(value: str) -> str:
     if not m:
         raise sk_error("SK-SCHEMA-VALUE", f"invalid blocked period '{value}'", fix)
     try:
-        start = date.fromisoformat(m["a"])
-        end = date.fromisoformat(m["b"] or m["a"])
+        start = date.fromisoformat(m[1])
+        end = date.fromisoformat(m[2] or m[1])
     except ValueError as exc:
         raise sk_error("SK-SCHEMA-VALUE", f"invalid date in '{value}'", fix) from exc
     if end < start:
