@@ -20,11 +20,13 @@
 //    formula sheet) and the time a reload or a closed tab took. The attempt is saved as
 //    exam:<id> and updated while grading. Without JS the tasks and solutions are plain
 //    content.
+// The exam's own text (cover, bar, dialog, rubric, result) is English; tasks, aids, task
+// titles and rubric criteria keep the course language.
 
 import { examPartPoints, examPoints, gradeEstimate, multiRule, type MultiRule } from '../lib/scoring.ts';
 import type { ExamEntry } from '../lib/store.ts';
 import type { McSelection, SkMc } from './sk-mc.ts';
-import { clock, duration, emit, h, parseJson, percent, pts, renderInline, storeOf, uid } from './util.ts';
+import { clock, duration, emit, h, langs, parseJson, percent, pts, renderInline, storeOf, uid } from './util.ts';
 
 interface RubricItem {
   criterion: string;
@@ -92,6 +94,9 @@ export class SkExam extends HTMLElement {
   private headSize: ResizeObserver | null = null;
   private session: ExamSession | null = null;
   private announceTimeUp = false;
+  /** lang for the exam's own (English) text and for course text inside it. */
+  private ui: string | undefined;
+  private content: string | undefined;
   private onBeforeUnload = (e: BeforeUnloadEvent) => {
     e.preventDefault();
     // older browsers only warn when returnValue is set (deprecated, so set it untyped)
@@ -135,6 +140,8 @@ export class SkExam extends HTMLElement {
     this.rule = multiRule(this.dataset.mcScoring ?? body.mcScoring);
     this.negative = (this.dataset.negativeMarking ?? body.negativeMarking) === 'true';
 
+    ({ ui: this.ui, content: this.content } = langs(this));
+    if (this.ui) this.head.lang = this.ui;
     this.body.append(...this.childNodes);
     this.append(this.head, this.body);
     this.alertEl.hidden = true;
@@ -238,7 +245,7 @@ export class SkExam extends HTMLElement {
           fact('Contents', parts.join(', '))),
         h('h3', {}, 'Allowed aids'),
         this.aids.length
-          ? h('ul', { class: 'sk-exam-aids' }, ...this.aids.map((a) => h('li', {}, a)))
+          ? h('ul', { class: 'sk-exam-aids', lang: this.content }, ...this.aids.map((a) => h('li', {}, a)))
           : h('p', {}, 'No aids.'),
         h('h3', {}, 'How it works'),
         h('ul', { class: 'sk-exam-rules' },
@@ -407,7 +414,7 @@ export class SkExam extends HTMLElement {
 
   private confirmSubmit(trigger: HTMLElement): void {
     const left = this.left();
-    const dialog = h('dialog', { class: 'sk-dialog', 'aria-labelledby': uid('dlg') });
+    const dialog = h('dialog', { class: 'sk-dialog', lang: this.ui, 'aria-labelledby': uid('dlg') });
     const yes = h('button', { type: 'button', class: 'sk-btn sk-btn-primary' }, 'Submit now');
     const no = h('button', { type: 'button', class: 'sk-btn' }, 'Keep working');
     dialog.append(
@@ -483,7 +490,7 @@ export class SkExam extends HTMLElement {
     this.restoreMc();
     for (const m of this.mcs) if (!m.result) m.grade(this.rule, this.mcEach, this.negative);
     if (this.mcEl && !this.mcEl.querySelector('.sk-exam-mc-total')) {
-      this.mcEl.append(h('p', { class: 'sk-exam-mc-total' }));
+      this.mcEl.append(h('p', { class: 'sk-exam-mc-total', lang: this.ui }));
     }
     for (const t of this.tasks) this.renderRubric(t);
     this.renderResult();
@@ -494,14 +501,14 @@ export class SkExam extends HTMLElement {
     const checked = new Set(this.session?.rubric?.[t.id] ?? []);
     const legendId = uid('rubric');
     t.output = h('output', { class: 'sk-rubric-total' });
-    const fs = h('fieldset', { class: 'sk-rubric', 'aria-labelledby': legendId },
+    const fs = h('fieldset', { class: 'sk-rubric', lang: this.ui, 'aria-labelledby': legendId },
       h('legend', { id: legendId }, `Grade this task (${pts(t.points)} points)`));
     if (t.rubric.length === 0) {
       fs.append(h('p', {}, 'This task has no rubric.'));
     }
     t.rubric.forEach((r, i) => {
       const box = h('input', { type: 'checkbox', checked: checked.has(i), 'data-index': String(i) });
-      const text = h('span', { class: 'sk-rubric-criterion' });
+      const text = h('span', { class: 'sk-rubric-criterion', lang: this.content });
       renderInline(text, r.criterion, r.criterion_html);
       box.addEventListener('change', () => this.onRubric(t, fs));
       fs.append(h('label', { class: 'sk-rubric-item' }, box, h('span', { class: 'sk-rubric-points' }, `${pts(r.points)} P`), text));
@@ -551,7 +558,7 @@ export class SkExam extends HTMLElement {
     const passed = this.pass === null ? null : total >= this.pass;
     const graded = this.tasks.every((t) => (s.rubric?.[t.id]?.length ?? 0) > 0) || this.tasks.length === 0;
     const rows = [
-      ...this.tasks.map((t, i) => [`${i + 1}. ${t.title}`, points[t.id] ?? 0, t.points, s.task_ms?.[t.id] ?? 0] as const),
+      ...this.tasks.map((t, i) => [h('span', {}, `${i + 1}. `, h('span', { lang: this.content }, t.title)), points[t.id] ?? 0, t.points, s.task_ms?.[t.id] ?? 0] as const),
       ...(this.mcEl ? [['Multiple choice', points[MC_ID] ?? 0, this.mcPoints, s.task_ms?.[MC_ID] ?? 0] as const] : []),
     ];
     const retake = h('button', { type: 'button', class: 'sk-btn' }, 'Retake exam');

@@ -7,7 +7,7 @@
 // intercepted. Emits `sk:reveal` {item}. Without JS it is a plain <details>.
 
 import type { ExEntry } from '../lib/store.ts';
-import { emit, h, storeOf, uid } from './util.ts';
+import { emit, h, langs, storeOf, uid } from './util.ts';
 
 export class SkReveal extends HTMLElement {
   private ready = false;
@@ -56,7 +56,7 @@ export class SkReveal extends HTMLElement {
     const no = h('button', { type: 'button', class: 'sk-btn' }, 'Keep trying');
     this.panel = h(
       'div',
-      { class: 'sk-reveal-confirm', role: 'group', 'aria-labelledby': textId },
+      { class: 'sk-reveal-confirm', lang: langs(this).ui, role: 'group', 'aria-labelledby': textId },
       h('p', { id: textId },
         h('strong', {}, 'Tried it? '),
         'The solution helps most after your own attempt, even an incomplete one.'),

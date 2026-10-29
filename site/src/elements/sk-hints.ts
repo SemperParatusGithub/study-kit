@@ -8,7 +8,7 @@
 // for review, a new attempt starts with every hint closed again (store.exHints). Without JS
 // the hints are plain collapsible <details>.
 
-import { emit, examDate, h, hashOf, isPrinting, storeOf } from './util.ts';
+import { emit, examDate, h, hashOf, isPrinting, langs, storeOf } from './util.ts';
 
 export class SkHints extends HTMLElement {
   private ready = false;
@@ -47,7 +47,7 @@ export class SkHints extends HTMLElement {
     this.button = h('button', { type: 'button', class: 'sk-btn' });
     this.status = h('p', { class: 'sk-hints-status', role: 'status' });
     this.button.addEventListener('click', () => this.revealNext());
-    this.append(h('div', { class: 'sk-hints-bar' }, this.button, this.status));
+    this.append(h('div', { class: 'sk-hints-bar', lang: langs(this).ui }, this.button, this.status));
     this.render(false);
   }
 

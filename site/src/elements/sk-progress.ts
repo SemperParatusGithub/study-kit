@@ -24,7 +24,7 @@ import {
   type TopicStat,
 } from '../lib/stats.ts';
 import type { ExamEntry, ExEntry, McEntry } from '../lib/store.ts';
-import { courseOf, duration, examDate, h, parseJson, percent, pts, storeFor, today } from './util.ts';
+import { courseOf, duration, examDate, h, langs, parseJson, percent, pts, storeFor, today } from './util.ts';
 
 export { RECENT };
 
@@ -52,6 +52,8 @@ function examMeta(raw: unknown): Record<string, ExamMeta> {
 export class SkProgress extends HTMLElement {
   private ready = false;
   private unsubscribe: (() => void) | null = null;
+  /** lang for topic and exam titles (the element's own text is English). */
+  private content: string | undefined;
 
   private get course(): string {
     return this.dataset.course || courseOf(this);
@@ -65,6 +67,9 @@ export class SkProgress extends HTMLElement {
   connectedCallback(): void {
     if (!this.ready) {
       this.ready = true;
+      const lang = langs(this);
+      this.content = lang.content;
+      if (lang.ui) this.lang = lang.ui;
       this.classList.add('sk-progress-ready');
     }
     this.unsubscribe ??= storeFor(this.course).subscribe(() => this.render());
@@ -124,12 +129,12 @@ export class SkProgress extends HTMLElement {
         `Mastery averages how many of each topic's last ${RECENT} answers were right, weighted by the topic's share of the exam; topics not started count as 0.`),
       h('h3', {}, 'Topics'),
       topics.length
-        ? h('ul', { class: 'sk-topic-list' }, ...stats.map((s) => topicRow(s)))
+        ? h('ul', { class: 'sk-topic-list' }, ...stats.map((s) => topicRow(s, this.content)))
         : h('p', { class: 'sk-muted' }, 'No topics.'),
       h('h3', {}, 'Sure or unsure?'),
       calibration(sure, unsure),
       h('h3', {}, 'Mock exams'),
-      examTable(examRows, exams),
+      examTable(examRows, exams, this.content),
     );
   }
 }
@@ -164,7 +169,7 @@ function meter(value: number | null, label: string): HTMLElement {
     h('span', { class: 'sk-meter-fill', style: `width:${((value ?? 0) * 100).toFixed(1)}%` }));
 }
 
-function topicRow(s: TopicStat): HTMLElement {
+function topicRow(s: TopicStat, lang: string | undefined): HTMLElement {
   const acc = s.accuracy;
   const meta = s.answered
     ? [
@@ -174,7 +179,7 @@ function topicRow(s: TopicStat): HTMLElement {
       ].filter(Boolean).join(' · ')
     : 'not started';
   return h('li', { class: `sk-topic${acc === null ? ' is-empty' : ''}` },
-    h('span', { class: 'sk-topic-name' }, s.title),
+    h('span', { class: 'sk-topic-name', lang }, s.title),
     meter(acc, acc === null ? `${s.title}: not started` : `${s.title}: ${percent(acc)} right`),
     h('span', { class: 'sk-topic-value' }, acc === null ? '–' : percent(acc)),
     h('span', { class: 'sk-topic-meta' }, meta));
@@ -207,6 +212,7 @@ function calibration(sure: number[], unsure: number[]): HTMLElement {
 function examTable(
   rows: Array<{ id: string; started: string; total: number; duration_s: number }>,
   exams: Record<string, ExamMeta>,
+  lang: string | undefined,
 ): HTMLElement {
   if (rows.length === 0) return h('p', { class: 'sk-muted' }, 'No mock exam taken yet.');
   rows.sort((a, b) => (a.started < b.started ? 1 : -1));
@@ -217,7 +223,7 @@ function examTable(
     h('tbody', {}, ...rows.map((r) => {
       const max = exams[r.id]?.points;
       return h('tr', {},
-        h('th', { scope: 'row' }, exams[r.id]?.title ?? r.id),
+        h('th', { scope: 'row', lang }, exams[r.id]?.title ?? r.id),
         h('td', {}, new Date(r.started).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })),
         h('td', { class: 'sk-num' }, max ? `${pts(r.total)} / ${pts(max)}` : pts(r.total)),
         h('td', { class: 'sk-num' }, duration(r.duration_s * 1000)));

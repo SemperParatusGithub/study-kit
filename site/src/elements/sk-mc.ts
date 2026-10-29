@@ -21,6 +21,8 @@
 // misconceived item out of its box. Keyboard: 1–6 choose (Kprim: cycle true/false), S/U
 // sure or unsure, Enter check, N next (`sk:next`, cancelable; otherwise focus the next
 // question).
+// The element's own text is English (lang="en" where the question is in another language);
+// stem, options, whys and explanation keep the course language.
 
 import { dayOf, type Conf } from '../lib/leitner.ts';
 import { LETTERS, optionOrder } from '../lib/shuffle.ts';
@@ -42,6 +44,7 @@ import {
   h,
   hashOf,
   isTyping,
+  langs,
   pts,
   relativeDay,
   storeOf,
@@ -112,6 +115,8 @@ export class SkMc extends HTMLElement {
   private note: HTMLElement | null = null;
   private explanation: HTMLElement | null = null;
   private startedAt: number | null = null;
+  /** lang for the element's own (English) text, when the question is in another language. */
+  private ui: string | undefined;
   /** The solution (whys, explanation) has been shown on this page. */
   private seenSolution = false;
 
@@ -150,6 +155,8 @@ export class SkMc extends HTMLElement {
     this.explanation = this.querySelector<HTMLElement>(':scope > .sk-explanation');
 
     stem.id ||= uid('stem');
+    this.ui = langs(this).ui;
+    const ui = this.ui;
     this.setAttribute('role', 'group');
     this.setAttribute('aria-labelledby', stem.id);
     this.tabIndex = -1;
@@ -158,7 +165,7 @@ export class SkMc extends HTMLElement {
     const difficulty = Number(this.dataset.difficulty);
     const head = h(
       'div',
-      { class: 'sk-mc-head' },
+      { class: 'sk-mc-head', lang: ui },
       h('span', { class: 'sk-mc-type' }, TYPE_LABEL[this.type]),
       difficulty >= 1 && difficulty <= 4
         ? h(
@@ -169,11 +176,11 @@ export class SkMc extends HTMLElement {
           )
         : null,
     );
-    this.note = h('p', { class: 'sk-mc-note', hidden: true });
+    this.note = h('p', { class: 'sk-mc-note', lang: ui, hidden: true });
     this.insertBefore(head, stem);
     this.insertBefore(this.note, stem);
 
-    const instr = h('p', { class: 'sk-mc-instr', id: uid('instr') }, INSTRUCTIONS[this.type]);
+    const instr = h('p', { class: 'sk-mc-instr', id: uid('instr'), lang: ui }, INSTRUCTIONS[this.type]);
     const list = h('div', {
       class: `sk-mc-options sk-mc-${this.type}`,
       role: this.type === 'single' ? 'radiogroup' : 'group',
@@ -194,11 +201,11 @@ export class SkMc extends HTMLElement {
 
     this.checkBtn = h('button', { type: 'button', class: 'sk-btn sk-btn-primary' }, 'Check');
     this.retryBtn = h('button', { type: 'button', class: 'sk-btn', hidden: true }, 'Try again');
-    this.status = h('p', { class: 'sk-mc-status', id: uid('status'), 'aria-live': 'polite' });
+    this.status = h('p', { class: 'sk-mc-status', id: uid('status'), lang: ui, 'aria-live': 'polite' });
     this.checkBtn.setAttribute('aria-describedby', this.status.id);
     const actions = h(
       'div',
-      { class: 'sk-mc-actions' },
+      { class: 'sk-mc-actions', lang: ui },
       this.mode === 'practice' ? this.checkBtn : null,
       this.retryBtn,
       this.mode === 'exam'
@@ -210,12 +217,12 @@ export class SkMc extends HTMLElement {
               ? [h('kbd', {}, 'Enter'), '/', h('kbd', {}, 'N'), ' next']
               : [h('kbd', {}, 'Enter'), ' check · ', h('kbd', {}, 'N'), ' next'])),
     );
-    this.feedback = h('div', { class: 'sk-mc-feedback', role: 'status', tabindex: '-1' });
+    this.feedback = h('div', { class: 'sk-mc-feedback', lang: ui, role: 'status', tabindex: '-1' });
     this.insertBefore(actions, this.explanation);
     this.insertBefore(this.status, this.explanation);
     this.insertBefore(this.feedback, this.explanation);
     if (this.explanation && !this.explanation.querySelector(':scope > .sk-mc-expl-title')) {
-      this.explanation.prepend(h('p', { class: 'sk-mc-expl-title' }, 'Explanation'));
+      this.explanation.prepend(h('p', { class: 'sk-mc-expl-title', lang: ui }, 'Explanation'));
     }
 
     this.checkBtn.addEventListener('click', () => this.submit());
@@ -234,13 +241,14 @@ export class SkMc extends HTMLElement {
     const why = el.querySelector<HTMLElement>(':scope > .sk-why');
     const letterEl = h('span', { class: 'sk-opt-letter', id: uid('letter') }, letter);
     const textId = text ? (text.id ||= uid('opt')) : '';
-    const mark = h('p', { class: 'sk-opt-mark', hidden: true });
+    const mark = h('p', { class: 'sk-opt-mark', lang: this.ui, hidden: true });
     el.classList.add('sk-opt');
     el.dataset.letter = letter;
     const opt: Opt = { key, correct: el.dataset.correct === 'true', el, why, mark, inputs: [] };
     if (this.type === 'kprim') {
       const group = h('span', {
         class: 'sk-kprim',
+        lang: this.ui,
         role: 'radiogroup',
         'aria-labelledby': `${letterEl.id} ${textId}`,
       });
@@ -277,7 +285,7 @@ export class SkMc extends HTMLElement {
   }
 
   private buildConfidence(): HTMLElement {
-    const fs = h('fieldset', { class: 'sk-mc-conf' }, h('legend', {}, 'How sure are you?'));
+    const fs = h('fieldset', { class: 'sk-mc-conf', lang: this.ui }, h('legend', {}, 'How sure are you?'));
     for (const [value, label] of [['sure', 'Sure'], ['unsure', 'Unsure']] as const) {
       const input = h('input', { type: 'radio', name: `${this.name}-conf`, value });
       this.confInputs.push(input);

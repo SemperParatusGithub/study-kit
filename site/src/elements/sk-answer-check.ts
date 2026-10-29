@@ -11,7 +11,7 @@
 
 import { check, parseAnswers, toleranceHint, type AnswerSpec } from '../lib/answer.ts';
 import type { ExEntry } from '../lib/store.ts';
-import { emit, h, hashOf, renderInline, storeOf, uid } from './util.ts';
+import { emit, h, hashOf, langs, renderInline, storeOf, uid } from './util.ts';
 
 interface Row {
   spec: AnswerSpec;
@@ -34,11 +34,12 @@ export class SkAnswerCheck extends HTMLElement {
     const answers = parseAnswers(this.dataset.answers);
     if (answers.length === 0) return;
     const titleId = uid('check');
-    const form = h('form', { class: 'sk-check', novalidate: true, 'aria-labelledby': titleId });
+    const lang = langs(this);
+    const form = h('form', { class: 'sk-check', lang: lang.ui, novalidate: true, 'aria-labelledby': titleId });
     form.append(h('p', { class: 'sk-check-title', id: titleId }, answers.length > 1 ? 'Check your answers' : 'Check your answer'));
     for (const spec of answers) {
       const id = uid('answer');
-      const label = h('label', { class: 'sk-check-label', for: id });
+      const label = h('label', { class: 'sk-check-label', for: id, lang: lang.content });
       renderInline(label, spec.label || spec.key, spec.label_html);
       const hintId = uid('hint');
       const hint = spec.expr

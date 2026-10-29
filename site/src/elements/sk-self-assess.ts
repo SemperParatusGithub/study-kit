@@ -7,7 +7,7 @@
 // the hints of the rating before it no longer count (store.exHints).
 
 import { HINT_CAP, type ExEntry, type Rating } from '../lib/store.ts';
-import { contentChanged, examDate, h, hashOf, relativeDay, storeOf, uid } from './util.ts';
+import { contentChanged, examDate, h, hashOf, langs, relativeDay, storeOf, uid } from './util.ts';
 
 const CHOICES: ReadonlyArray<readonly [Rating, string]> = [
   ['solved', 'Solved'],
@@ -51,7 +51,7 @@ export class SkSelfAssess extends HTMLElement {
     this.status = h('p', { class: 'sk-assess-status', role: 'status' });
     this.changed = h('p', { class: 'sk-assess-changed', hidden: true }, 'Content changed since your attempt.');
     this.append(
-      h('div', { class: 'sk-assess' },
+      h('div', { class: 'sk-assess', lang: langs(this).ui },
         h('p', { class: 'sk-assess-title', id: titleId }, 'How did it go?'),
         group, this.note, this.changed, this.status),
     );
