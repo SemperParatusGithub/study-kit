@@ -754,6 +754,91 @@ def test_typst_mcq_answer_key_modes(workdir):
         assert typ.count(f'answers: "{mode}"') == 3
 
 
+def test_typst_formulas_set_apart_with_qquad_become_rows(workdir):
+    doc = document("summary/02-rc-filter.md", workdir)
+    typ = pandoc.convert("$$\na = 1, \\qquad b = \\frac{1}{2}\n$$\n", doc, "typst")
+    assert "#sk-formulas($ a = 1\\, $, $ b = 1 / 2 $)" in typ
+    compile_typst(typ, workdir, "formulas-qquad")
+    # a \qquad inside braces or \left…\right is part of one formula
+    for tex in ("\\left( a \\qquad b \\right)", "x_{a \\qquad b}"):
+        assert "#sk-formulas(" not in pandoc.convert(f"$$\n{tex}\n$$\n", doc, "typst")
+
+
+def test_typst_link_text_that_is_the_title_names_no_target(workdir):
+    doc = document("summary/02-rc-filter.md", workdir)
+    typ = pandoc.convert(
+        "Siehe [belasteter Spannungsteiler](ex:ex-spannungsteiler).\n", doc, "typst"
+    )
+    assert "Siehe belasteter Spannungsteiler." in typ and "→" not in typ
+
+
+def assembled(markdown: str, workdir: Path, kind: str = "exercises") -> str:
+    """Typst of an assembled PDF document (lib/document.lua), as `studykit pdf` runs it."""
+    source = workdir / f"assembled-{kind}.md"
+    source.write_text(markdown, encoding="utf-8")
+    doc = dataclasses.replace(document("_build/typ/x.md", workdir), doc=kind)
+    return pandoc.run_file(source, doc, "typst")
+
+
+def part(rel: str, first_line: int, **attrs: str) -> str:
+    body = pandoc.blank_frontmatter((OK / rel).read_text(encoding="utf-8"))
+    body_lines = body.split("\n")[first_line - 1 :]
+    extra = "".join(f' {k}="{v}"' for k, v in attrs.items())
+    return "\n".join(
+        [f':::::: {{.sk-part file="{rel}" first="{first_line}"{extra}}}', *body_lines, "::::::"]
+    )
+
+
+def test_assembled_documents_carry_the_metadata_and_are_typst_only(workdir):
+    doc = dataclasses.replace(document("_build/typ/x.md", workdir), doc="mc")
+    args = pandoc.argv(doc, "typst", log=workdir / "log.json")
+    assert "sk-doc=mc" in args and args[args.index("--log") + 1].endswith("log.json")
+    with pytest.raises(ValueError):
+        pandoc.argv(doc, "html")
+
+
+def test_assembled_exercises_put_hints_solutions_and_results_in_the_appendix(workdir):
+    rel = "exercises/rc-filter/ex-rc-tp-grenzfrequenz.md"
+    first = pandoc.blank_frontmatter((OK / rel).read_text()).split("\n").index("") + 1
+    md = "\n\n".join(
+        [
+            '::: {.sk-gen fn="info"}\n```json\n{"kind": "exercises", "title": "Übungen"}\n```\n:::',
+            "# 1 RC\\-Filter",
+            ":::::::: sk-unit\n\n## 1\\.1 Grenzfrequenz\n\n"
+            + part(rel, first, number="1.1", title="Grenzfrequenz")
+            + "\n\n::: sk-answers\n- $f_\\mathrm{g}$\n\n  1592 Hz\n:::\n\n::::::::",
+        ]
+    )
+    typ = assembled(md, workdir)
+    assert "#sk-info((" in typ and "labels: sk-l)" in typ
+    assert '#metadata("ex-rc-tp-grenzfrequenz") <ex-rc-tp-grenzfrequenz>' in typ
+    assert "#sk-unit[" in typ
+    hints = typ.index("#sk-appendix(title: [Hinweise])")
+    solutions = typ.index("#sk-appendix(title: [Lösungen])")
+    assert hints < typ.index("#sk-hint-entry(index: 2") < solutions
+    assert solutions < typ.index("#sk-answers(") and "1.1 Grenzfrequenz" in typ[hints:]
+    compile_typst(typ, workdir, "assembled-exercises")
+
+
+def test_assembled_parts_report_findings_in_their_course_file(workdir):
+    rel = "exercises/rc-filter/ex-rc-tp-grenzfrequenz.md"
+    text = (OK / rel).read_text().replace("::: hint", ":::: hint", 1)
+    lines = pandoc.blank_frontmatter(text).split("\n")
+    first = lines.index("") + 1
+    bad = next(i for i, ln in enumerate(lines, start=1) if ln == ":::: hint")
+    md = f':::::: {{.sk-part file="{rel}" lines="2-{len(lines) - first + 2}" first="{first}"}}\n'
+    md += "\n".join(lines[first - 1 :]) + "\n::::::\n"
+    with pytest.raises(pandoc.FilterError) as info:
+        assembled(md, workdir)
+    assert any(f.startswith(f"{rel}:{bad}:1 SK-BLOCK-FENCE") for f in info.value.findings)
+
+
+def test_assembled_documents_reject_unknown_generated_blocks(workdir):
+    with pytest.raises(pandoc.FilterError) as info:
+        assembled("::: sk-surprise\nx\n:::\n", workdir)
+    assert any(" SK-PANDOC-FAIL unknown generated block" in f for f in info.value.findings)
+
+
 # --- math denylist -----------------------------------------------------------------------
 
 # One sample formula per denylist token; the kind test runs them through both engines.
