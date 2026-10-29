@@ -77,25 +77,45 @@ def axis_label(quantity: str, unit: str | None = None) -> str:
     return f"${quantity}$ {sep} {unit}"
 
 
-class DecimalCommaFormatter(ticker.ScalarFormatter):
-    """ScalarFormatter that writes a decimal comma (German tick labels)."""
+class TickFormatter(ticker.ScalarFormatter):
+    """ScalarFormatter with an optional decimal comma and an optional blank tick at zero.
+
+    The blank zero is for axes that cross at the origin, where a 0 would sit on the other
+    axis.
+    """
+
+    def __init__(self, comma: bool, blank_zero: bool = False):
+        super().__init__(useMathText=True)
+        self.comma = comma
+        self.blank_zero = blank_zero
+
+    def _localize(self, text: str) -> str:
+        if not self.comma:
+            return text
+        return text.replace(".", "{,}") if "$" in text else text.replace(".", ",")
 
     def __call__(self, x, pos=None):
-        text = super().__call__(x, pos)
-        return text.replace(".", "{,}") if "$" in text else text.replace(".", ",")
+        span = max(map(abs, self.axis.get_view_interval())) if self.axis else 1.0
+        if self.blank_zero and abs(x) <= 1e-9 * span:
+            return ""
+        return self._localize(super().__call__(x, pos))
 
     def get_offset(self):
-        text = super().get_offset()
-        return text.replace(".", "{,}") if "$" in text else text.replace(".", ",")
+        return self._localize(super().get_offset())
 
 
-def apply_locale(ax) -> None:
-    """Use a decimal comma in tick labels when the course is German."""
-    if locale() != "de":
-        return
-    for axis in (ax.xaxis, ax.yaxis):
-        if type(axis.get_major_formatter()) is ticker.ScalarFormatter:
-            axis.set_major_formatter(DecimalCommaFormatter(useMathText=True))
+def apply_locale(ax, blank_zero: str = "") -> None:
+    """Decimal comma in tick labels for German courses.
+
+    blank_zero names the axes ('x', 'y' or 'xy') whose 0 tick label is left out because
+    the other axis crosses there.
+    """
+    comma = locale() == "de"
+    for name, axis in (("x", ax.xaxis), ("y", ax.yaxis)):
+        if type(axis.get_major_formatter()) is not ticker.ScalarFormatter:
+            continue
+        if comma or name in blank_zero:
+            axis.set_major_formatter(TickFormatter(comma, name in blank_zero))
 
 
 def finish(fig, alt: str, facts: dict | None = None) -> Figure:
