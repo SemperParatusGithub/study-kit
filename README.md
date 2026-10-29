@@ -38,12 +38,12 @@ your `PATH` (or use `.tools/bin/just`) to call `just` directly.
 | `just dev` | Renders the figures and serves the website at http://localhost:4321 |
 | `just build [course]` | Figures, validation, strict site build with search index, link check of `site/dist` |
 | `just doctor` | Checks every tool against `toolchain.toml` and reports how to fix mismatches |
-| `just validate [course]` | Checks a course (or all) against the content format; `--release` adds coverage |
+| `just validate [course]` | Checks a course (or all) against the content format; `--release` adds the site check (strict build, search index, type check, link check) and coverage |
 | `just lint <files>` | Quick check of edited course files, as the Claude Code hook runs it |
 | `just figures [course]` | Renders the figure scripts of a course |
-| `just test` | Python and Node unit tests, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
+| `just test` | Python and Node unit tests, the git hooks, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
 | `just e2e` | Playwright tests of the built sample course in Chromium (build it first, see below) |
-| `just ci` | The checks CI runs before the browser tests: `doctor`, `test`, a strict build of the sample course and its release validation |
+| `just ci` | `doctor`, `test`, a strict build of the sample course and its release validation (CI also runs `lint-code` and the browser tests) |
 | `just lint-code` | ruff lint and format check of the Python code |
 
 The website always runs on port 4321: progress lives in the browser's storage for that
@@ -71,10 +71,11 @@ arguments to `playwright test`, for example `just e2e --repeat-each 3`. `SK_E2E_
 the suite off port 4321 while a dev server holds it. Reports and traces are written to
 `site/node_modules/.cache/sk-e2e/`.
 
-CI runs `just ci` and then both browser suites, so the full local equivalent is:
+CI runs `just lint-code` and `just ci`, then both browser suites, so the full local
+equivalent is:
 
 ```bash
-just ci && pnpm -C site run test:elements && just e2e
+just lint-code && just ci && pnpm -C site run test:elements && just e2e
 ```
 
 ## Your course data stays local

@@ -21,7 +21,8 @@ before changing that area, and keep code and spec in sync.
 - Entry points: `just <recipe>`, `uv run --frozen studykit …`, `pnpm -C site …`.
   Run `just doctor` if a tool behaves unexpectedly.
 - Figures are code: write a script against `studykit.figures`, never hand-written SVG.
-- Never compute numbers in your head; use Python (`studykit calc`, SymPy, NumPy, SciPy).
+- Never compute numbers in your head; use Python (SymPy, NumPy, SciPy; `studykit calc`
+  comes with Phase 5).
 - Run `studykit validate` (or the narrowest `just` recipe that covers your change) before
   finishing.
 - Grep and Glob may skip the gitignored `courses/`; use `studykit ls` or explicit paths.
