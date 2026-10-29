@@ -85,7 +85,16 @@ def course_root(path: Path) -> Path | None:
 
 
 def blocked_path(path: Path) -> str | None:
-    """Why the verifier may not look at `path`, or None."""
+    """Why the verifier may not look at `path`, or None. A symlink is judged by its own
+    path and by the path it resolves to (`checks/up -> ..` must not open the items)."""
+    why = _blocked_lexically(path)
+    real = Path(os.path.realpath(path))
+    if why is None and real != path:
+        why = _blocked_lexically(real)
+    return why
+
+
+def _blocked_lexically(path: Path) -> str | None:
     parts = path.parts
     for a, b in SITE_PARTS:
         if any(parts[i : i + 2] == (a, b) for i in range(len(parts) - 1)):
@@ -255,7 +264,7 @@ def verifier_guard(payload: dict[str, Any]) -> dict[str, Any] | None:
         raw = data.get("file_path") or data.get("notebook_path")
         if not isinstance(raw, str) or not raw:
             return None
-        path = _resolve(raw, cwd)
+        path = Path(os.path.realpath(_resolve(raw, cwd)))  # where the write would land
         root = course_root(path.parent)
         if root is None or path.relative_to(root).parts[0] != "checks":
             return deny(

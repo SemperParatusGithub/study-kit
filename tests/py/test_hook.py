@@ -99,6 +99,22 @@ def test_guard_allows_the_blind_view_and_checks(repo: Path, path: str):
     assert decide("verifier-guard", event("Read", repo, file_path=path)) is None
 
 
+def test_guard_follows_symlinks(repo: Path):
+    checks = repo / C / "checks"
+    (checks / "up").symlink_to("..")
+    (checks / "key.md").symlink_to("../mc/rc.md")
+    for path in (f"{C}/checks/up/exercises/rc/ex-a.md", f"{C}/checks/key.md"):
+        assert decide("verifier-guard", event("Read", repo, file_path=path)), path
+    write = event("Write", repo, file_path=f"{C}/checks/up/mc/rc.md", content="x")
+    assert "writes only into a course's checks/" in decide("verifier-guard", write)
+    grep = event("Grep", repo, pattern="fg", path=f"{C}/checks/up/exams")
+    assert decide("verifier-guard", grep)
+    assert (
+        decide("verifier-guard", event("Read", repo, file_path=f"{C}/checks/up/course.yaml"))
+        is None
+    )
+
+
 def test_guard_on_grep_and_glob(repo: Path):
     course = repo / C
     assert decide("verifier-guard", event("Grep", repo, pattern="fg"))  # the repo has courses

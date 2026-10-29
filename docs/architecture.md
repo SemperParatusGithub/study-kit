@@ -1753,7 +1753,8 @@ the `just` recipes start them. No agent has memory, and only the verifier has a 
 - It denies Read, Grep and Glob on `exercises/`, `mc/` and `exams/`, and on what else holds
   keys or solutions: `state/`, `_history/`, `_build/` except `blind/` and the figure images,
   figure facts, the built site and `.cache/`; Grep and Glob over a tree that contains a
-  course, and Glob patterns or Grep globs that name those paths.
+  course, and Glob patterns or Grep globs that name those paths. A path is judged as written
+  and as it resolves, so a symlink into those directories is denied too.
 - It denies Bash commands that mention those paths (command substitution included), except
   `studykit` and `python checks/…`; of `studykit` only `blind`, `calc`, `verify` (without
   `--json` and `--show-key`, or a prefix of either; `verify` takes no abbreviated options),
