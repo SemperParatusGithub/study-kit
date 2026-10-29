@@ -8,6 +8,7 @@ $endif$
 #show: sk-doc.with(
   lang: "$if(sk-lang)$$sk-lang$$else$de$endif$",
   solutions: "$if(sk-solutions)$$sk-solutions$$else$appendix$endif$",
+  kind: "$if(sk-doc)$$sk-doc$$else$file$endif$",
 $if(title)$
   title: [$title$],
 $endif$
