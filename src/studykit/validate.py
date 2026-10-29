@@ -25,6 +25,7 @@ from studykit import findings as findings_mod
 from studykit import model, tools
 from studykit.content import (
     CODE_LANGUAGES,
+    MARKDOWN_KINDS,
     CourseTree,
     Doc,
     Formula,
@@ -215,7 +216,7 @@ LAYOUT_HINT = {
     "exams": "exams/<exam-id>/{exam.yaml, NN-<task-id>.md, mc.md}",
     "figures": "figures/<slug>.py",
     "analysis": "analysis/{exam-profile.yaml, notation.yaml}",
-    "sources": "sources/{manifest.yaml, outline.md}",
+    "sources": "sources/{manifest.yaml, chunks.yaml, outline.md, notes/<chunk>.md}",
 }
 
 
@@ -332,6 +333,26 @@ def _check_names(ctx: Context, doc: Doc) -> None:
             "SK-STRUCT-ID",
             f"id '{ident}' does not match the {where} '{expected_id}'",
             f"rename the {where} or set id: {expected_id} (ids are never renamed once used)",
+        )
+    if doc.kind == "notes" and isinstance(doc.get("chunk"), str):
+        chunk = doc.parts.get("chunk")
+        if doc.get("chunk") != chunk:
+            ctx.at_yaml(
+                doc,
+                ["chunk"],
+                "SK-STRUCT-PATH",
+                f"chunk '{doc.get('chunk')}' does not match the file name '{doc.path.name}'",
+                f"write the notes of chunk {doc.get('chunk')} to "
+                f"sources/notes/{doc.get('chunk')}.md, or set chunk: {chunk}",
+            )
+    course_id = doc.get("course")
+    if doc.kind == "manifest" and isinstance(course_id, str) and course_id != ctx.tree.id:
+        ctx.at_yaml(
+            doc,
+            ["course"],
+            "SK-STRUCT-ID",
+            f"course '{course_id}' does not match the directory '{ctx.tree.id}'",
+            f"set course: {ctx.tree.id}",
         )
     if doc.kind in {"summary", "exercise", "mc"} and isinstance(topic, str):
         expected = doc.parts.get("topic")
@@ -1234,6 +1255,9 @@ def _pandoc_ready(ctx: Context) -> str | None:
     return None
 
 
+PANDOC_KINDS = MARKDOWN_KINDS - {"notes"}
+
+
 @stage("Pandoc", "SK-PANDOC", 65, quick=True, requires=_pandoc_ready)
 def check_pandoc(ctx: Context) -> None:
     """Run the selected files through the Lua filters that build the site and the PDFs.
@@ -1252,6 +1276,8 @@ def check_pandoc(ctx: Context) -> None:
     scope = "file" if ctx.quick else "course"
     for doc in ctx.docs():
         if doc.body is None or doc.split.error or doc.display in failed:
+            continue
+        if doc.kind not in PANDOC_KINDS:  # ingest notes are never rendered
             continue
         try:
             pandoc.run_filtered(ctx.tree.root, doc.rel, "json", scope=scope)
@@ -1309,6 +1335,7 @@ def check_references(ctx: Context) -> None:
         _check_plan(ctx, plan, targets)
     for exam_doc in tree.of_kind("exam"):
         _check_exam_refs(ctx, exam_doc)
+    _check_ingest(ctx)
     archetypes = tree.archetypes
     tasks = [d for d in tree.of_kind("exam-task") if isinstance(d.get("archetype"), str)]
     if tasks and archetypes is None:
@@ -1323,6 +1350,105 @@ def check_references(ctx: Context) -> None:
                     f"archetype '{doc.get('archetype')}' is not in analysis/exam-profile.yaml",
                     f"use one of: {', '.join(sorted(archetypes)) or '(profile lists none)'}",
                 )
+
+
+def _check_ingest(ctx: Context) -> None:
+    """The ingest files agree: chunks and notes with the manifest and the chunk plan, the
+    exam profile with the manifest and the course's topics (§5.4)."""
+    tree = ctx.tree
+    sources = tree.sources
+    manifest = tree.get("sources/manifest.yaml")
+    hashes: dict[str, str] = {}
+    if manifest is not None and manifest.model is not None:
+        hashes = {d.id: d.sha256 for d in manifest.model.documents}
+    use = f"use one of: {', '.join(sources) or '(no sources/manifest.yaml yet)'}"
+    plan = tree.get("sources/chunks.yaml")
+    chunks = {c.id: c for c in plan.model.chunks} if plan and plan.model else {}
+    if plan is not None and plan.model is not None and plan in ctx.docs():
+        for i, chunk in enumerate(plan.model.chunks):
+            if chunk.doc not in sources:
+                ctx.at_yaml(
+                    plan,
+                    ["chunks", i, "doc"],
+                    "SK-REF-MISSING",
+                    f"chunk {chunk.id}: document '{chunk.doc}' is not in sources/manifest.yaml",
+                    "plan the chunks again with `studykit ingest extract <course>`",
+                )
+            elif chunk.doc in hashes and hashes[chunk.doc] != chunk.sha256:
+                ctx.at_yaml(
+                    plan,
+                    ["chunks", i, "sha256"],
+                    "SK-REF-CHUNK",
+                    f"chunk {chunk.id} was planned from an older version of '{chunk.doc}'",
+                    "run `studykit ingest extract <course>` to plan it again",
+                    "warning",
+                )
+    for doc in ctx.docs("notes"):
+        notes = doc.model
+        if notes is None:
+            continue
+        chunk = chunks.get(notes.chunk)
+        if chunk is None:
+            ctx.at_yaml(
+                doc,
+                ["chunk"],
+                "SK-REF-CHUNK",
+                f"chunk '{notes.chunk}' is not in sources/chunks.yaml",
+                "write notes only for the chunks of `studykit ingest extract` (their ids are "
+                "in sources/chunks.yaml)",
+            )
+            continue
+        expected = {"doc": chunk.doc, "pages": f"{chunk.first}-{chunk.last}"}
+        for key, value in expected.items():
+            if getattr(notes, key) != value:
+                ctx.at_yaml(
+                    doc,
+                    [key],
+                    "SK-REF-CHUNK",
+                    f"{key} '{getattr(notes, key)}' is not chunk {chunk.id}'s '{value}'",
+                    f"set {key}: {value}, as sources/chunks.yaml says",
+                )
+        if notes.source_sha256 != chunk.sha256:
+            ctx.at_yaml(
+                doc,
+                ["source_sha256"],
+                "SK-REF-CHUNK",
+                f"the notes of {chunk.id} were written for another version of '{chunk.doc}'",
+                "read the chunk again and rewrite its notes (source_sha256 from "
+                "sources/chunks.yaml)",
+                "warning",
+            )
+    profile = tree.get("analysis/exam-profile.yaml")
+    if profile is None or profile.model is None or profile not in ctx.docs():
+        return
+    for i, exam in enumerate(profile.model.exams):
+        if exam not in sources:
+            ctx.at_yaml(
+                profile,
+                ["exams", i],
+                "SK-REF-MISSING",
+                f"past exam '{exam}' is not in sources/manifest.yaml",
+                use,
+            )
+    topics = tree.topics
+    if not topics or model.DRAFT_TOPIC in topics:
+        ctx.note("exam profile topics not checked: course.yaml has no topics yet")
+        return
+    refs: list[tuple[list, str]] = [
+        (["archetypes", i, "topic"], a.topic)
+        for i, a in enumerate(profile.model.archetypes)
+        if a.topic is not None
+    ]
+    refs += [(["topic_weights", t], t) for t in profile.model.topic_weights]
+    for loc, topic in refs:
+        if topic not in topics:
+            ctx.at_yaml(
+                profile,
+                loc,
+                "SK-REF-MISSING",
+                f"topic '{topic}' is not a topic of course.yaml",
+                f"use one of: {', '.join(topics)}",
+            )
 
 
 def _check_link(ctx: Context, doc: Doc, link, targets: dict, exam_mc: set[str]) -> None:

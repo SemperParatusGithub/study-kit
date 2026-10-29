@@ -1,5 +1,6 @@
 schema: 1
 confidence: low
+basis: course-description
 archetypes:
-  - {id: spannungsteiler-rechnung, share: 0.4}
-  - {id: bode-diagramm, share: 0.6}
+  - {id: spannungsteiler-rechnung, title: Belasteter Spannungsteiler, share: 0.4}
+  - {id: bode-diagramm, title: Bode-Diagramm eines RC-Glieds, share: 0.6}

@@ -1,0 +1,504 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Archetype": {
+      "additionalProperties": false,
+      "description": "A recurring kind of exam task: what mock exams are modelled on (§2.7).",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Title",
+          "type": "string"
+        },
+        "topic": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a course topic once synthesis wrote them",
+          "title": "Topic"
+        },
+        "share": {
+          "description": "share of the exam's points",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Share",
+          "type": "number"
+        },
+        "frequency": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "share of past exams that have it",
+          "title": "Frequency"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points"
+        },
+        "minutes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minutes"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\n]*\\S[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SourcePages"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "share"
+      ],
+      "title": "Archetype",
+      "type": "object"
+    },
+    "NotationRules": {
+      "additionalProperties": false,
+      "description": "Notation conventions the authors follow (§5.3 exam-analyst).",
+      "properties": {
+        "imaginary_unit": {
+          "anyOf": [
+            {
+              "enum": [
+                "j",
+                "i"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Imaginary Unit"
+        },
+        "phasor": {
+          "anyOf": [
+            {
+              "enum": [
+                "underline",
+                "bold",
+                "hat",
+                "arrow",
+                "plain"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phasor"
+        },
+        "phasor_magnitude": {
+          "anyOf": [
+            {
+              "enum": [
+                "rms",
+                "peak"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phasor Magnitude"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "enum": [
+                "epsilon",
+                "sigma",
+                "u",
+                "theta"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "unit step: epsilon(t), sigma(t), u(t) or theta(t)",
+          "title": "Step"
+        },
+        "decimal": {
+          "anyOf": [
+            {
+              "enum": [
+                "comma",
+                "point"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decimal"
+        }
+      },
+      "title": "NotationRules",
+      "type": "object"
+    },
+    "ProfileMc": {
+      "additionalProperties": false,
+      "properties": {
+        "present": {
+          "title": "Present",
+          "type": "boolean"
+        },
+        "share": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "share of the exam's points",
+          "title": "Share"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "questions per exam",
+          "title": "Count"
+        },
+        "types": {
+          "default": [],
+          "items": {
+            "enum": [
+              "single",
+              "multi",
+              "kprim"
+            ],
+            "type": "string"
+          },
+          "title": "Types",
+          "type": "array"
+        },
+        "type_mix": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "default": {},
+          "propertyNames": {
+            "enum": [
+              "single",
+              "multi",
+              "kprim"
+            ]
+          },
+          "title": "Type Mix",
+          "type": "object"
+        },
+        "scoring": {
+          "default": "all-or-nothing",
+          "enum": [
+            "all-or-nothing",
+            "partial",
+            "kprim"
+          ],
+          "title": "Scoring",
+          "type": "string"
+        },
+        "negative_marking": {
+          "default": false,
+          "title": "Negative Marking",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "present"
+      ],
+      "title": "ProfileMc",
+      "type": "object"
+    },
+    "SourcePages": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Doc",
+          "type": "string"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]+(?:-[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pages"
+        }
+      },
+      "required": [
+        "doc"
+      ],
+      "title": "SourcePages",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`analysis/exam-profile.yaml`, written by the exam-analyst (§5.3).",
+  "properties": {
+    "schema": {
+      "const": 1,
+      "title": "Schema",
+      "type": "integer"
+    },
+    "confidence": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "basis": {
+      "enum": [
+        "past-exams",
+        "course-description",
+        "user-answers"
+      ],
+      "title": "Basis",
+      "type": "string"
+    },
+    "exams": {
+      "default": [],
+      "description": "past exams analysed (sources/manifest.yaml)",
+      "items": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Exams",
+      "type": "array"
+    },
+    "format": {
+      "anyOf": [
+        {
+          "enum": [
+            "written",
+            "mc",
+            "oral",
+            "mixed"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Format"
+    },
+    "duration_min": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Duration Min"
+    },
+    "points": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Points"
+    },
+    "pass_points": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pass Points"
+    },
+    "minutes_per_point": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Minutes Per Point"
+    },
+    "aids": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "pattern": "^[^\\n]*\\S[^\\n]*$",
+        "type": "string"
+      },
+      "title": "Aids",
+      "type": "array"
+    },
+    "mc": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProfileMc"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "archetypes": {
+      "items": {
+        "$ref": "#/$defs/Archetype"
+      },
+      "minItems": 1,
+      "title": "Archetypes",
+      "type": "array"
+    },
+    "topic_weights": {
+      "default": {},
+      "patternProperties": {
+        "^[a-z0-9]+(?:-[a-z0-9]+)*$": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "title": "Topic Weights",
+      "type": "object"
+    },
+    "notation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NotationRules"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "notes": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "pattern": "^[^\\n]*\\S[^\\n]*$",
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "confidence",
+    "basis",
+    "archetypes"
+  ],
+  "title": "ExamProfile",
+  "type": "object"
+}

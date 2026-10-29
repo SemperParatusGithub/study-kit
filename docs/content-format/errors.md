@@ -20,15 +20,17 @@ that owns the file:
 | `course.yaml` | `/register-new-subject` scaffold and synthesis (main thread); `retired_ids` also by `/regenerate` |
 | `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part, started by `/regenerate` and `/verify`) |
 | `plan.yaml` | `studykit plan` (only `goal` and `note` are written by Claude afterwards) |
-| `analysis/exam-profile.yaml` | `exam-analyst` |
-| `sources/manifest.yaml` | `studykit ingest` |
+| `analysis/exam-profile.yaml`, `analysis/notation.yaml` | `exam-analyst` |
+| `sources/manifest.yaml`, `sources/chunks.yaml`, `sources/raw/`, `sources/text/` | `studykit ingest` |
+| `sources/notes/<chunk>.md` | `ingester` (one agent per chunk) |
+| `sources/outline.md` | `/register-new-subject` synthesis (main thread) |
 | `checks/`, `state/verify/` | `verifier` (blind) and `studykit verify` |
 | `progress/` | `studykit progress import`, `log` and `report` |
 
 The `author` and `verifier` agents and the `studykit plan`, `verify` and `progress` commands
-exist (Phase 5). `/register-new-subject`, `exam-analyst` and `studykit ingest` come with
-Phase 6; until then `course.yaml`, `analysis/exam-profile.yaml` and `sources/manifest.yaml`
-are written by hand.
+exist (Phase 5). `studykit ingest` and `studykit pipeline` come with Phase 6; the
+`ingester` and `exam-analyst` agents and `/register-new-subject` are being added in the
+same phase.
 
 Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
 `validate --quick`; References, Figures, Verification and PDF run in `validate`; Site and
@@ -56,7 +58,8 @@ Fix: create the file from its schema in `schemas/`, or remove the stray director
 ### `SK-STRUCT-PATH`
 **error.** A file is not where the layout (§2.1) expects it, its path disagrees with its
 `topic`, an exam task file is not listed in `exam.yaml`, `mc.md` exists without an `mc:`
-part, or a linted file is not inside a course. The filter reports it too when it cannot tell
+part, the `chunk` of `sources/notes/<chunk>.md` is not its file name, or a linted file is
+not inside a course. The filter reports it too when it cannot tell
 the file kind from the path it was given.
 Fix: move or rename it, e.g. `summary/rc-filter.md` → `summary/03-rc-filter.md`,
 `exercises/<topic>/<ex-id>.md`, `mc/<topic>.md`, `exams/<exam-id>/NN-<task-id>.md`.
@@ -65,13 +68,14 @@ Fix: move or rename it, e.g. `summary/rc-filter.md` → `summary/03-rc-filter.md
 **error.** An id does not match its pattern (`ex-…`, `mc-<topic>-NNN`, exam tasks
 `<prefix>-tN` with any kebab prefix such as `pk1-t1`,
 kebab-case topics, docs, slugs and exams; course ids `^[a-z0-9][a-z0-9-]{1,39}$`) or does
-not match its file or directory name.
+not match its file or directory name (also the `course` of `sources/manifest.yaml`).
 Fix: keep the file name and the `id` equal. Ids are never renamed once published; rename
 the file instead, or retire the old id in `course.yaml: retired_ids`.
 
 ### `SK-STRUCT-DUP`
 **error.** An id is used twice in the course (exercise, MC question, exam task, exam,
-topic, plan session, exam task file), or a topic has two summary chapters.
+topic, plan session, exam task file; a source document's id, file or sha256, a chunk, an
+archetype), or a topic has two summary chapters.
 Every occurrence is reported and names the others, so `lint` flags the file that
 introduced the duplicate. Fix: give the newer item a fresh id; existing ids are never
 renamed.
@@ -109,6 +113,12 @@ not the exam date (warning: the plan was made for another date).
 Fix: `studykit plan <course>` replans from today; done sessions and the goals of unchanged
 sessions are kept.
 
+### `SK-STRUCT-DRAFT`
+**error.** `course.yaml` has `status: ready` but still lists the placeholder topic `draft`
+that `studykit ingest init` writes into a draft course.
+Fix: write the real topics (the synthesis step of `/register-new-subject`), or keep
+`status: draft` until the course is complete.
+
 ## Schema (SK-SCHEMA, SK-YAML)
 
 ### `SK-SCHEMA-FRONTMATTER`
@@ -131,6 +141,12 @@ number, `no` is not a boolean (write `false`), dates are `YYYY-MM-DD`, enums acc
 their listed values. Also used for `max_pages` above the course limit, `pass_points`
 above `points`, an incomplete plan task and an invalid blocked period.
 Fix: follow the hint, which names the allowed values or bounds.
+
+### `SK-SCHEMA-SHARES`
+**error.** Shares in `analysis/exam-profile.yaml` do not add up to 1 (within 0.02): the
+archetypes' `share` of the exam's points, `mc.type_mix` or `topic_weights`.
+Fix: recompute the shares from the past exams' points (`studykit calc`) so each list adds
+up to 1.
 
 ### `SK-SCHEMA-ANSWER`
 **error.** An entry in `answers` is neither numeric with a tolerance
@@ -422,8 +438,10 @@ there only in a full run.
 only), `topic:`, `exam:`, `src:<doc>` (in `sources/manifest.yaml`), `fig:<slug>`
 (`figures/<slug>.py`, or the built-in `topic-map`), plan refs, exam task files and the
 MC file in `exam.yaml`, `modeled_on` documents, frontmatter `source`/`sources`
-documents, and exam-task archetypes (in `analysis/exam-profile.yaml`; without a profile
-the archetypes are not checked).
+documents, exam-task archetypes (in `analysis/exam-profile.yaml`; without a profile
+the archetypes are not checked), the documents of `sources/chunks.yaml` and the profile's
+`exams`, and the profile's archetype topics and `topic_weights` (course topics; not
+checked while `course.yaml` has only the placeholder topic `draft`).
 Fix: use an existing id (`studykit ls <course> --json` lists them) or create the target.
 
 ### `SK-REF-SCHEME`
@@ -453,6 +471,16 @@ lines; the size comes from the figure script.
 ### `SK-REF-SRC`
 **error.** A source link is malformed or its page is outside the document.
 Fix: `src:<doc>#p=<page>` with a page from 1 to the document's page count.
+
+### `SK-REF-CHUNK`
+**error** or **warning.** The ingest files disagree. Errors: `sources/notes/<chunk>.md`
+names a chunk that `sources/chunks.yaml` does not have, or its `doc` or `pages` differ from
+the chunk's. Warnings: the notes were written for another version of the document
+(`source_sha256` is not the chunk's `sha256`), or a chunk was planned from an older version
+than `sources/manifest.yaml` lists (the PDF changed since).
+Fix: copy `doc`, `pages` (`first-last`) and `sha256` (as `source_sha256`) from the chunk in
+`sources/chunks.yaml`; for a changed document run `studykit ingest extract <course>` and
+read its chunks again (`studykit pipeline status <course>` lists them).
 
 ## Figures (SK-FIG)
 

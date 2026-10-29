@@ -95,7 +95,7 @@ def test_every_mini_file_validates():
             assert problems == [], [p.format() for p in problems]
             assert m is not None, doc.rel
             checked += 1
-    assert checked == 13
+    assert checked == 15  # the manifest and the exam profile have models too (Phase 6)
     assert tree.model.exam.date == date(2027, 2, 15)
     assert tree.model.topic_ids == ["spannungsteiler", "rc-tiefpass"]
 
