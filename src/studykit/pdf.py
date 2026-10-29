@@ -36,6 +36,9 @@ Documents whose sources are gone leave the manifest and their PDF is deleted.
 inputs (assembled Markdown, the figures it uses, the index, the filter, the house library,
 the studykit sources, the tool versions, the density) equals the one stored in
 `_build/typ/<doc>.digest` by its last successful build.
+
+`make()` returns the outcomes as objects, with each problem typed (filter finding, pandoc
+or Typst diagnostic) for the PDF stage of validate; `build()` is its JSON form.
 """
 
 from __future__ import annotations
@@ -338,6 +341,7 @@ class Text:
 # --- Markdown helpers ---------------------------------------------------------------------------
 
 _PUNCT = re.compile(r"([!-/:-@\[-`{-~])")
+FIGURE_RE = re.compile(r"\(fig:([a-z0-9][a-z0-9-]*)\)")
 
 
 def esc(text: str) -> str:
@@ -381,6 +385,7 @@ class Markdown:
 
     def __init__(self) -> None:
         self.lines: list[str] = []
+        self.files: list[str] = []  # course files whose bodies it holds, in order
 
     def gap(self) -> None:
         if self.lines and self.lines[-1] != "":
@@ -407,6 +412,7 @@ class Markdown:
     def part(self, doc: content.Doc, **attrs: str | None) -> None:
         """A course file's body, frontmatter stripped, in a part the filter checks as that file."""
         body = doc.split.body.rstrip("\n").split("\n")
+        self.files.append(doc.rel)
         self.gap()
         fence = len(self.lines) + 1  # 1-based line of the opening fence
         fields = {
@@ -450,6 +456,10 @@ class Plan:
     exam: str | None = None
     density: int | None = None
     max_pages: int | None = None
+    # course files it is built from (course.yaml first), and the one that defines it
+    # (overview.md, cheatsheet.md, plan.yaml, exams/<e>/exam.yaml; None for collections)
+    sources: list[str] = field(default_factory=list)
+    primary: str | None = None
 
     @property
     def file(self) -> str:
@@ -485,6 +495,28 @@ class Assembler:
         self.topic_titles = {t.id: t.title for t in course.topics}
 
     # -- shared pieces --
+
+    def plan_of(
+        self,
+        id: str,
+        kind: str,
+        title: str,
+        md: Markdown,
+        *,
+        extra: Sequence[str] = (),
+        primary: str | None = None,
+        **fields: Any,
+    ) -> Plan:
+        """A Plan with the course files it reads: course.yaml, `extra`, its parts and the
+        scripts of the figures it shows."""
+        text = md.text()
+        figures = [
+            f"figures/{slug}.py"
+            for slug in dict.fromkeys(FIGURE_RE.findall(text))
+            if self.tree.get(f"figures/{slug}.py") is not None
+        ]
+        sources = list(dict.fromkeys(["course.yaml", *extra, *md.files, *figures]))
+        return Plan(id, kind, title, text, sources=sources, primary=primary, **fields)
 
     def info(self, md: Markdown, kind: str, title: str, **extra: Any) -> None:
         data = {"kind": kind, "title": title, "course": self.course.title}
@@ -553,7 +585,7 @@ class Assembler:
         md = Markdown()
         self.info(md, "overview", title)
         md.part(doc)
-        return Plan("overview", "overview", title, md.text())
+        return self.plan_of("overview", "overview", title, md, primary=doc.rel)
 
     def summary(self) -> Plan | None:
         chapters = sorted(
@@ -579,7 +611,8 @@ class Assembler:
             if objectives:
                 md.div("sk-objectives", bullets(label_md(o) for o in objectives))
             md.part(doc)
-        return Plan("summary", "summary", title, md.text())
+        extra = ["sources/manifest.yaml"] if self.tree.get("sources/manifest.yaml") else []
+        return self.plan_of("summary", "summary", title, md, extra=extra)
 
     def exercises(self, blank: bool) -> Plan | None:
         docs = self.tree.of_kind("exercise")
@@ -625,7 +658,7 @@ class Assembler:
                 if not blank:
                     self.answers(md, data.get("answers"))
                 md.close_unit()
-        return Plan(kind, kind, title, md.text(), solutions=mode)
+        return self.plan_of(kind, kind, title, md, solutions=mode)
 
     def mc(self) -> Plan | None:
         banks = self.tree.of_kind("mc")
@@ -640,7 +673,7 @@ class Assembler:
                 md.heading(1, _data(doc).get("title") or self.topic_title(topic))
                 md.div("sk-meta", [esc(self.tx.count("questions", n))])
                 md.part(doc, solution="appendix")
-        return Plan("mc", "mc", title, md.text(), solutions="appendix")
+        return self.plan_of("mc", "mc", title, md, solutions="appendix")
 
     def _exam_parts(self, exam_doc: content.Doc) -> tuple[dict[str, Any], list, Any]:
         data = _data(exam_doc)
@@ -733,7 +766,9 @@ class Assembler:
             md.heading(1, tx["mc-part"])
             md.div("sk-meta", [esc(" ".join([meta + ".", *self._rules()]))])
             md.part(mc, solution="none")
-        return Plan(exam_id, "exam", title, md.text(), exam=exam_id)
+        return self.plan_of(
+            exam_id, "exam", title, md, extra=[exam_doc.rel], primary=exam_doc.rel, exam=exam_id
+        )
 
     def exam_solutions(self, exam_doc: content.Doc) -> Plan:
         data, tasks, mc = self._exam_parts(exam_doc)
@@ -762,7 +797,16 @@ class Assembler:
             md.heading(1, tx["mc-part"])
             md.div("sk-meta", [esc(meta + ".")])
             md.part(mc, solution="inline")
-        return Plan(f"{exam_id}-solutions", "exam-solutions", title, md.text(), "inline", exam_id)
+        return self.plan_of(
+            f"{exam_id}-solutions",
+            "exam-solutions",
+            title,
+            md,
+            extra=[exam_doc.rel],
+            primary=exam_doc.rel,
+            solutions="inline",
+            exam=exam_id,
+        )
 
     def cheatsheet(self, density: int = 0) -> Plan | None:
         doc = self.tree.get("cheatsheet.md")
@@ -773,11 +817,12 @@ class Assembler:
         md = Markdown()
         self.info(md, "cheatsheet", title)
         md.part(doc)
-        return Plan(
+        return self.plan_of(
             "cheatsheet",
             "cheatsheet",
             title,
-            md.text(),
+            md,
+            primary=doc.rel,
             density=density,
             max_pages=cheatsheet_limit(self.course, data),
         )
@@ -832,7 +877,7 @@ class Assembler:
         md = Markdown()
         self.info(md, "plan", title)
         md.gen("plan", {"intro": intro, "head": tx["plan-head"], "weeks": weeks})
-        return Plan("plan", "plan", title, md.text())
+        return self.plan_of("plan", "plan", title, md, extra=[doc.rel], primary=doc.rel)
 
     def ref_title(self, ref: str) -> str:
         scheme, _, rest = ref.partition(":")
@@ -883,15 +928,6 @@ class Assembler:
         return out
 
 
-def cheatsheet_limit(course: model.Course, frontmatter: dict[str, Any]) -> int:
-    """max = min(3, course.cheatsheet.max_pages, frontmatter max_pages) (§3.3)."""
-    limit = min(3, course.cheatsheet.max_pages)
-    fm = frontmatter.get("max_pages")
-    if isinstance(fm, int) and not isinstance(fm, bool):
-        limit = min(limit, fm)
-    return limit
-
-
 def available(tree: content.CourseTree) -> list[str]:
     """Ids of the documents a course can build (exam ids come from the exam directories)."""
     ids = []
@@ -913,7 +949,81 @@ def available(tree: content.CourseTree) -> list[str]:
     return ids
 
 
+def cheatsheet_limit(course: model.Course, frontmatter: dict[str, Any]) -> int:
+    """max = min(3, course.cheatsheet.max_pages, frontmatter max_pages) (§3.3)."""
+    limit = min(3, course.cheatsheet.max_pages)
+    fm = frontmatter.get("max_pages")
+    if isinstance(fm, int) and not isinstance(fm, bool):
+        limit = min(limit, fm)
+    return limit
+
+
+SINGLE_KINDS = ("overview", "summary", "exercises", "exercises-blank", "mc", "cheatsheet", "plan")
+
+
+def doc_kind(doc_id: str, ids: Sequence[str]) -> str:
+    """The manifest kind of a document id (`ids`: the course's documents)."""
+    if doc_id in SINGLE_KINDS:
+        return doc_id
+    if doc_id.endswith("-solutions") and doc_id.removesuffix("-solutions") in ids:
+        return "exam-solutions"
+    return "exam"
+
+
 # --- building ----------------------------------------------------------------------------------
+
+# `path:line:col: error: message` (typst --diagnostic-format short); without a position for
+# problems that have none
+TYPST_DIAG = re.compile(
+    r"^(?:(?P<path>.+?):(?P<line>\d+):(?P<col>\d+): )?(?P<severity>error|warning): "
+    r"(?P<message>.*)$"
+)
+
+
+@dataclass
+class Problem:
+    """Why a document failed, typed for the PDF stage of validate.
+
+    kind: `finding` (a filter finding, `message` is the formatted line with the course file
+    and line), `typst-error`, `typst-warning` (with the position Typst reported, its path
+    relative to the repository), `pandoc-warning`, `pandoc` (pandoc failed without a
+    finding), `assembly` (the course files do not make the document).
+    """
+
+    kind: str
+    message: str
+    path: str | None = None
+    line: int = 0
+    col: int = 0
+
+    def text(self) -> str:
+        if self.kind in ("typst-error", "typst-warning"):
+            severity = "error" if self.kind == "typst-error" else "warning"
+            where = f"{self.path}:{self.line}:{self.col}: " if self.path else ""
+            return f"typst: {where}{severity}: {self.message}"
+        if self.kind == "pandoc-warning":
+            return f"pandoc warning: {self.message}"
+        if self.kind == "pandoc":
+            return f"pandoc: {self.message}"
+        return self.message
+
+
+def typst_problems(lines: Iterable[str]) -> list[Problem]:
+    out = []
+    for line in lines:
+        m = TYPST_DIAG.match(line.strip())
+        if m is None:
+            continue
+        out.append(
+            Problem(
+                f"typst-{m['severity']}",
+                m["message"],
+                m["path"],
+                int(m["line"] or 0),
+                int(m["col"] or 0),
+            )
+        )
+    return out
 
 
 @dataclass
@@ -928,12 +1038,18 @@ class Outcome:
     exam: str | None = None
     max_pages: int | None = None
     density: int | None = None
-    errors: list[str] = field(default_factory=list)
+    problems: list[Problem] = field(default_factory=list)
     seconds: float = 0.0
+    sources: list[str] = field(default_factory=list)
+    primary: str | None = None
 
     @property
     def ok(self) -> bool:
         return self.status in ("built", "cached")
+
+    @property
+    def errors(self) -> list[str]:
+        return [p.text() for p in self.problems]
 
     def entry(self) -> dict[str, Any]:
         """The manifest entry (§3.3 contract)."""
@@ -976,9 +1092,6 @@ def source_digest(root: Path) -> str:
     return h.hexdigest()
 
 
-FIGURE_RE = re.compile(r"\(fig:([a-z0-9][a-z0-9-]*)\)")
-
-
 def page_count(path: Path) -> int:
     import pypdfium2  # loads PDFium; only needed here
 
@@ -1017,15 +1130,15 @@ def _course_findings(course_dir: Path, lines: Iterable[str]) -> list[str]:
     return out
 
 
-def _log_warnings(log: Path) -> list[str]:
+def _log_warnings(log: Path) -> list[Problem]:
     if not log.is_file():
         return []
     try:
         entries = json.loads(log.read_text(encoding="utf-8") or "[]")
     except json.JSONDecodeError:
-        return [f"unreadable pandoc log {log}"]
+        return [Problem("pandoc", f"unreadable pandoc log {log}")]
     return [
-        f"pandoc warning: {e.get('pretty') or e.get('type') or e}"
+        Problem("pandoc-warning", str(e.get("pretty") or e.get("type") or e))
         for e in entries
         if isinstance(e, dict) and str(e.get("verbosity", "")).upper() == "WARNING"
     ]
@@ -1045,13 +1158,11 @@ class Context:
         return self.course_dir / "_build"
 
 
-def compile_typst(
-    ctx: Context, typ: Path, out: Path, inputs: dict[str, str] | None = None
-) -> list[str]:
-    """`typst compile` as §3.3 runs it; returns the problems (errors and warnings)."""
+def _typst(ctx: Context, command: str, inputs: dict[str, str] | None) -> tuple[list[str], dict]:
+    """The argv start and environment of every Typst run (§3.3)."""
     args = [
         str(typst_bin()),
-        "compile",
+        command,
         "--root",
         str(ctx.root),
         "--ignore-system-fonts",
@@ -1063,6 +1174,14 @@ def compile_typst(
     # TYPST_FONT_PATHS and friends would bring fonts or packages from this machine in
     env = {k: v for k, v in os.environ.items() if not k.startswith("TYPST_")}
     env["SOURCE_DATE_EPOCH"] = "0"
+    return args, env
+
+
+def compile_typst(
+    ctx: Context, typ: Path, out: Path, inputs: dict[str, str] | None = None
+) -> list[Problem]:
+    """`typst compile` as §3.3 runs it; returns the problems (errors and warnings)."""
+    args, env = _typst(ctx, "compile", inputs)
     proc = subprocess.run(
         [*args, str(typ), str(out)],
         capture_output=True,
@@ -1072,31 +1191,15 @@ def compile_typst(
         env=env,
         cwd=ctx.root,
     )
-    problems = [ln.strip() for ln in proc.stderr.splitlines() if "warning:" in ln or "error:" in ln]
+    problems = typst_problems(proc.stderr.splitlines())
     if proc.returncode != 0 and not problems:
-        problems = [proc.stderr.strip() or f"typst exited with {proc.returncode}"]
+        problems = [
+            Problem("typst-error", proc.stderr.strip() or f"typst exited with {proc.returncode}")
+        ]
     return problems
 
 
-def build_one(ctx: Context, plan: Plan) -> Outcome:
-    started = time.monotonic()
-    out = Outcome(
-        plan.id,
-        plan.kind,
-        plan.file,
-        plan.title,
-        "failed",
-        exam=plan.exam,
-        max_pages=plan.max_pages,
-        density=plan.density,
-    )
-    typ_dir, pdf_dir, log_dir = ctx.build / "typ", ctx.build / "pdf", ctx.build / "logs"
-    for d in (typ_dir, pdf_dir, log_dir):
-        d.mkdir(parents=True, exist_ok=True)
-    md_path = typ_dir / f"{plan.id}.md"
-    if not md_path.is_file() or md_path.read_text(encoding="utf-8") != plan.markdown:
-        md_path.write_text(plan.markdown, encoding="utf-8")
-
+def _digest(ctx: Context, plan: Plan) -> str:
     figures = ctx.build / "figures"
     h = hashlib.sha256()
     for part in (
@@ -1116,10 +1219,33 @@ def build_one(ctx: Context, plan: Plan) -> Outcome:
         h.update(
             slug.encode() + b"\0" + (svg.read_bytes() if svg.is_file() else b"missing") + b"\0"
         )
-    digest = h.hexdigest()
+    return h.hexdigest()
+
+
+def build_one(ctx: Context, plan: Plan) -> Outcome:
+    started = time.monotonic()
+    out = Outcome(
+        plan.id,
+        plan.kind,
+        plan.file,
+        plan.title,
+        "failed",
+        exam=plan.exam,
+        max_pages=plan.max_pages,
+        density=plan.density,
+        sources=plan.sources,
+        primary=plan.primary,
+    )
+    typ_dir, pdf_dir, log_dir = ctx.build / "typ", ctx.build / "pdf", ctx.build / "logs"
+    for d in (typ_dir, pdf_dir, log_dir):
+        d.mkdir(parents=True, exist_ok=True)
+    md_path = typ_dir / f"{plan.id}.md"
+    if not md_path.is_file() or md_path.read_text(encoding="utf-8") != plan.markdown:
+        md_path.write_text(plan.markdown, encoding="utf-8")
+
+    digest = _digest(ctx, plan)
     digest_path = typ_dir / f"{plan.id}.digest"
     pdf_path = pdf_dir / plan.file
-
     if (
         not ctx.force
         and pdf_path.is_file()
@@ -1136,23 +1262,25 @@ def build_one(ctx: Context, plan: Plan) -> Outcome:
         ctx.course_dir,
         f"_build/typ/{plan.id}.md",
         solutions=plan.solutions,
-        figdir=figures,
+        figdir=ctx.build / "figures",
         doc=plan.kind,
     )
     try:
         pandoc.run_file(md_path, doc, "typst", output=typ_path, log=log_path, root=ctx.root)
     except pandoc.FilterError as exc:
-        out.errors = _course_findings(ctx.course_dir, exc.findings) or [exc.stderr.strip()]
+        lines = _course_findings(ctx.course_dir, exc.findings)
+        out.problems = [Problem("finding", ln) for ln in lines] or [
+            Problem("pandoc", exc.stderr.strip())
+        ]
     except (pandoc.PandocError, OSError, subprocess.TimeoutExpired) as exc:
-        out.errors = [f"pandoc: {str(exc).strip()}"]
-    out.errors += _log_warnings(log_path)
-    if not out.errors:
+        out.problems = [Problem("pandoc", str(exc).strip())]
+    out.problems += _log_warnings(log_path)
+    if not out.problems:
         tmp = pdf_dir / f".{plan.id}.partial.pdf"
         tmp.unlink(missing_ok=True)
         inputs = {"density": str(plan.density)} if plan.density is not None else None
-        problems = compile_typst(ctx, typ_path, tmp, inputs)
-        if problems:
-            out.errors = [f"typst: {p}" for p in problems]
+        out.problems = compile_typst(ctx, typ_path, tmp, inputs)
+        if out.problems:
             tmp.unlink(missing_ok=True)
         else:
             out.pages = page_count(tmp)
@@ -1206,18 +1334,37 @@ def _merge(
     return [entries[i] for i in order if i in entries]
 
 
-def build(
+@dataclass
+class Build:
+    """One `studykit pdf` run over a course."""
+
+    course: str
+    manifest: Path
+    outcomes: list[Outcome]
+    notes: list[str]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "course": self.course,
+            "manifest": content.display_path(self.manifest),
+            "docs": [o.to_json() for o in self.outcomes],
+            "notes": self.notes,
+        }
+
+
+def make(
     course_dir: Path,
     docs: Sequence[str] | None = None,
     *,
+    files: Iterable[str] | None = None,
     force: bool = False,
     figures: bool = True,
     jobs: int | None = None,
-) -> dict[str, Any]:
+) -> Build:
     """Build the course's PDFs (all, or the ids in `docs`) and write the manifest.
 
-    Returns {"course", "manifest", "docs": [outcome…], "skipped": [{id, reason}],
-    "notes": […]}; raises ValueError for a document id the course cannot have.
+    With `files` (course-relative paths) only the documents built from one of them are
+    built. Raises ValueError for a document id the course cannot have.
     """
     root = tools.repo_root()
     course_dir = course_dir.resolve()
@@ -1230,6 +1377,7 @@ def build(
         raise ValueError(
             f"no document {', '.join(unknown)} in {tree.id}; this course has: {', '.join(ids)}"
         )
+    selected = set(files) if files is not None else None
     notes: list[str] = []
     if figures:
         from studykit.figures import runner  # imports Matplotlib; only needed here
@@ -1248,26 +1396,37 @@ def build(
     )
     outcomes: list[Outcome] = []
     plans: list[Plan] = []
+
+    def failed(doc_id: str, message: str) -> Outcome:
+        return Outcome(
+            doc_id,
+            doc_kind(doc_id, ids),
+            f"{doc_id}.pdf",
+            "",
+            "failed",
+            problems=[Problem("assembly", message)],
+        )
+
     try:
         builders = Assembler(tree).builders()
     except AssemblyError as exc:
         builders = {}
-        outcomes += [Outcome(d, d, f"{d}.pdf", "", "failed", errors=[str(exc)]) for d in wanted]
+        outcomes += [failed(d, str(exc)) for d in wanted]
     for doc_id, assemble in builders.items():
         if doc_id not in wanted:
             continue
         try:
             plan = assemble()
         except AssemblyError as exc:
-            outcomes.append(
-                Outcome(doc_id, doc_id, f"{doc_id}.pdf", "", "failed", errors=[str(exc)])
-            )
+            outcomes.append(failed(doc_id, str(exc)))
             continue
-        if plan is not None:
+        if plan is not None and (selected is None or selected & set(plan.sources)):
             plans.append(plan)
     workers = max(1, min(len(plans) or 1, jobs or os.cpu_count() or 4))
     with ThreadPoolExecutor(max_workers=workers) as pool:
         outcomes += list(pool.map(lambda p: build_one(ctx, p), plans))
+    rank = {d: i for i, d in enumerate(ids)}
+    outcomes.sort(key=lambda o: rank.get(o.id, len(rank)))
 
     previous = read_manifest(course_dir)
     manifest = {
@@ -1280,12 +1439,46 @@ def build(
     text = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
     if not path.is_file() or path.read_text(encoding="utf-8") != text:
         path.write_text(text, encoding="utf-8")
-    return {
-        "course": manifest["course"],
-        "manifest": content.display_path(path),
-        "docs": [o.to_json() for o in outcomes],
-        "notes": notes,
-    }
+    return Build(manifest["course"], path, outcomes, notes)
+
+
+def build(
+    course_dir: Path,
+    docs: Sequence[str] | None = None,
+    *,
+    force: bool = False,
+    figures: bool = True,
+    jobs: int | None = None,
+) -> dict[str, Any]:
+    """`make` as JSON: {"course", "manifest", "docs": [outcome…], "notes": […]}."""
+    return make(course_dir, docs, force=force, figures=figures, jobs=jobs).to_json()
+
+
+# --- where a problem comes from -----------------------------------------------------------------
+
+# Typst lines that name the course item the lines after them come from: a part's
+# `#metadata("<id>") <id>`, a question's `id: "<id>"`, an appendix entry's `back: <id>`
+ITEM_MARK = re.compile(
+    r'^#metadata\("(?P<meta>[^"]+)"\) <(?P=meta)>$'
+    r'|^\s*id: "(?P<id>[^"]+)",$'
+    r"|back: <(?P<back>[^>]+)>"
+)
+
+
+def locate(tree: content.CourseTree, typ: Path, line: int) -> tuple[str, int] | None:
+    """The course file and line of the item a line of an assembled document's .typ belongs
+    to, or None when no item comes before it (generated text, the document's head)."""
+    try:
+        lines = typ.read_text(encoding="utf-8").splitlines()[:line]
+    except OSError:
+        return None
+    items = {item.id: item for item in tree.items}
+    for text in reversed(lines):
+        for m in reversed(list(ITEM_MARK.finditer(text))):
+            item = items.get(m["meta"] or m["id"] or m["back"])
+            if item is not None:
+                return item.rel, item.line
+    return None
 
 
 def format_text(result: dict[str, Any]) -> str:
