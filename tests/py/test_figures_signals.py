@@ -363,6 +363,18 @@ def test_phasor(locale):
     assert res["magnitude"] == pytest.approx(math.sqrt(34))
     assert res["angle_deg"] == pytest.approx(math.degrees(math.atan2(3, 5)))
     assert fig.facts["vectors"][1]["start"] == pytest.approx([5, 0])
+    # Series RLC: U_C runs back down U_L, so it is drawn beside it (outer side, +Re).
+    rlc = signals.phasor({"U_R": (4, 0), "U_L": (5, 90), "U_C": (2, -90)}, chain=True)
+    assert validate_svg(rlc.svg) == []
+    u_r, u_l, u_c = rlc.facts["vectors"]
+    assert u_c["start"] == pytest.approx([4, 5])  # the geometry stays exact
+    assert u_c["drawn_offset"][0] > 0 and u_c["drawn_offset"][1] == pytest.approx(0)
+    assert u_l["drawn_offset"] == [0, 0] and u_r["drawn_offset"] == [0, 0]
+    assert rlc.facts["resultant"]["magnitude"] == pytest.approx(5)
+    assert rlc.facts["resultant"]["angle_deg"] == pytest.approx(math.degrees(math.atan2(3, 4)))
+    # Same direction head to tail covers nothing: no shift.
+    line = signals.phasor({"U_1": (3, 0), "U_2": (2, 0), "U_3": (2, 90)}, chain=True)
+    assert all(v["drawn_offset"] == [0, 0] for v in line.facts["vectors"])
     star = signals.phasor({"U_1": (230, 0), "U_2": (230, -120), "U_3": (230, 120)})
     assert validate_svg(star.svg) == []
     assert star.facts["resultant"]["magnitude"] == pytest.approx(0, abs=1e-9)

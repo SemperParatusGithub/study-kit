@@ -1824,6 +1824,65 @@ def _label_offset(direction: complex, dist: float = 7.0) -> dict:
     return {"xytext": (dist * d.real, dist * d.imag), "ha": ha, "va": va}
 
 
+def _shared(a0: complex, a: complex, b0: complex, b: complex, tol: float):
+    """Stretch (t1, t2) of segment a0 -> a0 + a, measured from a0 along a, that segment
+    b0 -> b0 + b runs along on the same line; None if the two share no such stretch."""
+    if abs(a) == 0 or abs(b) == 0:
+        return None
+    u = a / abs(a)
+    if abs((u.conjugate() * b).imag) > 1e-6 * abs(b) or abs((u.conjugate() * (b0 - a0)).imag) > tol:
+        return None
+    t1, t2 = sorted(((u.conjugate() * (b0 - a0)).real, (u.conjugate() * (b0 + b - a0)).real))
+    lo, hi = max(0.0, t1), min(abs(a), t2)
+    return (lo, hi) if hi - lo > tol else None
+
+
+def _chain_offsets(
+    starts: Sequence[complex], comps: Sequence[complex], centre: complex, span: float
+) -> tuple[list[complex], dict[int, list[tuple[float, float]]]]:
+    """Sideways shifts for chained phasors that would run back over an earlier one.
+
+    U_C after U_L in a series RLC diagram points straight back down U_L and would hide
+    it; as in textbooks it is drawn beside it, shifted along its normal to the outer side
+    (away from the diagram's centre) by a few per cent of the diagram, further if that
+    spot is taken too. Returns the shifts and, per covered phasor, the stretches that a
+    shifted phasor runs alongside (for placing its name). Start and tip stay exact.
+    """
+    step = 0.035 * span
+    tol = 1e-9 * span
+    offsets = [0j] * len(comps)
+    covered: dict[int, list[tuple[float, float]]] = {}
+    for i, c in enumerate(comps):
+        if abs(c) == 0:
+            continue
+        drawn = [(starts[j] + offsets[j], comps[j]) for j in range(i)]
+        hits = {j: _shared(a0, a, starts[i], c, tol) for j, (a0, a) in enumerate(drawn)}
+        hits = {j: h for j, h in hits.items() if h is not None}
+        if not hits:
+            continue
+        normal = 1j * c / abs(c)
+        if (normal.conjugate() * (starts[i] + c / 2 - centre)).real < 0:
+            normal = -normal
+        for k in range(1, 6):
+            shift = k * step * normal
+            if all(_shared(a0, a, starts[i] + shift, c, tol) is None for a0, a in drawn):
+                break
+        offsets[i] = shift
+        for j, h in hits.items():
+            covered.setdefault(j, []).append(h)
+    return offsets, covered
+
+
+def _free_stretch(length: float, taken: list[tuple[float, float]]) -> tuple[float, float]:
+    """Longest part of [0, length] outside the taken stretches."""
+    gaps, at = [], 0.0
+    for lo, hi in sorted(taken):
+        gaps.append((at, lo))
+        at = max(at, hi)
+    gaps.append((at, length))
+    return max(gaps, key=lambda g: g[1] - g[0])
+
+
 def phasor(
     vectors: Mapping[str, tuple[float, float]],
     chain: bool = False,
@@ -1860,6 +1919,14 @@ def phasor(
     re_lo, re_hi = min(z.real for z in pts), max(z.real for z in pts)
     im_lo, im_hi = min(z.imag for z in pts), max(z.imag for z in pts)
     span = max(re_hi - re_lo, im_hi - im_lo, 1e-9)
+    centre = complex(np.mean(pts))
+    offsets, covered = (
+        _chain_offsets(starts, comps, centre, span) if chain else ([0j] * len(comps), {})
+    )
+    pts += [s + o for s, o in zip(starts, offsets, strict=True) if o]
+    pts += [t + o for t, o in zip(tips, offsets, strict=True) if o]
+    re_lo, re_hi = min(z.real for z in pts), max(z.real for z in pts)
+    im_lo, im_hi = min(z.imag for z in pts), max(z.imag for z in pts)
     pad = 0.18 * span
     box = ((min(re_lo, 0) - pad, re_hi + pad), (min(im_lo, 0) - pad, im_hi + pad))
     box = _fit_equal(ax, box, frame=(0.1, 0.1))
@@ -1891,9 +1958,9 @@ def phasor(
         color=FG,
     )
 
-    centre = complex(np.mean(pts))
-    for i, (nm, s, c) in enumerate(zip(names, starts, comps, strict=True)):
+    for i, (nm, s0, c) in enumerate(zip(names, starts, comps, strict=True)):
         col = color(i)
+        s = s0 + offsets[i]  # drawn start: shifted sideways off a phasor it would cover
         if abs(c) > 0:
             ax.add_patch(
                 FancyArrowPatch(
@@ -1913,6 +1980,12 @@ def phasor(
             normal = 1j * c / abs(c) if abs(c) else 1j
             if (normal.conjugate() * (mid - centre)).real < 0:
                 normal = -normal
+            if i in covered:  # a shifted phasor runs alongside on the outer side
+                lo, hi = _free_stretch(abs(c), covered[i])
+                if hi - lo >= 0.3 * abs(c):  # name beside the part left free
+                    mid = s + c / abs(c) * (lo + hi) / 2
+                else:  # covered (nearly) all along: name on the inner side
+                    normal = -normal
             where, direction = mid, normal
         else:
             # Beyond the tip, turned 30 degrees counter-clockwise so a phasor along an
@@ -1984,8 +2057,9 @@ def phasor(
                 "re": c.real,
                 "im": c.imag,
                 "start": _pair(s),
+                "drawn_offset": _pair(o),
             }
-            for nm, s, c in zip(names, starts, comps, strict=True)
+            for nm, s, c, o in zip(names, starts, comps, offsets, strict=True)
         ],
         "resultant": {
             "name": total,
