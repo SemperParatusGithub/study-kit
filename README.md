@@ -36,18 +36,32 @@ your `PATH` (or use `.tools/bin/just`) to call `just` directly.
 | Command | What it does |
 |---|---|
 | `just dev` | Renders the figures and serves the website at http://localhost:4321 |
-| `just build [course]` | Figures, validation, strict site build with search index, link check of `site/dist` |
+| `just build [course]` | Figures, validation, PDFs, strict site build with search index, link check of `site/dist` |
+| `just pdf [course]` | Builds a course's PDFs (or every course's) into `<course>/_build/pdf/`; only documents whose sources changed are rebuilt |
+| `just cheatsheet <course>` | Fits the cheat sheet into its page limit (9 pt down to 7 pt); exits 3 with the longest sections when even 7 pt is too long |
 | `just doctor` | Checks every tool against `toolchain.toml` and reports how to fix mismatches |
-| `just validate [course]` | Checks a course (or all) against the content format; `--release` adds the site check (strict build, search index, type check, link check) and coverage |
+| `just validate [course]` | Checks a course (or all) against the content format and builds its PDFs (`--quick` skips them); `--release` adds the site check (strict build, search index, type check, link check) and coverage |
 | `just lint <files>` | Quick check of edited course files, as the Claude Code hook runs it |
 | `just figures [course]` | Renders the figure scripts of a course |
 | `just test` | Python and Node unit tests, the git hooks, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
 | `just e2e` | Playwright tests of the built sample course in Chromium (build it first, see below) |
-| `just ci` | `doctor`, `test`, a strict build of the sample course and its release validation (CI also runs `lint-code` and the browser tests) |
+| `just ci` | `doctor`, `test`, a strict build of the sample course with its PDFs and its release validation (CI also runs `lint-code` and the browser tests) |
 | `just lint-code` | ruff lint and format check of the Python code |
 
 The website always runs on port 4321: progress lives in the browser's storage for that
 origin. Search uses the index of the last `just build`.
+
+### PDFs
+
+`just pdf <course>` writes, in the course language, `overview.pdf`, `summary.pdf`,
+`exercises.pdf` (hints and solutions in the appendix), `exercises-blank.pdf`, `mc.pdf`
+(answer key in the appendix), `<exam>.pdf` and `<exam>-solutions.pdf` per mock exam,
+`cheatsheet.pdf` and `plan.pdf` to `courses/<course>/_build/pdf/`, together with
+`manifest.json` (page count and size of each). The website links each PDF from its tab and
+serves it at `/c/<course>/pdf/<file>`; a document that is not built or failed has no link.
+PDFs built while `just dev` runs appear on the next page load. Every Typst or pandoc
+warning fails a document, and a document that fails keeps its previous PDF. Generated PDFs
+are never committed.
 
 ### The sample course
 
@@ -55,9 +69,13 @@ origin. Search uses the index of the last `just build`.
 a mock exam, a cheat sheet and a plan). To look at it, point the recipes at `examples/`:
 
 ```bash
-STUDYKIT_COURSES_DIR=examples just build sample-course   # once, for the search index
+STUDYKIT_COURSES_DIR=examples just build sample-course   # once, for the search index and PDFs
 STUDYKIT_COURSES_DIR=examples just dev
 ```
+
+Its PDFs land in `examples/sample-course/_build/pdf/`; `STUDYKIT_COURSES_DIR=examples just
+pdf sample-course` rebuilds them on their own. CI uploads them as the `sample-course-pdfs`
+artifact on every run.
 
 There are two sets of browser tests, both in Chromium through Playwright:
 
