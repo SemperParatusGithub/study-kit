@@ -1,0 +1,132 @@
+---
+// Exercise list grouped by topic, with client-side filters for topic, difficulty and status.
+// Status comes from browser progress: the elements set data-status on each [data-item] row.
+import Base from '../../../../layouts/Base.astro';
+import Difficulty from '../../../../components/Difficulty.astro';
+import { coursePaths, route, type Course } from '../../../../lib/courses';
+import { DIFFICULTY, plural } from '../../../../lib/format';
+
+export const getStaticPaths = coursePaths;
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const groups = course.topics
+  .map((t) => ({ topic: t, items: course.exercises.filter((e) => e.data.topic === t.id) }))
+  .filter((g) => g.items.length > 0);
+const difficulties = [...new Set(course.exercises.map((e) => Number(e.data.fm.difficulty)))]
+  .filter((d) => d >= 1 && d <= 4)
+  .sort();
+const KIND: Record<string, string> = {
+  compute: 'Compute',
+  derive: 'Derive',
+  concept: 'Concept',
+  sketch: 'Sketch',
+  code: 'Code',
+};
+---
+
+<Base title="Exercises" course={course} tab="exercises">
+  <div class="page-head" lang={en}>
+    <h1>Exercises</h1>
+    <p class="muted">
+      {plural(course.exercises.length, 'exercise')} with hints, an answer check and a worked solution.
+      Try each one before you open the hints.
+    </p>
+  </div>
+
+  {
+    course.exercises.length === 0 ? (
+      <div class="empty" lang={en}>
+        No exercises yet.
+      </div>
+    ) : (
+      <div data-filter-scope>
+        <form class="filters" data-filter-form hidden lang={en} aria-label="Filter exercises">
+          <label>
+            Topic
+            <select name="topic">
+              <option value="">All topics</option>
+              {groups.map((g) => (
+                <option value={g.topic.id} lang={course.lang}>
+                  {g.topic.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Difficulty
+            <select name="difficulty">
+              <option value="">Any difficulty</option>
+              {difficulties.map((d) => (
+                <option value={String(d)}>
+                  {d} · {DIFFICULTY[d]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Status
+            <select name="status">
+              <option value="">Any status</option>
+              <option value="new">Not started</option>
+              <option value="not-yet">Not yet</option>
+              <option value="partial">Partly solved</option>
+              <option value="solved">Solved</option>
+            </select>
+          </label>
+          <output aria-live="polite" />
+        </form>
+
+        {groups.map((g) => (
+          <section class="ex-group" data-filter-group>
+            <h2>
+              <a href={route.summary(c, g.topic.id)}>{g.topic.title}</a>
+            </h2>
+            <ul class="item-list">
+              {g.items.map((e) => (
+                <li
+                  data-filter-row
+                  data-item={`ex:${e.data.id}`}
+                  data-topic={g.topic.id}
+                  data-difficulty={String(e.data.fm.difficulty ?? '')}
+                  data-status=""
+                >
+                  <a class="item-title" href={route.exercise(c, e.data.id ?? '')}>
+                    {e.data.title}
+                  </a>
+                  <span class="item-meta" lang={en}>
+                    <Difficulty value={Number(e.data.fm.difficulty)} />
+                    <span>{String(e.data.fm.minutes ?? '?')} min</span>
+                    <span class="badge">{KIND[String(e.data.fm.kind)] ?? String(e.data.fm.kind ?? '')}</span>
+                    <span class="ex-status" data-sk-fill data-sk-status data-item={`ex:${e.data.id}`} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    )
+  }
+</Base>
+
+<style>
+  .ex-group h2 {
+    margin: var(--space-5) 0 var(--space-3);
+    font-size: 1.1rem;
+  }
+
+  .ex-group h2 a {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .ex-group:first-of-type h2 {
+    margin-top: 0;
+  }
+
+  .ex-status {
+    min-width: 1.5rem;
+  }
+</style>

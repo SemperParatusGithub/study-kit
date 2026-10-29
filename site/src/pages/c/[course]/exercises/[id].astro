@@ -1,0 +1,136 @@
+---
+// One exercise (docs/architecture.md §2.5, §3.2): statement, hint ladder, answer check,
+// solution behind a "tried it?" step, and self-assessment. Without JavaScript the hints and
+// the solution are plain <details>.
+import Base from '../../../../layouts/Base.astro';
+import Difficulty from '../../../../components/Difficulty.astro';
+import Html from '../../../../components/Html.astro';
+import SearchTags from '../../../../components/SearchTags.astro';
+import { listCourses, route, sourceTitle, type Course, type Doc } from '../../../../lib/courses';
+import { splitExercise } from '../../../../lib/html';
+import { renderLabel } from '../../../../lib/katex';
+import type { ExerciseFm } from '../../../../lib/types';
+
+export async function getStaticPaths() {
+  const courses = await listCourses();
+  return courses.flatMap((course) =>
+    course.exercises
+      .filter((doc) => doc.data.id)
+      .map((doc) => ({ params: { course: course.id, id: doc.data.id as string }, props: { course, doc } })),
+  );
+}
+
+const { course, doc } = Astro.props as { course: Course; doc: Doc };
+const c = course.id;
+const fm = doc.data.fm as unknown as ExerciseFm;
+const id = doc.data.id ?? '';
+const item = `ex:${id}`;
+const en = course.lang === 'en' ? undefined : 'en';
+const topicId = doc.data.topic ?? '';
+const parts = splitExercise(doc.rendered?.html ?? '');
+const answers = (fm.answers ?? []).map((a) => ({ ...a, label_html: renderLabel(a.label) }));
+const siblings = course.exercises.filter((e) => e.data.topic === topicId);
+const at = siblings.findIndex((e) => e.id === doc.id);
+const prev = siblings[at - 1];
+const next = siblings[at + 1];
+const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
+const RELATION: Record<string, string> = { original: 'From', adapted: 'Adapted from', inspired: 'Inspired by' };
+const source = fm.source
+  ? `${RELATION[fm.source.relation] ?? 'From'} ${sourceTitle(c, fm.source.doc)}${fm.source.page ? `, p. ${fm.source.page}` : ''}`
+  : null;
+const KIND: Record<string, string> = {
+  compute: 'Compute',
+  derive: 'Derive',
+  concept: 'Concept',
+  sketch: 'Sketch',
+  code: 'Code',
+};
+---
+
+<Base title={doc.data.title} course={course} tab="exercises">
+  <article
+    class="exercise sk-item"
+    data-item={item}
+    data-h={doc.data.h}
+    data-pagefind-body
+  >
+    <SearchTags course={course} type="exercise" topic={topicId} difficulty={fm.difficulty} />
+    <header class="page-head">
+      <p class="eyebrow" lang={en} data-pagefind-ignore>
+        <a href={route.exercises(c)}>Exercises</a>
+        {' · '}
+        {
+          hasSummary ? (
+            <a href={route.summary(c, topicId)} lang={course.lang}>
+              {course.topicTitle(topicId)}
+            </a>
+          ) : (
+            <span lang={course.lang}>{course.topicTitle(topicId)}</span>
+          )
+        }
+      </p>
+      <h1>{doc.data.title}</h1>
+      <p class="meta-row" lang={en} data-pagefind-ignore>
+        <Difficulty value={fm.difficulty} label />
+        {fm.minutes && <span>about {fm.minutes} min</span>}
+        {fm.kind && <span class="badge">{KIND[fm.kind] ?? fm.kind}</span>}
+        {source && <span lang={course.lang}>{source}</span>}
+      </p>
+    </header>
+
+    <div class="prose">
+      <Html html={parts.body} course={c} />
+    </div>
+
+    {
+      parts.hints.length > 0 && (
+        <sk-hints class="prose" data-item={item}>
+          <Html html={parts.hints.join('\n')} course={c} />
+        </sk-hints>
+      )
+    }
+
+    {answers.length > 0 && <sk-answer-check data-item={item} data-answers={JSON.stringify(answers)} />}
+
+    {
+      parts.solution && (
+        <sk-reveal class="prose" data-item={item}>
+          <Html html={parts.solution} course={c} />
+        </sk-reveal>
+      )
+    }
+
+    <sk-self-assess data-item={item}></sk-self-assess>
+  </article>
+
+  {
+    (prev || next) && (
+      <nav class="pager exercise-pager" aria-label="Exercises in this topic" lang={en}>
+        {prev && (
+          <a class="prev" href={route.exercise(c, prev.data.id ?? '')}>
+            <span>← Previous exercise</span>
+            <strong lang={course.lang}>{prev.data.title}</strong>
+          </a>
+        )}
+        {next && (
+          <a class="next" href={route.exercise(c, next.data.id ?? '')}>
+            <span>Next exercise →</span>
+            <strong lang={course.lang}>{next.data.title}</strong>
+          </a>
+        )}
+      </nav>
+    )
+  }
+</Base>
+
+<style>
+  .exercise,
+  .exercise-pager {
+    max-width: var(--measure);
+    margin-inline: auto;
+  }
+
+  .exercise > :is(sk-hints, sk-answer-check, sk-reveal, sk-self-assess) {
+    margin: var(--space-5) 0;
+  }
+</style>
