@@ -28,9 +28,8 @@ that owns the file:
 | `progress/` | `studykit progress import`, `log` and `report` |
 
 The `author` and `verifier` agents and the `studykit plan`, `verify` and `progress` commands
-exist (Phase 5). `studykit ingest` and `studykit pipeline` come with Phase 6; the
-`ingester` and `exam-analyst` agents and `/register-new-subject` are being added in the
-same phase.
+come from Phase 5; `studykit ingest`, `studykit pipeline`, the `ingester` and
+`exam-analyst` agents, `/register-new-subject` and `/add-material` from Phase 6.
 
 Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
 `validate --quick`; References, Figures, Verification and PDF run in `validate`; Site and

@@ -37,11 +37,12 @@ before changing that area, and keep code and spec in sync.
 
 ## Claude Code layer (`.claude/`, docs/architecture.md §5)
 
-- Commands: `/regenerate`, `/verify`, `/tutor`, `/examine`, `/import-progress`,
-  `/study-status` (`.claude/skills/<name>/SKILL.md`). Internal skills the agents preload:
-  `content-format`, `authoring`, `figures`, `verify-protocol`.
-- Agents: `author`, `verifier`, `tutor`, `examiner` (`.claude/agents/`). No agent has the
-  Agent tool, none has memory. The verifier works blind: its hook
+- Commands: `/register-new-subject`, `/add-material`, `/regenerate`, `/verify`, `/tutor`,
+  `/examine`, `/import-progress`, `/study-status` (`.claude/skills/<name>/SKILL.md`).
+  Internal skills the agents preload: `ingest`, `content-format`, `authoring`, `figures`,
+  `verify-protocol`.
+- Agents: `ingester`, `exam-analyst`, `author`, `verifier`, `tutor`, `examiner`
+  (`.claude/agents/`). No agent has the Agent tool, none has memory. The verifier works blind: its hook
   (`studykit hook verifier-guard`) denies it item files, keys and solutions; it works from
   `studykit blind`.
 - `just tutor <course>` and `just examine <course> [mode]` start the tutor and the examiner
@@ -52,7 +53,13 @@ before changing that area, and keep code and spec in sync.
 - Ledger files (`state/verify/`) are written only by `studykit verify`, `progress/` only
   by `studykit progress import|log|report`, and `plan.yaml` only by `studykit plan`, except
   each session's goal and note. Never edit them by hand.
-- `/register-new-subject`, `/add-material`, `ingester` and `exam-analyst` come with
-  Phase 6 (docs/architecture.md §5.4); they do not exist yet.
+- `/register-new-subject <folder> [course-id]` builds a course from lecture PDFs
+  (docs/architecture.md §5.4) and resumes at the first unfinished step of
+  `studykit pipeline status <course>`; `/add-material <course> <file|folder>` adds material
+  later. The user's folder is read only by `studykit ingest scan|init|add`; agents read the
+  copies in `sources/raw/`. `sources/manifest.yaml`, `chunks.yaml`, `raw/` and the page
+  texts are written only by `studykit ingest init|extract|add`; notes by the `ingester`,
+  `analysis/` by the `exam-analyst`, `sources/outline.md` and the topics by the command's
+  main thread.
 - When you change a skill or an agent, run `uv run --frozen pytest -q tests/py/test_claude.py`:
   it checks frontmatter, referenced files, `studykit` commands and `just` recipes.
