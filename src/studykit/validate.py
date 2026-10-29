@@ -1401,6 +1401,8 @@ def _module_missing(name: str, phase: str) -> Callable[[Context], str | None]:
 
 @stage("Verification", "SK-VER", 80, requires=_module_missing("verify", "Phase 5"))
 def check_verification(ctx: Context) -> None:  # pragma: no cover - replaced in Phase 5
+    # Phase 5 also enforces §2.6 "numeric questions require a check script": the verifier
+    # writes checks/<id>.py blind, after authoring, so lint cannot demand it earlier.
     ctx.note("verification ledger checks are not implemented yet")
 
 
