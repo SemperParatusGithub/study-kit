@@ -30,8 +30,8 @@ test.describe('sk-progress', () => {
 
   test('topic bars, calibration and exam history', async ({ page }) => {
     const p = page.locator('sk-progress');
-    // rc-tiefpass: last attempts 0, 1, 0 → 33 %; rc-filter: 1 → 100 %; overall 2 of 4 → 50 %
-    await expect(p.locator('.sk-ring')).toHaveAttribute('aria-label', '50 % right in the last 10 answers per topic');
+    // rc-tiefpass: last attempts 0, 1, 0 → 33%; rc-filter: 1 → 100%; overall 2 of 4 → 50%
+    await expect(p.locator('.sk-ring')).toHaveAttribute('aria-label', '50% right in the last 10 answers per topic');
     await expect(p.locator('.sk-stats')).toContainText('5 answers');
     await expect(p.locator('.sk-stats')).toContainText('3 due today'); // 002, filter-003, the exercise
     await expect(p.locator('.sk-stats')).toContainText('1 misconception');
@@ -41,13 +41,13 @@ test.describe('sk-progress', () => {
     await expect(topics.nth(0)).toContainText('Spannungsteiler');
     await expect(topics.nth(0)).toContainText('not started');
     await expect(topics.nth(1)).toContainText('RC-Tiefpass');
-    await expect(topics.nth(1).locator('.sk-topic-value')).toHaveText('33 %');
+    await expect(topics.nth(1).locator('.sk-topic-value')).toHaveText('33%');
     await expect(topics.nth(1).locator('.sk-topic-meta')).toHaveText('2 questions answered · 1 due · 1 misconception');
-    await expect(topics.nth(2).locator('.sk-topic-value')).toHaveText('100 %');
+    await expect(topics.nth(2).locator('.sk-topic-value')).toHaveText('100%');
     const calib = p.locator('.sk-calib-row');
     await expect(calib.nth(0)).toContainText('When sure');
-    await expect(calib.nth(0).locator('.sk-topic-value')).toHaveText('67 %');
-    await expect(calib.nth(1).locator('.sk-topic-value')).toHaveText('50 %');
+    await expect(calib.nth(0).locator('.sk-topic-value')).toHaveText('67%');
+    await expect(calib.nth(1).locator('.sk-topic-value')).toHaveText('50%');
     await expect(p.locator('.sk-exam-history tbody tr')).toHaveText([/Probeklausur 1.*4 Nov 2026.*15 \/ 20.*55 min/]);
   });
 
@@ -56,7 +56,7 @@ test.describe('sk-progress', () => {
       const { storeFor } = await import('/build/lib/store.js' as string);
       storeFor('mini').recordMc('mc-spannungsteiler-001', { chosen: ['A'], score: 1, conf: 'sure', ms: 1 });
     });
-    await expect(page.locator('sk-progress .sk-topic').nth(0)).toContainText('100 %');
+    await expect(page.locator('sk-progress .sk-topic').nth(0)).toContainText('100%');
     await expect(page.locator('sk-progress .sk-stats')).toContainText('6 answers');
   });
 });

@@ -102,7 +102,7 @@ export function relativeDay(day: string, from: string = today()): string {
 }
 
 export function percent(x: number): string {
-  return `${Math.round(x * 100)} %`;
+  return `${Math.round(x * 100)}%`;
 }
 
 /** Format points: 12, 7.5, 0.33. */

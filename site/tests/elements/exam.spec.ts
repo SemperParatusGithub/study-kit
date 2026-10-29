@@ -162,13 +162,13 @@ test('submit: solutions open, rubric grading, MC auto-scored, result saved', asy
   await expect(rubric.getByRole('checkbox')).toHaveCount(2);
   await expect(rubric.locator('.sk-rubric-criterion .katex')).toHaveCount(1); // "Spannung $U_2$ korrekt"
   const result = exam(page).locator('.sk-exam-result');
-  await expect(result.locator('.sk-exam-total')).toContainText('4 / 20 points · 20 %');
+  await expect(result.locator('.sk-exam-total')).toContainText('4 / 20 points · 20%');
   await expect(result.locator('.sk-exam-total')).toContainText('not passed (pass mark 10)');
   await expect(result.locator('.sk-exam-grade')).toContainText('Grade estimate: 5.0');
 
   await rubric.getByRole('checkbox').first().check();
   await expect(rubric.locator('.sk-rubric-total')).toHaveText('6 of 12 points');
-  await expect(result.locator('.sk-exam-total')).toContainText('10 / 20 points · 50 %');
+  await expect(result.locator('.sk-exam-total')).toContainText('10 / 20 points · 50%');
   await expect(result.locator('.sk-exam-total')).toContainText('passed (pass mark 10)');
   await expect(result.locator('.sk-exam-grade')).toContainText('Grade estimate: 4.0');
   await expect(result.locator('.sk-exam-table tbody tr')).toHaveCount(2);

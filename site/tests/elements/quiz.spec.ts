@@ -29,7 +29,7 @@ test('practice: feedback per question, result per topic with summary links', asy
   }
   const result = q.locator('.sk-quiz-result');
   await expect(result.getByRole('heading', { name: 'Result' })).toBeFocused();
-  await expect(result.locator('.sk-quiz-score')).toHaveText('2 / 3 points · 67 %');
+  await expect(result.locator('.sk-quiz-score')).toHaveText('2 / 3 points · 67%');
   const row = result.locator('.sk-quiz-topics tbody tr');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText('RC-Tiefpass');
@@ -60,7 +60,7 @@ test('practice: feedback per question, result per topic with summary links', asy
   await expect(mc.locator('.sk-mc-feedback')).toContainText('Practice answer: not recorded');
   await q.getByRole('button', { name: 'See result' }).click();
   await expect(q.locator('.sk-quiz-meta')).toContainText('Retry round, not recorded · 1 of 1 answered');
-  await expect(q.locator('.sk-quiz-score')).toHaveText('1 / 1 points · 100 %');
+  await expect(q.locator('.sk-quiz-score')).toHaveText('1 / 1 points · 100%');
   expect((await progress(page)).items).toEqual(before);
 });
 
@@ -91,7 +91,7 @@ test('test mode: no feedback until the end, then every answer is revealed', asyn
     if (i < 3) await expect(mc.locator('.sk-why').first()).toBeHidden();
   }
   const result = q.locator('.sk-quiz-result');
-  await expect(result.locator('.sk-quiz-score')).toHaveText('1 / 3 points · 33 %');
+  await expect(result.locator('.sk-quiz-score')).toHaveText('1 / 3 points · 33%');
   await expect(result.locator('.sk-quiz-misconceptions li')).toHaveCount(2);
   const wrong = result.locator('.sk-quiz-item.is-bad');
   await expect(wrong).toHaveCount(2);
@@ -116,7 +116,7 @@ test('test mode with a time limit ends when the time is up', async ({ page }) =>
   await expect(result).toBeVisible();
   await expect(result.locator('.sk-quiz-meta')).toContainText('1 of 4 answered');
   await expect(result.locator('.sk-quiz-meta')).toContainText('time is up');
-  await expect(result.locator('.sk-quiz-score')).toHaveText('1 / 4 points · 25 %');
+  await expect(result.locator('.sk-quiz-score')).toHaveText('1 / 4 points · 25%');
   // the unanswered question is shown with its key but not recorded
   await expect(result.locator('.sk-quiz-item').nth(1)).toContainText('not answered');
   expect(Object.keys((await progress(page)).items)).toHaveLength(1);
