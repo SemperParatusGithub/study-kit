@@ -277,8 +277,13 @@ UNESCAPED_PIPE_RE = re.compile(r"(?<!\\)\|")
 # A word broken with a hyphen at the end of a line: `[RC-` + newline + `Tiefpass]`.
 LINE_END_HYPHEN_RE = re.compile(r"[^\W\d_]-$")
 LINE_START_LETTER_RE = re.compile(r"^[^\W\d_]")
-# Words after which a line-final hyphen is a suspended compound („Ein- und Ausgang“).
-SUSPENDED_HYPHEN_WORDS = {"und", "oder", "bzw.", "sowie", "bis", "wie", "noch", "and", "or", "to"}
+# Words after which a line-final hyphen is a suspended compound („Ein- und Ausgang“),
+# compared up to a '/' („und/oder“) and without a trailing comma.
+SUSPENDED_HYPHEN_WORDS = {
+    *("und", "oder", "u.", "sowie", "bis", "wie", "noch", "als"),
+    *("bzw.", "bzw", "beziehungsweise", "resp.", "respektive", "versus", "vs.", "vs"),
+    *("and", "or", "to", "nor"),
+}
 
 
 def _container(text: str) -> tuple[int, bool, str]:
@@ -1088,7 +1093,8 @@ class Body:
         """Warnings for a word broken across lines after a hyphen (`[RC-` / `Tiefpass]`).
 
         Markdown joins the lines with a space, so the text reads „RC- Tiefpass“. A line
-        that continues with „und“, „oder“, „bzw.“ … is a suspended compound and fine.
+        that continues with „und“, „oder“, „bzw.“, „als“ … (SUSPENDED_HYPHEN_WORDS) is a
+        suspended compound and fine.
         """
         out = []
         for para in self.paragraphs:
@@ -1099,7 +1105,8 @@ class Body:
                 end, rest = lines[k].rstrip(), lines[k + 1].lstrip()
                 if not LINE_END_HYPHEN_RE.search(end) or not LINE_START_LETTER_RE.match(rest):
                     continue
-                if rest.split()[0].casefold() in SUSPENDED_HYPHEN_WORDS:
+                word = rest.split()[0].split("/")[0].rstrip(",;:").casefold()
+                if word in SUSPENDED_HYPHEN_WORDS:
                     continue
                 before = para.lines[k].text.rstrip().split()[-1]
                 after = para.lines[k + 1].text.split()[0]

@@ -225,9 +225,10 @@ Fix: in math `\lvert\underline{Z}\rvert` (absolute value), `\lVert x \rVert` (no
 ### `SK-BLOCK-HYPHEN`
 **warning.** A line ends in a letter and a hyphen and the next line of the paragraph
 starts with a letter: `[RC-` / `Tiefpass](topic:rc-filter)`. Markdown joins the lines with a
-space, so the page shows „RC- Tiefpass“. A next line starting with „und“, „oder“, „bzw.“,
-„sowie“, „bis“, „wie“, „noch“, „and“, „or“ or „to“ is a suspended compound („Ein- und
-Ausgang“) and not reported.
+space, so the page shows „RC- Tiefpass“. A next line starting with „und“, „oder“ (also
+„und/oder“), „u.“, „sowie“, „bis“, „wie“, „noch“, „als“, „bzw.“, „beziehungsweise“,
+„resp.“, „respektive“, „versus“, „vs.“, „and“, „or“, „nor“ or „to“ is a suspended compound
+(„Ein- und Ausgang“, „sowohl Ein- als auch Ausgang“) and not reported.
 Fix: keep the hyphenated word on one line, e.g. move `[RC-Tiefpass](topic:rc-filter)` to
 the next line as a whole.
 

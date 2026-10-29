@@ -229,6 +229,8 @@ def test_no_table_where_pandoc_builds_none(text):
         ("Der [RC-\nTiefpass](topic:rc) filtert.\n", 1, 8),
         ("Ein Spannungs-\nteiler.\n", 1, 14),
         ("- Ein Spannungs-\n  teiler.\n", 1, 16),
+        ("Eine Netzwerk-\nanalyse.\n", 1, 14),
+        ("Spannungs-\nu teiler.\n", 1, 10),  # „u.“ needs its period
     ],
 )
 def test_word_broken_after_a_hyphen(text, line, col):
@@ -244,6 +246,10 @@ def test_word_broken_after_a_hyphen(text, line, col):
         "Ein-\nund Ausgang.\n",
         "Hoch-\noder Tiefpass, Hoch-\nbzw. Tiefpass, Hoch-\nsowie Tiefpass.\n",
         "Zwei-\nbis dreimal; high-\nand low-pass.\n",
+        "Sowohl die Ein-\nals auch die Ausgangsspannung.\n",
+        "Hoch-\nund/oder Tiefpass, Ein-\nu. Ausgang, Hoch-\nbeziehungsweise Tiefpass.\n",
+        "Primär-\nrespektive Sekundärseite, Ein-\nresp. Ausgang, Ein-\nbzw Ausgang.\n",
+        "Gleichstrom-\nversus Wechselstromanalyse, Gleich-\nvs. Wechselstrom.\n",
         "Der Term $a-$\nbleibt.\n",  # math ends the line
         "Ein Wert von 5-\n10 V.\n",  # a range, not a word
         "Ein Wort am Ende-\n\nNeuer Absatz.\n",  # the paragraph ends
