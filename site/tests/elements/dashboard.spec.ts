@@ -1,7 +1,7 @@
 // The shell's progress placeholders, filled by elements/dashboard.ts from the store and the
 // course info (pages/dashboard.html mirrors the markup of src/pages and src/components).
 import { expect, test } from '@playwright/test';
-import { seed } from './helpers.ts';
+import { progress, seed } from './helpers.ts';
 
 const attempt = (t: string, score: number, conf: 'sure' | 'unsure', chosen = ['A']) => ({ t, chosen, score, conf, ms: 1000 });
 
@@ -98,4 +98,25 @@ test('placeholders follow progress recorded on the page and in other tabs', asyn
   });
   await expect(page.locator('#exercises li').nth(1)).toHaveAttribute('data-status', 'partial');
   await expect(page.locator('#exercises li').nth(1).locator('[data-sk-status]')).toHaveText('Partly');
+});
+
+test('sk-plan uses the shell slot for its checkbox and the shell banner', async ({ page }) => {
+  await page.goto('/dashboard.html');
+  const plan = page.locator('sk-plan');
+  const sessions = plan.locator('li.session');
+  await expect(sessions.first().locator('[data-sk-plan-slot] input[type=checkbox]')).toHaveCount(1);
+  await expect(sessions.first().getByRole('checkbox')).toHaveAccessibleName('Done: Die Teilerregel sicher anwenden');
+  await expect(plan.locator('.sk-plan-behind')).toHaveCount(0); // no second banner
+  const banner = plan.locator('[data-sk-behind]');
+  await expect(banner).toBeVisible();
+  await expect(banner.locator('[data-sk-behind-text]')).toHaveText('2 past sessions are not done.');
+  await sessions.first().getByRole('checkbox').check();
+  await expect(banner.locator('[data-sk-behind-text]')).toHaveText('1 past session is not done.');
+  await sessions.nth(1).getByRole('checkbox').check();
+  await expect(banner).toBeHidden();
+  // the last session done: no next session left
+  await sessions.nth(2).getByRole('checkbox').check();
+  await expect(page.locator('#next [data-session-date]:visible')).toHaveCount(0);
+  await expect(page.locator('#next [data-no-session]')).toBeVisible();
+  expect((await progress(page)).items['plan:s-2027-02-10-a']).toEqual({ done: true });
 });

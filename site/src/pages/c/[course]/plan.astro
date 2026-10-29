@@ -53,8 +53,8 @@ const examDate = plan?.exam_date ?? course.examDate;
     ) : (
       <sk-plan data-course={c}>
         <div class="notice notice-warn" data-sk-behind hidden lang={en}>
-          <strong>You are behind schedule.</strong> Some past sessions are not done. In Claude Code, run{' '}
-          <code>/regenerate {c} plan</code> to replan from today; finished work is kept.
+          <strong>You are behind schedule.</strong> <span data-sk-behind-text>Some past sessions are not done.</span>{' '}
+          In Claude Code, run <code>/regenerate {c} plan</code> to replan from today; finished work is kept.
         </div>
         <ol class="weeks" role="list">
           {allWeeks.map((w) => (
@@ -70,7 +70,10 @@ const examDate = plan?.exam_date ?? course.examDate;
                 {w.sessions.map((s) => (
                   <li class={`session kind-${s.kind}`} data-session={s.id} data-date={s.date} id={s.id}>
                     <div class="session-date" lang={en}>
-                      <time datetime={s.date}>{formatDay(s.date)}</time>
+                      <span class="session-day">
+                        <span class="session-check" data-sk-plan-slot />
+                        <time datetime={s.date}>{formatDay(s.date)}</time>
+                      </span>
                       <span class="badge badge-accent today-badge">Today</span>
                     </div>
                     <div class="session-body">
@@ -204,6 +207,25 @@ const examDate = plan?.exam_date ?? course.examDate;
     gap: var(--space-1);
     font-weight: 600;
     font-size: var(--text-sm);
+  }
+
+  .session-day {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .session-check:empty {
+    display: none;
+  }
+
+  .session.is-done .session-body {
+    opacity: 0.65;
+  }
+
+  .session.is-done .session-goal {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
   }
 
   .session-head {

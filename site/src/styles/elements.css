@@ -1245,11 +1245,13 @@ sk-exam.is-low .sk-exam-clock {
 
 /* --- sk-plan ------------------------------------------------------------------------ */
 
-sk-plan.sk-plan-ready :is(ol, ul):has(> .sk-plan-item) {
+/* A plain list of sessions: the checkbox sits in front of each item. Where the shell gives
+ * each session a [data-sk-plan-slot] (.has-slot), the shell lays it out. */
+sk-plan.sk-plan-ready :is(ol, ul):has(> .sk-plan-item:not(.has-slot)) {
   padding-inline-start: 0;
 }
 
-.sk-plan-item {
+.sk-plan-item:not(.has-slot) {
   position: relative;
   margin-block: 0.3rem;
   padding-inline-start: 1.9rem;
@@ -1257,16 +1259,19 @@ sk-plan.sk-plan-ready :is(ol, ul):has(> .sk-plan-item) {
 }
 
 .sk-plan-check {
-  position: absolute;
-  inset-inline-start: 0;
-  top: 0.2em;
   display: inline-grid;
   place-items: center;
   cursor: pointer;
 }
 
+.sk-plan-item:not(.has-slot) > .sk-plan-check {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.2em;
+}
+
 /* The checkbox is an atomic inline box, so the line-through does not reach it. */
-.sk-plan-item.is-done {
+.sk-plan-item.is-done:not(.has-slot) {
   color: var(--ske-muted);
   text-decoration: line-through;
   text-decoration-color: var(--ske-border-strong);
