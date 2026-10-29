@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import CourseData from '../components/CourseData.astro';
 import MasteryRing from '../components/MasteryRing.astro';
 import NextSession from '../components/NextSession.astro';
 import { listCourses, overallMastery, route } from '../lib/courses';
@@ -91,6 +92,7 @@ const today = todayIso();
                 Summary
               </a>
             </p>
+            <CourseData course={course} />
           </li>
         ))}
       </ul>

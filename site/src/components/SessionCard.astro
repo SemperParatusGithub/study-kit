@@ -14,7 +14,7 @@ const tasks = session.tasks.map((t) => taskView(course, t));
 const en = course.lang === 'en' ? undefined : 'en';
 ---
 
-<article class="session-card" data-session-date={session.date} hidden={hidden}>
+<article class="session-card" data-session={session.id} data-session-date={session.date} hidden={hidden}>
   <p class="session-when" lang={en}>
     <time datetime={session.date} data-countdown>
       <strong>{formatDay(session.date)}</strong>

@@ -3,6 +3,7 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
 import type { DocData, ExamFm } from './types';
 import { renderLabel } from './katex';
+import type { CourseInfo } from './stats.ts';
 import { coursesDir, joinPath, readJson } from './sys.mjs';
 
 export type CourseData = CollectionEntry<'courses'>['data'];
@@ -224,6 +225,39 @@ export function overallMastery(course: Course): number | null {
  */
 export function labelHtml(doc: Doc, text: string): string {
   return doc.data.labels[text] ?? renderLabel(text);
+}
+
+/**
+ * What the client needs to know about a course to show progress (lib/stats.ts): topics with
+ * their questions and exercises, exams and plan sessions. CourseData.astro writes it into
+ * the page.
+ */
+export function clientInfo(course: Course): CourseInfo {
+  const c = course.id;
+  return {
+    id: c,
+    examDate: course.examDate,
+    topics: course.topics.map((t) => {
+      const banks = course.banks.filter((b) => b.data.topic === t.id);
+      const summary = course.summaries.some((s) => s.data.topic === t.id);
+      return {
+        id: t.id,
+        title: t.title,
+        weight: t.weight,
+        skip: t.skip,
+        href: summary ? route.summary(c, t.id) : banks.length ? route.mcTopic(c, t.id) : null,
+        mc: banks.flatMap((b) => b.data.questions.map((q) => q.id)),
+        ex: course.exercises.filter((e) => e.data.topic === t.id && e.data.id).map((e) => e.data.id as string),
+      };
+    }),
+    exams: course.exams.map((e) => ({ id: e.id, title: e.doc.data.title, points: e.fm.points })),
+    sessions: (course.plan?.sessions ?? []).map((s) => ({ id: s.id, date: s.date })),
+  };
+}
+
+/** JSON for an inline <script type="application/json">: no "</script>" can end it early. */
+export function scriptJson(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
 /** Titles of source documents from the course index (_build/index.json). */

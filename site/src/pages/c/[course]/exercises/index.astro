@@ -126,7 +126,40 @@ const KIND: Record<string, string> = {
     margin-top: 0;
   }
 
-  .ex-status {
-    min-width: 1.5rem;
+  /* filled from browser progress (elements/dashboard.ts): text plus colour */
+  .ex-status[data-status] {
+    min-width: 0;
+  }
+
+  .ex-status[data-status='new']::before {
+    content: none;
+  }
+
+  .ex-status:not(:empty) {
+    padding: 0.05rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+
+  .ex-status[data-status='solved'] {
+    border-color: var(--ok);
+    color: var(--ok);
+    background: var(--ok-soft);
+  }
+
+  .ex-status[data-status='solved']::before {
+    content: '✓ ';
+  }
+
+  .ex-status[data-status='partial'] {
+    border-color: var(--warn);
+    color: var(--warn);
+    background: var(--warn-soft);
+  }
+
+  .ex-status[data-status='not-yet'] {
+    color: var(--text-muted);
   }
 </style>

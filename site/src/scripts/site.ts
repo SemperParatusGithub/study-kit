@@ -1,5 +1,6 @@
 // Small progressive enhancements of the shell. Nothing here reads or writes progress
-// (that is lib/store.ts, used by the custom elements); every page works without it.
+// (that is lib/store.ts, used by the custom elements; elements/dashboard.ts fills the
+// progress placeholders and picks the next session); every page works without it.
 
 const DAY_MS = 86_400_000;
 
@@ -38,21 +39,6 @@ function countdowns(): void {
     const out = el.querySelector<HTMLElement>('[data-countdown-text]') ?? el;
     out.textContent = text;
     el.dataset.days = String(n);
-  }
-}
-
-/**
- * Upcoming sessions are rendered at build time as hidden cards; show the first one that is
- * today or later, and the fallback when none is left.
- */
-function nextSessions(): void {
-  const today = todayIso();
-  for (const box of document.querySelectorAll<HTMLElement>('[data-next-session]')) {
-    const cards = [...box.querySelectorAll<HTMLElement>('[data-session-date]')];
-    const next = cards.find((c) => (c.dataset.sessionDate ?? '') >= today);
-    for (const c of cards) c.hidden = c !== next;
-    const none = box.querySelector<HTMLElement>('[data-no-session]');
-    if (none) none.hidden = Boolean(next);
   }
 }
 
@@ -146,7 +132,6 @@ function printDetails(): void {
 
 searchShortcut();
 countdowns();
-nextSessions();
 planDays();
 todayFill();
 filters();

@@ -7,6 +7,7 @@ import '../styles/base.css';
 import '../styles/content.css';
 import '../styles/code.css';
 import '../styles/print.css';
+import CourseData from '../components/CourseData.astro';
 import CourseNav from '../components/CourseNav.astro';
 import type { Course } from '../lib/courses';
 import { route } from '../lib/courses';
@@ -104,6 +105,7 @@ const fullTitle = course ? `${title} · ${course.short}` : `${title} · study-ki
     <main id="main">
       <slot />
     </main>
+    {course && <CourseData course={course} />}
     <footer class="site-footer" lang={chromeLang}>
       <div>
         <span>study-kit · runs locally; your progress stays in this browser</span>

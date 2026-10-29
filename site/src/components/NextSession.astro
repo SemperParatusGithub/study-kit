@@ -1,6 +1,7 @@
 ---
-// The next study session. Upcoming sessions are rendered hidden; scripts/site.ts shows the
-// first one dated today or later, so the box stays right after the build day.
+// The next study session. Upcoming sessions are rendered hidden; elements/dashboard.ts
+// shows the first one dated today or later that is not done yet, so the box stays right
+// after the build day.
 import SessionCard from './SessionCard.astro';
 import type { Course } from '../lib/courses';
 import { todayIso } from '../lib/format';
@@ -15,7 +16,7 @@ const today = todayIso();
 const upcoming = (course.plan?.sessions ?? []).filter((s) => s.date >= today).slice(0, limit);
 ---
 
-<div class="next-session" data-next-session>
+<div class="next-session" data-next-session data-course={course.id}>
   {upcoming.map((s, i) => <SessionCard course={course} session={s} hidden={i !== 0} />)}
   <p class="muted small" data-no-session hidden={upcoming.length > 0} lang={course.lang === 'en' ? undefined : 'en'}>
     {

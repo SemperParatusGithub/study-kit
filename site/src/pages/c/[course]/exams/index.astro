@@ -51,7 +51,7 @@ const en = course.lang === 'en' ? undefined : 'en';
               {exam.mc && ` · ${plural(exam.mc.data.questions.length, 'MC question')}`}
             </p>
             <p class="small" lang={en}>
-              Last attempt: <span data-sk-fill data-sk-exam-best data-course={c} data-exam={exam.id} />
+              Best result: <span data-sk-fill data-sk-exam-best data-course={c} data-exam={exam.id} />
             </p>
             <a class="button" href={route.exam(c, exam.id)} lang={en}>
               Open exam

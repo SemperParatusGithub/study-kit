@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="de">
+<head>
+<!--#include partials/head.html-->
+<title>Dashboard harness</title>
+</head>
+<body data-course="mini" data-exam-date="2027-02-15" data-mc-scoring="all-or-nothing" data-negative-marking="false">
+<!--#include partials/header.html-->
+<main>
+<h1>Progress placeholders</h1>
+<p>The site shell's placeholders (src/pages, src/components) that elements/dashboard.ts fills,
+with the course info of components/CourseData.astro.</p>
+
+<section id="today" lang="en">
+  <h2>Today</h2>
+  <p>Reviews due: <span id="due-all" data-sk-fill data-sk-due-count data-course="mini"></span></p>
+  <h3>Weakest topics</h3>
+  <div id="weak">
+    <ol class="weak-list" data-sk-weakest data-course="mini"></ol>
+    <p data-sk-weakest-empty>Answer a few questions and the topics that need work show up here.</p>
+  </div>
+  <h3>Next session</h3>
+  <div id="next" class="next-session" data-next-session data-course="mini">
+    <article data-session="s-2026-11-02-a" data-session-date="2026-11-02" hidden>Mon 2 Nov</article>
+    <article data-session="s-2026-11-04-a" data-session-date="2026-11-04" hidden>Wed 4 Nov</article>
+    <article data-session="s-2027-02-10-a" data-session-date="2027-02-10" hidden>Wed 10 Feb</article>
+    <p data-no-session hidden>No upcoming sessions in the plan.</p>
+  </div>
+</section>
+
+<section id="card" lang="en">
+  <h2>Course card</h2>
+  <span class="mastery" id="ring" data-sk-mastery data-course="mini" data-value="">
+    <svg viewBox="0 0 56 56" width="56" height="56" aria-hidden="true">
+      <circle cx="28" cy="28" r="22" fill="none" stroke="currentColor" stroke-width="6"></circle>
+    </svg>
+    <span class="mastery-value">—</span>
+  </span>
+</section>
+
+<section id="banks" lang="en">
+  <h2>MC banks</h2>
+  <table>
+    <tr data-topic-row="rc-tiefpass"><th>RC-Tiefpass</th>
+      <td><span data-sk-fill data-sk-accuracy data-course="mini" data-topic="rc-tiefpass"></span></td>
+      <td><span data-sk-fill data-sk-due-count data-course="mini" data-topic="rc-tiefpass"></span></td></tr>
+    <tr data-topic-row="rc-filter"><th>RC-Filter</th>
+      <td><span data-sk-fill data-sk-accuracy data-course="mini" data-topic="rc-filter"></span></td>
+      <td><span data-sk-fill data-sk-due-count data-course="mini" data-topic="rc-filter"></span></td></tr>
+    <tr data-topic-row="spannungsteiler"><th>Spannungsteiler</th>
+      <td><span data-sk-fill data-sk-accuracy data-course="mini" data-topic="spannungsteiler"></span></td>
+      <td><span data-sk-fill data-sk-due-count data-course="mini" data-topic="spannungsteiler"></span></td></tr>
+  </table>
+</section>
+
+<section id="exams" lang="en">
+  <h2>Mock exams</h2>
+  <p>Best result: <span data-sk-fill data-sk-exam-best data-course="mini" data-exam="probeklausur-1"></span></p>
+</section>
+
+<section id="exercises" lang="en">
+  <h2>Exercises</h2>
+  <ul>
+    <li data-filter-row data-item="ex:ex-rc-tp-grenzfrequenz" data-status="">Grenzfrequenz
+      <span data-sk-fill data-sk-status data-item="ex:ex-rc-tp-grenzfrequenz"></span></li>
+    <li data-filter-row data-item="ex:ex-st-teiler" data-status="">Teiler
+      <span data-sk-fill data-sk-status data-item="ex:ex-st-teiler"></span></li>
+  </ul>
+</section>
+
+<section id="plan" lang="en">
+  <h2>Plan</h2>
+  <sk-plan data-course="mini">
+    <div class="notice" data-sk-behind hidden>
+      <strong>You are behind schedule.</strong> <span data-sk-behind-text>Some past sessions are not done.</span>
+      In Claude Code, run <code>/regenerate mini plan</code>.
+    </div>
+    <ol>
+      <li class="session" data-session="s-2026-11-02-a" data-date="2026-11-02">
+        <div class="session-date"><span data-sk-plan-slot></span><time datetime="2026-11-02">Mon 2 Nov</time></div>
+        <p class="session-goal">Die Teilerregel sicher anwenden</p>
+      </li>
+      <li class="session" data-session="s-2026-11-04-a" data-date="2026-11-04">
+        <div class="session-date"><span data-sk-plan-slot></span><time datetime="2026-11-04">Wed 4 Nov</time></div>
+        <p class="session-goal">RC-Tiefpass</p>
+      </li>
+      <li class="session" data-session="s-2027-02-10-a" data-date="2027-02-10">
+        <div class="session-date"><span data-sk-plan-slot></span><time datetime="2027-02-10">Wed 10 Feb</time></div>
+        <p class="session-goal">Probeklausur</p>
+      </li>
+    </ol>
+  </sk-plan>
+</section>
+</main>
+<script type="application/json" data-sk-course-data="mini">{"id":"mini","examDate":"2027-02-15",
+"topics":[
+ {"id":"spannungsteiler","title":"Spannungsteiler","weight":0.3,"skip":false,"href":"/c/mini/summary/spannungsteiler/","mc":[],"ex":["ex-st-teiler"]},
+ {"id":"rc-tiefpass","title":"RC-Tiefpass","weight":0.3,"skip":false,"href":"/c/mini/summary/rc-tiefpass/","mc":["mc-rc-tiefpass-001","mc-rc-tiefpass-002","mc-rc-tiefpass-003"],"ex":[]},
+ {"id":"rc-filter","title":"RC-Filter und Bode-Diagramm","weight":0.4,"skip":false,"href":null,"mc":["mc-rc-filter-003","mc-rc-filter-011","mc-rc-filter-020"],"ex":["ex-rc-tp-grenzfrequenz"]}],
+"exams":[{"id":"probeklausur-1","title":"Probeklausur 1","points":20}],
+"sessions":[{"id":"s-2026-11-02-a","date":"2026-11-02"},{"id":"s-2026-11-04-a","date":"2026-11-04"},{"id":"s-2027-02-10-a","date":"2027-02-10"}]}</script>
+</body>
+</html>
