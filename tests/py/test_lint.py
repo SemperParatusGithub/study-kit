@@ -180,9 +180,6 @@ def test_hook_ignores_bad_json(monkeypatch):
 
 
 FILTERS = REPO / "pandoc" / "filters"
-# Rules only the Lua filters check, new with their rule codes; their errors.md entries are
-# written separately. Remove this set once docs/content-format/errors.md documents them.
-PENDING_DOCS = {"SK-BLOCK-MARKDOWN", "SK-BLOCK-RAW", "SK-MATH-TYPST", "SK-REF-LINK"}
 
 
 def documented_codes() -> set[str]:
@@ -215,8 +212,7 @@ def test_every_code_is_documented():
         used |= set(re.findall(r'"(SK-[A-Z]+-[A-Z0-9-]+)"', path.read_text()))
     used |= {p.name for p in BAD.iterdir() if p.is_dir()}
     used |= filter_codes()
-    assert used >= PENDING_DOCS
-    missing = used - documented_codes() - PENDING_DOCS
+    missing = used - documented_codes()
     assert not missing, f"document these in docs/content-format/errors.md: {sorted(missing)}"
 
 
