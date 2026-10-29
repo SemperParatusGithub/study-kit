@@ -135,6 +135,35 @@ def test_guard_on_writes(repo: Path):
 
 
 @pytest.mark.parametrize(
+    "code",
+    [
+        "# capacitor voltage in steady state\nanswers(uc=5.0)\n",
+        'answers(uc=5.0, method="steady state analysis")\n',
+        "u0 = 0.0  # initial state\n",
+        'review(True, "exams use the same values; mc and state are words here")\n',
+    ],
+)
+def test_guard_allows_words_that_are_dir_names_in_check_code(repo: Path, code: str):
+    write = event("Write", repo, file_path=f"{C}/checks/ex-a.py", content=code)
+    assert decide("verifier-guard", write) is None, code
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        'Path(__file__).parent.parent / "exercises" / "rc"',
+        "glob.glob('../exams/*/*.md')",
+        "open(root + '/state/verify/ex-a.json')",
+        'x = "mc"\nopen(f"../{x}/rc.md")',
+        "p = 'exercises'\n",
+    ],
+)
+def test_guard_denies_paths_in_check_code(repo: Path, code: str):
+    write = event("Write", repo, file_path=f"{C}/checks/ex-a.py", content=code)
+    assert decide("verifier-guard", write), code
+
+
+@pytest.mark.parametrize(
     "command",
     [
         f"cat {C}/exercises/rc/ex-a.md",

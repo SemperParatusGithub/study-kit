@@ -1759,7 +1759,8 @@ the `just` recipes start them. No agent has memory, and only the verifier has a 
   `--json` and `--show-key`, or a prefix of either; `verify` takes no abbreviated options),
   `ls`, `lint`, `validate`, `fig`, `index` and `doctor` are allowed, with or without a path.
 - It denies Write, Edit, MultiEdit and NotebookEdit outside a course's `checks/`, and check
-  code that names those paths.
+  code that names those paths (a name between `/` or quotes, or before a `/`; the words of a
+  comment such as "steady state" do not count).
 - The verifier works only from `studykit blind <c> <id>`, which writes `_build/blind/<id>.md`:
   the statement with no solution, hints, rubric, answer values or `[x]` marks, the answer
   keys to compute (key, label, unit or symbols), and MC options in source order labelled A–F

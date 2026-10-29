@@ -47,6 +47,15 @@ MENTION = re.compile(
     r"|_build/(?!blind\b|figures/[^\s'\"]*\.(?:png|svg)\b)"
     r"|\.facts\.json|site/dist|site/\.astro|(?:^|[\s'\"=/])\.cache/"
 )
+# the same in check code, where only a path counts: a blocked name between '/' or quotes, or
+# before a '/' ("../exercises/x.md", / "mc"), not a word of a comment ("steady state")
+CODE_MENTION = re.compile(
+    r"(?<=[/'\"])(?:exercises|mc|exams|_history|state)(?=[/'\"]|$)"
+    r"|(?<![\w.-])(?:exercises|mc|exams|_history|state)/"
+    r"|_build/(?!blind\b|figures/[^\s'\"]*\.(?:png|svg)\b)"
+    r"|\.facts\.json|site/dist|site/\.astro|(?:^|[\s'\"=/])\.cache/",
+    re.MULTILINE,
+)
 
 
 def deny(reason: str) -> dict[str, Any]:
@@ -253,8 +262,8 @@ def verifier_guard(payload: dict[str, Any]) -> dict[str, Any] | None:
                 f"verifier-guard: {raw}: the verifier writes only into a course's checks/."
                 + GUARD_HINT
             )
-        text = " ".join(str(data.get(k) or "") for k in ("content", "new_string", "new_source"))
-        if MENTION.search(text):
+        text = "\n".join(str(data.get(k) or "") for k in ("content", "new_string", "new_source"))
+        if CODE_MENTION.search(text):
             return deny(
                 f"verifier-guard: {raw}: a check must not read course item files; compute "
                 "from the blind view." + GUARD_HINT
