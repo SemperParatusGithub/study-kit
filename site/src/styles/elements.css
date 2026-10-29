@@ -1,36 +1,41 @@
 /* Custom elements (docs/architecture.md §3.2): sk-mc, sk-quiz, sk-exam, sk-hints,
  * sk-answer-check, sk-reveal, sk-self-assess, sk-plan, sk-progress, sk-theme, sk-export.
  *
- * Colours follow the page's color-scheme (tokens.css sets it from [data-theme]) through
- * light-dark(). The --ske-* tokens can be overridden by tokens.css. Colour is never the
- * only signal: every verdict also has a symbol and text. Motion only without
- * prefers-reduced-motion. Before the script runs (:not(:defined)) the content stays plain
- * and readable. */
+ * Colours come from the shell's tokens.css: every --ske-* token below is a tokens.css
+ * variable (with the same light-dark() pair as a fallback where tokens.css is absent, as in
+ * the element harness), so the elements follow the page's theme: [data-theme=light|dark]
+ * or, for 'system', prefers-color-scheme. Colour is never the only signal: every verdict
+ * also has a symbol and text. Motion only without prefers-reduced-motion. Before the
+ * script runs (:not(:defined)) the content stays plain and readable. */
 
 :root {
-  --ske-fg: light-dark(#1c2128, #e4e7eb);
-  --ske-muted: light-dark(#57606a, #9da7b3);
-  --ske-surface: light-dark(#f6f8fa, #1b2027);
-  --ske-surface-2: light-dark(#eef1f4, #232a33);
-  --ske-raised: light-dark(#ffffff, #151a20);
-  --ske-shadow: 0 2px 10px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.45));
-  --ske-border: light-dark(#d0d7de, #39424d);
+  --ske-fg: var(--text, light-dark(#1f2328, #e6e8eb));
+  --ske-muted: var(--text-muted, light-dark(#59636e, #a1aab4));
+  /* tinted panels inside a card (options, feedback, explanation) */
+  --ske-surface: var(--surface-2, light-dark(#f0f1ef, #22272e));
+  /* hover, tracks and chips: one step stronger than --ske-surface */
+  --ske-surface-2: var(--border, light-dark(#e2e4e1, #2e343c));
+  /* cards, inputs and bars */
+  --ske-raised: var(--surface, light-dark(#ffffff, #1b1f24));
+  --ske-shadow: var(--shadow, 0 2px 10px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.45)));
+  --ske-border: var(--border, light-dark(#e2e4e1, #2e343c));
+  /* form controls keep a 3:1 edge against their background */
   --ske-border-strong: light-dark(#8c959f, #6e7781);
-  --ske-accent: light-dark(#1f5fbf, #7db3ff);
-  --ske-accent-fg: light-dark(#ffffff, #0b1726);
-  --ske-accent-soft: light-dark(#e8f0fc, #1a2a40);
-  --ske-ok: light-dark(#1a7f37, #56d37a);
-  --ske-ok-soft: light-dark(#e7f5ec, #15301f);
-  --ske-bad: light-dark(#c42b1c, #ff8f85);
-  --ske-bad-soft: light-dark(#fdeceb, #3b1c1a);
-  --ske-warn: light-dark(#8a5b00, #f0c14b);
-  --ske-warn-soft: light-dark(#fff5d9, #36301a);
-  --ske-partial: light-dark(#8a5b00, #f0c14b);
-  --ske-radius: 0.5rem;
-  --ske-radius-small: 0.3rem;
-  --ske-focus: light-dark(#1f5fbf, #7db3ff);
+  --ske-accent: var(--accent, light-dark(#1f5fbf, #8ab4f8));
+  --ske-accent-fg: var(--accent-contrast, light-dark(#ffffff, #0d1117));
+  --ske-accent-soft: var(--accent-soft, light-dark(#e7eefb, #1d2a40));
+  --ske-ok: var(--ok, light-dark(#1a7f37, #56d364));
+  --ske-ok-soft: var(--ok-soft, light-dark(#e6f4ea, #1a2e22));
+  --ske-bad: var(--bad, light-dark(#cf222e, #ff7b72));
+  --ske-bad-soft: var(--bad-soft, light-dark(#ffebe9, #3a1d1f));
+  --ske-warn: var(--warn, light-dark(#9a6700, #e3b341));
+  --ske-warn-soft: var(--warn-soft, light-dark(#fff4d6, #2e2714));
+  --ske-partial: var(--warn, light-dark(#9a6700, #e3b341));
+  --ske-radius: var(--radius, 0.6rem);
+  --ske-radius-small: var(--radius-sm, 0.375rem);
+  --ske-focus: var(--focus, light-dark(#1f5fbf, #8ab4f8));
   --ske-gap: 0.75rem;
-  /* The page background (tokens.css --bg), for bars that content scrolls under. */
+  /* The page background, for bars that content scrolls under. */
   --ske-page: var(--bg, Canvas);
 }
 

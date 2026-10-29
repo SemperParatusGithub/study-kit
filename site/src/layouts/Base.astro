@@ -51,14 +51,19 @@ const mc = course?.data.exam.mc;
     <title>{fullTitle}</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script is:inline>
-      // Theme before first paint: 'light' | 'dark' | 'system' from localStorage.
+      // Theme before first paint (sk-theme and tokens.css follow the same rule): 'light' |
+      // 'dark' | 'system' from localStorage 'studykit:theme'; 'system' (or nothing stored)
+      // follows prefers-color-scheme. The color-scheme meta tag is set too, so the browser's
+      // own canvas and controls match before the stylesheets apply.
       (function () {
         var theme = 'system';
         try {
           var stored = localStorage.getItem('studykit:theme');
-          if (stored === 'light' || stored === 'dark' || stored === 'system') theme = stored;
+          if (stored === 'light' || stored === 'dark') theme = stored;
         } catch (e) {}
         document.documentElement.dataset.theme = theme;
+        var meta = document.querySelector('meta[name="color-scheme"]');
+        if (meta) meta.setAttribute('content', theme === 'system' ? 'light dark' : theme);
       })();
     </script>
   </head>

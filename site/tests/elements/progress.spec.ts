@@ -176,3 +176,41 @@ test('sk-theme: light, dark and system are stored and applied', async ({ page })
   await theme.getByRole('radio', { name: 'System' }).check();
   expect(await page.evaluate(() => localStorage.getItem('studykit:theme'))).toBe('system');
 });
+
+test('sk-theme: one rule with the head script and the CSS; system follows the OS', async ({ page }) => {
+  const meta = page.locator('meta[name="color-scheme"]');
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  // The theme is on <html> before <body> exists: no flash of the wrong theme on reload.
+  await page.addInitScript(() => {
+    new MutationObserver((_, observer) => {
+      if (!document.body) return;
+      (window as unknown as { themeAtBody: string }).themeAtBody = document.documentElement.dataset.theme ?? '';
+      observer.disconnect();
+    }).observe(document, { childList: true, subtree: true });
+  });
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/progress.html');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'system');
+  await expect(meta).toHaveAttribute('content', 'light dark');
+  expect(await bg()).toBe('rgb(14, 18, 23)'); // system + dark OS → dark
+  await page.emulateMedia({ colorScheme: 'light' });
+  expect(await bg()).toBe('rgb(255, 255, 255)');
+
+  // light chosen while the OS is dark: light, also right after a reload
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.locator('sk-theme').getByRole('radio', { name: 'Light' }).check();
+  await expect(meta).toHaveAttribute('content', 'light');
+  expect(await bg()).toBe('rgb(255, 255, 255)');
+  await page.reload();
+  expect(await page.evaluate(() => (window as unknown as { themeAtBody: string }).themeAtBody)).toBe('light');
+  await expect(meta).toHaveAttribute('content', 'light');
+  expect(await bg()).toBe('rgb(255, 255, 255)');
+
+  // an unknown stored value is 'system' everywhere
+  await page.evaluate(() => localStorage.setItem('studykit:theme', 'sepia'));
+  await page.reload();
+  expect(await page.evaluate(() => (window as unknown as { themeAtBody: string }).themeAtBody)).toBe('system');
+  await expect(page.locator('sk-theme').getByRole('radio', { name: 'System' })).toBeChecked();
+  expect(await bg()).toBe('rgb(14, 18, 23)');
+});
