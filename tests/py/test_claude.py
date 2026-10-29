@@ -15,12 +15,13 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
-from studykit import cli, lint
+from studykit import cli, hook, lint
 
 REPO = Path(__file__).resolve().parents[2]
 CLAUDE = REPO / ".claude"
@@ -412,6 +413,46 @@ def test_sk_codes_are_documented():
     for path in markdown_files():
         for code in re.findall(r"\bSK-[A-Z]+(?:-[A-Z]+)+\b", path.read_text("utf-8")):
             assert code in documented, f"{path.relative_to(REPO)}: {code}"
+
+
+# --- check-script recipes -----------------------------------------------------------------
+
+
+def recipes() -> list[tuple[str, str]]:
+    text = (SKILLS / "verify-protocol" / "recipes.md").read_text("utf-8")
+    return re.findall(r"^```(python|json)\n(.*?)^```", text, re.S | re.M)
+
+
+def test_recipes_run_and_print_a_check_line(tmp_path: Path):
+    scripts = [code for lang, code in recipes() if lang == "python"]
+    assert len(scripts) >= 6
+    for i, code in enumerate(scripts):
+        path = tmp_path / f"recipe{i}.py"
+        path.write_text(code)
+        done = subprocess.run(
+            [sys.executable, str(path)],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+            timeout=120,
+            check=False,
+        )
+        assert done.returncode == 0, f"recipe {i}:\n{code}\n{done.stderr}"
+        line = json.loads(done.stdout.strip().splitlines()[-1])
+        assert line["studykit-check"] == 1 and line["kind"] in ("answers", "mc-numeric")
+    for lang, code in recipes():
+        if lang == "json":
+            assert set(json.loads(code)) == {"answer", "confidence", "ambiguous", "reason"}
+
+
+def test_recipes_pass_the_verifier_guard(tmp_path: Path):
+    course = tmp_path / "courses" / "c"
+    (course / "checks").mkdir(parents=True)
+    (course / "course.yaml").write_text("id: c\n")
+    for i, (_, code) in enumerate(recipes()):
+        payload = event("PreToolUse", "Write", course, content=code)
+        payload["tool_input"]["file_path"] = str(course / "checks" / f"x{i}.py")
+        assert hook.run("verifier-guard", json.dumps(payload)) == "", code
 
 
 # --- templates ----------------------------------------------------------------------------
