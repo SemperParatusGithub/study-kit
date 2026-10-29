@@ -138,7 +138,9 @@ whole, flagged and scanned pages per chunk).
 
 Start, at most 6 at a time:
 - one `ingester` per chunk in step 4's `todo` (`chunks_without_notes`, `notes_invalid`,
-  `notes_stale`, and the chunks of `transcriptions_missing` and `lint_errors`), prompt:
+  `notes_stale`; for `transcriptions_missing`, given as `<doc> p. <n>`, the chunk of
+  `sources/chunks.yaml` with that `doc` and page; for `lint_errors`, the chunk whose notes
+  file the finding names), prompt:
   "Course: `<dir>`. Chunk: `<chunk-id>`. Digest it with the ingest skill and return the
   result JSON." (add the finding lines on a retry);
 - alongside, one `exam-analyst` when `todo` has `exam_profile` or `notation`: "Course:

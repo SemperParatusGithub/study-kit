@@ -56,7 +56,8 @@ and Glob may skip the gitignored `courses/`: read course files by explicit path.
 
 Start, at most 6 at a time:
 - one `ingester` per chunk of `read` and of step 4's `todo` (`chunks_without_notes`,
-  `notes_stale`, `notes_invalid`), prompt: "Course: `<dir>`. Chunk: `<chunk-id>`. Digest it
+  `notes_stale`, `notes_invalid`, and the chunk holding each `transcriptions_missing`
+  page, given as `<doc> p. <n>`), prompt: "Course: `<dir>`. Chunk: `<chunk-id>`. Digest it
   with the ingest skill and return the result JSON.";
 - one `exam-analyst` when an added or changed document has kind `exam` or
   `exam-solutions`, or step 4's `todo` has `exam_profile` or `notation`: "Course: `<dir>`.
