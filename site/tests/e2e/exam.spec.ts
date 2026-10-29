@@ -15,6 +15,9 @@ async function clockSeconds(page: Page): Promise<number> {
 test('the timer survives a reload; submitting shows solutions, rubrics and the scored MC part', async ({ page }) => {
   page.on('dialog', (d) => void d.accept()); // leaving a running exam asks first (beforeunload)
   await freezeDay(page);
+  // Page time stands still: it moves only with fastForward, so the clock checks below do
+  // not depend on how fast this machine answers the MC part.
+  await page.clock.pauseAt(new Date(NOW.getTime() + 1000));
   await page.goto(`${C}/exams/${EXAM}/`);
   await elementsReady(page);
   const exam = page.locator('sk-exam');
