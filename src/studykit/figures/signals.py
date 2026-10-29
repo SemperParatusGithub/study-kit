@@ -14,6 +14,7 @@ A transfer function `G` can be given as a python-control `TransferFunction`, as
 from __future__ import annotations
 
 import cmath
+import itertools
 import math
 import warnings
 from collections.abc import Callable, Mapping, Sequence
@@ -1287,6 +1288,7 @@ def root_locus(
     _complex_axes(ax, var)
     if discrete:
         ax.add_patch(Circle((0, 0), 1, fill=False, edgecolor=MUTED, lw=0.9, ls="--", zorder=2))
+    drawn: list[np.ndarray] = []  # polylines (complex) the K_crit label must keep clear of
     if asym is not None and n - m >= 1:
         for a in asym["angles_deg"]:
             if a % 180 == 0:  # lies on the real axis, which is drawn anyway
@@ -1294,29 +1296,48 @@ def root_locus(
             d = cmath.exp(1j * math.radians(a)) * 10 * span
             c0 = asym["centroid"]
             ax.plot([c0, c0 + d.real], [0, d.imag], color=MUTED, lw=0.8, ls=(0, (4, 2)), zorder=2)
+            drawn.append(np.array([c0, c0 + d / 5]))  # 2 spans: beyond the view
     for j in range(loci.shape[1]):
         branch = loci[:, j]
         ax.plot(branch.real, branch.imag, color=color(0), zorder=4)
         _arrows_along(ax, branch, (0.5,), color(0), box)
+        drawn.append(branch)
     for c in crossings:
         for sgn in (1, -1):
             ax.plot([0], [sgn * c["omega"]], "o", ms=3.5, color=FG, zorder=9)
-    if crossings:
-        c = max(crossings, key=lambda e: e["omega"])
-        sym = r"K_\mathrm{krit}" if core.locale() == "de" else r"K_\mathrm{crit}"
-        ax.annotate(
-            f"${sym} = {_num_tex(c['k'])}$",
-            (0, c["omega"]),
-            xytext=(5, 2),
-            textcoords="offset points",
-            fontsize=7,
-            color=FG,
-        )
     for b in breaks:
         ax.plot([b["s"]], [0], "o", ms=3, color=color(0), zorder=9)
     _mark_roots(ax, poles, zeros, color(1), color(0))
     ax.set_xlim(*box[0])
     ax.set_ylim(*box[1])
+    if crossings:
+        (x0, x1), (y0, y1) = box
+        drawn += [np.array([x0, x1], dtype=complex), np.array([1j * y0, 1j * y1])]  # axes
+        if discrete:
+            drawn.append(np.exp(1j * np.linspace(0, 2 * math.pi, 181)))
+        marks = [*poles, *zeros, *(complex(b["s"]) for b in breaks)]
+        marks += [complex(0, sgn * c["omega"]) for c in crossings for sgn in (1, -1)]
+        ax.figure.draw_without_rendering()
+        avoid = np.concatenate(
+            [_polyline_points(ax, z) for z in drawn] + [_marker_points(ax, marks)]
+        )
+        c = max(crossings, key=lambda e: e["omega"])
+        at = (0.0, c["omega"])
+        sym = r"K_\mathrm{krit}" if core.locale() == "de" else r"K_\mathrm{crit}"
+        _place(
+            ax,
+            f"${sym} = {_num_tex(c['k'])}$",
+            [  # beside the crossing, never across the imaginary axis it sits on
+                {"xy": at, "xytext": (dx, dy), "ha": ha, "va": va}
+                for dx, ha in ((5, "left"), (-5, "right"))
+                for dy, va in ((3, "bottom"), (-3, "top"), (0, "center"))
+            ],
+            avoid,
+            [],
+            [at, at],
+            color=FG,
+            fontsize=7,
+        )
 
     cl_check = []
     for c in crossings:
@@ -1546,6 +1567,34 @@ def _unit_math(unit: str | None) -> str:
 
 
 LABEL_BOX = {"boxstyle": "square,pad=0.1", "fc": BG, "ec": "none", "alpha": 0.85}
+
+
+def _polyline_points(ax, z: np.ndarray, step: float = 2.0) -> np.ndarray:
+    """Display points along the complex polyline z, at most `step` pixels apart.
+
+    Non-finite samples are dropped; segments are cut at 2000 points, which only the parts
+    far outside the view reach.
+    """
+    z = np.asarray(z, dtype=complex)
+    z = z[np.isfinite(z)]
+    if z.size == 0:
+        return np.empty((0, 2))
+    d = ax.transData.transform(np.column_stack([z.real, z.imag]))
+    out = [d[:1]]
+    for a, b in itertools.pairwise(d):
+        k = int(min(math.hypot(*(b - a)) / step, 2000)) + 1
+        out.append(np.linspace(a, b, k + 1)[1:])
+    return np.concatenate(out)
+
+
+def _marker_points(ax, zs: Sequence[complex], radius_pt: float = 4.0) -> np.ndarray:
+    """Display points covering round markers of radius_pt at the complex points zs."""
+    if not zs:
+        return np.empty((0, 2))
+    centre = ax.transData.transform(np.array([[z.real, z.imag] for z in zs]))
+    r = radius_pt * ax.figure.dpi / 72
+    ring = np.array([(0, 0)] + [(math.cos(a), math.sin(a)) for a in np.linspace(0, 6.3, 12)])
+    return np.concatenate([c + r * ring for c in centre])
 
 
 def _segment_points(ax, a, b, n: int = 60) -> np.ndarray:

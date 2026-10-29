@@ -347,6 +347,12 @@ def test_root_locus(locale):
     assert [b["s"] for b in circle.facts["breakaway"]] == pytest.approx([-2 - math.sqrt(5)])
     disc = signals.root_locus("(z+0.5)/((z-1)*(z-0.5))")
     assert validate_svg(disc.svg) == [] and disc.facts["discrete"]
+    # s^4 + 4 s^3 + 9 s^2 + 10 s + K: Routh gives K_crit = 65/4 at w^2 = K/6.5.
+    four = signals.root_locus("1/(s*(s+2)*(s**2+2*s+5))")
+    assert validate_svg(four.svg) == []
+    assert four.facts["k_crit"] == pytest.approx(65 / 4, rel=1e-9)
+    (cross,) = four.facts["imag_axis_crossings"]
+    assert cross["omega"] == pytest.approx(math.sqrt(2.5), rel=1e-9)
 
 
 def test_phasor(locale):
