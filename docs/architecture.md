@@ -942,8 +942,18 @@ title: Überblick
   5. It replaces each `<sk-math>` with `katex.renderToString(tex, {displayMode, throwOnError: true, strict: 'error', trust: false})` (`lib/katex.ts`), and renders the inline math of the frontmatter labels (answer labels, rubric criteria, objectives) into `labels`.
   6. It stores `{id: '<course>/<rel>', data, rendered: {html, metadata: {headings}}}`, with the bridge digest behind a stamp of the loader version, the KaTeX version and a hash of the loader's own sources (`loaders/pandoc.ts`, `lib/katex.ts`, `lib/html.ts`, `lib/findings.ts`), so a change to any of them re-renders everything.
   7. In dev the watcher re-syncs a course 150 ms after one of its `.md`/`.yaml` files changes (all courses when its `course.yaml` is gone); only files whose digest changed re-render, all of them when the index changed. Changes under `_build`, `_history`, `state`, `progress`, `checks`, `sources` and `analysis` are ignored.
-- `plans`: `glob()` over `*/plan.yaml`. `progress/mastery.json` is not a collection: `lib/courses.ts` reads it per course with `readJson`, so a course without one adds no warning.
+- `plans`: `glob()` over `*/plan.yaml`. `progress/mastery.json` (`studykit progress report`, §2.11) is not a collection: `lib/courses.ts` reads it per course with `readJson` (in dev on every render), so a course without one adds no warning.
 - **Errors:** a document's findings (filter, schema, KaTeX in the body or a label) become a red error card at its top with `file:line:col`, the code and the message. With `STUDYKIT_STRICT=1` the load throws instead, and a courses directory without a course fails the build.
+
+**Quarantined items** (§2.10) never reach the site; the loader only sees what the render
+bridge returns. The bridge reads the ids from the index (`quarantined`) and skips their
+exercise and exam-task files (listed under `skipped`), the filter drops their MC questions
+(so they are in no bank page, `mc/<topic>.json`, `sk-meta` item list or exam) and turns
+links to them into plain text, and each exam's data loses their tasks and points, its pass
+mark keeping its share (`verify.exam_without`). Lists, quizzes, counts and the shell's
+course info therefore never see them. The index is part of every digest, so a change in
+quarantine re-renders the course on the next sync; the dev watcher ignores `state/`, so in
+`just dev` that is the next edit of a course file or a restart.
 
 **Figures** are swapped in when the page renders. `lib/figures.ts` replaces each `data-slug` placeholder with the current `_build/figures/<slug>.web.svg` from the figure manifest, so the content cache can never serve a stale figure. Colours are `var(--fig-*)`, so the theme toggle also switches figures to dark mode. A missing figure is an error card in dev and fails a strict build.
 
@@ -951,7 +961,7 @@ title: Überblick
 
 | Route | Purpose |
 |---|---|
-| `/` | Course cards: exam countdown, mastery ring, number of MC reviews due today, next session |
+| `/` | Course cards: exam countdown, mastery ring (the build-time mastery below until this browser has answers), number of MC reviews due today, next session |
 | `/c/<c>/` | **Overview tab** (§2.12) with a compact Today panel on top: exam countdown and format, next session, MC reviews due, the 3 weakest topics; topic chips with weight, focus and skip |
 | `/c/<c>/plan/` | Week timeline, session checkboxes, "behind schedule" banner suggesting `/regenerate <c> plan` |
 | `/c/<c>/summary/`, `…/<topic>/` | Chapter list in teaching order; reading view (max 70ch, sticky table of contents), objectives, `src:` links, "Test yourself" quiz |
@@ -961,7 +971,7 @@ title: Überblick
 | `/c/<c>/mc/<topic>.json` | Static endpoint `{topic, title, questions: [{id, type, difficulty, topic, h, html}]}` with pre-rendered question HTML, loaded by `<sk-quiz>` |
 | `/c/<c>/cheatsheet/` | Web view in CSS columns, plus a "PDF · size" link and a badge with the page count of the built PDF against the manifest's `max_pages` (`min(3, course.cheatsheet.max_pages, frontmatter max_pages)`): "n / max pages", with "· over the limit" when exceeded, and the density's font size as its tooltip; "PDF not built yet · limit max pages" without a manifest entry |
 | `/c/<c>/exams/`, `…/<id>/` | Mock exam list; exam mode |
-| `/c/<c>/progress/` | Mastery ring, topic bars, reviews due, misconceptions, sure/unsure calibration, exam history, export and import |
+| `/c/<c>/progress/` | Mastery ring, topic bars, reviews due, misconceptions, sure/unsure calibration, exam history, export and import (the export is what `/import-progress` reads); the last mastery report's value when `mastery.json` exists |
 | `/search/` | Pagefind search (§3.5) |
 | `/404.html` | Not found |
 | `/c/<c>/pdf/<file>` | Static endpoint serving `_build/pdf/<file>` byte for byte, inline as `application/pdf`, for every document in `_build/pdf/manifest.json` (`lib/pdf.ts`). A document that is not built, or whose entry or file is broken (a build warning), has no route and no link. Local only; `dist` is gitignored. |
@@ -977,7 +987,14 @@ figures as empty placeholders (`[data-sk-due-count]`, `[data-sk-accuracy]`,
 `[data-sk-weakest]`, `[data-sk-mastery]`, `[data-sk-exam-best]`, `[data-sk-exam-locked]`, `[data-sk-status]`,
 `[data-next-session]`); `elements/dashboard.ts` fills them from the store with `lib/stats.ts`
 and refreshes them when progress changes on the page or in another tab, and when the page
-comes back from the back/forward cache. `scripts/site.ts` holds the shell's small
+comes back from the back/forward cache.
+
+**Build-time mastery.** `MasteryRing.astro` renders the overall mastery of
+`progress/mastery.json` (its `overall`, else the mean of `topics.<id>.mastery`;
+`overallMastery` in `lib/courses.ts`) into `data-value`, so the examiner's results and an
+imported export show before the browser has answers. `dashboard.ts` keeps that value and
+replaces it with the mastery of this browser's answers as soon as there are any; without
+either the ring shows "—". `scripts/site.ts` holds the shell's small
 enhancements (search shortcut `/`, countdowns, plan day marks, list filters, table-of-contents
 spy, the current tab scrolled into view, `<details>` opened for printing); it never touches
 progress. Without JavaScript the content stays readable (hints and solutions are plain
