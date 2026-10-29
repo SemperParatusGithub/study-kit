@@ -180,9 +180,14 @@ end
 -- Parts
 ---------------------------------------------------------------------------------------
 
---- A paragraph that is one display formula (math.lua writes it as raw Typst).
-local function is_display(b)
-  if b.t ~= 'Para' and b.t ~= 'Plain' then
+--- A display formula, a table or a figure: what a paragraph ending in a colon introduces.
+--- Formulas and figures arrive as raw Typst from math.lua and figures.lua.
+local function is_shown(b)
+  if b.t == 'Table' then
+    return true
+  elseif b.t == 'RawBlock' then
+    return b.format == 'typst' and b.text:match('^#figure%(') ~= nil
+  elseif b.t ~= 'Para' and b.t ~= 'Plain' then
     return false
   end
   local c = b.content
@@ -198,10 +203,10 @@ local function ends_with_colon(b)
   return last and last.t == 'Str' and last.text:match(':$') ~= nil
 end
 
---- Keep a paragraph that ends with a colon on the page of the formula it introduces.
+--- Keep a paragraph that ends with a colon on the page of what it introduces.
 local function keep_intros(blocks, ctx)
   for i = 1, #blocks - 1 do
-    if ends_with_colon(blocks[i]) and is_display(blocks[i + 1]) then
+    if ends_with_colon(blocks[i]) and is_shown(blocks[i + 1]) then
       blocks[i] = ctx.raw_typst('#block(sticky: true)[\n' .. ctx:typst({ blocks[i] }) .. '\n]')
     end
   end
