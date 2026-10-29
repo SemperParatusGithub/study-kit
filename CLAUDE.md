@@ -54,9 +54,10 @@ before changing that area, and keep code and spec in sync.
   by `studykit progress import|log|report`, and `plan.yaml` only by `studykit plan`, except
   each session's goal and note. Never edit them by hand.
 - `/register-new-subject <folder> [course-id]` builds a course from lecture PDFs
-  (docs/architecture.md §5.4) and resumes at the first unfinished step of
-  `studykit pipeline status <course>`; `/add-material <course> <file|folder>` adds material
-  later. The user's folder is read only by `studykit ingest scan|init|add`; agents read the
+  (docs/architecture.md §5.4, docs/walkthrough.md) and resumes at the first unfinished step
+  of `studykit pipeline status <course>` (`just pipeline <course>`); that is the pipeline's
+  status, `studykit status` the student's. `/add-material <course> <file|folder>` adds
+  material later. `just sample-materials` builds test PDFs from `examples/sample-materials`. The user's folder is read only by `studykit ingest scan|init|add`; agents read the
   copies in `sources/raw/`. `sources/manifest.yaml`, `chunks.yaml`, `raw/` and the page
   texts are written only by `studykit ingest init|extract|add`; notes by the `ingester`,
   `analysis/` by the `exam-analyst`, `sources/outline.md` and the topics by the command's
