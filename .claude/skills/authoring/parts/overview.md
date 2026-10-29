@@ -7,7 +7,9 @@ an author wave so other parts can link to it; `/regenerate <course> overview` re
 
 `course.yaml` (topics, weights, prerequisites, focus, skip, exam), `analysis/exam-profile.yaml`
 (format, duration, points, archetypes and their shares, MC part, aids, confidence),
-`sources/outline.md` and the summary chapters when they exist.
+`analysis/notation.yaml`, `sources/outline.md`, the "Course facts" of the notes in
+`sources/notes/` (exam date, format and aids as the material states them) and the summary
+chapters when they exist.
 
 ## Structure
 
@@ -24,8 +26,8 @@ Prerequisites). Lint checks them by position and count (SK-STRUCT-SECTIONS).
 4. **Die Klausur auf einen Blick / Exam at a glance** - date, duration, points, aids, a
    table of the parts with points (archetypes and their shares from the profile, the MC part
    with question count, types, scoring and negative marking), the time per point and what
-   follows from it; link the mock exams with `exam:` once they exist. Say when the profile
-   has low confidence (no past exams).
+   follows from it; link the mock exams with `exam:` once they exist. Say how sure the
+   profile is (`confidence`, how many past exams).
 5. **So lernst du dieses Fach / How to study this subject** - 3-6 concrete bullets: order,
    which exercises to start with (`ex:` links once they exist), when to do MC, the cheat
    sheet, mock exams.
@@ -38,6 +40,9 @@ Prerequisites). Lint checks them by position and count (SK-STRUCT-SECTIONS).
   is SK-REF-MISSING). In an author wave the overview comes first, before any exercise or
   mock exam exists: name them in words without a link; /register-new-subject adds the
   links before it publishes (its step 13), `/regenerate <course> overview` does too.
-- Numbers about the exam come from `course.yaml` and the profile, not from memory.
+- Numbers about the exam come from `course.yaml` and the profile, not from memory; compute
+  shares, minutes per point and sums with `studykit calc`. When the notes' course facts
+  differ from `course.yaml` (another exam date, say), give the `course.yaml` value and
+  name what the material states, with its `src:` link.
 - No exercises, hints or solutions here; 60-120 lines of Markdown.
 - Template: the content-format skill's `templates/overview.md`.
