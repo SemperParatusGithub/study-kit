@@ -16,6 +16,12 @@ const CI = Boolean(process.env.CI);
 const OUT = 'node_modules/.cache/sk-e2e';
 const sample = fileURLToPath(new URL('./dist/c/sample-course/index.html', import.meta.url));
 
+// Playwright stops its web server on SIGINT but not on SIGTERM (a timeout kill, `kill`),
+// which would leave the server holding the port: turn SIGTERM into SIGINT in the runner.
+if (!process.env.TEST_WORKER_INDEX) {
+  process.once('SIGTERM', () => process.kill(process.pid, 'SIGINT'));
+}
+
 if (!existsSync(sample)) {
   throw new Error(
     'site/dist has no sample course. Build it first: STUDYKIT_COURSES_DIR=examples just build sample-course',
@@ -50,7 +56,8 @@ export default defineConfig({
     // instead of moving, since progress in localStorage is tied to the origin.
     // --ignore-lock keeps the server in the foreground: Astro moves `astro preview` to a
     // background daemon when it detects a coding agent, which would outlive the run. Node
-    // starts Astro without a package-manager wrapper, so ending the run stops it.
+    // starts Astro without a package-manager wrapper, so ending the run (Ctrl-C, or SIGTERM
+    // through the handler above) stops it.
     command: `node node_modules/astro/bin/astro.mjs preview --ignore-lock --port ${PORT}`,
     url: `http://localhost:${PORT}/`,
     reuseExistingServer: false,

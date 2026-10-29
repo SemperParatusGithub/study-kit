@@ -6,6 +6,12 @@ import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.SK_ELEMENTS_PORT ?? 4399);
 
+// Playwright stops its web server on SIGINT but not on SIGTERM (a timeout kill, `kill`),
+// which would leave server.mjs holding the port: turn SIGTERM into SIGINT in the runner.
+if (!process.env.TEST_WORKER_INDEX) {
+  process.once('SIGTERM', () => process.kill(process.pid, 'SIGINT'));
+}
+
 export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.ts',
