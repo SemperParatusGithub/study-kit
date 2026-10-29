@@ -522,7 +522,9 @@ export class SkMc extends HTMLElement {
     const parts: string[] = [verdict];
     if (pointsEach !== undefined) parts.push(`${pts(r.score * pointsEach)} of ${pts(pointsEach)} points.`);
     if (r.misconception) {
-      parts.push('You were sure, so this counts as a misconception; it comes back today.');
+      parts.push(r.due
+        ? `You were sure, so this counts as a misconception; it comes back ${relativeDay(r.due)}.`
+        : 'You were sure, so this is a misconception.');
     } else if (r.due) {
       parts.push(`Next review ${relativeDay(r.due)}.`);
     }

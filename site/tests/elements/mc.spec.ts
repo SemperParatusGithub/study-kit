@@ -85,6 +85,18 @@ test('multi: all-or-nothing, and a sure wrong answer is a misconception', async 
   expect(again.box).toBe(1);
 });
 
+test('a misconception names the day it comes back, also under the exam clamp', async ({ page }) => {
+  // the harness exam is on 2027-02-15; two days before it nothing is due until after the exam
+  await page.clock.install({ time: new Date('2027-02-13T10:00:00') });
+  await page.goto('/mc.html');
+  const mc = page.locator('sk-mc[data-id="mc-rc-tiefpass-002"]');
+  await answer(mc, false, 'Sure');
+  await mc.getByRole('button', { name: 'Check' }).click();
+  await expect(mc.locator('.sk-mc-feedback')).toContainText(
+    'You were sure, so this counts as a misconception; it comes back in 3 days.');
+  expect((await progress(page)).items['mc:mc-rc-tiefpass-002']).toMatchObject({ box: 0, due: '2027-02-16' });
+});
+
 test('kprim: three of four statements right scores 0.5', async ({ page }) => {
   const mc = page.locator('sk-mc[data-id="mc-rc-tiefpass-003"]');
   await mc.locator('sk-opt[data-key="A"] input[value="true"]').check();
