@@ -21,7 +21,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from studykit import content, pdf, tools, validate
+from conftest import MINI
+from studykit import cli, content, pdf, tools, validate
 
 ROOT = tools.repo_root()
 SAMPLE = ROOT / "examples" / "sample-course"
@@ -386,3 +387,20 @@ def test_unknown_documents_are_refused(built):
     course, _ = built
     with pytest.raises(ValueError, match="no document nope"):
         pdf.build(course, ["nope"], figures=False)
+
+
+def test_without_a_course_every_course_is_built(monkeypatch, capsys):
+    base = ROOT / ".cache"
+    base.mkdir(exist_ok=True)
+    tmp = Path(tempfile.mkdtemp(prefix="test-pdf-all-", dir=base))
+    try:
+        shutil.copytree(MINI, tmp / "mini", ignore=shutil.ignore_patterns("_build"))
+        monkeypatch.setenv("STUDYKIT_COURSES_DIR", str(tmp))
+        assert cli.main(["pdf", "--json"]) == 0
+        (result,) = json.loads(capsys.readouterr().out)
+        assert result["course"] == "mini"
+        assert {d["status"] for d in result["docs"]} == {"built"}
+        assert cli.main(["pdf"]) == 0
+        assert capsys.readouterr().out.startswith("pdf mini: 0 built, 9 cached, 0 failed")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
