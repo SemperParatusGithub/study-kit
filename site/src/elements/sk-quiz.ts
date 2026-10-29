@@ -101,6 +101,25 @@ function lastAttemptDay(e: McEntry): string | null {
   return t ? dayOf(new Date(t)) : null;
 }
 
+type Pool = { questions?: unknown[] };
+
+// Every quiz on a page shares one request per pool (the MC hub has five quizzes). A failed
+// request is forgotten, so the next quiz that asks tries again.
+const pools = new Map<string, Promise<Pool>>();
+
+function loadPool(url: string): Promise<Pool> {
+  let pool = pools.get(url);
+  if (!pool) {
+    pool = fetch(url, { headers: { accept: 'application/json' } }).then(async (res) => {
+      if (!res.ok) throw new Error(`${res.status}`);
+      return (await res.json()) as Pool;
+    });
+    pools.set(url, pool);
+    pool.catch(() => pools.delete(url));
+  }
+  return pool;
+}
+
 export class SkQuiz extends HTMLElement {
   private ready = false;
   private mode: QuizMode = 'practice';
@@ -190,13 +209,7 @@ export class SkQuiz extends HTMLElement {
   private async load(): Promise<void> {
     const urls = parseJson<unknown[]>(this.dataset.pools, []).filter((u): u is string => typeof u === 'string');
     const seen = new Set<string>();
-    const results = await Promise.allSettled(
-      urls.map(async (url) => {
-        const res = await fetch(url, { headers: { accept: 'application/json' } });
-        if (!res.ok) throw new Error(`${res.status}`);
-        return (await res.json()) as { questions?: unknown[] };
-      }),
-    );
+    const results = await Promise.allSettled(urls.map(loadPool));
     results.forEach((r, i) => {
       if (r.status === 'rejected') {
         this.errors.push(urls[i] ?? '');

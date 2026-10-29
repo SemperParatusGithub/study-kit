@@ -248,6 +248,16 @@ test('data-n sets the default size; data-intro="false" leaves out the mode title
   await expect(practice.locator('.sk-quiz-pos')).toHaveText('Question 1 of 2');
 });
 
+test('quizzes on one page share one request per pool', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (r) => {
+    if (r.url().includes('/fixtures/pools/')) requests.push(new URL(r.url()).pathname);
+  });
+  await page.goto('/quiz-hub.html');
+  await expect(page.locator('sk-quiz .sk-quiz-count')).toHaveCount(3);
+  expect(requests.sort()).toEqual(['/fixtures/pools/rc-filter.json', '/fixtures/pools/rc-tiefpass.json']);
+});
+
 test('with several quizzes each keeps its mode; URL parameters go to the quiz of ?mode=', async ({ page }) => {
   await page.goto('/quiz-hub.html?mode=test&n=3&minutes=5');
   const practice = page.locator('#quiz-practice');
