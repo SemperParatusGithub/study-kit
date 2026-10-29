@@ -601,10 +601,11 @@ weekly split, the learning sessions per topic, the mock exam dates, `kept` and t
 plan). The written plan is read back and checked like validate checks it (schema,
 references) before it replaces the old one; `--dry-run` writes nothing. Its findings are
 SK-PLAN codes at `course.yaml` (`content-format/errors.md`), or the codes of an old
-`plan.yaml` or `progress/` file that does not read; an error (exit code 1) writes no plan. Quarantined items (§2.10) are left out, as on the site. The sample
-course's `plan.yaml` is still the hand-written one from Phase 3. Validate checks plan refs
-(SK-REF-SCHEME, SK-REF-MISSING) and that no session lies on or after the exam
-(SK-STRUCT-PLAN, a warning when `exam_date` differs from `course.yaml`).
+`plan.yaml` or `progress/` file that does not read; an error (exit code 1) writes no plan.
+Quarantined items (§2.10) are left out, as on the site. The sample course's `plan.yaml` is
+still the hand-written one from Phase 3. Validate checks plan refs (SK-REF-SCHEME,
+SK-REF-MISSING) and that no session lies on or after the exam (SK-STRUCT-PLAN, a warning
+when `exam_date` differs from `course.yaml`).
 
 ```yaml
 schema: 1
@@ -987,18 +988,18 @@ figures as empty placeholders (`[data-sk-due-count]`, `[data-sk-accuracy]`,
 `[data-sk-weakest]`, `[data-sk-mastery]`, `[data-sk-exam-best]`, `[data-sk-exam-locked]`, `[data-sk-status]`,
 `[data-next-session]`); `elements/dashboard.ts` fills them from the store with `lib/stats.ts`
 and refreshes them when progress changes on the page or in another tab, and when the page
-comes back from the back/forward cache.
+comes back from the back/forward cache. `scripts/site.ts` holds the shell's small
+enhancements (search shortcut `/`, countdowns, plan day marks, list filters, table-of-contents
+spy, the current tab scrolled into view, `<details>` opened for printing); it never touches
+progress. Without JavaScript the content stays readable (hints and solutions are plain
+`<details>`); quizzes, answer checks and progress need it.
 
 **Build-time mastery.** `MasteryRing.astro` renders the overall mastery of
 `progress/mastery.json` (its `overall`, else the mean of `topics.<id>.mastery`;
 `overallMastery` in `lib/courses.ts`) into `data-value`, so the examiner's results and an
 imported export show before the browser has answers. `dashboard.ts` keeps that value and
 replaces it with the mastery of this browser's answers as soon as there are any; without
-either the ring shows "—". `scripts/site.ts` holds the shell's small
-enhancements (search shortcut `/`, countdowns, plan day marks, list filters, table-of-contents
-spy, the current tab scrolled into view, `<details>` opened for printing); it never touches
-progress. Without JavaScript the content stays readable (hints and solutions are plain
-`<details>`); quizzes, answer checks and progress need it.
+either the ring shows "—".
 
 **Language of parts.** UI chrome is English, course text follows `course.lang`. Inside a
 course page the shell marks its own text `lang="en"`; the elements mark their UI text
