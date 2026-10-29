@@ -232,6 +232,12 @@ p:has(> .katex-display:only-child) {
   height: auto;
 }
 
+/* Matplotlib's own sheet, scoped here instead of inline (lib/figures.ts) */
+.sk-fig-svg * {
+  stroke-linejoin: round;
+  stroke-linecap: butt;
+}
+
 .sk-fig figcaption {
   margin-top: var(--space-2);
   color: var(--text-muted);
