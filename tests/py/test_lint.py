@@ -32,6 +32,22 @@ def test_lint_reports_only_the_given_file(mini: Path, denylist: Path):
     assert {f.code for f in report.findings} == {"SK-MCQ-WHY"}
 
 
+def test_lint_reports_a_duplicate_in_the_edited_file(mini: Path, denylist: Path):
+    # The edited exam bank reuses a practice-bank id; exams/ is discovered before mc/.
+    edited = mini / "exams" / "probeklausur-1" / "mc.md"
+    edited.write_text(edited.read_text().replace("#mc-rc-tiefpass-101", "#mc-rc-tiefpass-001"))
+    report = lint.lint_files([edited], config(denylist))
+    (dup,) = report.findings
+    assert dup.code == "SK-STRUCT-DUP" and dup.line == 25
+    assert "mc/rc-tiefpass.md:6" in dup.message
+    assert "existing ids are never renamed" in dup.fix
+    full = validate.validate([mini], config=config(denylist), quick=True)
+    assert sorted((f.path.split("/mini/")[1], f.line) for f in full.findings) == [
+        ("exams/probeklausur-1/mc.md", 25),
+        ("mc/rc-tiefpass.md", 6),
+    ]
+
+
 def test_lint_is_quick(mini: Path, denylist: Path):
     """Lint stops after Math: a broken reference is a validate (References) finding."""
     (written,) = overlay(mini, BAD / "SK-REF-MISSING")

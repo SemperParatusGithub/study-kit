@@ -52,7 +52,9 @@ the file instead, or retire the old id in `course.yaml: retired_ids`.
 ### `SK-STRUCT-DUP`
 **error.** An id is used twice in the course (exercise, MC question, exam task, exam,
 topic, plan session, exam task file), or a topic has two summary chapters.
-Fix: give the newer item a fresh id; the message names the first occurrence.
+Every occurrence is reported and names the others, so `lint` flags the file that
+introduced the duplicate. Fix: give the newer item a fresh id; existing ids are never
+renamed.
 
 ### `SK-STRUCT-RETIRED`
 **error.** An item uses an id listed in `course.yaml: retired_ids`.

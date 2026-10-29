@@ -18,6 +18,8 @@ from studykit import cli, content, findings, tools, validate
 
 CASES = sorted(p.name for p in BAD.iterdir() if p.is_dir())
 NEEDS_KATEX = {"SK-MATH-KATEX"}
+# A duplicate is reported at every occurrence, the untouched original included.
+ALSO_ON_THE_ORIGINAL = {"SK-STRUCT-DUP"}
 KATEX_MISSING = validate.katex_available(tools.repo_root())
 
 
@@ -55,7 +57,11 @@ def test_bad_fixture_yields_its_code(code: str, mini: Path, denylist: Path):
     for f in found:
         assert f.fix, f.format()
         assert f.line >= 1 and f.col >= 1
-    assert {f.path for f in found} <= {content.display_path(p) for p in written}
+    paths = {content.display_path(p) for p in written}
+    if code in ALSO_ON_THE_ORIGINAL:
+        assert {f.path for f in found} & paths
+    else:
+        assert {f.path for f in found} <= paths
 
 
 @pytest.mark.skipif(KATEX_MISSING is not None, reason=f"KaTeX unavailable: {KATEX_MISSING}")

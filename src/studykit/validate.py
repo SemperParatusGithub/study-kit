@@ -16,7 +16,7 @@ import re
 import shutil
 import subprocess
 from collections import Counter
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -28,6 +28,7 @@ from studykit.content import (
     CourseTree,
     Doc,
     Formula,
+    Item,
     Line,
     display_path,
 )
@@ -284,51 +285,60 @@ def _check_names(ctx: Context, doc: Doc) -> None:
 
 def _check_ids(ctx: Context) -> None:
     tree = ctx.tree
-    first: dict[str, Any] = {}
     data = tree.course_doc.data if tree.course_doc else None
     retired = data.get("retired_ids") if isinstance(data, dict) else None
     retired = set(retired) if isinstance(retired, list) else set()
-    summaries: dict[str, str] = {}
+    by_id: dict[str, list[Item]] = {}
+    summaries: dict[str, list[Item]] = {}
     for item in tree.items:
-        doc = tree.get(item.rel)
-        if doc is None:
+        if tree.get(item.rel) is None:
             continue
         if item.kind == "summary" and item.topic:
-            if item.topic in summaries:
-                ctx.at(
-                    doc,
-                    1,
-                    1,
-                    "SK-STRUCT-DUP",
-                    f"second summary chapter for topic '{item.topic}' (first: "
-                    f"{summaries[item.topic]})",
-                    "keep one chapter per topic",
-                )
-            summaries.setdefault(item.topic, item.rel)
+            summaries.setdefault(item.topic, []).append(item)
             continue
         if item.kind not in {"exercise", "mc", "exam-task", "exam"}:
             continue
-        if item.id in first:
-            other = first[item.id]
-            ctx.at(
-                doc,
-                item.line,
-                1,
-                "SK-STRUCT-DUP",
-                f"id '{item.id}' is already used in {other.rel}:{other.line}",
-                "give this item a new, unused id",
-            )
-        else:
-            first[item.id] = item
+        by_id.setdefault(item.id, []).append(item)
         if item.id in retired:
             ctx.at(
-                doc,
+                tree.get(item.rel),
                 item.line,
                 1,
                 "SK-STRUCT-RETIRED",
                 f"id '{item.id}' is listed in course.yaml retired_ids",
                 "retired ids are never reused; choose a new id",
             )
+    # Every occurrence gets the finding, so `lint` on the file that introduced the duplicate
+    # reports it, whichever file discovery happens to visit first.
+    for item_id, items in by_id.items():
+        for item, others in _with_others(items):
+            ctx.at(
+                tree.get(item.rel),
+                item.line,
+                1,
+                "SK-STRUCT-DUP",
+                f"id '{item_id}' is also used in {others}",
+                "choose a new id for the newer item; existing ids are never renamed",
+            )
+    for topic, items in summaries.items():
+        for item, others in _with_others(items):
+            ctx.at(
+                tree.get(item.rel),
+                1,
+                1,
+                "SK-STRUCT-DUP",
+                f"topic '{topic}' has another summary chapter: {others}",
+                "keep one chapter per topic; merge the newer chapter into the existing one",
+            )
+
+
+def _with_others(items: list[Item]) -> Iterator[tuple[Item, str]]:
+    """Each item of a duplicate group with the locations of the others."""
+    if len(items) < 2:
+        return
+    for item in items:
+        others = ", ".join(f"{o.rel}:{o.line}" for o in items if o is not item)
+        yield item, others
 
 
 def _check_exams(ctx: Context) -> None:
