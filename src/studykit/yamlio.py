@@ -205,9 +205,8 @@ def style_findings(doc: Document, *, forbid_latex: bool = False) -> list[Finding
                     doc.finding(
                         node.start_mark,
                         "SK-YAML-DQUOTE",
-                        "double-quoted scalar",
+                        "double-quoted scalar; study-kit YAML never uses double quotes",
                         "use single quotes ('…'); double quotes turn backslashes into escapes",
-                        severity="warning",
                     )
                 )
         elif "\\" in value:

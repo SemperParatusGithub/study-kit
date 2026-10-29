@@ -138,8 +138,8 @@ Fix: check indentation and quoting; values containing `: ` or ` #`, or starting 
 Fix: single quotes keep backslashes literal: `label: '$\frac{1}{2}$'`.
 
 ### `SK-YAML-DQUOTE`
-**warning.** A double-quoted scalar without a backslash. It is harmless today but turns
-into `SK-YAML-ESCAPE` as soon as someone adds math.
+**error.** A double-quoted scalar without a backslash. Double quotes are never allowed
+(architecture §2.1): the scalar turns into `SK-YAML-ESCAPE` as soon as someone adds math.
 Fix: use single quotes (`'…'`, a literal `'` is written `''`).
 
 ### `SK-YAML-BACKSLASH`

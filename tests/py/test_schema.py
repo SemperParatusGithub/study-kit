@@ -313,3 +313,9 @@ def test_loader_reports_non_characters_with_position():
     (finding,) = doc.findings
     assert (finding.code, finding.line, finding.col) == ("SK-YAML-CONTROL", 3, 5)
     assert doc.data is None
+
+
+def test_double_quotes_are_an_error_even_without_a_backslash():
+    doc = yamlio.load('a: "x"\n', path="x.yaml")
+    (finding,) = yamlio.style_findings(doc)
+    assert finding.code == "SK-YAML-DQUOTE" and finding.severity == "error"
