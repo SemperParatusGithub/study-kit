@@ -154,10 +154,11 @@ export class SkQuiz extends HTMLElement {
       ? valid(urlMode) ? urlMode : valid(own) ? own : 'practice'
       : valid(own) ? own : valid(urlMode) ? urlMode : 'practice';
     const q = alone || !valid(urlMode) || urlMode === this.mode ? url : new URLSearchParams();
+    const topics = q.get('topics')?.split(',').map((t) => t.trim()).filter(Boolean) ?? [];
     this.settings = {
       n: posInt(q.get('n')) ?? posInt(this.dataset.n ?? null),
       minutes: posInt(q.get('minutes')),
-      topics: q.get('topics')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null,
+      topics: topics.length ? topics : null,
       difficulty: difficulties(q.get('difficulty')),
     };
     this.replaceChildren(this.live, this.screen); // drop the no-JS fallback
@@ -205,9 +206,10 @@ export class SkQuiz extends HTMLElement {
   // --- selecting questions ----------------------------------------------------------
 
   private filtered(s: Settings): PoolQuestion[] {
+    // null: no filter; an empty choice (every box unticked) matches nothing
     let qs = this.all;
-    if (s.topics?.length) qs = qs.filter((q) => s.topics!.includes(q.topic));
-    if (s.difficulty?.length) qs = qs.filter((q) => s.difficulty!.includes(q.difficulty));
+    if (s.topics) qs = qs.filter((q) => s.topics!.includes(q.topic));
+    if (s.difficulty) qs = qs.filter((q) => s.difficulty!.includes(q.difficulty));
     const items = this.store.read().items;
     const entry = (q: PoolQuestion) => items[`mc:${q.id}`] as McEntry | undefined;
     const day = today();
@@ -273,8 +275,12 @@ export class SkQuiz extends HTMLElement {
     // The question count follows the mode's default until the student changes it.
     let nChosen = false;
     nInput.addEventListener('input', () => (nChosen = true));
+    const controls: HTMLElement[] = [];
     const update = () => {
       const available = this.filtered(current()).length;
+      // Nothing due or wrong at all: no form to fill in, only the message.
+      const none = available === 0 && this.filtered({ n: null, minutes: null, topics: null, difficulty: null }).length === 0;
+      for (const c of controls) c.hidden = none;
       nInput.max = String(Math.max(1, available));
       if (!nChosen || !nInput.value || Number(nInput.value) > available) {
         const want = this.settings.n ?? info.n ?? available;
@@ -286,19 +292,20 @@ export class SkQuiz extends HTMLElement {
 
     form.append(count);
     if (this.all.length > 0) {
-      form.append(h('div', { class: 'sk-quiz-fields' },
+      controls.push(h('div', { class: 'sk-quiz-fields' },
         h('label', { class: 'sk-field' }, h('span', {}, 'Questions'), nInput),
         this.mode === 'test' ? h('label', { class: 'sk-field' }, h('span', {}, 'Time limit (minutes)'), minutes) : null,
       ));
       if (topicBoxes.length > 1) {
-        form.append(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Topics'),
+        controls.push(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Topics'),
           ...topicBoxes.map((b) => h('label', { class: 'sk-check-chip' }, b, h('span', {}, this.titles[b.value] ?? b.value)))));
       }
       if (levelBoxes.length > 1) {
-        form.append(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Difficulty'),
+        controls.push(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Difficulty'),
           ...levelBoxes.map((b) => h('label', { class: 'sk-check-chip' }, b, h('span', {}, `Level ${b.value}`)))));
       }
-      form.append(h('div', { class: 'sk-quiz-actions' }, start));
+      controls.push(h('div', { class: 'sk-quiz-actions' }, start));
+      form.append(...controls);
     }
     form.addEventListener('change', update);
     form.addEventListener('input', update);

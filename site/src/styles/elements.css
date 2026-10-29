@@ -647,6 +647,10 @@ sk-quiz[data-frame='none'] :is(.sk-quiz-start, .sk-quiz-result) {
   margin-block: 0.5rem;
 }
 
+:is(.sk-quiz-fields, .sk-quiz-filter, .sk-quiz-actions)[hidden] {
+  display: none;
+}
+
 .sk-quiz-error {
   color: var(--ske-bad);
 }

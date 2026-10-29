@@ -169,7 +169,10 @@ test('due mode: nothing due names the next review', async ({ page }) => {
   });
   await page.goto('/quiz.html?mode=due');
   await expect(quiz(page).locator('.sk-quiz-count')).toHaveText('Nothing is due today. The next review is in 3 days (2026-11-05).');
-  await expect(quiz(page).getByRole('button', { name: 'Start' })).toBeDisabled();
+  // nothing to choose from: no form, only the message
+  await expect(quiz(page).locator('button[type=submit]')).toBeHidden();
+  await expect(quiz(page).locator('.sk-quiz-fields, .sk-quiz-filter')).toHaveCount(3);
+  for (const el of await quiz(page).locator('.sk-quiz-fields, .sk-quiz-filter').all()) await expect(el).toBeHidden();
 });
 
 test('mixed mode and filters: every pool, topic and difficulty choices', async ({ page }) => {
@@ -182,6 +185,11 @@ test('mixed mode and filters: every pool, topic and difficulty choices', async (
   await expect(q.locator('.sk-quiz-count')).toHaveText('3 questions available.');
   await q.getByLabel('Level 2').uncheck();
   await expect(q.locator('.sk-quiz-count')).toHaveText('1 question available.');
+  // filters that leave nothing keep the form, so they can be changed back
+  await q.getByLabel('Level 1').uncheck();
+  await expect(q.locator('.sk-quiz-count')).toHaveText('No question matches these filters.');
+  await expect(q.getByRole('button', { name: 'Start' })).toBeDisabled();
+  await q.getByLabel('Level 1').check();
   await q.getByRole('button', { name: 'Start' }).click();
   await expect(current(page)).toHaveAttribute('data-id', 'mc-rc-tiefpass-001');
 });
