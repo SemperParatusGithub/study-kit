@@ -39,3 +39,16 @@ test('the cheat sheet fills its columns and no formula is cut at a column edge',
   await page.setViewportSize({ width: 718, height: 1000 });
   expect(await overflowingMath(page)).toEqual([]);
 });
+
+test('on a phone the course tabs show the tab of the page', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const tab of ['mc', 'cheatsheet', 'exams', 'progress']) {
+    await page.goto(`${C}/${tab}/`);
+    const inView = await page.locator('.course-nav ul').evaluate((list) => {
+      const current = list.querySelector('a[aria-current="page"]')?.getBoundingClientRect();
+      const box = list.getBoundingClientRect();
+      return current !== undefined && current.left >= box.left - 0.5 && current.right <= box.right + 0.5;
+    });
+    expect(inView, tab).toBe(true);
+  }
+});

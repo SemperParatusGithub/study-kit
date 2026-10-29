@@ -137,6 +137,20 @@ function tocSpy(): void {
   }
 }
 
+/**
+ * On a narrow screen the course tabs scroll sideways (without a scrollbar): bring the tab
+ * of this page into view, so it shows which section the page is in.
+ */
+function currentTab(): void {
+  const list = document.querySelector<HTMLElement>('.course-nav ul');
+  const tab = list?.querySelector<HTMLElement>('a[aria-current="page"]');
+  if (!list || !tab || list.scrollWidth <= list.clientWidth) return;
+  const box = list.getBoundingClientRect();
+  const r = tab.getBoundingClientRect();
+  if (r.left >= box.left && r.right <= box.right) return;
+  list.scrollLeft += r.left - box.left - (box.width - r.width) / 2;
+}
+
 /** Print with every <details> open (hints, solutions), then restore. */
 function printDetails(): void {
   let opened: HTMLDetailsElement[] = [];
@@ -150,6 +164,7 @@ function printDetails(): void {
   });
 }
 
+currentTab();
 searchShortcut();
 countdowns();
 planDays();
