@@ -30,6 +30,19 @@ doctor *flags:
 figures course="":
     {{sk}} fig build {{course}}
 
+# website at http://localhost:4321 (strictPort: progress is tied to the origin)
+dev: (figures "")
+    pnpm -C site dev
+
+# strict site build with search index and link check (all courses; validates `course`)
+build course="": (figures course) (validate course)
+    STUDYKIT_STRICT=1 pnpm -C site build
+    {{sk}} check-links site/dist
+
+# every internal link and #anchor of the built site resolves
+check-links dist="site/dist":
+    {{sk}} check-links {{dist}}
+
 # quick check of edited course files (what the Claude Code hook runs)
 lint +files:
     {{sk}} lint {{files}}
