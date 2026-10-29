@@ -23,7 +23,7 @@ import control as ct
 import numpy as np
 import sympy as sp
 from matplotlib import ticker
-from matplotlib.patches import FancyArrowPatch
+from matplotlib.patches import Circle, FancyArrowPatch
 from scipy import signal as sps
 from scipy.optimize import brentq
 
@@ -933,6 +933,287 @@ def nyquist(
     return core.finish(fig, alt, facts)
 
 
+# --------------------------------------------------------------------------------------
+# Pole-zero map and root locus
+# --------------------------------------------------------------------------------------
+
+
+def _stability_hint(ax, discrete: bool, box) -> None:
+    hint = color(2)
+    label = _tr("stabil", "stable")
+    if discrete:
+        ax.add_patch(Circle((0, 0), 1, facecolor=hint, alpha=0.10, edgecolor="none", zorder=0))
+        ax.add_patch(Circle((0, 0), 1, fill=False, edgecolor=MUTED, lw=0.9, ls="--", zorder=2))
+        ax.annotate(
+            label,
+            (math.cos(math.radians(225)), math.sin(math.radians(225))),
+            xytext=(4, 4),
+            textcoords="offset points",
+            fontsize=7,
+            color=hint,
+        )
+    else:
+        x0 = box[0][0]
+        ax.axvspan(min(x0, 0) - 1e3 * abs(x0 or 1), 0, color=hint, alpha=0.08, lw=0, zorder=0)
+        ax.annotate(
+            label,
+            (0, 1),
+            xycoords=("data", "axes fraction"),
+            xytext=(-4, -4),
+            textcoords="offset points",
+            ha="right",
+            va="top",
+            fontsize=7,
+            color=hint,
+        )
+
+
+def _mark_roots(ax, poles, zeros, pole_color: str, zero_color: str) -> None:
+    for roots, marker, col in ((poles, "x", pole_color), (zeros, "o", zero_color)):
+        for r, mult in _group_roots(roots):
+            style = {"ms": 7, "mew": 1.6, "color": col, "zorder": 8}
+            if marker == "o":
+                style.update(ms=6, mfc=BG, mew=1.4)
+            ax.plot([r.real], [r.imag], marker, ls="none", **style)
+            if mult > 1:
+                ax.annotate(
+                    f"({mult})",
+                    (r.real, r.imag),
+                    xytext=(4, 4),
+                    textcoords="offset points",
+                    fontsize=7,
+                    color=col,
+                )
+
+
+def _root_facts(roots, discrete: bool) -> list[dict]:
+    out = []
+    for r, mult in _group_roots(roots):
+        entry = {"value": _pair(r), "multiplicity": mult, "magnitude": abs(r)}
+        if not discrete and r.imag != 0:
+            wn = abs(r)
+            entry.update(omega_n=wn, zeta=-r.real / wn)
+        out.append(entry)
+    return out
+
+
+def pole_zero(
+    G: TransferFunctionLike,
+    discrete: bool = False,
+    stability: bool = True,
+    size: str = "col",
+    alt: str | None = None,
+) -> core.Figure:
+    """Pole-zero map: poles as x, zeros as o, multiplicities in brackets.
+
+    discrete: z-plane with the unit circle (implied when G is a function of z).
+    stability: shade the stability region (left half-plane or inside the unit circle).
+    """
+    p = plant(G)
+    discrete = discrete or p.discrete
+    var = "z" if discrete else "s"
+    poles, zeros = p.poles(), p.zeros()
+    fig, ax = core.new_figure(size)
+    pts = [*poles, *zeros, 0j]
+    if discrete:
+        pts += [1, -1, 1j, -1j]
+    box = _set_box(ax, pts, pad=0.18, min_span=2.0 if discrete else 1.0)
+    _complex_axes(ax, var)
+    if stability:
+        _stability_hint(ax, discrete, box)
+    elif discrete:
+        ax.add_patch(Circle((0, 0), 1, fill=False, edgecolor=MUTED, lw=0.9, ls="--", zorder=2))
+    _mark_roots(ax, poles, zeros, color(1), color(0))
+    stable = bool(all(abs(q) < 1 for q in poles) if discrete else all(q.real < 0 for q in poles))
+    facts = {
+        "template": "signals.pole_zero",
+        "G": p.as_dict(),
+        "discrete": discrete,
+        "poles": _root_facts(poles, discrete),
+        "zeros": _root_facts(zeros, discrete),
+        "stable": stable,
+    }
+    if not discrete and stable:
+        facts["dc_gain"] = float(np.real(ct.dcgain(p.tf)))
+    if alt is None:
+
+        def fmt(rs):
+            return (
+                ", ".join(
+                    f"{_complex_str(r)}" + (f" ({m}x)" if m > 1 else "")
+                    for r, m in _group_roots(rs)
+                )
+                or "none"
+            )
+
+        region = "inside the unit circle" if discrete else "in the left half-plane"
+        alt = (
+            f"Pole-zero map of G({var}) = {_plain(p)} in the {var}-plane: poles (x) at "
+            f"{fmt(poles)}; zeros (o) at {fmt(zeros)}; the system is "
+            f"{'stable' if stable else 'not stable'} (all poles {region} required)."
+        )
+    return core.finish(fig, alt, facts)
+
+
+def _complex_str(r: complex) -> str:
+    if r.imag == 0:
+        return f"{r.real:.4g}"
+    sign = "+" if r.imag > 0 else "-"
+    return f"{r.real:.4g} {sign} {abs(r.imag):.4g}j"
+
+
+def _imag_axis_crossings(p: Plant) -> list[dict]:
+    """Gains K > 0 where 1 + K G(s) has roots on the imaginary axis (s = j omega)."""
+    k = np.arange(len(p.den) - 1, -1, -1)
+    den_jw = p.den * (1j**k)  # coefficients of den(j omega) in omega
+    kn = np.arange(len(p.num) - 1, -1, -1)
+    num_mjw = p.num * ((-1j) ** kn)  # num(-j omega) = conj(num(j omega))
+    prod = np.polymul(den_jw, num_mjw)
+    im = np.trim_zeros(np.imag(prod), "f")
+    out = []
+    if im.size == 0:
+        return out
+    omegas = [0.0] if abs(im[-1]) < TINY else []
+    if im.size > 1:
+        for r in np.roots(im):
+            if abs(r.imag) < 1e-7 * max(1, abs(r)) and r.real > 1e-9:
+                omegas.append(float(r.real))
+    for om in sorted(set(round(x, 12) for x in omegas)):
+        nj = np.polyval(p.num, 1j * om)
+        if abs(nj) < TINY:
+            continue
+        kk = -np.polyval(p.den, 1j * om) / nj
+        if abs(kk.imag) < 1e-6 * max(1, abs(kk)) and kk.real > 0:
+            out.append({"k": float(kk.real), "omega": float(om)})
+    return out
+
+
+def _breakaway(p: Plant) -> list[dict]:
+    poly = np.polysub(np.polymul(p.num, np.polyder(p.den)), np.polymul(p.den, np.polyder(p.num)))
+    poly = np.trim_zeros(poly, "f")
+    out = []
+    if poly.size < 2:
+        return out
+    for r in np.roots(poly):
+        if abs(r.imag) > 1e-7 * max(1, abs(r)):
+            continue
+        s = float(r.real)
+        nv = np.polyval(p.num, s)
+        if abs(nv) < TINY:
+            continue
+        k = -np.polyval(p.den, s) / nv
+        if k > 0:
+            out.append({"s": s, "k": float(k)})
+    return sorted(out, key=lambda e: e["s"])
+
+
+def root_locus(
+    G: TransferFunctionLike,
+    gains: Sequence[float] | np.ndarray | None = None,
+    size: str = "col",
+    alt: str | None = None,
+) -> core.Figure:
+    """Root locus of 1 + K G = 0 over K >= 0, with open-loop poles (x) and zeros (o).
+
+    Also computed and marked: asymptotes (centroid and angles), breakaway points and,
+    for continuous systems, the critical gain where branches cross the imaginary axis.
+    """
+    p = plant(G)
+    discrete = p.discrete
+    var = "z" if discrete else "s"
+    rl = ct.root_locus_map(p.tf, None if gains is None else np.asarray(gains, dtype=float))
+    loci = np.asarray(rl.loci, dtype=complex)
+    ks = np.asarray(rl.gains, dtype=float)
+    poles, zeros = p.poles(), p.zeros()
+    n, m = len(poles), len(zeros)
+    st_pts: list[complex] = [*poles, *zeros, 0j]
+    asym = None
+    if n > m:
+        centroid = float((np.sum(poles) - np.sum(zeros)).real / (n - m))
+        angles = [(2 * q + 1) * 180.0 / (n - m) for q in range(n - m)]
+        asym = {"centroid": centroid, "angles_deg": angles}
+        if n - m > 1:
+            st_pts.append(complex(centroid))
+    crossings = [] if discrete else _imag_axis_crossings(p)
+    for c in crossings:
+        st_pts += [complex(0, c["omega"]), complex(0, -c["omega"])]
+    breaks = _breakaway(p)
+    st_pts += [complex(b["s"]) for b in breaks]
+    if discrete:
+        st_pts += [1, -1, 1j, -1j]
+
+    fig, ax = core.new_figure(size)
+    box = _set_box(ax, st_pts, pad=0.35, min_span=2.0 if discrete else 1.0)
+    span = max(box[0][1] - box[0][0], box[1][1] - box[1][0])
+    _complex_axes(ax, var)
+    if discrete:
+        ax.add_patch(Circle((0, 0), 1, fill=False, edgecolor=MUTED, lw=0.9, ls="--", zorder=2))
+    if asym is not None and n - m >= 1:
+        for a in asym["angles_deg"]:
+            if a % 180 == 0:  # lies on the real axis, which is drawn anyway
+                continue
+            d = cmath.exp(1j * math.radians(a)) * 10 * span
+            c0 = asym["centroid"]
+            ax.plot([c0, c0 + d.real], [0, d.imag], color=MUTED, lw=0.8, ls=(0, (4, 2)), zorder=2)
+    for j in range(loci.shape[1]):
+        branch = loci[:, j]
+        ax.plot(branch.real, branch.imag, color=color(0), zorder=4)
+        _arrows_along(ax, branch, (0.5,), color(0), box)
+    for c in crossings:
+        for sgn in (1, -1):
+            ax.plot([0], [sgn * c["omega"]], "o", ms=3.5, color=FG, zorder=9)
+    if crossings:
+        c = max(crossings, key=lambda e: e["omega"])
+        sym = r"K_\mathrm{krit}" if core.locale() == "de" else r"K_\mathrm{crit}"
+        ax.annotate(
+            f"${sym} = {_num_tex(c['k'])}$",
+            (0, c["omega"]),
+            xytext=(5, 2),
+            textcoords="offset points",
+            fontsize=7,
+            color=FG,
+        )
+    for b in breaks:
+        ax.plot([b["s"]], [0], "o", ms=3, color=color(0), zorder=9)
+    _mark_roots(ax, poles, zeros, color(1), color(0))
+    ax.set_xlim(*box[0])
+    ax.set_ylim(*box[1])
+
+    cl_check = []
+    for c in crossings:
+        cl = np.roots(np.polyadd(p.den, c["k"] * p.num))
+        cl_check.append(float(np.min(np.abs(cl - 1j * c["omega"]))))
+    facts = {
+        "template": "signals.root_locus",
+        "G": p.as_dict(),
+        "discrete": discrete,
+        "gain_range": [float(ks.min()), float(ks.max())],
+        "open_loop_poles": [_pair(q) for q in poles],
+        "open_loop_zeros": [_pair(q) for q in zeros],
+        "asymptotes": asym,
+        "breakaway": breaks,
+        "imag_axis_crossings": crossings,
+        "imag_axis_crossing_residuals": cl_check,
+        "k_crit": min((c["k"] for c in crossings), default=None),
+    }
+    if not discrete and crossings:
+        gm = ct.stability_margins(p.tf)[0]
+        facts["k_crit_check_gm"] = _number(gm)
+    if alt is None:
+        alt = (
+            f"Root locus of 1 + K G({var}) = 0 with G({var}) = {_plain(p)}: {n} branches start "
+            f"at the open-loop poles (x) and {m} end at the zeros (o)"
+        )
+        if n - m == 1:
+            alt += ", 1 runs to infinity along the negative real axis"
+        elif n > m:
+            alt += f", {n - m} run to infinity along asymptotes from {asym['centroid']:.3g}"
+        if facts["k_crit"] is not None:
+            alt += f"; branches cross the imaginary axis at K = {facts['k_crit']:.4g}"
+        alt += "."
+    return core.finish(fig, alt, facts)
+
+
 __all__ = [
     "Plant",
     "bode",
@@ -940,6 +1221,8 @@ __all__ = [
     "nyquist",
     "phase_deg",
     "plant",
+    "pole_zero",
+    "root_locus",
     "stability_margins",
     "structure",
 ]

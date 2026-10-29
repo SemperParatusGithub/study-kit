@@ -142,3 +142,43 @@ def test_nyquist_with_integrators():
     rhp = signals.nyquist("2/(s-1)")
     assert rhp.facts["open_loop_rhp_poles"] == 1 and rhp.facts["encirclements_cw"] == -1
     assert rhp.facts["closed_loop_stable"]
+
+
+def test_pole_zero(locale):
+    fig = signals.pole_zero("(s+2)/((s+1)**2*(s**2+2*s+5))")
+    assert validate_svg(fig.svg) == []
+    poles = {tuple(p["value"]): p for p in fig.facts["poles"]}
+    assert poles[(-1.0, 0.0)]["multiplicity"] == 2
+    assert poles[(-1.0, 2.0)]["zeta"] == pytest.approx(1 / math.sqrt(5))
+    assert poles[(-1.0, 2.0)]["omega_n"] == pytest.approx(math.sqrt(5))
+    assert [z["value"] for z in fig.facts["zeros"]] == [[-2.0, 0.0]]
+    assert fig.facts["stable"] and fig.facts["dc_gain"] == pytest.approx(2 / 5)
+
+    disc = signals.pole_zero("(z-0.5)/((z-0.8)*(z**2-z+0.5))")
+    assert validate_svg(disc.svg) == []
+    assert disc.facts["discrete"] and disc.facts["stable"]
+    assert max(p["magnitude"] for p in disc.facts["poles"]) == pytest.approx(0.8)
+    assert not signals.pole_zero("1/((s-1)*(s+2))").facts["stable"]
+
+
+def test_root_locus(locale):
+    fig = signals.root_locus("1/(s*(s+1)*(s+2))")
+    assert validate_svg(fig.svg) == []
+    f = fig.facts
+    assert f["k_crit"] == pytest.approx(6, rel=1e-9)
+    (cross,) = f["imag_axis_crossings"]
+    assert cross["omega"] == pytest.approx(math.sqrt(2), rel=1e-9)
+    assert f["k_crit_check_gm"] == pytest.approx(6, rel=1e-6)
+    assert max(f["imag_axis_crossing_residuals"]) < 1e-6
+    assert f["asymptotes"]["centroid"] == pytest.approx(-1)
+    assert f["asymptotes"]["angles_deg"] == pytest.approx([60, 180, 300])
+    (brk,) = f["breakaway"]
+    assert brk["s"] == pytest.approx(-1 + 1 / math.sqrt(3))
+    assert brk["k"] == pytest.approx(2 / (3 * math.sqrt(3)))
+
+    circle = signals.root_locus("(s+2)/(s**2+2*s+5)")
+    assert validate_svg(circle.svg) == []
+    assert circle.facts["k_crit"] is None
+    assert [b["s"] for b in circle.facts["breakaway"]] == pytest.approx([-2 - math.sqrt(5)])
+    disc = signals.root_locus("(z+0.5)/((z-1)*(z-0.5))")
+    assert validate_svg(disc.svg) == [] and disc.facts["discrete"]
