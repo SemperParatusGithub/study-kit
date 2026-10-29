@@ -236,16 +236,20 @@ counts), the mode is `add <n>` instead.
 
 **Gate:** `uv run --frozen studykit validate <c> --quick --paths <the new files>` reports
 no error, and pipeline step 7 (`author`) is `done`. Route findings to the owning author
-(mode `fix`).
+(mode `fix`). The quick run checks neither references nor figures (step 8 does), and the
+Coverage stage runs only with `--release`: the counts per topic come from step 7's
+`todo` and details.
 
 ## 8. Figures
 
 `just figures <c>`, then Read the PNG of every new figure in `<dir>/_build/figures/`:
 overlapping labels, clipped text, wrong values or a missing component go back to the
 author who references the figure (`fig:<slug>`), with the problem; build failures too. At
-most 2 rounds.
+most 2 rounds. Then `uv run --frozen studykit validate <c> --paths <step 7's files>`
+without `--quick`: the References and Figures stages catch `ex:`, `fig:` and `src:` links
+the quick gate let through; route them like step 7's findings.
 
-**Gate:** pipeline step 8 (`figures`) is `done`.
+**Gate:** pipeline step 8 (`figures`) is `done`, and that validate reports no error.
 
 ## 9. Verify wave
 

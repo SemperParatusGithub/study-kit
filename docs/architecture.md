@@ -1823,7 +1823,7 @@ report.
    - Show a numbered topic table (weight, sources, past-exam frequency). The user replies in one line, for example `focus 3,5; skip 9; merge 6+7; ok`.
    - Then AskUserQuestion: number of mock exams (1/2/3), scope (full / core first: summary + MC + plan), and go/no-go with a cost and time estimate.
 7. **Author wave** (at most 6 parallel): first one `author` for `overview.md` (§2.12), then one `author` per (topic, part) for summary, exercises and MC bank, following `notation.yaml`. The hook lints every write. Gate: `validate --quick` over the new files.
-8. **Figures:** `just figures <c>`. Failures, and PNGs with problems, go back to the owning author (at most 2 rounds).
+8. **Figures:** `just figures <c>`. Failures, and PNGs with problems, go back to the owning author (at most 2 rounds). Then a validate of step 7's files without `--quick` checks the references and figures the quick gate skipped.
 9. **Verify wave** (at most 6 parallel): the `/verify` procedure per topic, one `verifier` per item (§5.3: one item per call), with the dispute loop described in §5.3.
 10. **Mock exams:** `author` with `parts/exam.md` (at most 3 in parallel), including `mc.md` when `exam.mc.present`, then verification. Gate: points, time and archetypes match the profile.
 11. **Cheat sheet:** `author` with `parts/cheatsheet.md`, the fit loop, then a formula audit: every display formula must appear with the same symbols in its topic's summary chapter (the main thread checks it until the verifier's `checks/sum-*.py` audits exist, §2.10). Gate: page count ≤ the limit.
