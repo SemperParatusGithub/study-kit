@@ -239,6 +239,15 @@ test('the MC points per question come from data-points-each', async ({ page }) =
   await expect(mcs.nth(0).locator('.sk-mc-feedback')).toContainText('3 of 3 points.');
 });
 
+test('rubric criteria use the HTML the shell rendered (criterion_html)', async ({ page }) => {
+  await start(page);
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  const html = await exam(page).locator('.sk-rubric-criterion').evaluateAll((els) => els.map((e) => e.innerHTML));
+  const rubric = JSON.parse((await exam(page).locator('section.sk-exam-task').getAttribute('data-rubric')) ?? '[]');
+  expect(html).toEqual(rubric.map((r: { criterion_html: string }) => r.criterion_html));
+});
+
 test('without JavaScript tasks and solutions are plain content', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();

@@ -1,10 +1,11 @@
 // <sk-exam data-exam data-duration-min data-points data-pass-points data-aids='[…]'
 //          data-mc-scoring data-negative-marking="true|false">
 //   <section class="sk-exam-task" data-task data-points data-h
-//            data-rubric='[{criterion, points}]'>…</section>
+//            data-rubric='[{criterion, criterion_html, points}]'>…</section>
 //   <section class="sk-exam-mc" data-points data-points-each><sk-mc>…</sk-mc>…</section>
 // </sk-exam>                                               (docs/architecture.md §2.7, §3.2)
-// data-mc-scoring and data-negative-marking fall back to <body>'s (the course's exam).
+// data-mc-scoring and data-negative-marking fall back to <body>'s (the course's exam);
+// criterion_html is the criterion with its math rendered at build time.
 //
 // 1. A cover page shows duration, points, pass mark and allowed aids.
 // 2. Start stores the start time (session state), so a reload keeps the timer running. While
@@ -27,6 +28,8 @@ import { clock, duration, emit, h, parseJson, percent, pts, renderInline, storeO
 
 interface RubricItem {
   criterion: string;
+  /** The criterion with its math rendered at build time (the site shell). */
+  criterion_html?: string | undefined;
   points: number;
 }
 
@@ -144,7 +147,11 @@ export class SkExam extends HTMLElement {
         points: Number(el.dataset.points) || 0,
         rubric: parseJson<unknown[]>(el.dataset.rubric, [])
           .filter((r): r is RubricItem => typeof (r as RubricItem)?.criterion === 'string')
-          .map((r) => ({ criterion: r.criterion, points: Number(r.points) || 0 })),
+          .map((r) => ({
+            criterion: r.criterion,
+            criterion_html: typeof r.criterion_html === 'string' ? r.criterion_html : undefined,
+            points: Number(r.points) || 0,
+          })),
         el,
         output: null,
       });
@@ -482,7 +489,7 @@ export class SkExam extends HTMLElement {
     t.rubric.forEach((r, i) => {
       const box = h('input', { type: 'checkbox', checked: checked.has(i), 'data-index': String(i) });
       const text = h('span', { class: 'sk-rubric-criterion' });
-      renderInline(text, r.criterion);
+      renderInline(text, r.criterion, r.criterion_html);
       box.addEventListener('change', () => this.onRubric(t, fs));
       fs.append(h('label', { class: 'sk-rubric-item' }, box, h('span', { class: 'sk-rubric-points' }, `${pts(r.points)} P`), text));
     });

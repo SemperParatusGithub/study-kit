@@ -120,3 +120,13 @@ test('sk-plan uses the shell slot for its checkbox and the shell banner', async 
   await expect(page.locator('#next [data-no-session]')).toBeVisible();
   expect((await progress(page)).items['plan:s-2027-02-10-a']).toEqual({ done: true });
 });
+
+test('no KaTeX is loaded in the browser', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (r) => requests.push(new URL(r.url()).pathname));
+  for (const path of ['/dashboard.html', '/exercise.html', '/exam.html', '/quiz.html']) {
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+  }
+  expect(requests.filter((p) => /katex.*\.m?js$/.test(p))).toEqual([]);
+});

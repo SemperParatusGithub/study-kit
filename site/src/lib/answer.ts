@@ -21,6 +21,8 @@ import { fnv1a, mulberry32 } from './shuffle.ts';
 export interface AnswerSpec {
   key: string;
   label: string;
+  /** The label as HTML with its math rendered by KaTeX at build time (the site shell). */
+  label_html?: string | null | undefined;
   value?: number | null | undefined;
   unit?: string | null | undefined;
   rtol?: number | null | undefined;
