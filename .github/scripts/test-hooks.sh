@@ -102,6 +102,9 @@ co-authored-by: someone <someone@example.invalid>"
 for subject in 'Merge branch '\''main'\'' into topic' 'Revert "feat: add a tab"' \
   'fixup! feat: add a tab' 'squash! feat: add a tab' 'amend! feat: add a tab'; do
   expect pass "git-generated subject: $subject" commit_msg "$subject"
+  expect fail "git-generated subject with a co-author trailer: $subject" commit_msg "$subject
+
+$trailer"
 done
 
 if [ "$failures" -gt 0 ]; then
