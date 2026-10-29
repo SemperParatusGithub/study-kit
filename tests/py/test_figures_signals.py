@@ -305,6 +305,17 @@ def test_step_response_negative_gain():
     )
 
 
+def test_step_response_lightly_damped(locale):
+    # zeta = 0.05: no free spot next to the tiny rise-time arrow; labels still render.
+    fig = signals.step_response("1/(s**2+0.1*s+1)")
+    assert validate_svg(fig.svg) == []
+    m = fig.facts["metrics"]
+    assert m["overshoot_percent"] == pytest.approx(
+        100 * math.exp(-math.pi * 0.05 / math.sqrt(1 - 0.05**2)), abs=1e-3
+    )
+    assert fig.facts["t_range"][1] > m["settling_time"]
+
+
 def test_step_response_unstable_and_bad_input():
     fig = signals.step_response("1/(s-1)", t=(0, 2))
     assert validate_svg(fig.svg) == []

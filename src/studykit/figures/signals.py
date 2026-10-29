@@ -26,6 +26,7 @@ import sympy as sp
 from matplotlib import ticker
 from matplotlib.lines import Line2D
 from matplotlib.patches import Arc, Circle, FancyArrowPatch
+from matplotlib.transforms import Bbox
 from scipy import signal as sps
 from scipy.optimize import brentq
 
@@ -1544,35 +1545,101 @@ def _unit_math(unit: str | None) -> str:
     return r"\,\mu\mathrm{s}" if unit == "us" else rf"\,\mathrm{{{unit}}}"
 
 
-def _place(ax, text: str, options: Sequence[dict], avoid: np.ndarray, placed: list, **style):
-    """Annotate at the first candidate whose text box misses the curve and other labels.
+LABEL_BOX = {"boxstyle": "square,pad=0.1", "fc": BG, "ec": "none", "alpha": 0.85}
+
+
+def _segment_points(ax, a, b, n: int = 60) -> np.ndarray:
+    """n points along the data segment a-b, in display coordinates (for `_place`)."""
+    xy = np.linspace(np.asarray(a, dtype=float), np.asarray(b, dtype=float), n)
+    return ax.transData.transform(xy)
+
+
+def _nearest(box, pts: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
+    """Distance from box to the nearest of pts, that point and the box point facing it.
+
+    All in display coordinates; pts is an (n, 2) array.
+    """
+    gap = np.column_stack([np.clip(pts[:, 0], box.x0, box.x1), np.clip(pts[:, 1], box.y0, box.y1)])
+    d = np.hypot(*(pts - gap).T)
+    i = int(np.argmin(d))
+    return float(d[i]), pts[i], gap[i]
+
+
+def _place(
+    ax,
+    text: str,
+    options: Sequence[dict],
+    avoid: np.ndarray,
+    placed: list,
+    target: Sequence[tuple[float, float]] | None = None,
+    **style,
+):
+    """Annotate at the first candidate whose text box misses the drawing and other labels.
 
     options: annotate() keyword sets (xy, xytext, ha, va, optional xycoords), best first.
-    avoid: curve points in display coordinates. The figure layout must be final (the
-    caller ran draw_without_rendering); labels are kept out of the layout so they cannot
-    move the axes afterwards. Falls back to the candidate with the fewest conflicts.
+    avoid: points of everything drawn (curves, lines, arrows) in display coordinates.
+    target: the data segment the label explains (an arrow, a line: its two end points).
+    When no candidate is free, the label moves to the free spot of the axes nearest to it;
+    a label that ends up away from its target gets a thin leader line to it. Without a
+    free spot the candidate with the fewest conflicts is kept; the page-coloured backing
+    and a zorder above the curves keep it readable either way. The figure layout must be
+    final (the caller ran draw_without_rendering); labels are kept out of the layout so
+    they cannot move the axes afterwards.
     """
     renderer = ax.figure.canvas.get_renderer()
     frame = ax.get_window_extent(renderer)
+    style = {"bbox": LABEL_BOX, "zorder": 8} | style
+    pt = ax.figure.dpi / 72
+
+    def score(box) -> int:
+        hits = box.count_contains(avoid) + 100 * sum(box.overlaps(o) for o in placed)
+        inside = frame.x0 <= box.x0 and box.x1 <= frame.x1
+        inside = inside and frame.y0 <= box.y0 and box.y1 <= frame.y1
+        return hits + 50 * (not inside)
+
     best = None
     for option in options:
         ann = ax.annotate(text, textcoords="offset points", **option, **style)
         ann.set_in_layout(False)
-        box = ann.get_window_extent(renderer).padded(1.5)
-        score = box.count_contains(avoid)
-        score += 100 * sum(box.overlaps(other) for other in placed)
-        inside = frame.x0 <= box.x0 and box.x1 <= frame.x1 and frame.y0 <= box.y0
-        score += 50 * (not (inside and box.y1 <= frame.y1))
-        if best is None or score < best[0]:
+        box = ann.get_window_extent(renderer).padded(1.5 * pt)
+        sc = score(box)
+        if best is None or sc < best[0]:
             if best is not None:
                 best[1].remove()
-            best = (score, ann, box)
+            best = (sc, ann, box)
         else:
             ann.remove()
-        if score == 0:
+        if sc == 0:
             break
-    placed.append(best[2])
-    return best[1]
+    sc, ann, box = best
+    near = None if target is None else _segment_points(ax, *target, 40)
+    if sc > 0 and near is not None:
+        w, h = box.width, box.height
+        free = []
+        for cx in np.linspace(frame.x0 + w / 2, frame.x1 - w / 2, 28):
+            for cy in np.linspace(frame.y0 + h / 2, frame.y1 - h / 2, 18):
+                cand = Bbox.from_bounds(cx - w / 2, cy - h / 2, w, h)
+                if score(cand) == 0:
+                    free.append((_nearest(cand, near)[0], cx, cy, cand))
+        if free:
+            _, cx, cy, box = min(free, key=lambda f: f[0])
+            ann.remove()
+            ann = ax.annotate(
+                text,
+                tuple(ax.transAxes.inverted().transform((cx, cy))),
+                xycoords="axes fraction",
+                ha="center",
+                va="center",
+                **style,
+            )
+            ann.set_in_layout(False)
+    if near is not None:
+        dist, at, gap = _nearest(box, near)
+        if dist > 8 * pt:
+            (ax_, ay), (bx, by) = ax.transData.inverted().transform(np.array([at, gap]))
+            ax.plot([ax_, bx], [ay, by], color=style.get("color", FG), lw=0.6, zorder=7)
+    placed.append(box)
+    return ann
 
 
 def _annotate_step(
@@ -1584,38 +1651,44 @@ def _annotate_step(
     hname: str,
     curve: tuple[np.ndarray, np.ndarray],
 ) -> None:
+    """Draw the marks first, then place every label clear of all of them."""
     de = core.locale() == "de"
     final = info["final"]
     u = _unit_math(unit)
     up = final > 0  # labels go below a level the response approaches from below
     ax.figure.draw_without_rendering()
-    avoid = ax.transData.transform(np.column_stack(curve))
-    placed: list = []
+    x0, x1 = ax.get_xlim()
+    y0, y1 = ax.get_ylim()
+    avoid = [ax.transData.transform(np.column_stack(curve))]
+    labels: list[tuple] = []  # (text, options, target, colour), placed in this order
     small = {"fontsize": 7}
 
     if "overshoot" in annotate and info["overshoot_percent"] > 0.05:
         tp, yp = info["peak_time"] * scale, info["peak"]
         ax.plot([tp], [yp], "o", ms=3, color=color(1), zorder=6)
         _double_arrow(ax, (tp, final), (tp, yp), color(1), lw=0.9)
+        avoid.append(_segment_points(ax, (tp, final), (tp, yp)))
         sym = r"\ddot{u}" if de else r"M_\mathrm{p}"
         mid = (tp, (final + yp) / 2)
-        _place(
-            ax,
-            rf"${sym} = {_num_tex(info['overshoot_percent'])}\,\%$",
-            [  # beyond the peak first: nothing of the curve lies further out
-                {
-                    "xy": (tp, yp),
-                    "xytext": (4, 1 if up else -1),
-                    "ha": "left",
-                    "va": "bottom" if up else "top",
-                },
-                {"xy": mid, "xytext": (4, 0), "ha": "left", "va": "center"},
-                {"xy": mid, "xytext": (-4, 0), "ha": "right", "va": "center"},
-            ],
-            avoid,
-            placed,
-            color=color(1),
-            **small,
+        labels.append(
+            (
+                rf"${sym} = {_num_tex(info['overshoot_percent'])}\,\%$",
+                [  # beyond the peak first: nothing of the curve lies further out
+                    {
+                        "xy": (tp, yp),
+                        "xytext": (dx, 3 if up else -3),
+                        "ha": ha,
+                        "va": "bottom" if up else "top",
+                    }
+                    for dx, ha in ((4, "left"), (0, "center"), (-4, "right"))
+                ]
+                + [
+                    {"xy": mid, "xytext": (4, 0), "ha": "left", "va": "center"},
+                    {"xy": mid, "xytext": (-4, 0), "ha": "right", "va": "center"},
+                ],
+                [(tp, final), (tp, yp)],
+                color(1),
+            )
         )
     if "rise" in annotate and info["rise_time"] is not None:
         t10, t90 = info["t10"] * scale, info["t90"] * scale
@@ -1623,35 +1696,37 @@ def _annotate_step(
         ax.plot([t10, t90], [y10, y90], "o", ms=3, color=color(4), zorder=6)
         ax.plot([t10, t10], [y10, y90], color=color(4), lw=0.8, ls=":", zorder=3)
         _double_arrow(ax, (t10, y90), (t90, y90), color(4), lw=0.9)
+        avoid += [
+            _segment_points(ax, (t10, y10), (t10, y90)),
+            _segment_points(ax, (t10, y90), (t90, y90)),
+        ]
         va = "top" if up else "bottom"
-        _place(
-            ax,
-            rf"$t_\mathrm{{r}} = {_num_tex(info['rise_time'] * scale)}{u}$",
-            [
-                {"xy": (t90, y90), "xytext": (5, -1 if up else 1), "ha": "left", "va": va},
-                {"xy": (t90, 0.5 * final), "xytext": (5, 0), "ha": "left", "va": "center"},
-                {"xy": (t90, 0.3 * final), "xytext": (5, 0), "ha": "left", "va": "center"},
-                {"xy": (t10, y90), "xytext": (-4, 0), "ha": "right", "va": "center"},
-            ],
-            avoid,
-            placed,
-            color=color(4),
-            **small,
+        labels.append(
+            (
+                rf"$t_\mathrm{{r}} = {_num_tex(info['rise_time'] * scale)}{u}$",
+                [
+                    {"xy": (t90, y90), "xytext": (5, -1 if up else 1), "ha": "left", "va": va},
+                    {"xy": (t90, 0.5 * final), "xytext": (5, 0), "ha": "left", "va": "center"},
+                    {"xy": (t10, y90), "xytext": (-4, 0), "ha": "right", "va": "center"},
+                ],
+                [(t10, y90), (t90, y90)],
+                color(4),
+            )
         )
     if "final" in annotate:
         ax.axhline(final, color=MUTED, lw=0.9, ls=(0, (4, 2)), zorder=2)
+        avoid.append(_segment_points(ax, (x0, final), (x1, final), 200))
         right = {"xy": (1, final), "xycoords": ("axes fraction", "data"), "ha": "right"}
-        _place(
-            ax,
-            f"${hname}_\\infty = {_num_tex(final)}$",
-            [
-                {**right, "xytext": (-2, -4 if up else 4), "va": "top" if up else "bottom"},
-                {**right, "xytext": (-2, 4 if up else -4), "va": "bottom" if up else "top"},
-            ],
-            avoid,
-            placed,
-            color=MUTED,
-            **small,
+        labels.append(
+            (
+                f"${hname}_\\infty = {_num_tex(final)}$",
+                [
+                    {**right, "xytext": (-2, -4 if up else 4), "va": "top" if up else "bottom"},
+                    {**right, "xytext": (-2, 4 if up else -4), "va": "bottom" if up else "top"},
+                ],
+                [(x0, final), (x1, final)],
+                MUTED,
+            )
         )
     if "settling" in annotate and info["settling_time"] is not None:
         band = info["settling_band"]
@@ -1659,20 +1734,24 @@ def _annotate_step(
         ax.axhspan(lo, hi, color=color(2), alpha=0.15, lw=0, zorder=1)
         ts = info["settling_time"] * scale
         ax.axvline(ts, color=color(2), lw=0.9, ls=":", zorder=2)
+        avoid.append(_segment_points(ax, (ts, y0), (ts, y1), 200))
         sym = r"t_\mathrm{aus}" if de else r"t_\mathrm{s}"
-        _place(
-            ax,
-            f"${sym} = {_num_tex(ts)}{u}$",
-            [
-                {"xy": (ts, f * final), "xytext": (dx, 0), "ha": ha, "va": "center"}
-                for f in (0.25, 0.5, 0.1)
-                for dx, ha in ((3, "left"), (-3, "right"))
-            ],
-            avoid,
-            placed,
-            color=color(2),
-            **small,
+        labels.append(
+            (
+                f"${sym} = {_num_tex(ts)}{u}$",
+                [
+                    {"xy": (ts, f * final), "xytext": (dx, 0), "ha": ha, "va": "center"}
+                    for f in (0.25, 0.5, 0.1, 0.4, 0.65)
+                    for dx, ha in ((3, "left"), (-3, "right"))
+                ],
+                [(ts, y0), (ts, y1)],
+                color(2),
+            )
         )
+    points = np.concatenate(avoid)
+    placed: list = []
+    for text, options, target, col in labels:
+        _place(ax, text, options, points, placed, target, color=col, **small)
 
 
 # --------------------------------------------------------------------------------------
