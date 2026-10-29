@@ -125,14 +125,24 @@ def test_coverage_reports_missing_parts(mini: Path, denylist: Path):
     overview.write_text(
         overview.read_text().replace("(topic:rc-tiefpass)", "(topic:spannungsteiler)")
     )
-    found = codes(run(mini, denylist, release=True))
-    assert {
-        "SK-COV-SUMMARY",
-        "SK-COV-OVERVIEW",
-        "SK-COV-CHEATSHEET",
-        "SK-COV-PLAN",
-        "SK-COV-EXAM",
-    } <= found
+    report = run(mini, denylist, release=True)
+    assert {"SK-COV-SUMMARY", "SK-COV-OVERVIEW", "SK-COV-EXAM"} <= codes(report)
+    missing = [f for f in report.findings if f.code == "SK-STRUCT-MISSING"]
+    assert sorted(f.path.split("/mini/")[1] for f in missing) == ["cheatsheet.md", "plan.yaml"]
+    assert all(f.severity == "error" for f in missing)
+
+
+def test_missing_course_files_warn_while_authoring(mini: Path, denylist: Path):
+    (mini / "overview.md").unlink()
+    (mini / "plan.yaml").unlink()
+    report = run(mini, denylist, quick=True)
+    assert report.ok
+    assert [(f.code, f.severity, f.message) for f in report.findings] == [
+        ("SK-STRUCT-MISSING", "warning", "overview.md is missing (required for --release)"),
+        ("SK-STRUCT-MISSING", "warning", "plan.yaml is missing (required for --release)"),
+    ]
+    only = mini / "summary" / "01-spannungsteiler.md"
+    assert run(mini, denylist, quick=True, paths=[only]).findings == []
 
 
 def test_skipped_stages_explain_why(mini: Path, denylist: Path):

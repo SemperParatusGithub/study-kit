@@ -244,8 +244,38 @@ def check_structure(ctx: Context) -> None:
                 f"overview.md has {len(h2)} '##' sections, expected 6",
                 "use the six sections of docs/architecture.md §2.12 in their order",
             )
+    _check_required_files(ctx)
     _check_ids(ctx)
     _check_exams(ctx)
+
+
+def _check_required_files(ctx: Context) -> None:
+    """overview.md, plan.yaml and (if allowed) cheatsheet.md; course.yaml is checked first.
+
+    A course is authored step by step (§5.4), so a missing file is a warning until
+    `--release`, where it is an error.
+    """
+    tree = ctx.tree
+    course = tree.model
+    required = [
+        ("overview.md", "author it with the six sections of docs/architecture.md §2.12"),
+        ("plan.yaml", "run `studykit plan <course>`"),
+    ]
+    if course is not None and course.cheatsheet.allowed:
+        required.append(("cheatsheet.md", "`/regenerate <course> cheatsheet`, then fit it"))
+    for rel, fix in required:
+        if tree.get(rel) is None:
+            ctx.add(
+                Finding(
+                    display_path(tree.root / rel),
+                    1,
+                    1,
+                    "SK-STRUCT-MISSING",
+                    f"{rel} is missing" + ("" if ctx.release else " (required for --release)"),
+                    fix,
+                    "error" if ctx.release else "warning",
+                )
+            )
 
 
 def _check_names(ctx: Context, doc: Doc) -> None:
@@ -1409,17 +1439,8 @@ def check_coverage(ctx: Context) -> None:
         index = course.topic_ids.index(topic_id)
         ctx.at_yaml(course_doc, ["topics", index], code, message, fix, severity)
 
-    overview = tree.get("overview.md")
-    if overview is None:
-        ctx.at(
-            course_doc,
-            1,
-            1,
-            "SK-COV-OVERVIEW",
-            "overview.md is missing",
-            "author it with the six sections of docs/architecture.md §2.12",
-        )
-    elif overview.body is not None:
+    overview = tree.get("overview.md")  # a missing file is SK-STRUCT-MISSING
+    if overview is not None and overview.body is not None:
         linked = {
             link.target[6:] for link in overview.body.links if link.target.startswith("topic:")
         }
@@ -1487,24 +1508,6 @@ def check_coverage(ctx: Context) -> None:
                     "warning",
                 )
 
-    if course.cheatsheet.allowed and tree.get("cheatsheet.md") is None:
-        ctx.at(
-            course_doc,
-            1,
-            1,
-            "SK-COV-CHEATSHEET",
-            "the exam allows a cheat sheet, but cheatsheet.md is missing",
-            "author cheatsheet.md and fit it with `studykit cheatsheet fit`",
-        )
-    if tree.get("plan.yaml") is None:
-        ctx.at(
-            course_doc,
-            1,
-            1,
-            "SK-COV-PLAN",
-            "plan.yaml is missing",
-            "run `studykit plan <course>`",
-        )
     exams = tree.of_kind("exam")
     if len(exams) < course.targets.mock_exams:
         ctx.at_yaml(

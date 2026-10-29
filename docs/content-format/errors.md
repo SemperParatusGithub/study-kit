@@ -32,7 +32,9 @@ Coverage only with `validate --release`. Stages whose tools are not there yet
 
 ### `SK-STRUCT-MISSING`
 **error.** A required file is missing: `course.yaml` in a course directory, `exam.yaml`
-in an `exams/<exam-id>/` directory, or a file given to `lint`.
+in an `exams/<exam-id>/` directory, or a file given to `lint`. A missing `overview.md`,
+`plan.yaml` or (when the exam allows one) `cheatsheet.md` is a warning while the course is
+being authored and an error with `--release`.
 Fix: create the file from its schema in `schemas/`, or remove the stray directory.
 
 ### `SK-STRUCT-PATH`
@@ -364,9 +366,8 @@ Fix: embed it with `![Caption](fig:<slug>)` or delete the script.
 ## Coverage (SK-COV, `--release` only)
 
 ### `SK-COV-OVERVIEW`
-**error.** `overview.md` is missing, or it never links a (non-skipped) topic with
-`topic:`.
-Fix: author the overview (§2.12) and link every topic at least once.
+**error.** `overview.md` never links a (non-skipped) topic with `topic:`.
+Fix: link every topic at least once.
 
 ### `SK-COV-SUMMARY`
 **error.** A topic has no summary chapter.
@@ -382,14 +383,6 @@ Fix: `/regenerate <course> exercises --topic <topic> --add <n>`.
 than `targets.mc_per_topic` (with `auto`: 10–25 by weight), or lacks a question type the
 exam uses.
 Fix: `/regenerate <course> mc --topic <topic> --add <n>`.
-
-### `SK-COV-CHEATSHEET`
-**error.** The exam allows a cheat sheet, but `cheatsheet.md` is missing.
-Fix: `/regenerate <course> cheatsheet`.
-
-### `SK-COV-PLAN`
-**error.** `plan.yaml` is missing.
-Fix: `studykit plan <course>`.
 
 ### `SK-COV-EXAM`
 **error.** Fewer mock exams than `targets.mock_exams`, or a mock exam whose `points` or
