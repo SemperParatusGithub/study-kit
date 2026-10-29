@@ -128,6 +128,56 @@ def test_inline_math_positions_and_rules():
     assert codes(body("$x$5\n")) == ["SK-MATH-INLINE"]
 
 
+TABLE = "| Größe | Wert |\n|---|:--:|\n{row}\n"
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        r"| $|\underline{Z}|$ | 1 |",  # pandoc 3.13 cuts the row: cells "$" and "\underline{Z}"
+        r"| $\|\underline{Z}\|$ | 1 |",  # '\|' is an escaped cell border, the math gets '|'
+        r"| $\left|x\right|$ | 1 |",
+        r"| $P(A|B)$ | 1 |",
+        r"| `a|b` | 1 |",
+    ],
+)
+def test_pipe_inside_math_or_code_on_a_table_row(row):
+    b = body(TABLE.format(row=row))
+    assert codes(b) == ["SK-BLOCK-TABLE"]
+    (f,) = b.findings
+    assert (f.line, f.col) == (3, 3)
+    assert f.fix.startswith("write \\lvert") or f.fix.startswith("escape it as \\|")
+    assert b.formulas == []  # never sent on to the denylist or KaTeX in its wrong form
+
+
+def test_pipe_in_the_header_row_is_reported():
+    # pandoc turns the whole table into a paragraph when the header row has extra cells
+    b = body("| Größe | $|Z|$ |\n|---|---|\n| a | b |\n", first_line=8)
+    assert codes(b) == ["SK-BLOCK-TABLE"]
+    assert [(f.line, f.col) for f in b.findings] == [(8, 11)]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        TABLE.format(row=r"| $\lvert\underline{Z}\rvert$ | $P(A \mid B)$ |"),
+        TABLE.format(row=r"| `a\|b` | $\lVert x \rVert$ |"),
+        "Betrag $|Z|$ im Text und `a|b` im Code.\n",  # not a table
+        "| kein | Trenner |\n| $|Z|$ | x |\n",  # no delimiter row: a paragraph
+        "$|Z|$\n\n---\n",  # a thematic break is no delimiter row
+        "```text\n| a | b |\n|---|---|\n| $|x|$ | `a|b` |\n```\n",  # code block
+    ],
+)
+def test_tables_without_pipes_in_cells_stay_clean(text):
+    assert codes(body(text)) == []
+
+
+def test_table_rows_end_with_the_paragraph():
+    b = body("| a | b |\n|---|---|\n| 1 | 2 |\n\nDanach $|x|$.\n")
+    assert b.table_rows == {1, 3}
+    assert codes(b) == []
+
+
 def test_display_math_in_list_items_and_markers():
     b = body("- Punkt\n\n  $$\n  a =\n  b\n  $$\n")
     assert [(f.tex, f.display, f.line) for f in b.formulas] == [("a =\nb", True, 3)]

@@ -268,6 +268,9 @@ OPTIONISH_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s*\[.?\]")
 INLINE_CODE_RE = re.compile(r"(`+)(?:(?!\1).)+?\1")
 BLOCK_MARKER_RE = re.compile(r"^\s*(?:[=+\-*#>]|[0-9]+[.)])")
 HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]|$)")
+# The delimiter row of a pipe table (`|---|:--:|`); it needs a `|`, or `---` is a rule.
+TABLE_DELIMITER_RE = re.compile(r"^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$")
+UNESCAPED_PIPE_RE = re.compile(r"(?<!\\)\|")
 
 
 def _mask(text: str, start: int, end: int) -> str:
@@ -930,7 +933,24 @@ class Body:
                 display = []
                 start = (ln.no, ln.text.index("$") + 1)
                 continue
-            out.extend(self._inline_math(ln))
+            if ln.no not in self.table_rows:
+                out.extend(self._inline_math(ln))
+                continue
+            for f in self._inline_math(ln):
+                if "|" in f.tex:
+                    self.finding(
+                        ln.no,
+                        f.col,
+                        "SK-BLOCK-TABLE",
+                        "'|' inside inline math on a table row ends the cell there ('\\|' "
+                        "too, as an escaped '|'): pandoc cuts the row, or in the header row "
+                        "turns the table into a paragraph",
+                        "write \\lvert … \\rvert for an absolute value, \\lVert … \\rVert for "
+                        "a norm, \\mid for a divider",
+                    )
+                else:
+                    out.append(f)
+            self._check_table_code(ln)
         if display is not None:
             self.finding(
                 start[0],
@@ -984,6 +1004,39 @@ class Body:
                 "close the inline math on the same line, or write \\$ for a dollar sign",
             )
         return out
+
+    # --- tables ---
+
+    @cached_property
+    def table_rows(self) -> set[int]:
+        """File lines of pipe-table rows: the header row and the rows below the delimiter.
+
+        A table is a header line followed by a delimiter row (`|---|---|`); its body runs to
+        the end of the paragraph, as in pandoc's commonmark_x pipe tables.
+        """
+        rows: set[int] = set()
+        for para in self.paragraphs:
+            for k in range(1, len(para.lines)):
+                ln = para.lines[k]
+                if para.display[k] or para.display[k - 1] or "|" not in ln.text:
+                    continue
+                if TABLE_DELIMITER_RE.match(ln.text):
+                    rows.add(para.lines[k - 1].no)
+                    rows.update(row.no for row in para.lines[k + 1 :])
+                    break
+        return rows
+
+    def _check_table_code(self, ln: Line) -> None:
+        """A bare '|' in a code span on a table row ends the cell, as in math."""
+        for m in INLINE_CODE_RE.finditer(ln.text):
+            if UNESCAPED_PIPE_RE.search(m.group()):
+                self.finding(
+                    ln.no,
+                    m.start() + 1,
+                    "SK-BLOCK-TABLE",
+                    "'|' inside inline code on a table row ends the cell there",
+                    "escape it as \\| inside the code span; pandoc shows a plain '|'",
+                )
 
     # --- links and figures ---
 

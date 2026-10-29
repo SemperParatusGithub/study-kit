@@ -474,6 +474,7 @@ def check_fences(ctx: Context) -> None:
         if body is None or doc.split.error:
             continue
         body.blocks  # noqa: B018 - runs the fence scanner
+        body.formulas  # noqa: B018 - the line scan also checks pipe tables (SK-BLOCK-TABLE)
         ctx.extend(f for f in body.findings if f.code.startswith("SK-BLOCK"))
         for line, info in body.code_blocks:
             lang = info.split()[0].lstrip("{.") if info else ""

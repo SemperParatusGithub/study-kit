@@ -211,6 +211,15 @@ Fix: one `::: solution` block as the last thing in the file.
 `python matlab octave c cpp vhdl verilog systemverilog julia text`, or is never closed.
 Fix: ```` ```python ````, or ```` ```text ```` for anything else.
 
+### `SK-BLOCK-TABLE`
+**error.** A `|` inside inline math or inline code on a pipe-table row (the header row or
+a row below the `|---|` delimiter). Pandoc splits a row at every `|` before it reads math
+or code, and nothing warns: `| $|\underline{Z}|$ | 1 |` becomes the cells `$` and
+`\underline{Z}`, and in the header row the whole table becomes a paragraph. `\|` is an
+escaped cell border there, so `$\|x\|$` turns into `|x|`.
+Fix: in math `\lvert\underline{Z}\rvert` (absolute value), `\lVert x \rVert` (norm),
+`P(A \mid B)`; in code escape it, `` `a\|b` ``, which shows `a|b`.
+
 ## MC (SK-MCQ)
 
 ### `SK-MCQ-ATTR`
