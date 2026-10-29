@@ -580,6 +580,63 @@ def test_typst_figure_paths_are_relative_to_the_typst_root(workdir, tmp_path):
         pandoc.convert(body, outside, "typst")
 
 
+# Minus signs are U+2212, accents combining marks (u + U+0302).
+ALT_TEXT = [
+    (r"\underline{U}_C", "U_C"),
+    (r"U_\mathrm{C}", "U_C"),
+    (r"\mathrm{k\Omega}", "kΩ"),
+    (r"R = 3{,}3\,\mathrm{k\Omega}", "R = 3,3 kΩ"),
+    (
+        r"f_\mathrm{g} = \frac{1}{2\pi R C} \approx 1{,}59\,\mathrm{kHz}",
+        "f_g = 1/(2πRC) ≈ 1,59 kHz",
+    ),
+    (r"\frac{U_2}{U_1} = \frac{1}{\sqrt{2}}", "U_2/U_1 = 1/√2"),
+    (r"\omega\tau = 1", "ωτ = 1"),
+    (r"\varphi = -56{,}3^\circ", "φ = \u221256,3°"),
+    (r"10^{-3}\,\mathrm{A}", "10⁻³ A"),
+    (r"\mathrm{e}^{-t/\tau}", "e^(\u2212t/τ)"),
+    (r"\lvert\underline{H}(\mathrm{j}\omega)\rvert", "|H(jω)|"),
+    (r"\sqrt{R^2 + X_L^2}", "√(R² + X_L²)"),
+    (r"\left. \frac{dU}{dt} \right|_{t=0}", "dU/dt|_(t = 0)"),
+    (r"u(t) = \hat{u}\sin(\omega t + \varphi_u)", "u(t) = u\u0302 sin(ωt + φ_u)"),
+    (r"\text{für } t > 0", "für t > 0"),
+    (r"A^\mathrm{T},\ x \in \mathbb{R}", "Aᵀ, x ∈ \u211d"),
+]
+
+
+def test_alt_text_reads_math_as_text(tmp_path):
+    """lib/alttext.lua turns TeX into the plain text a screen reader gets as alt text."""
+    driver = tmp_path / "alttext.lua"
+    driver.write_text(
+        "package.path = arg[1] .. '/?.lua;' .. package.path\n"
+        "local alttext = require 'lib.alttext'\n"
+        "local out = {}\n"
+        "for i = 2, #arg do out[#out + 1] = alttext.tex(arg[i]) end\n"
+        "print(pandoc.json.encode(out))\n",
+        encoding="utf-8",
+    )
+    tex = [t for t, _ in ALT_TEXT]
+    proc = pandoc.run(["lua", str(driver), str(ROOT / "pandoc" / "filters"), *tex])
+    assert dict(zip(tex, json.loads(proc.stdout), strict=True)) == dict(ALT_TEXT)
+
+
+def test_figure_caption_math_is_rendered_and_read_as_text_in_the_alt(workdir):
+    body = (
+        "Text.\n\n"
+        r"![Spannung $\underline{U}_C$ am Kondensator mit $C = 47\,\mathrm{nF}$](fig:rc-bode)"
+        "\n"
+    )
+    doc = document("summary/02-rc-filter.md", workdir)
+    typ = pandoc.convert(body, doc, "typst")
+    assert 'alt: "Spannung U_C am Kondensator mit C = 47 nF")' in typ
+    assert "caption: [Spannung $underline(U)_C$ am Kondensator" in typ
+    compile_typst(typ, workdir, "figure-caption-math")
+    tree = check_html_contract(pandoc.convert(body, doc, "html"))
+    (caption,) = tree.find_all("figcaption")
+    assert [m.attrs["data-display"] for m in caption.find_all("sk-math")] == ["0", "0"]
+    pandoc.convert(body, doc, "json")
+
+
 def test_typst_refs_link_inside_the_document_or_name_the_target(workdir):
     body = pandoc.blank_frontmatter((OK / "mc/rc-filter.md").read_text(encoding="utf-8"))
     typ = pandoc.convert(body, document("mc/rc-filter.md", workdir), "typst")

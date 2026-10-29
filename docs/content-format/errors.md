@@ -374,7 +374,9 @@ Fix: write `figures/<slug>.py` and embed `![Caption](fig:<slug>)`.
 
 ### `SK-REF-FIGURE`
 **error.** A figure is not alone in its paragraph, has attributes such as `{width=…}`, or
-has an empty caption (the caption doubles as alt text).
+has an empty caption (the caption doubles as alt text). Inline math in the caption is
+fine: the page and the PDF render it, and the PDF's alt text reads it as plain text
+(`$\underline{U}_C$` → U_C, `$1{,}5\,\mathrm{k\Omega}$` → 1,5 kΩ).
 Fix: `![Bode-Diagramm des RC-Tiefpasses](fig:rc-bode)` on its own line between blank
 lines; the size comes from the figure script.
 
