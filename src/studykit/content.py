@@ -394,7 +394,7 @@ class Body:
                         ln.no,
                         1,
                         "SK-BLOCK-PLACEMENT",
-                        f"'{block.name}' is not allowed in a {self.kind} file",
+                        f"'{block.name}' is not allowed in {self.kind} files",
                         f"this file kind allows: {where}",
                     )
             stack.append(block)
@@ -801,7 +801,8 @@ class Doc:
 
     @cached_property
     def text(self) -> str:
-        return self.path.read_text(encoding="utf-8")
+        # Undecodable bytes become U+FFFD instead of crashing the whole run.
+        return self.path.read_text(encoding="utf-8", errors="replace")
 
     @property
     def is_markdown(self) -> bool:
@@ -887,19 +888,35 @@ def schema_findings(doc: yamlio.Document, exc: ValidationError) -> list[Finding]
     return out
 
 
+BOUNDS = {
+    "greater_than": "greater than {gt}",
+    "greater_than_equal": "at least {ge}",
+    "less_than": "less than {lt}",
+    "less_than_equal": "at most {le}",
+}
+
+
 def _value_fix(etype: str, ctx: dict) -> str:
-    if etype in {"bool_type"}:
+    if etype in BOUNDS:
+        return "use a value " + BOUNDS[etype].format(**ctx)
+    if etype == "bool_type":
         return "write true or false (yes/no/on/off are strings in YAML 1.2)"
     if etype in {"int_type", "float_type"}:
         return "write a bare number without quotes"
-    if etype in {"string_type"}:
+    if etype == "string_type":
         return "write text; quote it with single quotes if it looks like a number or date"
     if etype == "literal_error":
         return f"use one of: {ctx.get('expected', '')}"
-    if etype in {"date_type", "date_from_datetime_parsing"}:
+    if etype in {"date_type", "date_from_datetime_parsing", "datetime_type"}:
         return "write the date as YYYY-MM-DD"
     if etype == "string_pattern_mismatch":
         return f"match the pattern {ctx.get('pattern', '')}"
+    if etype in {"too_short", "string_too_short"}:
+        return "this must not be empty"
+    if etype in {"model_type", "dict_type", "model_attributes_type"}:
+        return "write a mapping of fields (key: value)"
+    if etype == "list_type":
+        return "write a list: [a, b] or one '- item' per line"
     return "fix the value; see schemas/ for the allowed values"
 
 

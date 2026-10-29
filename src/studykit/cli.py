@@ -6,6 +6,7 @@ import argparse
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 from studykit import __version__, doctor, golden, tools
 
@@ -46,6 +47,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_index.add_argument("course", help="course id or directory")
     p_index.add_argument("--json", action="store_true", help="also print the index")
     p_index.set_defaults(func=cmd_index)
+
+    p_lint = sub.add_parser("lint", help="fast per-file content check (the edit hook)")
+    p_lint.add_argument("files", nargs="*", type=Path, help="course files to check")
+    p_lint.add_argument(
+        "--hook", action="store_true", help="read a Claude Code PostToolUse event from stdin"
+    )
+    p_lint.add_argument("--json", action="store_true", help="machine-readable output")
+    p_lint.set_defaults(func=cmd_lint)
+
+    p_validate = sub.add_parser("validate", help="validate courses stage by stage (SK-codes)")
+    p_validate.add_argument("course", nargs="?", help="course id or directory (default: all)")
+    p_validate.add_argument("--paths", nargs="+", type=Path, help="only report these files")
+    p_validate.add_argument("--quick", action="store_true", help="stages up to Math only")
+    p_validate.add_argument("--release", action="store_true", help="add the Coverage stage")
+    p_validate.add_argument("--json", action="store_true", help="machine-readable output")
+    p_validate.set_defaults(func=cmd_validate)
 
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
@@ -115,6 +132,50 @@ def cmd_index(args: argparse.Namespace) -> int:
     else:
         print(f"wrote {content.display_path(path)}")
     return 0
+
+
+def _print_report(report, as_json: bool, label: str) -> None:
+    if as_json:
+        print(json.dumps(report.to_json(), ensure_ascii=False, indent=2))
+    else:
+        print(report.format_text(label))
+
+
+def cmd_lint(args: argparse.Namespace) -> int:
+    from studykit import lint
+
+    if args.hook:
+        code, text = lint.run_hook(sys.stdin.read())
+        if text:
+            sys.stderr.write(text)
+        return code
+    if not args.files:
+        print("error: give the files to lint (or --hook)", file=sys.stderr)
+        return 2
+    report = lint.lint_files(args.files)
+    _print_report(report, args.json, "lint")
+    return 0 if report.ok else 1
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    from studykit import content, validate
+
+    if args.course:
+        root = content.resolve_course(args.course)
+        if not root.is_dir():
+            print(f"error: no course directory {root}", file=sys.stderr)
+            return 1
+        courses = [root]
+    elif args.paths:
+        roots = {content.find_course_root(p.parent if p.is_file() else p) for p in args.paths}
+        courses = sorted(r for r in roots if r is not None)
+    else:
+        courses = content.list_courses()
+    report = validate.validate(courses, paths=args.paths, quick=args.quick, release=args.release)
+    if not courses:
+        report.notes.append(f"no courses found in {content.courses_dir()}")
+    _print_report(report, args.json, "validate")
+    return 0 if report.ok else 1
 
 
 def cmd_schema_export(args: argparse.Namespace) -> int:
