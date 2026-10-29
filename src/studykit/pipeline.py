@@ -326,9 +326,13 @@ def step_read(inp: Inputs, s: Step) -> None:
     if lint:
         s.details.append(f"{len(lint)} lint error(s) in the notes or analysis")
     if transcribe:
-        s.todo["transcriptions_missing"] = transcribe  # informative, not part of the gate
+        # a chunk's notes digest its scanned pages from the transcription (ingest skill)
+        s.todo["transcriptions_missing"] = transcribe
+        s.details.append(f"scanned page(s) without a transcription: {', '.join(transcribe)}")
     started = len(missing) < len(plan.chunks) or (inp.root / "analysis").is_dir()
-    done = not (missing or invalid or stale or lint) and profile_ok and notation_ok
+    done = (
+        not (missing or invalid or stale or lint or transcribe) and profile_ok and notation_ok
+    )
     s.status = _combine(done, started, bool(stale) and not (missing or invalid))
 
 

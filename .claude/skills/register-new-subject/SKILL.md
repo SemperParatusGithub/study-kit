@@ -147,10 +147,10 @@ Start, at most 6 at a time:
 
 Start the next ingester as soon as one returns; read the longest chunks first.
 
-**Gate:** pipeline step 4 (`read`) is `done` (the notes schema holds, every chunk has notes
-at its document's sha256, no lint errors in notes or analysis, so formulas pass the math
-lint) and its `todo` has no `transcriptions_missing`. A chunk that fails twice stops the run
-with its findings.
+**Gate:** pipeline step 4 (`read`) is `done`: the notes schema holds, every chunk has notes
+at its document's sha256, every scanned page has its transcription, and there are no lint
+errors in notes or analysis, so formulas pass the math lint. A chunk that fails twice stops
+the run with its findings.
 
 ## 5. Synthesize (you)
 

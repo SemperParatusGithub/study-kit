@@ -58,12 +58,14 @@ def resume(data: dict) -> str | None:
     return data["resume"]["name"] if data["resume"] else None
 
 
-def read_all(course: Path) -> None:
+def read_all(course: Path, transcribe: bool = True) -> None:
     """What the ingesters and the exam-analyst write in step 4."""
     plan = ingest.read_chunks(course)[0]
     assert plan is not None
     for chunk in plan.chunks:
         notes_for(course, chunk)
+        for n in chunk.scanned if transcribe else []:
+            ingest.vision_file(course, chunk.doc, n).write_text("Aufgabe 1\n")
     (course / "analysis").mkdir(exist_ok=True)
     (course / "analysis" / "exam-profile.yaml").write_text(PROFILE)
     (course / "analysis" / "notation.yaml").write_text(NOTATION)
@@ -118,7 +120,13 @@ def test_resume_point_follows_the_outputs(courses: Path, folder: Path):
     assert len(read["todo"]["chunks_without_notes"]) == 4
     assert "exam_profile" in read["todo"]
 
-    read_all(course)
+    read_all(course, transcribe=False)
+    data = status()
+    # notes alone are not enough: the scanned page needs its transcription
+    assert steps(data)["read"] == "partial" and resume(data) == "read"
+    read = next(s for s in data["steps"] if s["name"] == "read")
+    assert read["todo"] == {"transcriptions_missing": ["scan-2019 p. 1"]}
+    ingest.vision_file(course, "scan-2019", 1).write_text("Aufgabe 1\n")
     data = status()
     assert steps(data)["read"] == "done" and resume(data) == "synthesize"
     assert steps(data)["synthesize"] == "pending"

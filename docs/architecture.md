@@ -1880,8 +1880,8 @@ studykit pipeline report <course> [--today D]                                   
   first step that is not done as `resume`. The proofs: the manifest (0) and its round-1
   answers (1); the manifest, `course.yaml` and the sha256 of every file in `sources/raw/`,
   plus the ingested folder compared by sha256 (2); page texts and chunks at each
-  document's sha256 (3); notes matching their chunk for every chunk, the exam profile and
-  notation, no lint errors in them (4); `sources/outline.md` naming every topic id and
+  document's sha256 (3); notes matching their chunk for every chunk, a transcription of
+  every scanned page, the exam profile and notation, no lint errors in them (4); `sources/outline.md` naming every topic id and
   every chunk id, and topics other than `draft` (5); `answers.round2` with go and the same
   `targets.mock_exams` (6); the Coverage stage for the overview, summaries, exercises and
   MC banks (7); the figure runner's cache keys (8); the ledger of the topics' items (9);
