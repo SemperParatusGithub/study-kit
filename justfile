@@ -64,6 +64,14 @@ test:
     {{sk}} schema export --check
     {{sk}} golden
 
+# The e2e suite runs against site/dist, so build the sample course first:
+#   STUDYKIT_COURSES_DIR=examples just build sample-course
+# Playwright fetches its Chromium on first use; args go to `playwright test`.
+# browser tests of the built sample course (site/tests/e2e)
+e2e *args:
+    pnpm -C site exec playwright install chromium
+    pnpm -C site run e2e {{args}}
+
 # ruff lint and format check of the python code
 lint-code:
     uv run --frozen ruff check src tests
