@@ -2082,6 +2082,24 @@ def run_course(
     return report
 
 
+def course_rel(path: Path, root: Path) -> tuple[str, bool] | None:
+    """`path` as a course-relative path of the course at `root` and whether it is a
+    directory, or None outside the course. A relative path is taken from the working
+    directory first, then from the course directory (`--paths mc/rc-filter.md`)."""
+    root = root.resolve()
+    candidates = [path] if path.is_absolute() else [Path.cwd() / path, root / path]
+    inside = []
+    for cand in candidates:
+        try:
+            rel = cand.resolve().relative_to(root).as_posix()
+        except ValueError:
+            continue
+        if cand.exists():
+            return rel, cand.is_dir()
+        inside.append(rel)
+    return (inside[0], False) if inside else None
+
+
 def validate(
     courses: list[Path],
     *,
@@ -2099,11 +2117,11 @@ def validate(
         if paths is not None:
             selected = set()
             for p in paths:
-                try:
-                    rel = p.resolve().relative_to(tree.root).as_posix()
-                except ValueError:
+                found = course_rel(p, tree.root)
+                if found is None:
                     continue
-                if p.is_dir():  # a directory selects every course file below it
+                rel, is_dir = found
+                if is_dir:  # a directory selects every course file below it
                     prefix = "" if rel == "." else rel + "/"
                     selected.update(r for r in tree.docs if r.startswith(prefix))
                 else:

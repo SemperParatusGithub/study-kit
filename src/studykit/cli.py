@@ -512,11 +512,24 @@ def cmd_validate(args: argparse.Namespace) -> int:
             print(f"error: no course directory {root}", file=sys.stderr)
             return 1
         courses = [root]
+        # a path from the working directory or from the course directory, inside the course
+        missing = [
+            p
+            for p in args.paths or []
+            if validate.course_rel(p, root) is None or not (p.exists() or (root / p).exists())
+        ]
     elif args.paths:
         roots = {content.find_course_root(p.parent if p.is_file() else p) for p in args.paths}
         courses = sorted(r for r in roots if r is not None)
+        missing = [p for p in args.paths if not p.exists()]
     else:
         courses = content.list_courses()
+        missing = []
+    if missing:
+        where = f" in {content.display_path(courses[0])}" if args.course else ""
+        for p in missing:
+            print(f"error: --paths {p}: no such course file{where}", file=sys.stderr)
+        return 2
     report = validate.validate(courses, paths=args.paths, quick=args.quick, release=args.release)
     if not courses:
         report.notes.append(f"no courses found in {content.courses_dir()}")

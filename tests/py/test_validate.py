@@ -380,3 +380,15 @@ def test_mock_exam_size_follows_the_real_exam(mini: Path, denylist: Path):
         ("exams/probeklausur-1/exam.yaml", 5)
     ]
     assert "duration_min is 60 minutes, but the real exam has 90" in found[0].message
+
+
+def test_paths_relative_to_the_course(mini: Path, denylist: Path, monkeypatch, capsys):
+    # skills pass course-relative paths (`--paths mc/<topic>.md`) from the repository root
+    overlay(mini, BAD / "SK-MCQ-KEY")
+    overlay(mini, BAD / "SK-BLOCK-UNKNOWN")
+    monkeypatch.chdir(mini.parent)
+    assert codes(run(mini, denylist, paths=[Path("mc/spannungsteiler.md")])) == {"SK-MCQ-KEY"}
+    assert codes(run(mini, denylist, paths=[Path("mc")])) == {"SK-MCQ-KEY"}
+    # a path that is no file of the course is an error, never a silently empty selection
+    assert cli.main(["validate", str(mini), "--quick", "--paths", "mc/gibt-es-nicht.md"]) == 2
+    assert "mc/gibt-es-nicht.md: no such course file" in capsys.readouterr().err
