@@ -293,10 +293,10 @@ RESULT = {
     "kind": "mc",
     "topic": "rc-filter",
     "item": "mc-rc-filter-003",
-    "chosen": ["B"],
+    "chosen": ["A"],  # -45°, the low-pass phase; the key is B (+45°)
     "conf": "sure",
     "score": 0,
-    "finding": "Faktor 2π vergessen",
+    "finding": "Phase des Hochpasses mit dem Tiefpass verwechselt",
 }
 
 
@@ -312,7 +312,9 @@ def test_log_appends_valid_results(course: Path, capsys, monkeypatch):
     }
     args = ["--json-line", json.dumps(RESULT), "--json-line", json.dumps(task)]
     assert cli.main(["progress", "log", str(course), *args]) == 0
-    assert "logged 2 result(s)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "logged 2 result(s)" in out
+    assert "mc-rc-filter-003" in out and "score 0" in out and "score 0.75" in out
     lines = (course / "progress" / "examiner.jsonl").read_text().splitlines()
     first, second = (json.loads(x) for x in lines)
     assert first["t"] == "2026-11-20T10:00:00.000Z"
@@ -322,9 +324,37 @@ def test_log_appends_valid_results(course: Path, capsys, monkeypatch):
 
     import io
 
-    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps({**RESULT, "score": 1}) + "\n\n"))
+    right = json.dumps({**RESULT, "chosen": ["B"], "score": 1})
+    monkeypatch.setattr("sys.stdin", io.StringIO(right + "\n\n"))
     assert cli.main(["progress", "log", str(course)]) == 0
     assert len((course / "progress" / "examiner.jsonl").read_text().splitlines()) == 3
+
+
+def test_log_scores_mc_results_like_the_site(course: Path):
+    tree = progress.content.CourseTree(course)
+
+    def parse(**change):
+        line = {k: v for k, v in {**RESULT, **change}.items() if v is not None}
+        return progress.parse_examiner([("test", 1, json.dumps(line))], tree)
+
+    # a missing score is computed from `chosen` and the key
+    results, found = parse(chosen=["B"], score=None)
+    assert found == [] and results[0]["score"] == 1
+    # multi, all-or-nothing (the sample course's rule): mc-rc-filter-008 is A and D
+    multi = {"item": "mc-rc-filter-008"}
+    assert parse(**multi, chosen=["A", "D"], score=None)[0][0]["score"] == 1
+    assert parse(**multi, chosen=["A"], score=None)[0][0]["score"] == 0
+    # Kprim: mc-rc-filter-009 has B and C true; one statement wrong scores 0.5
+    kprim = {"item": "mc-rc-filter-009"}
+    assert parse(**kprim, chosen=["B", "C"], score=None)[0][0]["score"] == 1
+    assert parse(**kprim, chosen=["B"], score=None)[0][0]["score"] == 0.5
+    assert parse(**kprim, chosen=["A", "C"], score=None)[0][0]["score"] == 0
+    # a score that contradicts `chosen` is refused, so is a letter the question lacks
+    results, found = parse(chosen=["B"], score=0)
+    assert results == [] and "the site scores 1" in found[0].message
+    results, found = parse(chosen=["E"], score=None)
+    assert results == [] and "options A-D" in found[0].message
+    assert progress.mc_score("multi", [True, False, True, False], ["A"], "partial") == 0.5
 
 
 @pytest.mark.parametrize(
@@ -412,7 +442,7 @@ def test_report_writes_mastery_and_markdown(course: Path, tmp_path: Path, capsys
     assert data["exercises"]["ex-st-belastet"]["status"] == "started"
     assert data["exams"]["probeklausur-1"]["last"]["passed"] is True
     assert data["topics"]["spannungsteiler"]["exam_tasks"]["max_points"] == 20
-    assert data["examiner"]["findings"][0]["finding"] == "Faktor 2π vergessen"
+    assert data["examiner"]["findings"][0]["finding"] == RESULT["finding"]
     report = (course / "progress" / "report.md").read_text()
     assert report.startswith("# Progress report: ") and "## Misconceptions" in report
 

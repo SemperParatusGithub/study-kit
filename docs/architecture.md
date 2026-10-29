@@ -762,7 +762,8 @@ TypeScript on the shared cases in `tests/fixtures/progress/` and compares every 
   `model.ExaminerResult` per line (`schemas/examiner.schema.json`): mode, kind (`mc`,
   `exercise`, `exam-task`, `oral`), topic, item, score 0–1, for MC `chosen` and `conf`,
   optional `points`/`max_points` and a one-line `finding`. Items and topics are checked
-  against the course; a batch is written all or nothing.
+  against the course; an MC result's score is the site's score of `chosen` (computed when
+  left out, refused when it differs); a batch is written all or nothing.
 - `studykit progress report <course> [--today D] [--json]` writes `mastery.json`
   (`model.Mastery`, `schemas/mastery.schema.json`) and `report.md` deterministically. The
   examiner's MC answers count as attempts (folded in with the same Leitner step), then the

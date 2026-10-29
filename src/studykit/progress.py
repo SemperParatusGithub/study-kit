@@ -5,7 +5,9 @@
 - **import** validates a browser export (`studykit-progress/1`, the document
   `site/src/lib/store.ts` writes), merges it into `progress/state.json` with the site's own
   union merge, and keeps a copy in `progress/browser/`.
-- **log** appends examiner results to `progress/examiner.jsonl` (`model.ExaminerResult`).
+- **log** appends examiner results to `progress/examiner.jsonl` (`model.ExaminerResult`);
+  an MC result's score is computed from `chosen` and the key as `lib/scoring.ts` scores it
+  (filled in when missing, a finding when the examiner's score differs).
 - **report** writes `progress/mastery.json` and `progress/report.md`.
 
 This module mirrors three site libraries line by line, and `tests/py/test_progress.py`
@@ -634,19 +636,53 @@ def _course_items(tree: content.CourseTree) -> dict[str, dict[str, str | None]]:
     return out
 
 
+def mc_score(
+    qtype: str, correct: list[bool], chosen: list[str], rule: str = "all-or-nothing"
+) -> float:
+    """`score` of `lib/scoring.ts` for a practice answer: `correct` per option in source
+    order (A, B, …), `chosen` the letters selected (Kprim: judged true, every statement
+    judged)."""
+    n = len(correct)
+    if n == 0:
+        return 0.0
+    picked = {verify.LETTERS[i] for i, c in enumerate(correct) if c}
+    if qtype == "single":
+        return 1.0 if len(chosen) == 1 and chosen[0] in picked else 0.0
+    right = sum((verify.LETTERS[i] in chosen) == c for i, c in enumerate(correct))
+    if qtype == "multi" and rule == "partial":
+        return max(0.0, (right - (n - right)) / n)
+    if qtype == "kprim" or rule == "kprim":
+        return 1.0 if right == n else 0.5 if n > 1 and right == n - 1 else 0.0
+    return 1.0 if right == n else 0.0
+
+
+def _mc_keys(tree: content.CourseTree) -> dict[str, tuple[str, list[bool]]]:
+    """MC id -> (type, correct per option in source order)."""
+    return {
+        i.id: (i.question.type or "", [o.correct for o in i.question.options])
+        for i in verify.items(tree)
+        if i.kind == "mc" and i.question is not None
+    }
+
+
 def parse_examiner(
     lines: list[tuple[str, int, str]], tree: content.CourseTree, now: datetime | None = None
 ) -> tuple[list[dict], list[Finding]]:
-    """Validate examiner results given as (source, line, json text); `t` defaults to now."""
+    """Validate examiner results given as (source, line, json text); `t` defaults to now.
+
+    An MC result's `score` is checked against `chosen` and the key (it may be left out;
+    then it is computed)."""
     course = tree.model
     ctx = model.course_context(course)
     items = _course_items(tree)
+    keys = _mc_keys(tree)
+    rule = course.exam.mc.scoring if course and course.exam and course.exam.mc else "all-or-nothing"
     stamp = utc_stamp(now or datetime.now(UTC))
     out: list[dict] = []
     found: list[Finding] = []
     fix = (
         'write one JSON object per result, e.g. {"mode": "mc", "kind": "mc", "topic": "rc-filter", '
-        '"item": "mc-rc-filter-003", "chosen": ["A"], "conf": "sure", "score": 1}'
+        '"item": "mc-rc-filter-003", "chosen": ["B"], "conf": "sure", "score": 1}'
     )
     for source, line, text in lines:
         if not text.strip():
@@ -664,6 +700,9 @@ def parse_examiner(
             found.append(Finding(source, line, 1, "SK-PROGRESS-EXAMINER", "not a JSON object", fix))
             continue
         raw = {"t": stamp, **raw}
+        computed_score = raw.get("kind") == "mc" and "score" not in raw
+        if computed_score:
+            raw["score"] = 0  # replaced below by the score of `chosen`
         try:
             result = model.ExaminerResult.model_validate(raw, context=ctx)
         except ValidationError as exc:
@@ -704,6 +743,41 @@ def parse_examiner(
                         f"'{result.item}' belongs to the topic '{topics[result.item]}', "
                         f"not '{result.topic}'",
                         f"set topic to {topics[result.item]}",
+                    )
+                )
+                continue
+        if result.kind == "mc" and result.item in keys:
+            qtype, correct = keys[result.item]
+            letters = verify.LETTERS[: len(correct)]
+            bad = [c for c in result.chosen if c not in letters]
+            if bad:
+                found.append(
+                    Finding(
+                        source,
+                        line,
+                        1,
+                        "SK-PROGRESS-EXAMINER",
+                        f"'{result.item}' has the options {letters[0]}-{letters[-1]}, "
+                        f"not {', '.join(bad)}",
+                        "give `chosen` in source letters (A = the first option in the file)",
+                    )
+                )
+                continue
+            expected = mc_score(qtype, correct, result.chosen, rule)
+            if computed_score:
+                raw["score"] = expected
+            elif abs(result.score - expected) > 1e-9:
+                found.append(
+                    Finding(
+                        source,
+                        line,
+                        1,
+                        "SK-PROGRESS-EXAMINER",
+                        f"score {result.score:g} does not match chosen "
+                        f"{result.chosen or '[]'} of '{result.item}' ({qtype}), which the "
+                        f"site scores {expected:g}",
+                        "check that `chosen` is in source letters (Kprim: the statements "
+                        "judged true), then log the site's score or leave `score` out",
                     )
                 )
                 continue

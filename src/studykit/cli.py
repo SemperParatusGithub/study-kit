@@ -346,9 +346,16 @@ def cmd_progress_log(args: argparse.Namespace) -> int:
         return 2
     path = progress.append_examiner(tree.root, results)
     if args.json:
-        out = {"ok": True, "logged": len(results), "file": content.display_path(path)}
-        print(json.dumps(out, indent=2))
+        out = {
+            "ok": True,
+            "logged": len(results),
+            "file": content.display_path(path),
+            "results": results,
+        }
+        print(json.dumps(out, ensure_ascii=False, indent=2))
     else:
+        for r in results:
+            print(f"  {r.get('item') or r['topic']:<28} {r['kind']:<9} score {r['score']:g}")
         print(f"logged {len(results)} result(s) to {content.display_path(path)}")
     return 0
 

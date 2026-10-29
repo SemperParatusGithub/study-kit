@@ -672,9 +672,13 @@ Fix: export the progress again on the site instead of editing the file by hand.
 `schemas/examiner.schema.json` (`studykit.model.ExaminerResult`: an MC result needs the
 question id, `conf` and `chosen`; a task or exercise its id; `points` come with
 `max_points`), names an item the course does not have, or a topic the item does not belong
-to.
+to; or an MC result's `chosen` names a letter the question does not have, or its `score`
+differs from the score the site gives `chosen` (`lib/scoring.ts` with
+`course.exam.mc.scoring`).
 Fix: `studykit progress log <course> --json-line '{"mode": "mc", "kind": "mc", "topic":
-"rc-filter", "item": "mc-rc-filter-003", "chosen": ["A"], "conf": "sure", "score": 1}'`.
+"rc-filter", "item": "mc-rc-filter-003", "chosen": ["B"], "conf": "sure"}'`; `chosen` is in
+source letters (A = the first option in the file; Kprim: the statements judged true), and
+a left-out `score` is computed.
 
 ## Plan (SK-PLAN, `studykit plan`)
 
