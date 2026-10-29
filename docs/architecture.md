@@ -1365,6 +1365,18 @@ pdf course="":               # <course>/_build/pdf with manifest.json (all cours
     {{sk}} pdf {{course}}
 cheatsheet course:           # exits 3 with the overflow when even 7 pt is too long
     {{sk}} cheatsheet fit {{course}}
+[positional-arguments]
+verify course target="all" *flags:   # the ledger (§2.10); flags go to `studykit verify`
+    {{sk}} verify "$@"
+[positional-arguments]
+status course *flags:        # the study status (§2.11); --today, --json
+    {{sk}} status "$@"
+[positional-arguments]
+tutor course *args:          # Claude Code with the tutor agent as main thread (§5.3)
+    claude --agent tutor "/tutor $*"
+[positional-arguments]
+examine course *args:        # [diagnostic|topic <t>|mc|weak|misconceptions|exam <id>|oral]
+    claude --agent examiner "/examine $*"
 check-links dist="site/dist":
     {{sk}} check-links {{dist}}
 lint +files:
@@ -1398,8 +1410,12 @@ lint-code:
 site build, which copies every PDF its manifest lists into `site/dist`; `check-links`. It
 sets `STUDYKIT_STRICT=1` itself and builds the whole site (all courses); its `course`
 argument picks what figures, validation and PDFs cover. `cheatsheet` is the fit on its own
-(exit code 3 with the overflow, §3.3). Planned recipes: `verify`, `status`, `tutor` and
-`examine` (Phase 5 and 6).
+(exit code 3 with the overflow, §3.3). `verify` and `status` pass their arguments to the CLI
+unchanged (`[positional-arguments]`, so a `--note` with spaces survives). `tutor` and
+`examine` need the `claude` CLI: they start Claude Code with the `tutor` or `examiner`
+agent as the main thread and its command as the first message (`just tutor get2 rc-filter`
+runs `/tutor get2 rc-filter`), so the persona talks with the student directly and the
+examiner can ask through AskUserQuestion (§5.2, §5.3).
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
 
@@ -1415,10 +1431,15 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
 | References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and MC file, `modeled_on` and frontmatter source documents, archetypes, `src:` pages | SK-REF |
 | Pandoc | the Lua filter set with the json target, on files the stages above left without errors; also with `--quick`, then at file scope (targets missing from the index are not reported). The filter reports family-plus-rule codes: the code validate uses for a rule both check (e.g. SK-REF-FIGURE), and SK-BLOCK-RAW, SK-BLOCK-MARKDOWN, SK-REF-LINK and SK-MATH-TYPST for rules only it checks; a failure without a finding is SK-PANDOC-FAIL | SK-* |
 | Figures | build (cached) plus SVG validation; unreferenced scripts (warning) | SK-FIG |
-| Verification | the ledger (§2.10): broken entries (error), disputed (warning, error with `--release`), quarantined and stale items, ledgers and checks of unknown ids (warnings); with `--release` every item without a fresh verified entry and every numeric MC question without `checks/<id>.py` (warnings) | SK-VER |
+| Verification | reads the ledger (§2.10) and runs no checks (`studykit verify` does): a broken entry (SK-VER-LEDGER, error), a disputed item (SK-VER-DISPUTED, warning, error with `--release`), quarantined and stale items (SK-VER-QUARANTINED, SK-VER-STALE, warnings), and on a whole course (not with `--paths`) ledgers and check files of unknown ids (SK-VER-ORPHAN, warning; `<id>.<tag>.*` and `sum-*` are not orphans); with `--release` every unverified item (SK-VER-UNVERIFIED) and every numeric MC question without `checks/<id>.py` (SK-VER-CHECK), both warnings. The note counts verified, disputed, quarantined and stale items | SK-VER |
 | PDF | every full validate, not `--quick` or `lint`: builds the course's PDFs into `_build/pdf` as `studykit pdf` does, manifest included, but without building figures (the Figures stage did); cached, so only documents whose inputs changed rebuild; with `--paths` only the documents made from those files. Every document compiles with no Typst or pandoc warning, and the cheat sheet fits its limit; a filter finding in a document keeps its own code; the note reports how many PDFs are ready and the cheat sheet's pages and density. A Typst diagnostic is reported at the file and line of the course item (exercise, question, task, chapter) it points into, else at the file that defines the document, else `course.yaml`; an overflow at the cheat sheet's `max_pages`. Skipped with a note when PDF building is turned off (`Config.pdf`, for tests), pandoc or typst is missing, the course is outside the repository, or an earlier stage found errors | SK-PDF-COMPILE, SK-PDF-WARNING, SK-PDF-CHEATSHEET, SK-PDF-BUILD |
 | Site | `--release` only, for whole courses (not with `--paths`), and only when the stages above found no errors: strict `astro build` into a temporary `--outDir` with `STUDYKIT_COURSES_DIR` set to a temporary directory that holds one symlink to the course; Pagefind with `--force-language`; `pnpm -C site check` without `STUDYKIT_STRICT`; `check-links` over the course's own pages, reported as `dist/<page>` | SK-SITE |
 | Coverage | `--release` only: the overview links every topic; each topic has a summary, at least `targets.exercises_per_topic` (4 with `auto`) exercises over two or more difficulties, and at least `targets.mc_per_topic` MC questions (with `auto`: 10–25 by weight); a bank lacking a type of `course.exam.mc.types` (warning); at least `targets.mock_exams` mock exams, each within ±10% of the points and time in `course.yaml: exam` | SK-COV |
+
+Two families are not stages: `studykit progress` reports SK-PROGRESS (an export, the merged
+state or an examiner result that does not validate) and `studykit plan` SK-PLAN (§2.9,
+§2.11); both write nothing while one is an error. The lint hook (`studykit lint --hook`,
+§5.1) shows errors and warnings of the quick stages on every Write or Edit of a course file.
 
 ### 4.4 Tests
 
@@ -1433,8 +1454,7 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
   - YAML loading, the schemas, validate's stages, the render bridge, the Site stage, `check-links`, `doctor` and `tools`
   - `studykit pdf` on the sample course (`test_pdf.py`): every document builds without warnings, the manifest follows the contract with pypdfium2 page counts, a second run is cached, generated text is escaped, `mc.pdf` has an answer key for every question in the order validate and the site use, the exam has „Seite x von y“ and its points table but no solutions, the solutions PDF has every rubric, `exercises.pdf` has every solution and the blank sheet none, a failed compile keeps the previous PDF and leaves the manifest, a filter finding names the course file and line, unknown documents are refused, no course builds every course; `cheatsheet fit` (`test_cheatsheet.py`: the limit, the density loop, positions through the columns, the overflow JSON with section lines, exit code 3 keeping the previous PDF, the 3-page failure); validate's PDF stage (`test_validate_pdf.py`: built once and reused, `--paths`, the overflow at `max_pages`, a missing figure at the file that shows it, the skip reasons, where problems are reported)
   - *(planned)* key points of function plots (`cos x = x`, touching roots, poles) beyond the
-    gallery snapshot; *(Phase 5/6)* the scheduler, `status`, and ingest of a generated
-    two-page PDF
+    gallery snapshot; *(Phase 6)* ingest of a generated two-page PDF
   - verification on copies of the sample course: `calc` (exact, complex, units, a parser
     that rejects Python), blind views without keys, solutions or marks (`test_blind.py`),
     the runner and ledger (`test_verify.py`: a correct item verifies, a seeded wrong number
@@ -1443,6 +1463,25 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
     Verification stage (`test_validate_verify.py`), quarantine on the render bridge and in
     `exercises.pdf`, `mc.pdf` and the exam (`test_quarantine.py`), and both hooks on sample
     hook events (`test_hook.py`)
+  - the student's side: `progress import|log|report` (`test_progress.py`: the merge, the
+    Leitner steps and the `lib/stats.ts` figures against the site's own TypeScript on
+    `tests/fixtures/progress/`, local days, refused exports, the examiner log's MC scoring
+    and all-or-nothing batches, `mastery.json`), the scheduler (`test_plan.py`: the sample
+    course, budget and weekday constraints for any budget, spaced repeats, mock exams,
+    focus, skip, an unknown exam date, replanning that keeps done sessions and goals, weak
+    topics first, quarantined items left out, the written plan passes validate) and
+    `status` (`test_status.py`: the same figures as the report)
+  - the Claude Code layer (`test_claude.py`): the skills and agents of §5.2 and §5.3 exist
+    with valid frontmatter (internal skills hidden and under 500 lines, user commands only
+    when typed, the agents' model, effort, turns, tools and preloaded skills, only the
+    verifier with a hook); every file, repository path, `studykit` command and flag, `just`
+    recipe and SK code that a skill or an agent names exists (in `CLAUDE.md` too: paths,
+    commands and recipes); the check-script
+    recipes run and pass the verifier guard; every content-format template passes lint in a
+    copy of the sample course; `settings.json` has the attribution, permissions and hooks
+    of §5.1, and the hook commands run as Claude Code runs them (the lint hook catches a
+    broken fence from any directory, pre-git denies a forced add, the guard keeps the
+    verifier blind)
 - **node --test** (`site/tests/unit/`): the PDF and source manifests the site reads (`lib/pdf.ts`, with small test PDFs from `make-pdf.mjs`), scoring for every type and mode, shuffle determinism with `pin-last` (against values printed by Python), Leitner and the exam clamp, store migration and merge, the answer check (`lib/answer.ts`), the progress figures (`lib/stats.ts`), and text colour pairs of `tokens.css` at 4.5:1 or more in both themes.
 - **Git hooks and guard** (`.github/scripts/test-hooks.sh`): `commit-msg`, `pre-commit` and `guard.sh` in throwaway repositories.
 - **Schema drift:** `studykit schema export --check`.
