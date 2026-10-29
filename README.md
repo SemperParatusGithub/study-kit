@@ -43,7 +43,7 @@ your `PATH` (or use `.tools/bin/just`) to call `just` directly.
 | `just figures [course]` | Renders the figure scripts of a course |
 | `just test` | Python and Node unit tests, the git hooks, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
 | `just e2e` | Playwright tests of the built sample course in Chromium (build it first, see below) |
-| `just ci` | The checks CI runs before the browser tests: `doctor`, `test`, a strict build of the sample course and its release validation |
+| `just ci` | `doctor`, `test`, a strict build of the sample course and its release validation (CI also runs `lint-code` and the browser tests) |
 | `just lint-code` | ruff lint and format check of the Python code |
 
 The website always runs on port 4321: progress lives in the browser's storage for that
