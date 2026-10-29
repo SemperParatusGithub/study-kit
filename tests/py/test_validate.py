@@ -164,8 +164,15 @@ def test_wrapped_titled_and_reference_links_are_checked(mini: Path, denylist: Pa
 def test_release_adds_coverage(mini: Path, denylist: Path):
     # The mini overview wraps a topic link and an exercise wraps a figure caption.
     report = run(mini, denylist, release=True)
-    assert codes(report) == {"SK-COV-EXERCISES", "SK-COV-MC"}
-    assert all(f.path.endswith("course.yaml") for f in report.findings)
+    coverage = [f for f in report.findings if not f.code.startswith("SK-VER-")]
+    assert {f.code for f in coverage} == {"SK-COV-EXERCISES", "SK-COV-MC"}
+    assert all(f.path.endswith("course.yaml") for f in coverage)
+    # nothing is verified yet: a warning per item, never an error (§4.3 Verification)
+    assert {f.code for f in report.findings} - {f.code for f in coverage} <= {
+        "SK-VER-UNVERIFIED",
+        "SK-VER-CHECK",
+    }
+    assert all(f.severity == "warning" for f in report.findings if f.code.startswith("SK-VER"))
 
 
 def test_explicit_mc_target_is_not_capped(mini: Path, denylist: Path):
@@ -209,7 +216,8 @@ def test_missing_course_files_warn_while_authoring(mini: Path, denylist: Path):
 def test_skipped_stages_explain_why(mini: Path, denylist: Path):
     report = run(mini, denylist)
     stages = {s.name: s for s in report.courses[0].stages}
-    for name in ("Verification", "PDF", "Site"):
+    assert stages["Verification"].status == "ok"
+    for name in ("PDF", "Site"):
         assert stages[name].status == "skipped"
         assert stages[name].notes and stages[name].notes[0].startswith("skipped: ")
 
