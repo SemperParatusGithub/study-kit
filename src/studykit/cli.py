@@ -228,6 +228,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     _add_study_commands(sub)
     _add_ingest_commands(sub)
+    _add_pipeline_commands(sub)
 
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
@@ -384,6 +385,61 @@ def _add_ingest_commands(sub) -> None:
     p_r2.add_argument("--today", type=_day, help="the day recorded (default: today)")
     p_r2.add_argument("--json", action="store_true", help="machine-readable output")
     p_r2.set_defaults(func=cmd_ingest_round2)
+
+
+def _add_pipeline_commands(sub) -> None:
+    p_pipe = sub.add_parser(
+        "pipeline", help="the state of /register-new-subject, derived from its outputs (§5.4)"
+    )
+    pipe_sub = p_pipe.add_subparsers(dest="pipeline_command", metavar="<action>", required=True)
+    p_st = pipe_sub.add_parser(
+        "status", help="each step done, pending, partial or stale, and the step to resume at"
+    )
+    p_st.add_argument("course", help="course id or directory (need not exist yet)")
+    p_st.add_argument("--json", action="store_true", help="machine-readable output")
+    p_st.set_defaults(func=cmd_pipeline_status)
+    p_rep = pipe_sub.add_parser(
+        "report", help="write state/pipeline/report.md (step 14): counts, verification, sheet"
+    )
+    p_rep.add_argument("course", help="course id or directory")
+    p_rep.add_argument("--today", type=_day, help="the day written (default: today)")
+    p_rep.add_argument("--json", action="store_true", help="machine-readable output")
+    p_rep.set_defaults(func=cmd_pipeline_report)
+
+
+def cmd_pipeline_status(args: argparse.Namespace) -> int:
+    from studykit import model, pipeline
+
+    if not args.course or (
+        "/" not in args.course
+        and not __import__("re").fullmatch(model.PATTERNS["course"], args.course)
+    ):
+        print(f"error: {args.course!r} is not a course id or directory", file=sys.stderr)
+        return 2
+    result = pipeline.status(pipeline.resolve(args.course))
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(pipeline.format_status(result))
+    return 0
+
+
+def cmd_pipeline_report(args: argparse.Namespace) -> int:
+    from studykit import content, pipeline
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        path, data = pipeline.report(tree.root, _date_arg(args.today))
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps({"report": content.display_path(path), **data}, indent=2))
+    else:
+        print(f"wrote {content.display_path(path)}")
+    return 0
 
 
 def _exam_day(value: str) -> str:

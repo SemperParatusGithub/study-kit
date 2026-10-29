@@ -376,7 +376,10 @@ def test_the_command_checker_catches_mistakes():
     top = subparsers(cli.build_parser())
     assert check_command("studykit verify c id --confirm checks/x.py --method m", top) == []
     assert check_command("uv run --frozen studykit progress log c --json-line x", top) == []
-    assert check_command("studykit ingest scan x", top)
+    assert check_command("studykit ingest scan x --dry-run --json", top) == []
+    assert check_command("studykit pipeline status c --json", top) == []
+    assert check_command("studykit ingest digest x", top)
+    assert check_command("studykit pipeline resume c", top)
     assert check_command("studykit progress show c", top)
     assert check_command("studykit verify c --showkey", top)
     assert check_command("studykit hook guard", top)
