@@ -52,7 +52,8 @@ export class SkReveal extends HTMLElement {
     }
     const textId = uid('reveal');
     const yes = h('button', { type: 'button', class: 'sk-btn sk-btn-primary' }, 'Yes, show the solution');
-    const no = h('button', { type: 'button', class: 'sk-btn' }, 'Not yet');
+    // Not "Not yet": that is the self-assessment's rating button on the same page.
+    const no = h('button', { type: 'button', class: 'sk-btn' }, 'Keep trying');
     this.panel = h(
       'div',
       { class: 'sk-reveal-confirm', role: 'group', 'aria-labelledby': textId },

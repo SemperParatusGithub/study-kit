@@ -137,7 +137,11 @@ test('reveal asks "Tried it?" before the solution opens', async ({ page }) => {
   await expect(details).not.toHaveAttribute('open', '');
   await expect(reveal.getByText('Tried it?')).toBeVisible();
   await expect(reveal.getByRole('button', { name: 'Yes, show the solution' })).toBeFocused();
-  await reveal.getByRole('button', { name: 'Not yet' }).click();
+  // every button name in an exercise is unique (the rating has a "Not yet")
+  const names = await page.locator('article.sk-exercise').getByRole('button').evaluateAll(
+    (bs) => bs.filter((b) => (b as HTMLElement).offsetParent !== null).map((b) => b.textContent?.trim()));
+  expect(new Set(names).size).toBe(names.length);
+  await reveal.getByRole('button', { name: 'Keep trying' }).click();
   await expect(reveal.locator('.sk-reveal-confirm')).toHaveCount(0);
   await expect(details).not.toHaveAttribute('open', '');
   await expect(summary).toBeFocused();
