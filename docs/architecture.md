@@ -1111,22 +1111,22 @@ lint-code:
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
 
-Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is the stage family from the table plus a rule (`SK-MCQ-COUNT`, `SK-YAML-ESCAPE`); warnings keep the shape and start the message with `warning:`. Each code is documented in `content-format/errors.md` with a fix recipe and the pipeline step that owns it. `--quick` covers the stages up to and including Math plus the Pandoc backstop, for one file in about 1 s, and is used by the hook.
+Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is the stage family from the table plus a rule (`SK-MCQ-COUNT`, `SK-YAML-ESCAPE`); warnings keep the shape and start the message with `warning:`. Each code is documented in `content-format/errors.md` with a fix recipe and the pipeline step that owns it. Stages run in the order of the table. `--quick` runs Structure, Schema, Fences, MC, Math and the Pandoc backstop (with `sk-scope=file`), for one file in about 1 s; `studykit lint` is `--quick` restricted to the given files and is what the hook runs. `--release` adds Site and Coverage. A stage whose tools are not there yet is skipped with an `info:` note.
 
 | Stage | Checks | Code |
 |---|---|---|
-| Structure | required files, ID patterns, unique and non-retired IDs, acyclic prerequisites, topics ⊆ course topics | SK-STRUCT |
+| Structure | required files (`overview.md`, `plan.yaml` and an allowed `cheatsheet.md` are warnings until `--release`), known file paths, ID patterns and file names, unique and non-retired IDs, acyclic prerequisites, topics ⊆ course topics, the six overview sections, exam points add up | SK-STRUCT |
 | Schema | pydantic validation of YAML and frontmatter; scalar-style lint; control characters; label and rubric fields are text plus inline math only | SK-SCHEMA, SK-YAML |
-| Fences | line scan outside code: exact fence forms, allowed placement, depth, blank lines | SK-BLOCK |
-| MC | option counts per type, `[x]` invariants, a `why` on every option, one explanation, `pin-last` rule, no "all of the above", bank-bias warnings | SK-MCQ |
-| Math | denylist; KaTeX strict via `check-math.mjs`; pandoc→Typst with zero warnings; hint-leak rule | SK-MATH |
-| References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and archetypes | SK-REF |
-| Pandoc | the Lua filter set with the json target, on files the stages above left without errors: catches what only the filter sees (raw HTML, fixed-up Typst that fails) under the filter's family codes; file scope with `--quick` | SK-* |
-| Figures | build plus SVG validation, facts present, unreferenced scripts (warning) | SK-FIG |
-| Verification | ledger complete and fresh; disputed and quarantined items listed | SK-VER |
-| PDF | every document compiles with no warnings; cheat sheet ≤ its limit | SK-PDF |
-| Site | strict `astro build`, `astro check`, internal link and anchor check over `dist/` | SK-SITE |
-| Coverage | each topic has a summary, ≥ 4 exercises across difficulties, ≥ 10 MC questions with the target type mix; exam points and time within the profile | SK-COV |
+| Fences | line scan outside code: exact fence forms, allowed placement, depth, blank lines, hint and solution count, code languages; `\|` on pipe-table rows; line-end hyphens (warning) | SK-BLOCK |
+| MC | option counts per type, `[x]` invariants, a `why` on every option, one explanation, `pin-last` rule, no "all of the above", no option letters, bank-bias warnings | SK-MCQ |
+| Math | denylist and environment allowlist; KaTeX strict via `check-math.mjs` (skipped with a note without `site/node_modules`); inline and display form; block markers; space commands between digits; hint-leak warning | SK-MATH |
+| References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and MC file, `modeled_on` and frontmatter source documents, archetypes, `src:` pages | SK-REF |
+| Pandoc | the Lua filter set with the json target, on files the stages above left without errors; also with `--quick`, then at file scope (targets missing from the index are not reported). The filter reports family-plus-rule codes: the code validate uses for a rule both check (e.g. SK-REF-FIGURE), and SK-BLOCK-RAW, SK-BLOCK-MARKDOWN, SK-REF-LINK and SK-MATH-TYPST for rules only it checks; a failure without a finding is SK-PANDOC-FAIL | SK-* |
+| Figures | build (cached) plus SVG validation; unreferenced scripts (warning) | SK-FIG |
+| Verification | *(Phase 5; skipped)* ledger complete and fresh; disputed and quarantined items listed; numeric MC questions have a check script | SK-VER |
+| PDF | *(Phase 4; skipped)* every document compiles with no warnings; cheat sheet ≤ its limit | SK-PDF |
+| Site | `--release` only, for whole courses (not with `--paths`), and only when the stages above found no errors: strict `astro build` into a temporary `--outDir` with `STUDYKIT_COURSES_DIR` set to a temporary directory that holds one symlink to the course; Pagefind with `--force-language`; `pnpm -C site check` without `STUDYKIT_STRICT`; `check-links` over the course's own pages, reported as `dist/<page>` | SK-SITE |
+| Coverage | `--release` only: the overview links every topic; each topic has a summary, at least `targets.exercises_per_topic` (4 with `auto`) exercises over two or more difficulties, and at least `targets.mc_per_topic` MC questions (with `auto`: 10–25 by weight); a bank lacking a type of `course.exam.mc.types` (warning); at least `targets.mock_exams` mock exams, each within ±10% of the points and time in `course.yaml: exam` | SK-COV |
 
 ### 4.4 Tests
 
