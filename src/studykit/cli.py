@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import sys
 
-from studykit import __version__, doctor, tools
+from studykit import __version__, doctor, golden, tools
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,7 +25,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_doctor.add_argument("--json", action="store_true", help="machine-readable output")
     p_doctor.set_defaults(func=cmd_doctor)
 
+    p_golden = sub.add_parser("golden", help="run the golden math corpus through both engines")
+    p_golden.add_argument("--update", action="store_true", help="rewrite the Typst snapshot")
+    p_golden.set_defaults(func=cmd_golden)
+
     return parser
+
+
+def cmd_golden(args: argparse.Namespace) -> int:
+    return golden.run_golden(tools.repo_root(), update=args.update)
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
