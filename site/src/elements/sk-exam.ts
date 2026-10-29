@@ -92,7 +92,8 @@ export class SkExam extends HTMLElement {
   private announceTimeUp = false;
   private onBeforeUnload = (e: BeforeUnloadEvent) => {
     e.preventDefault();
-    e.returnValue = '';
+    // older browsers only warn when returnValue is set (deprecated, so set it untyped)
+    (e as { returnValue: unknown }).returnValue = '';
   };
   private onPageHide = () => {
     this.account();
