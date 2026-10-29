@@ -65,6 +65,8 @@ def _arrow(fig, name):
         ("12 V", "voltage_source", 12.0),
         ("2 mA", "current_source", 2e-3),
         ("1e3", "resistor", 1000.0),
+        ("1 kOhms", "resistor", 1000.0),
+        ("1 k Ω", "resistor", 1000.0),
     ],
 )
 def test_quantity_reads_value_strings(text, kind, si):
@@ -91,14 +93,40 @@ def test_quantity_tex_follows_locale(monkeypatch):
 
 
 def test_quantity_symbolic_and_invalid_values():
-    for text in ("R", "2R", "R_0"):
+    for text in ("R", "2R", "R_0", "2 R_A", r"2\pi f L"):
         q = circuit.quantity(text, "resistor")
         assert q.si is None and q.tex == text
+    assert circuit.quantity("2U", "voltage_source").si is None
     assert circuit.quantity(None, "resistor") is None
     with pytest.raises(ValueError, match="expected Ω"):
         circuit.quantity("100 nF", "resistor")
     with pytest.raises(ValueError, match="cannot read unit"):
         circuit.quantity("5 qΩ", "resistor")
+
+
+@pytest.mark.parametrize(
+    ("text", "kind", "hint"),
+    [
+        ("4.7k", "resistor", "4.7 kΩ"),
+        ("2.2k", "resistor", "2.2 kΩ"),
+        ("4k7", "resistor", "4.7 kΩ"),
+        ("1 Meg", "resistor", "1 MΩ"),
+        ("1 KΩ", "resistor", "1 kΩ"),
+        ("100n", "capacitor", "100 nF"),
+        ("10 nf", "capacitor", "10 nF"),
+        ("5 v", "voltage_source", "5 V"),
+        ("2 ma", "current_source", "2 mA"),
+    ],
+)
+def test_quantity_rejects_spice_and_wrong_case_units(text, kind, hint):
+    with pytest.raises(ValueError, match="cannot read unit") as error:
+        circuit.quantity(text, kind)
+    assert f"'{hint}'" in str(error.value)
+
+
+def test_template_rejects_spice_values():
+    with pytest.raises(ValueError, match=r"4\.7 kΩ"):
+        circuit.voltage_divider("4.7k", "2.2k", "12V")
 
 
 def test_value_label():

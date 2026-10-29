@@ -82,7 +82,7 @@ ENG_PREFIX = {-12: "p", -9: "n", -6: "µ", -3: "m", 0: "", 3: "k", 6: "M", 9: "G
 # Canonical unit -> TeX; aliases map onto canonical units.
 UNITS: dict[str, str] = {"Ω": r"\Omega", "F": "F", "H": "H", "V": "V", "A": "A", "Hz": "Hz"}
 # U+2126 OHM SIGN looks like the Greek capital omega U+03A9 but is a different code point.
-UNIT_ALIASES = {"\u2126": "Ω", "Ohm": "Ω", "ohm": "Ω"}
+UNIT_ALIASES = {"\u2126": "Ω", "Ohm": "Ω", "ohm": "Ω", "Ohms": "Ω", "ohms": "Ω"}
 KIND_UNIT = {
     "resistor": "Ω",
     "capacitor": "F",
@@ -90,7 +90,16 @@ KIND_UNIT = {
     "voltage_source": "V",
     "current_source": "A",
 }
-_NUMBER = re.compile(r"^\s*(?P<num>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\s*(?P<unit>\S*)\s*$")
+_NUMBER = re.compile(r"^\s*(?P<num>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\s*(?P<unit>.*?)\s*$")
+# A unit written in a way `quantity` does not read: SPICE shorthand ('4.7k', '4k7', '1Meg')
+# or a prefix or unit in the wrong case ('10 nf', '5 v', '1 KΩ'). Such values are errors,
+# never symbols: SPICE 'M' is milli but SI 'M' is mega, and a silent symbol would show
+# '4.7k' verbatim with no unit and no derived numbers.
+_PREFIX_LIKE = r"(?P<prefix>[pnuµμmkKMG]|(?i:meg))"
+_SPICE = re.compile(rf"^{_PREFIX_LIKE}(?P<digits>\d*)$")
+_WRONG_CASE = re.compile(rf"^{_PREFIX_LIKE}?(?P<unit>(?i:Ω|ohms?|f|h|v|a|hz))$")
+_UNIT_BY_LOWER = {"ω": "Ω", "ohm": "Ω", "ohms": "Ω", "f": "F", "h": "H", "v": "V", "a": "A"}
+_PREFIX_FIX = {"K": "k", "u": "µ", "μ": "µ"}
 
 Value = str | float | int | None
 
@@ -119,8 +128,8 @@ def _unit_tex(prefix: str, unit: str) -> str:
     return rf"\mathrm{{{prefix}{body}}}"
 
 
-def _split_unit(token: str, expected: str) -> tuple[str, str]:
-    """'kΩ' -> ('k', 'Ω'); '' -> ('', expected)."""
+def _split_unit(token: str, expected: str) -> tuple[str, str] | None:
+    """'kΩ' -> ('k', 'Ω'); '' -> ('', expected); None if `token` is no prefixed unit."""
     if not token:
         return "", expected
     for alias in sorted([*UNITS, *UNIT_ALIASES], key=len, reverse=True):
@@ -129,7 +138,32 @@ def _split_unit(token: str, expected: str) -> tuple[str, str]:
             unit = UNIT_ALIASES.get(alias, alias)
             if prefix in PREFIXES:
                 return prefix, unit
-    raise ValueError(f"cannot read unit {token!r}; use e.g. 'kΩ', 'nF', 'mH', 'V', 'mA'")
+    return None
+
+
+def _unit_error(value: str, num: str, token: str, expected: str) -> ValueError | None:
+    """The error for a number followed by a unit `quantity` cannot read.
+
+    None when the token is a symbol instead ('2R', '2 R_1', '2\\pi f L').
+    """
+    spice, wrong_case = _SPICE.match(token), _WRONG_CASE.match(token)
+    ends_in_unit = token.isalpha() and token.endswith((*UNITS, *UNIT_ALIASES))
+    has_ohm = "Ω" in token or "\u2126" in token or "ohm" in token.lower()
+    if not (spice or wrong_case or ends_in_unit or has_ohm):
+        return None
+    found = spice or wrong_case
+    prefix = (found["prefix"] or "") if found else ""
+    prefix = "M" if prefix.lower() == "meg" else _PREFIX_FIX.get(prefix, prefix)
+    unit = expected
+    if wrong_case:
+        unit = _UNIT_BY_LOWER.get(wrong_case["unit"].lower(), "Hz")
+    if spice and spice["digits"] and re.fullmatch(r"\d+", num):
+        num = f"{num}.{spice['digits']}"  # SPICE '4k7' is 4.7 k
+    hint = f", e.g. {f'{num} {prefix}{unit}'!r}" if found else ""
+    return ValueError(
+        f"cannot read unit {token!r} in {value!r}; write the unit out, case-sensitive, with "
+        f"an SI prefix (p, n, µ, m, k, M, G){hint}"
+    )
 
 
 def _mantissa_tex(num: str) -> str:
@@ -144,7 +178,8 @@ def quantity(value: Value, kind: str) -> Quantity | None:
     """Parse a component value for a component kind (see KIND_UNIT).
 
     '4.7 kΩ' and '4,7 kΩ' -> 4700 Ω; 1e-7 (a number, SI units) -> '100 nF';
-    anything else ('R', '2R', 'R_0') is a symbolic value shown as TeX.
+    symbols ('R', '2R', 'R_0') are shown as TeX. A number with a unit this cannot read
+    ('4.7k', '10 nf', '1 KΩ') raises ValueError instead of turning into a symbol.
     """
     if value is None:
         return None
@@ -153,12 +188,17 @@ def quantity(value: Value, kind: str) -> Quantity | None:
         raise TypeError(f"{kind} value must be a string or a number, not {value!r}")
     if isinstance(value, int | float):
         return _from_number(float(value), expected)
+    symbolic = Quantity(text=value.strip(), si=None, unit="", tex=value.strip())
     match = _NUMBER.match(value)
-    known = (*UNITS, *UNIT_ALIASES)
-    if not match or (match["unit"] and not match["unit"].endswith(known)):
-        # Symbolic: 'R', '2R', 'R_0' (a token that ends in no unit is a symbol, not a unit).
-        return Quantity(text=value.strip(), si=None, unit="", tex=value.strip())
-    prefix, unit = _split_unit(match["unit"], expected)
+    if not match:
+        return symbolic
+    token = re.sub(r"\s+", "", match["unit"])
+    parsed = _split_unit(token, expected)
+    if parsed is None:
+        if error := _unit_error(value, match["num"], token, expected):
+            raise error
+        return symbolic
+    prefix, unit = parsed
     if unit != expected:
         raise ValueError(f"{kind} value {value!r} has unit {unit}, expected {expected}")
     si = float(match["num"].replace(",", ".")) * 10.0 ** PREFIXES[prefix]
