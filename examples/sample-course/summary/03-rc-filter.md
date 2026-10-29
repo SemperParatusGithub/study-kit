@@ -127,7 +127,8 @@ $$
 \underline{H}(\mathrm{j}\omega) = \frac{R_\mathrm{L}}{R + R_\mathrm{L}} \cdot \frac{1}{1 + \mathrm{j}\omega\,(R \parallel R_\mathrm{L})\,C}
 $$
 
-Die Last senkt also die Verstärkung im Durchlassbereich und erhöht die Grenzfrequenz.
+Die Last senkt also den Übertragungsfaktor im Durchlassbereich von $1$ auf
+$R_\mathrm{L}/(R + R_\mathrm{L})$ und erhöht die Grenzfrequenz.
 
 ::: warning
 **Häufiger Fehler**
@@ -145,5 +146,6 @@ etwas angeschlossen ist, gehört der Lastwiderstand in die Rechnung.
   $-45^\circ$ beim Tiefpass, $+45^\circ$ beim Hochpass.
 - Filter erster Ordnung: Die Asymptote hat die Steigung $20\,\mathrm{dB}$ pro Dekade.
 - Sprungantwort: $63\,\%$ des Endwerts nach $\tau$, praktisch eingeschwungen nach $5\tau$.
-- Eine Last am Ausgang verändert Verstärkung und Grenzfrequenz.
+- Eine Last am Ausgang senkt den Übertragungsfaktor im Durchlassbereich und erhöht die
+  Grenzfrequenz.
 :::

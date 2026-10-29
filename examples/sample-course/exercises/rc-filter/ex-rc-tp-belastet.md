@@ -7,7 +7,7 @@ kind: derive
 minutes: 20
 answers:
   - {key: H, label: 'Übertragungsfunktion $\underline{H}(s)$ mit $s = \mathrm{j}\omega$', expr: 'RL/(R + RL + s*R*RL*C)', symbols: [s, R, RL, C]}
-  - {key: H0db, label: 'Verstärkung $\underline{H}(0)$ in dB', value: -6.0206, unit: dB, atol: 0.05}
+  - {key: H0db, label: 'Übertragungsfaktor $|\underline{H}(0)|$ in dB', value: -6.0206, unit: dB, atol: 0.05}
   - {key: fg, label: 'Grenzfrequenz $f_\mathrm{g}$ mit Last', value: 3183.1, unit: Hz, rtol: 5.0e-3}
 ---
 
@@ -19,7 +19,7 @@ $R_\mathrm{L} = 10\,\mathrm{k\Omega}$ belastet. Schreiben Sie $s = \mathrm{j}\om
 **a)** Leiten Sie die Übertragungsfunktion
 $\underline{H}(s) = \underline{U}_\mathrm{a}/\underline{U}_\mathrm{e}$ allgemein her.
 
-**b)** Wie groß ist die Verstärkung bei Gleichspannung, in dB?
+**b)** Wie groß ist der Übertragungsfaktor bei Gleichspannung, in dB?
 
 **c)** Berechnen Sie die Grenzfrequenz mit Last und vergleichen Sie sie mit der des
 unbelasteten Tiefpasses.
@@ -58,6 +58,6 @@ $$
 $$
 
 und damit $f_\mathrm{g} = 1/(2\pi\tau') \approx 3{,}18\,\mathrm{kHz}$. Ohne Last wäre
-$f_\mathrm{g} = 1/(2\pi RC) \approx 1{,}59\,\mathrm{kHz}$: Die Last halbiert die
-Verstärkung und verdoppelt die Grenzfrequenz.
+$f_\mathrm{g} = 1/(2\pi RC) \approx 1{,}59\,\mathrm{kHz}$: Die Last halbiert den
+Übertragungsfaktor im Durchlassbereich und verdoppelt die Grenzfrequenz.
 :::

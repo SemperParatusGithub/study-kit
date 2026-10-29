@@ -139,9 +139,10 @@ Grenzfrequenz?
 
   Die Last als Widerstand in Reihe zu $R$ gedeutet; sie liegt aber parallel zu $C$.
 
-- [ ] Sie bleibt gleich, nur die Verstärkung sinkt.
+- [ ] Sie bleibt gleich, nur der Übertragungsfaktor sinkt.
 
-  Die Verstärkung sinkt tatsächlich, aber der wirksame Widerstand vor $C$ ändert sich auch.
+  Der Übertragungsfaktor sinkt tatsächlich, aber der wirksame Widerstand vor $C$ ändert
+  sich auch.
 
 - [x] Sie verdoppelt sich.
 
