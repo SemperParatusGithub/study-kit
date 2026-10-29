@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import sys
 
-from studykit import __version__, tools
+from studykit import __version__, doctor, tools
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,7 +20,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_install.add_argument("--force", action="store_true", help="reinstall even if up to date")
     p_install.set_defaults(func=cmd_tools_install)
 
+    p_doctor = sub.add_parser("doctor", help="check that the toolchain matches toolchain.toml")
+    p_doctor.add_argument("--quick", action="store_true", help="skip site, fonts and port checks")
+    p_doctor.add_argument("--json", action="store_true", help="machine-readable output")
+    p_doctor.set_defaults(func=cmd_doctor)
+
     return parser
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    checks = doctor.run_checks(tools.repo_root(), quick=args.quick)
+    return doctor.report(checks, as_json=args.json)
 
 
 def cmd_tools_install(args: argparse.Namespace) -> int:
