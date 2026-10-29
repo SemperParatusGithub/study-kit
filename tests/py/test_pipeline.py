@@ -87,6 +87,8 @@ def synthesize(course: Path) -> None:
 def test_a_course_that_does_not_exist_starts_at_preflight(courses: Path):
     data = status("neu")
     assert not data["exists"] and resume(data) == "preflight"
+    # the commands hand `dir` to their agents as the absolute course directory
+    assert data["dir"] == str((courses / "neu").resolve())
     assert set(steps(data).values()) == {"pending"}
     assert run("pipeline", "status", "Bad Id")[0] == 2
 

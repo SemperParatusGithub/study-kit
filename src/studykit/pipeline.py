@@ -773,7 +773,7 @@ def status(root: Path) -> dict[str, Any]:
     deferred = [x.name for x in steps if x.deferred and x.status != "done"]
     return {
         "course": root.name,
-        "dir": display_path(root),
+        "dir": str(root.resolve()),
         "exists": inp.exists,
         "course_status": inp.course.status if inp.course else None,
         "scope": "core" if inp.core else "full",
