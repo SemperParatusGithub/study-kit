@@ -335,10 +335,12 @@ $$
 ```
 
 ### `SK-MATH-THINSPACE`
-**error.** A thin space `\,` stands between two digits: `10\,000` as a thousands separator
-or `1\,5` as a mistyped decimal comma. Both engines set a gap, so the number reads as two
-(„1 5 V“), and the Typst decimal-comma fix-up only rewrites `{,}`. Reported by the Math
-stage and, with the same code and token rule, by `math.lua`.
+**error.** A space command stands between two digits: `10\,000` as a thousands separator
+or `1\,5` as a mistyped decimal comma. The same holds for `\:` `\;` `\>` `\ ` `~`
+`\thinspace` `\medspace` `\thickspace`, also in a group (`10{\,}000`). Both engines set a
+gap, so the number reads as two („1 5 V“), and the Typst decimal-comma fix-up only
+rewrites `{,}`. Reported by the Math stage and, with the same code and token rule, by
+`math.lua`.
 Fix: write `10000`, `10^4`, or `{,}` for a decimal comma (`1{,}5\,\mathrm{V}`).
 
 ### `SK-MATH-HINT-LEAK`

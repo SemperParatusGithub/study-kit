@@ -845,6 +845,18 @@ ENV_RE = re.compile(r"\\(begin|end)\s*\{([^}]*)\}")
 COMMENT_RE = re.compile(r"(?<!\\)%[^\n]*")
 MINUS = "\u2212"
 DIGITS = set("0123456789")
+# Space commands that set a gap: between two digits the number reads as two (SK-MATH-THINSPACE).
+SPACE_TOKENS = {
+    "\\,",
+    "\\:",
+    "\\;",
+    "\\>",
+    "\\ ",
+    "~",
+    "\\thinspace",
+    "\\medspace",
+    "\\thickspace",
+}
 NUMBER_RE = re.compile(rf"(?<![\w.,}}])[-{MINUS}]?[0-9]+(?:(?:\{{,\}}|,|\.)[0-9]+)?(?![0-9])")
 
 
@@ -897,16 +909,39 @@ def denied(tex: str, denylist: list[DenyEntry]) -> list[DenyEntry]:
     return hits
 
 
-def thin_space_in_number(tex: str) -> str | None:
-    """'1\\,5' when a thin space `\\,` stands between two digits, else None.
+def _space_gap(tokens: list[str], i: int) -> int:
+    """End of the run of space commands from tokens[i]; a `{…}` group of them counts too."""
+    j = i
+    while j < len(tokens):
+        if tokens[j] in SPACE_TOKENS:
+            j += 1
+        elif tokens[j] == "{":
+            k = j + 1
+            while k < len(tokens) and tokens[k] in SPACE_TOKENS:
+                k += 1
+            if k == j + 1 or k == len(tokens) or tokens[k] != "}":
+                break
+            j = k + 1
+        else:
+            break
+    return j
 
-    math.lua applies the same token rule (SK-MATH-THINSPACE). `10\\,000` and `1\\,5` show
-    as two numbers in both engines; a decimal comma is `{,}`.
+
+def thin_space_in_number(tex: str) -> str | None:
+    """'1\\,5' when a space command stands between two digits, else None.
+
+    The space commands are SPACE_TOKENS (`\\,` `\\:` `\\;` `\\>` `\\ ` `~` `\\thinspace`
+    `\\medspace` `\\thickspace`), alone or in a group (`10{\\,}000`). math.lua applies the
+    same token rule (SK-MATH-THINSPACE). `10\\,000` and `1\\,5` show as two numbers in both
+    engines; a decimal comma is `{,}`.
     """
     tokens = tex_tokens(COMMENT_RE.sub("", tex))
-    for i in range(len(tokens) - 2):
-        if tokens[i] in DIGITS and tokens[i + 1] == "\\," and tokens[i + 2] in DIGITS:
-            return f"{tokens[i]}\\,{tokens[i + 2]}"
+    for i, token in enumerate(tokens[:-1]):
+        if token not in DIGITS:
+            continue
+        j = _space_gap(tokens, i + 1)
+        if j > i + 1 and j < len(tokens) and tokens[j] in DIGITS:
+            return "".join(tokens[i : j + 1])
     return None
 
 
@@ -1053,7 +1088,7 @@ def check_math(ctx: Context) -> None:
                 f.line,
                 f.col,
                 "SK-MATH-THINSPACE",
-                f"thin space '\\,' between two digits ({number}): the number shows as two, "
+                f"space between two digits ({number}): the number shows as two, "
                 "and a decimal comma written this way comes out as a gap",
                 "write 10000, 10^4, or {,} for a decimal comma",
             )

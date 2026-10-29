@@ -654,15 +654,29 @@ def test_typst_math_fixups():
     assert 'cases(delim: "{", 1","5 & quad t < 0, 0 & quad upright("sonst"))' in typ
 
 
+# One table for both engines (validate.thin_space_in_number and math.lua).
 THIN_SPACES = [
-    (r"10\,000", "0\\,0"),
-    (r"1\,5\,\mathrm{V}", "1\\,5"),
-    (r"x_{1 \, 2}", "1\\,2"),
-    ("1\\, % a comment\n5", "1\\,5"),
+    (r"10\,000", r"0\,0"),
+    (r"1\,5\,\mathrm{V}", r"1\,5"),
+    (r"x_{1 \, 2}", r"1\,2"),
+    ("1\\, % a comment\n5", r"1\,5"),
+    (r"R = 10{\,}000", r"0{\,}0"),  # a group of spaces
+    (r"R = 10{\,\,}000", r"0{\,\,}0"),
+    (r"R = 10\thinspace 000", r"0\thinspace0"),
+    (r"R = 10\medspace 000", r"0\medspace0"),
+    (r"R = 10\thickspace 000", r"0\thickspace0"),
+    (r"R = 10\:000", r"0\:0"),
+    (r"R = 10\;000", r"0\;0"),
+    (r"R = 10\>000", r"0\>0"),
+    (r"R = 10~000", r"0~0"),
+    (r"R = 10\ 000", r"0\ 0"),
+    (r"R = 1\,{\;}5", r"1\,{\;}5"),
     (r"3{,}3\,\mathrm{k\Omega} + 470\,\Omega", None),
     (r"10^4\,\mathrm{Hz} = 10000\,\mathrm{Hz}", None),
     (r"\lambda_{1{,}2} = a\,b", None),
     (r"U_2 = 2\cdot 3\,\mathrm{V}", None),
+    (r"x^{2}\,3 + 2~\mathrm{V} + a\;b", None),  # a closing brace ends the number
+    (r"1{,}5\;\mathrm{mA} \cdot 2\ \text{s}", None),
 ]
 
 
@@ -676,8 +690,9 @@ def test_validate_and_the_filter_agree_on_thin_spaces_in_numbers(tex, number, wo
         return
     with pytest.raises(pandoc.FilterError) as info:
         pandoc.convert(f"Text ${tex}$.\n", doc, "json")
-    (f,) = info.value.findings
-    assert f" SK-MATH-THINSPACE thin space '\\,' between two digits ({number}) in $" in f
+    # \thinspace and \thickspace also fail the Typst conversion (SK-MATH)
+    (f,) = [f for f in info.value.findings if " SK-MATH-THINSPACE " in f]
+    assert f" SK-MATH-THINSPACE space between two digits ({number}) in $" in f
     assert f.endswith("(fix: write 10000, 10^4, or {,} for a decimal comma)")
 
 

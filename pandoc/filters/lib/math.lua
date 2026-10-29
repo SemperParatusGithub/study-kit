@@ -13,8 +13,9 @@
 -- Environments are an allowlist (aligned, gathered, cases, pmatrix, bmatrix, Bmatrix):
 -- any other \begin{…} is a finding, with the hint of its env: entry (a starred name
 -- falls back to the unstarred one) or the allowlist. Beyond the list: non-ASCII outside
--- \text{…} (KaTeX strict rejects it), and a thin space \, between two digits, reported
--- as SK-MATH-THINSPACE like validate does (10\,000 and 1\,5 show as two numbers).
+-- \text{…} (KaTeX strict rejects it), and a space command (\, \: \; ~ \thinspace …) between
+-- two digits, reported as SK-MATH-THINSPACE like validate does (10\,000 and 1\,5 show as
+-- two numbers).
 --
 -- HTML:  <sk-math data-tex="<base64 of the UTF-8 TeX>" data-display="0|1"></sk-math>
 -- Typst: each node is converted on its own with pandoc.write, any conversion warning is a
@@ -255,20 +256,59 @@ function M.check(tex, ctx)
   if number then
     ctx:fail(
       'SK-MATH-THINSPACE',
-      "thin space '\\,' between two digits (" .. number .. ') in ' .. excerpt(tex)
+      'space between two digits (' .. number .. ') in ' .. excerpt(tex)
         .. ': the number shows as two, and a decimal comma written this way comes out as a gap',
       'write 10000, 10^4, or {,} for a decimal comma'
     )
   end
 end
 
---- '1\,5' when a thin space \, stands between two digit tokens, else nil. The same rule
---- as validate.thin_space_in_number: 10\,000 and 1\,5 show as two numbers in KaTeX and
---- Typst, and the decimal-comma fix-up below only rewrites {,}.
+-- Space commands that set a gap; between two digits the number reads as two.
+local SPACES = {
+  ['\\,'] = true,
+  ['\\:'] = true,
+  ['\\;'] = true,
+  ['\\>'] = true,
+  ['\\ '] = true,
+  ['~'] = true,
+  ['\\thinspace'] = true,
+  ['\\medspace'] = true,
+  ['\\thickspace'] = true,
+}
+
+-- Index after the run of space commands from toks[i]; a {…} group of them counts too.
+local function space_gap(toks, i)
+  local j = i
+  while toks[j] do
+    if SPACES[toks[j]] then
+      j = j + 1
+    elseif toks[j] == '{' then
+      local k = j + 1
+      while toks[k] and SPACES[toks[k]] do
+        k = k + 1
+      end
+      if k == j + 1 or toks[k] ~= '}' then
+        break
+      end
+      j = k + 1
+    else
+      break
+    end
+  end
+  return j
+end
+
+--- '1\,5' when a space command stands between two digit tokens, else nil. The same rule
+--- as validate.thin_space_in_number (SPACES there is SPACE_TOKENS): 10\,000 and 1\,5
+--- show as two numbers in KaTeX and Typst, and the decimal-comma fix-up below only
+--- rewrites {,}.
 function M.thin_space_in_number(toks)
-  for i = 1, #toks - 2 do
-    if toks[i]:match('^%d$') and toks[i + 1] == '\\,' and toks[i + 2]:match('^%d$') then
-      return toks[i] .. '\\,' .. toks[i + 2]
+  for i = 1, #toks - 1 do
+    if toks[i]:match('^%d$') then
+      local j = space_gap(toks, i + 1)
+      if j > i + 1 and toks[j] and toks[j]:match('^%d$') then
+        return table.concat(toks, '', i, j)
+      end
     end
   end
   return nil
