@@ -298,8 +298,19 @@ sk-theme {
     cursor: pointer;
   }
 
+  /* the open search takes the free room of the bar instead of a fixed width that would
+   * push the bar wider than a phone */
+  .search-box:focus-within {
+    flex: 1 1 0;
+    min-width: 4rem;
+  }
+
+  .site-header .bar:has(.search-box:focus-within) .bar-spacer {
+    display: none;
+  }
+
   .search-box input:focus {
-    width: 11rem;
+    width: 100%;
     cursor: text;
   }
 
@@ -309,6 +320,23 @@ sk-theme {
 
   .search-box input:not(:focus)::placeholder {
     color: transparent;
+  }
+}
+
+/* On a phone inside a course the mark stands for study-kit; the course name gets the room
+ * (the text stays for screen readers). */
+@media (max-width: 30rem) {
+  .brand:has(+ .crumb-sep) span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .site-header .bar {
+    gap: var(--space-2);
   }
 }
 
