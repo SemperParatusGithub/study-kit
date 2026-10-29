@@ -11,6 +11,8 @@ ROLES: dict[str, str] = {
     "fg": "#1f2328",
     "muted": "#6e7781",
     "grid": "#d0d7de",
+    # Page background, for shapes that must hide what is behind them (state nodes, labels).
+    "bg": "#ffffff",
     # Okabe-Ito: distinguishable for common colour-vision deficiencies.
     "c1": "#0072b2",
     "c2": "#d55e00",
