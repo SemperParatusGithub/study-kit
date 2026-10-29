@@ -122,6 +122,21 @@ const filterNames = {
     --pf-result-excerpt-font-size: var(--text-sm);
   }
 
+  /* Pagefind cuts excerpts to one line, too little to tell results apart on a phone. Its
+     selectors (and its reset) carry three ID-level :is() prefixes, hence !important. */
+  .search-ui :global(.pf-result-excerpt),
+  .search-ui :global(.pf-heading-excerpt) {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+  }
+
+  .search-ui :global(.pf-heading-excerpt) {
+    -webkit-line-clamp: 2 !important;
+  }
+
   .search-cols {
     display: grid;
     grid-template-columns: 13rem minmax(0, 1fr);
