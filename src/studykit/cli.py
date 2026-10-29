@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 
@@ -35,6 +36,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_export.add_argument("--check", action="store_true", help="fail if the files are stale")
     p_export.set_defaults(func=cmd_schema_export)
 
+    p_ls = sub.add_parser("ls", help="list courses, or a course's content files by kind")
+    p_ls.add_argument("course", nargs="?", help="course id or directory (default: all courses)")
+    p_ls.add_argument("--kind", action="append", metavar="KIND", help="only files of this kind")
+    p_ls.add_argument("--json", action="store_true", help="machine-readable output")
+    p_ls.set_defaults(func=cmd_ls)
+
+    p_index = sub.add_parser("index", help="write the id index _build/index.json for pandoc")
+    p_index.add_argument("course", help="course id or directory")
+    p_index.add_argument("--json", action="store_true", help="also print the index")
+    p_index.set_defaults(func=cmd_index)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -44,6 +56,65 @@ def build_parser() -> argparse.ArgumentParser:
     p_fig_build.set_defaults(func=cmd_fig_build)
 
     return parser
+
+
+def _course_tree(arg: str):
+    from studykit import content
+
+    root = content.resolve_course(arg)
+    if not (root / "course.yaml").is_file():
+        print(
+            f"error: no course at {root} (expected course.yaml; courses live in "
+            f"{content.courses_dir()})",
+            file=sys.stderr,
+        )
+        return None
+    return content.CourseTree(root)
+
+
+def cmd_ls(args: argparse.Namespace) -> int:
+    from studykit import content
+
+    if args.course is None:
+        rows = []
+        for root in content.list_courses():
+            tree = content.CourseTree(root)
+            data = tree.course_doc.data if tree.course_doc else None
+            title = data.get("title") if isinstance(data, dict) else None
+            rows.append({"id": tree.id, "title": title, "path": content.display_path(root)})
+        if args.json:
+            print(json.dumps(rows, ensure_ascii=False, indent=2))
+        else:
+            for row in rows:
+                print(f"{row['id']}\t{row['title'] or ''}\t{row['path']}")
+        return 0
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    rows = content.describe(tree)
+    if args.kind:
+        rows = [r for r in rows if r["kind"] in args.kind]
+    if args.json:
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+    else:
+        width = max((len(r["kind"]) for r in rows), default=0)
+        for row in rows:
+            print(f"{row['kind']:<{width}}  {row['path']}")
+    return 0
+
+
+def cmd_index(args: argparse.Namespace) -> int:
+    from studykit import content, index
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    path, data = index.write(tree)
+    if args.json:
+        print(index.dumps(data), end="")
+    else:
+        print(f"wrote {content.display_path(path)}")
+    return 0
 
 
 def cmd_schema_export(args: argparse.Namespace) -> int:
