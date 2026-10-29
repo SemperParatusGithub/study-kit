@@ -30,6 +30,8 @@
   --ske-radius-small: 0.3rem;
   --ske-focus: light-dark(#1f5fbf, #7db3ff);
   --ske-gap: 0.75rem;
+  /* The page background (tokens.css --bg), for bars that content scrolls under. */
+  --ske-page: var(--bg, Canvas);
 }
 
 /* --- shared ------------------------------------------------------------------------- */
@@ -1063,11 +1065,19 @@ sk-exam {
   margin-block-start: 1rem;
 }
 
+/* An opaque strip from the viewport top through the alert: scrolled text never shows
+ * between the bar and the alert. */
 .sk-exam-head.is-sticky {
   position: sticky;
-  top: 0.5rem;
+  top: 0;
   z-index: 3;
-  margin-block: 0.5rem 1rem;
+  margin-block: 0 0.5rem;
+  padding-block: 0.5rem;
+  background: var(--ske-page);
+}
+
+.sk-exam-head.is-sticky .sk-exam-alert {
+  margin-block-end: 0;
 }
 
 .sk-exam-bar {
