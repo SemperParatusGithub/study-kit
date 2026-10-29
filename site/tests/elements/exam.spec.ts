@@ -187,6 +187,58 @@ test('submit: solutions open, rubric grading, MC auto-scored, result saved', asy
   expect((await progress(page)).items['exam:probeklausur-1'].attempts).toHaveLength(1);
 });
 
+/** Serve /exam.html with some attributes of the shell's markup changed. */
+async function examVariant(page: Page, edits: Array<[string, string]>): Promise<void> {
+  await page.route('**/exam.html', async (route) => {
+    const res = await route.fetch();
+    let body = await res.text();
+    for (const [from, to] of edits) {
+      expect(body).toContain(from);
+      body = body.replace(from, to);
+    }
+    await route.fulfill({ response: res, body });
+  });
+}
+
+test('negative marking: a wrong answer costs its points, the MC part stays at 0 or more', async ({ page }) => {
+  await examVariant(page, [['data-negative-marking="false"', 'data-negative-marking="true"']]);
+  await page.goto('/exam.html');
+  await expect(exam(page).locator('.sk-exam-rules')).toContainText('a wrong answer costs as many points as a right one earns');
+  await start(page);
+  const mcs = exam(page).locator('sk-mc');
+  await answer(mcs.nth(0), true); // +2
+  await answer(mcs.nth(1), true); // +2
+  await mcs.nth(2).locator('sk-opt[data-key="A"] input').check(); // multi, one of two: −2
+  // the Kprim question stays blank: 0
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(exam(page).locator('.sk-exam-mc-total')).toHaveText('Multiple choice: 2 of 8 points.');
+  await expect(mcs.nth(2).locator('.sk-mc-feedback')).toContainText('with negative marking this costs points. −2 of 2 points.');
+  await expect(mcs.nth(3).locator('.sk-mc-feedback')).toContainText('0 of 2 points.');
+  expect((await progress(page)).items['exam:probeklausur-1'].attempts[0].points.mc).toBe(2);
+});
+
+test('negative marking never takes the MC part below 0', async ({ page }) => {
+  await examVariant(page, [['data-negative-marking="false"', 'data-negative-marking="true"']]);
+  await start(page);
+  const mcs = exam(page).locator('sk-mc');
+  await answer(mcs.nth(0), false);
+  await answer(mcs.nth(1), false);
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(exam(page).locator('.sk-exam-mc-total')).toHaveText('Multiple choice: 0 of 8 points.');
+});
+
+test('the MC points per question come from data-points-each', async ({ page }) => {
+  await examVariant(page, [['data-points-each="2"', 'data-points-each="3"']]);
+  await start(page);
+  const mcs = exam(page).locator('sk-mc');
+  await answer(mcs.nth(0), true);
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(mcs.nth(0).locator('.sk-mc-feedback')).toContainText('3 of 3 points.');
+});
+
 test('without JavaScript tasks and solutions are plain content', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();

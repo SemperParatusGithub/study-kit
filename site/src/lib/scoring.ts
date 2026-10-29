@@ -1,5 +1,6 @@
-// MC scoring (docs/architecture.md §2.6), mirrored in progress.py. No negative marking:
-// every score lies in [0, 1].
+// MC scoring (docs/architecture.md §2.6), mirrored in progress.py. Practice scores lie in
+// [0, 1]; only exam mode applies negative marking when the course's exam has it
+// (examScore, examPartPoints).
 //
 // | type   | score                                                              |
 // |--------|--------------------------------------------------------------------|
@@ -78,6 +79,39 @@ export function score(
     case 'kprim':
       return kprimRule(decidedRight(options, chosen, answered), n);
   }
+}
+
+/**
+ * Score of one exam question (in units of its points). Without negative marking it is
+ * `score`. With negative marking (course.exam.mc.negative_marking) a wrong answer costs as
+ * much as a right one earns:
+ * - a question left blank scores 0;
+ * - multi with the partial rule scores (decided right − decided wrong) / n, down to −1;
+ * - otherwise an answered question scores its normal score when that is above 0, else −1.
+ * The MC part as a whole never goes below 0 (examPartPoints).
+ */
+export function examScore(
+  type: McType,
+  options: readonly ScoredOption[],
+  chosen: readonly string[],
+  rule: MultiRule = 'all-or-nothing',
+  answered?: readonly string[],
+  negative = false,
+): number {
+  const value = score(type, options, chosen, rule, answered);
+  if (!negative) return value;
+  const blank = type === 'kprim' ? (answered ?? chosen).length === 0 : chosen.length === 0;
+  if (blank || options.length === 0) return 0;
+  if (type === 'multi' && rule === 'partial') {
+    const right = decidedRight(options, chosen);
+    return (right - (options.length - right)) / options.length;
+  }
+  return value > 0 ? value : -1;
+}
+
+/** Points of the MC part: the questions' points added up, never below 0. */
+export function examPartPoints(points: readonly number[]): number {
+  return Math.max(0, Math.round(points.reduce((a, b) => a + b, 0) * 100) / 100);
 }
 
 /** A score counts as correct (for Leitner and "mistakes") only when it is full marks. */

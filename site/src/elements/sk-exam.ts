@@ -1,14 +1,18 @@
-// <sk-exam data-exam data-duration-min data-points data-pass-points data-aids='[…]' data-mc-scoring>
-//   <section class="sk-exam-task" data-task data-points data-rubric='[{criterion, points}]'>…</section>
-//   <section class="sk-exam-mc" data-points><sk-mc>…</sk-mc>…</section>
+// <sk-exam data-exam data-duration-min data-points data-pass-points data-aids='[…]'
+//          data-mc-scoring data-negative-marking="true|false">
+//   <section class="sk-exam-task" data-task data-points data-h
+//            data-rubric='[{criterion, points}]'>…</section>
+//   <section class="sk-exam-mc" data-points data-points-each><sk-mc>…</sk-mc>…</section>
 // </sk-exam>                                               (docs/architecture.md §2.7, §3.2)
+// data-mc-scoring and data-negative-marking fall back to <body>'s (the course's exam).
 //
 // 1. A cover page shows duration, points, pass mark and allowed aids.
 // 2. Start stores the start time (session state), so a reload keeps the timer running. While
 //    the exam runs a beforeunload warning is set, and alerts come at 10 and at 1 minute left.
 // 3. Hints and solutions stay hidden and `inert` until Submit or time-up.
 // 4. Then each task gets its rubric as checkboxes; the MC part is scored automatically with
-//    the exam's multi rule (data-mc-scoring), without negative marking.
+//    the exam's multi rule (data-mc-scoring) and, if the exam has it, negative marking
+//    (scoring.examScore; the MC part never goes below 0).
 // 5. The result shows total, pass/fail, a grade estimate and the time per task: all time
 //    on the exam clock goes to the part that was on screen, including gaps between late
 //    ticks (a sleeping laptop, a throttled background tab while the student reads a
@@ -16,7 +20,7 @@
 //    exam:<id> and updated while grading. Without JS the tasks and solutions are plain
 //    content.
 
-import { examPoints, gradeEstimate, multiRule, type MultiRule } from '../lib/scoring.ts';
+import { examPartPoints, examPoints, gradeEstimate, multiRule, type MultiRule } from '../lib/scoring.ts';
 import type { ExamEntry } from '../lib/store.ts';
 import type { McSelection, SkMc } from './sk-mc.ts';
 import { clock, duration, emit, h, parseJson, percent, pts, renderInline, storeOf, uid } from './util.ts';
@@ -65,9 +69,12 @@ export class SkExam extends HTMLElement {
   private pass: number | null = null;
   private aids: string[] = [];
   private rule: MultiRule = 'all-or-nothing';
+  private negative = false;
   private tasks: Task[] = [];
   private mcEl: HTMLElement | null = null;
   private mcPoints = 0;
+  /** Points per MC question (data-points-each, else the part's points shared equally). */
+  private mcEach = 0;
   private body: HTMLElement = h('div', { class: 'sk-exam-body' });
   private head: HTMLElement = h('div', { class: 'sk-exam-head' });
   private alertText: HTMLElement = h('span', { class: 'sk-exam-alert-text', role: 'alert' });
@@ -118,7 +125,9 @@ export class SkExam extends HTMLElement {
     this.durationMs = Math.max(1, Number(this.dataset.durationMin) || 60) * 60_000;
     this.pass = Number.isFinite(Number.parseFloat(this.dataset.passPoints ?? '')) ? Number(this.dataset.passPoints) : null;
     this.aids = parseJson<unknown[]>(this.dataset.aids, []).filter((a): a is string => typeof a === 'string');
-    this.rule = multiRule(this.dataset.mcScoring);
+    const body = document.body?.dataset ?? {};
+    this.rule = multiRule(this.dataset.mcScoring ?? body.mcScoring);
+    this.negative = (this.dataset.negativeMarking ?? body.negativeMarking) === 'true';
 
     this.body.append(...this.childNodes);
     this.append(this.head, this.body);
@@ -144,6 +153,9 @@ export class SkExam extends HTMLElement {
     if (this.mcEl) {
       this.mcEl.id ||= 'exam-mc';
       this.mcPoints = Number(this.mcEl.dataset.points) || 0;
+      const n = this.mcEl.querySelectorAll('sk-mc').length;
+      this.mcEach = Number(this.mcEl.dataset.pointsEach) || (n ? this.mcPoints / n : 0);
+      this.mcPoints ||= this.mcEach * n;
       for (const mc of this.mcEl.querySelectorAll('sk-mc')) mc.setAttribute('data-mode', 'exam');
       this.mcEl.addEventListener('sk:change', () => this.saveMc());
     }
@@ -222,7 +234,11 @@ export class SkExam extends HTMLElement {
         h('ul', { class: 'sk-exam-rules' },
           h('li', {}, 'The timer starts when you press Start and keeps running if you reload or leave the page.'),
           h('li', {}, 'Work on paper. Hints and solutions stay locked until you submit or the time is up.'),
-          h('li', {}, `Then you grade each task with its rubric. The multiple-choice part is scored automatically: ${RULE_TEXT[this.rule]}, no negative marking.`)),
+          h('li', {}, `Then you grade each task with its rubric. The multiple-choice part is scored automatically: ${RULE_TEXT[this.rule]}, ${
+            this.negative
+              ? 'and a wrong answer costs as many points as a right one earns (the part never goes below 0)'
+              : 'no negative marking'
+          }.`)),
         last
           ? h('p', { class: 'sk-exam-last' },
               `Last attempt: ${pts(last.total)} of ${pts(this.points)} points on ${new Date(last.started).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
@@ -445,8 +461,7 @@ export class SkExam extends HTMLElement {
     this.setLocked(false);
     for (const d of this.body.querySelectorAll<HTMLDetailsElement>('details.sk-solution')) d.open = true;
     this.restoreMc();
-    const each = this.mcs.length ? this.mcPoints / this.mcs.length : 0;
-    for (const m of this.mcs) if (!m.result) m.grade(this.rule, each);
+    for (const m of this.mcs) if (!m.result) m.grade(this.rule, this.mcEach, this.negative);
     if (this.mcEl && !this.mcEl.querySelector('.sk-exam-mc-total')) {
       this.mcEl.append(h('p', { class: 'sk-exam-mc-total' }));
     }
@@ -493,8 +508,7 @@ export class SkExam extends HTMLElement {
   private renderResult(): void {
     const s = this.session;
     if (!s?.submitted) return;
-    const each = this.mcs.length ? this.mcPoints / this.mcs.length : 0;
-    const mcTotal = this.mcs.reduce((sum, m) => sum + examPoints(m.result?.score ?? 0, each), 0);
+    const mcTotal = examPartPoints(this.mcs.map((m) => examPoints(m.result?.score ?? 0, this.mcEach)));
     const points: Record<string, number> = {};
     for (const t of this.tasks) {
       points[t.id] = this.taskPoints(t);
