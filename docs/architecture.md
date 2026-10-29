@@ -1284,8 +1284,8 @@ Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
   1. checkout, `setup-uv` (uv 0.11.30), `pnpm/action-setup` (pnpm 11.22.0), `setup-node` (Node 24.17.0, pnpm cache), and a cache of the pinned tool downloads keyed by `toolchain.toml`
   2. `uv run --frozen studykit tools install`, which fetches the pinned pandoc, typst and just binaries by hash; later steps call `.tools/bin/just`
   3. `just setup`, `just lint-code`, then `playwright install --with-deps chromium`
-  4. `just ci`
-  5. on every run that is not cancelled: `just pdf sample-course` (cached after `just ci`) and an upload of `examples/sample-course/_build/pdf/`, kept 14 days
+  4. `just ci`, whose `build` validates and builds the sample course's PDFs
+  5. on every run that is not cancelled: `just pdf sample-course` (cached after `just ci`, a build of its own when `just ci` stopped earlier) and an upload of `examples/sample-course/_build/pdf/` (the PDFs and `manifest.json`) as the artifact `sample-course-pdfs`, kept 14 days
   6. the element harness (`pnpm -C site run test:elements`, if Chromium installed) and `just e2e` (if `just ci` passed); both run even after an earlier failure, so one failure does not hide the other
   7. on failure only: upload `site/dist` and the Playwright reports and results (`site/node_modules/.cache/sk-e2e/`, `sk-elements/results/`), kept 14 days
 - **`guard.yml`** (push, PR; full history) runs `bash .github/scripts/guard.sh commits|courses|pdfs`:
