@@ -15,7 +15,6 @@ A transfer function `G` can be given as a python-control `TransferFunction`, as
 from __future__ import annotations
 
 import cmath
-import itertools
 import math
 import warnings
 from collections.abc import Callable, Mapping, Sequence
@@ -28,11 +27,16 @@ import sympy as sp
 from matplotlib import ticker
 from matplotlib.lines import Line2D
 from matplotlib.patches import Arc, Circle, FancyArrowPatch
-from matplotlib.transforms import Bbox
 from scipy import signal as sps
 from scipy.optimize import brentq
 
 from studykit.figures import core
+from studykit.figures.labels import (
+    marker_points,
+    place,
+    polyline_points,
+    segment_points,
+)
 from studykit.figures.palette import BG, FG, MUTED, color
 
 S = sp.Symbol("s")
@@ -1319,13 +1323,11 @@ def root_locus(
         marks = [*poles, *zeros, *(complex(b["s"]) for b in breaks)]
         marks += [complex(0, sgn * c["omega"]) for c in crossings for sgn in (1, -1)]
         ax.figure.draw_without_rendering()
-        avoid = np.concatenate(
-            [_polyline_points(ax, z) for z in drawn] + [_marker_points(ax, marks)]
-        )
+        avoid = np.concatenate([polyline_points(ax, z) for z in drawn] + [marker_points(ax, marks)])
         c = max(crossings, key=lambda e: e["omega"])
         at = (0.0, c["omega"])
         sym = r"K_\mathrm{krit}" if core.locale() == "de" else r"K_\mathrm{crit}"
-        _place(
+        place(
             ax,
             f"${sym} = {_num_tex(c['k'])}$",
             [  # beside the crossing, never across the imaginary axis it sits on
@@ -1567,131 +1569,6 @@ def _unit_math(unit: str | None) -> str:
     return r"\,\mu\mathrm{s}" if unit == "us" else rf"\,\mathrm{{{unit}}}"
 
 
-LABEL_BOX = {"boxstyle": "square,pad=0.1", "fc": BG, "ec": "none", "alpha": 0.85}
-
-
-def _polyline_points(ax, z: np.ndarray, step: float = 2.0) -> np.ndarray:
-    """Display points along the complex polyline z, at most `step` pixels apart.
-
-    Non-finite samples are dropped; segments are cut at 2000 points, which only the parts
-    far outside the view reach.
-    """
-    z = np.asarray(z, dtype=complex)
-    z = z[np.isfinite(z)]
-    if z.size == 0:
-        return np.empty((0, 2))
-    d = ax.transData.transform(np.column_stack([z.real, z.imag]))
-    out = [d[:1]]
-    for a, b in itertools.pairwise(d):
-        k = int(min(math.hypot(*(b - a)) / step, 2000)) + 1
-        out.append(np.linspace(a, b, k + 1)[1:])
-    return np.concatenate(out)
-
-
-def _marker_points(ax, zs: Sequence[complex], radius_pt: float = 4.0) -> np.ndarray:
-    """Display points covering round markers of radius_pt at the complex points zs."""
-    if not zs:
-        return np.empty((0, 2))
-    centre = ax.transData.transform(np.array([[z.real, z.imag] for z in zs]))
-    r = radius_pt * ax.figure.dpi / 72
-    ring = np.array([(0, 0)] + [(math.cos(a), math.sin(a)) for a in np.linspace(0, 6.3, 12)])
-    return np.concatenate([c + r * ring for c in centre])
-
-
-def _segment_points(ax, a, b, n: int = 60) -> np.ndarray:
-    """n points along the data segment a-b, in display coordinates (for `_place`)."""
-    xy = np.linspace(np.asarray(a, dtype=float), np.asarray(b, dtype=float), n)
-    return ax.transData.transform(xy)
-
-
-def _nearest(box, pts: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
-    """Distance from box to the nearest of pts, that point and the box point facing it.
-
-    All in display coordinates; pts is an (n, 2) array.
-    """
-    gap = np.column_stack([np.clip(pts[:, 0], box.x0, box.x1), np.clip(pts[:, 1], box.y0, box.y1)])
-    d = np.hypot(*(pts - gap).T)
-    i = int(np.argmin(d))
-    return float(d[i]), pts[i], gap[i]
-
-
-def _place(
-    ax,
-    text: str,
-    options: Sequence[dict],
-    avoid: np.ndarray,
-    placed: list,
-    target: Sequence[tuple[float, float]] | None = None,
-    **style,
-):
-    """Annotate at the first candidate whose text box misses the drawing and other labels.
-
-    options: annotate() keyword sets (xy, xytext, ha, va, optional xycoords), best first.
-    avoid: points of everything drawn (curves, lines, arrows) in display coordinates.
-    target: the data segment the label explains (an arrow, a line: its two end points).
-    When no candidate is free, the label moves to the free spot of the axes nearest to it;
-    a label that ends up away from its target gets a thin leader line to it. Without a
-    free spot the candidate with the fewest conflicts is kept; the page-coloured backing
-    and a zorder above the curves keep it readable either way. The figure layout must be
-    final (the caller ran draw_without_rendering); labels are kept out of the layout so
-    they cannot move the axes afterwards.
-    """
-    renderer = ax.figure.canvas.get_renderer()
-    frame = ax.get_window_extent(renderer)
-    style = {"bbox": LABEL_BOX, "zorder": 8} | style
-    pt = ax.figure.dpi / 72
-
-    def score(box) -> int:
-        hits = box.count_contains(avoid) + 100 * sum(box.overlaps(o) for o in placed)
-        inside = frame.x0 <= box.x0 and box.x1 <= frame.x1
-        inside = inside and frame.y0 <= box.y0 and box.y1 <= frame.y1
-        return hits + 50 * (not inside)
-
-    best = None
-    for option in options:
-        ann = ax.annotate(text, textcoords="offset points", **option, **style)
-        ann.set_in_layout(False)
-        box = ann.get_window_extent(renderer).padded(1.5 * pt)
-        sc = score(box)
-        if best is None or sc < best[0]:
-            if best is not None:
-                best[1].remove()
-            best = (sc, ann, box)
-        else:
-            ann.remove()
-        if sc == 0:
-            break
-    sc, ann, box = best
-    near = None if target is None else _segment_points(ax, *target, 40)
-    if sc > 0 and near is not None:
-        w, h = box.width, box.height
-        free = []
-        for cx in np.linspace(frame.x0 + w / 2, frame.x1 - w / 2, 28):
-            for cy in np.linspace(frame.y0 + h / 2, frame.y1 - h / 2, 18):
-                cand = Bbox.from_bounds(cx - w / 2, cy - h / 2, w, h)
-                if score(cand) == 0:
-                    free.append((_nearest(cand, near)[0], cx, cy, cand))
-        if free:
-            _, cx, cy, box = min(free, key=lambda f: f[0])
-            ann.remove()
-            ann = ax.annotate(
-                text,
-                tuple(ax.transAxes.inverted().transform((cx, cy))),
-                xycoords="axes fraction",
-                ha="center",
-                va="center",
-                **style,
-            )
-            ann.set_in_layout(False)
-    if near is not None:
-        dist, at, gap = _nearest(box, near)
-        if dist > 8 * pt:
-            (ax_, ay), (bx, by) = ax.transData.inverted().transform(np.array([at, gap]))
-            ax.plot([ax_, bx], [ay, by], color=style.get("color", FG), lw=0.6, zorder=7)
-    placed.append(box)
-    return ann
-
-
 def _annotate_step(
     ax,
     info: dict,
@@ -1717,7 +1594,7 @@ def _annotate_step(
         tp, yp = info["peak_time"] * scale, info["peak"]
         ax.plot([tp], [yp], "o", ms=3, color=color(1), zorder=6)
         _double_arrow(ax, (tp, final), (tp, yp), color(1), lw=0.9)
-        avoid.append(_segment_points(ax, (tp, final), (tp, yp)))
+        avoid.append(segment_points(ax, (tp, final), (tp, yp)))
         sym = r"\ddot{u}" if de else r"M_\mathrm{p}"
         mid = (tp, (final + yp) / 2)
         labels.append(
@@ -1747,8 +1624,8 @@ def _annotate_step(
         ax.plot([t10, t10], [y10, y90], color=color(4), lw=0.8, ls=":", zorder=3)
         _double_arrow(ax, (t10, y90), (t90, y90), color(4), lw=0.9)
         avoid += [
-            _segment_points(ax, (t10, y10), (t10, y90)),
-            _segment_points(ax, (t10, y90), (t90, y90)),
+            segment_points(ax, (t10, y10), (t10, y90)),
+            segment_points(ax, (t10, y90), (t90, y90)),
         ]
         va = "top" if up else "bottom"
         labels.append(
@@ -1765,7 +1642,7 @@ def _annotate_step(
         )
     if "final" in annotate:
         ax.axhline(final, color=MUTED, lw=0.9, ls=(0, (4, 2)), zorder=2)
-        avoid.append(_segment_points(ax, (x0, final), (x1, final), 200))
+        avoid.append(segment_points(ax, (x0, final), (x1, final), 200))
         right = {"xy": (1, final), "xycoords": ("axes fraction", "data"), "ha": "right"}
         labels.append(
             (
@@ -1784,7 +1661,7 @@ def _annotate_step(
         ax.axhspan(lo, hi, color=color(2), alpha=0.15, lw=0, zorder=1)
         ts = info["settling_time"] * scale
         ax.axvline(ts, color=color(2), lw=0.9, ls=":", zorder=2)
-        avoid.append(_segment_points(ax, (ts, y0), (ts, y1), 200))
+        avoid.append(segment_points(ax, (ts, y0), (ts, y1), 200))
         sym = r"t_\mathrm{aus}" if de else r"t_\mathrm{s}"
         labels.append(
             (
@@ -1801,7 +1678,7 @@ def _annotate_step(
     points = np.concatenate(avoid)
     placed: list = []
     for text, options, target, col in labels:
-        _place(ax, text, options, points, placed, target, color=col, **small)
+        place(ax, text, options, points, placed, target, color=col, **small)
 
 
 # --------------------------------------------------------------------------------------
