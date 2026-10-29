@@ -1165,14 +1165,21 @@ Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
 ### 4.5 GitHub Actions
 
 - **`ci.yml`** (push, PR, and a weekly scheduled run) on `ubuntu-24.04`, with every action pinned by commit SHA:
-  1. setup-uv, `pnpm/action-setup`, `setup-node@24`, setup-just 1.59.0
-  2. `just setup`, which fetches the same pinned pandoc and typst binaries by hash
-  3. `just ci`, then `just e2e`
-  4. Upload the sample-course PDFs and `site/dist` as artifacts
-- **`guard.yml`:**
-  - every commit in the range is a Conventional Commit with no `Co-Authored-By`
-  - `git ls-files courses` returns only `courses/README.md`
-  - no PDFs are tracked outside `tests/fixtures`
+  1. checkout, `setup-uv` (uv 0.11.30), `pnpm/action-setup` (pnpm 11.22.0), `setup-node` (Node 24.17.0, pnpm cache), and a cache of the pinned tool downloads keyed by `toolchain.toml`
+  2. `uv run --frozen studykit tools install`, which fetches the pinned pandoc, typst and just binaries by hash; later steps call `.tools/bin/just`
+  3. `just setup`, `just lint-code`, then `playwright install --with-deps chromium`
+  4. `just ci`
+  5. the element harness (`pnpm -C site run test:elements`, if Chromium installed) and `just e2e` (if `just ci` passed); both run even after an earlier failure, so one failure does not hide the other
+  6. on failure only: upload `site/dist` and the Playwright reports and results (`site/node_modules/.cache/sk-e2e/`, `sk-elements/results/`), kept 14 days. Uploading the sample-course PDFs comes with Phase 4.
+- **`guard.yml`** (push, PR; full history) runs `bash .github/scripts/guard.sh commits|courses|pdfs`:
+  - `commits`: every non-merge commit in the range passes `.githooks/commit-msg` (a Conventional Commit, no `Co-Authored-By`). The range is base..head for a pull request and before..HEAD for a push. When the before commit is missing (a new branch, or a force push), a branch is checked as `origin/<default>..HEAD`; creating the default branch checks its whole history; a rewrite of the default branch fails and has to be checked by hand; a range git cannot list fails the check.
+  - `courses`: `git ls-files courses` returns only `courses/README.md`.
+  - `pdfs`: no tracked `*.pdf`, in any letter case, outside `tests/fixtures/`.
+
+`commit-msg` rejects a `Co-Authored-By` trailer on every commit; subjects git writes itself
+(`Merge …`, `Revert "…"`, `fixup!`, `squash!`, `amend!`) are exempt only from the Conventional
+Commit format. `pre-commit` matches the staged paths by pathspec, so file names with non-ASCII
+characters or quotes are caught too.
 
 ## 5. Claude Code layer
 
