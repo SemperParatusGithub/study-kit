@@ -279,16 +279,3 @@ export function sourceTitle(courseId: string, doc: string): string {
   } | null;
   return index?.sources?.[doc]?.title ?? doc;
 }
-
-/** Page count of a built PDF from _build/pdf/manifest.json (Phase 4), if it exists. */
-export function pdfPages(courseId: string, name: string): number | null {
-  const manifest = readJson(joinPath(coursesDir(), courseId, '_build', 'pdf', 'manifest.json'));
-  if (!manifest || typeof manifest !== 'object') return null;
-  const m = manifest as Record<string, unknown>;
-  const entry = (m[`${name}.pdf`] ?? m[name] ?? (m.documents as Record<string, unknown> | undefined)?.[name]) as
-    | { pages?: unknown }
-    | number
-    | undefined;
-  const pages = typeof entry === 'number' ? entry : entry?.pages;
-  return typeof pages === 'number' ? pages : null;
-}
