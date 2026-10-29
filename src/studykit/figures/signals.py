@@ -236,33 +236,37 @@ def _num_tex(x: float, digits: int = 3) -> str:
 # --------------------------------------------------------------------------------------
 
 
-def _angle_at_0(r: complex) -> float:
-    """Limit of arg(j omega - r) for omega -> 0+, in radians.
+def _root_angle(omega: np.ndarray, r: complex) -> np.ndarray:
+    """arg(j omega - r) in radians on a branch without a cut for omega >= 0.
 
-    For a real root the limit is taken from above the real axis: pi for r > 0, never the
-    -pi that cmath.phase(-r) returns for -r = -a - 0j.
+    j omega - r = -a + j (omega - b) for r = a + j b. With a < 0 the point stays in the
+    right half-plane, where atan2 is continuous. With a > 0 it stays in the left half-plane;
+    pi - atan2(omega - b, a) is the angle there taken in (pi/2, 3 pi/2), so it passes
+    omega = b without the 2 pi jump of atan2 (and of np.angle). A root on the imaginary
+    axis (a = 0) is a true 180-degree step of the phase at omega = b.
     """
-    if r.imag == 0:
-        return math.pi if r.real > 0 else 0.0
-    return cmath.phase(-r)
+    a, b = r.real, r.imag
+    if a > 0:
+        return math.pi - np.arctan2(omega - b, a)
+    return np.arctan2(omega - b, abs(a))  # abs: never -0.0, which atan2 reads as pi
 
 
 def phase_deg(p: Plant, omega: np.ndarray, st: Structure | None = None) -> np.ndarray:
     """Continuous phase in degrees, anchored so that phase(0+) = -90 typ (-180 if k < 0).
 
-    Summing the angle of each root factor gives a phase that is continuous in omega without
-    any unwrapping heuristics; the anchor is the usual textbook convention.
+    The phase is the sum of the angles of the root factors (j omega - r), each taken on a
+    branch it never leaves (`_root_angle`), so it is continuous in omega without unwrapping
+    heuristics; only roots on the imaginary axis make it step by 180 degrees. The anchor
+    is the usual textbook convention.
     """
     st = st or structure(p)
-    s = 1j * np.asarray(omega, dtype=float)
-    ph = np.zeros(s.shape)
-    low = 0.0
-    for z in st.zeros:
-        ph += np.angle(s - z)
-        low += _angle_at_0(z)
-    for q in st.poles:
-        ph -= np.angle(s - q)
-        low -= _angle_at_0(q)
+    w = np.asarray(omega, dtype=float)
+    ph = np.zeros(w.shape)
+    low = 0.0  # the same sum at omega = 0+
+    for roots, sign in ((st.zeros, 1), (st.poles, -1)):
+        for r in roots:
+            ph += sign * _root_angle(w, r)
+            low += sign * float(_root_angle(np.array(0.0), r))
     origin = 90.0 * -st.typ + (180.0 if st.lead < 0 else 0.0)
     ph = np.degrees(ph) + origin
     low = math.degrees(low) + origin

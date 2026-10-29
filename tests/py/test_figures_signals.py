@@ -99,6 +99,23 @@ def test_bode_hz_complex_pair_and_negative_gain():
     np.testing.assert_allclose(ph, exact, atol=1e-9)
 
 
+def test_phase_is_continuous_for_right_half_plane_pairs():
+    w = np.logspace(-2, 2, 4001)
+    # Unstable pair 0.1 +- j 0.995: Im 1/den(jw) > 0, so the phase runs 0 -> +180.
+    ph = signals.phase_deg(signals.plant("1/(s**2-0.2*s+1)"), w)
+    np.testing.assert_allclose(ph, np.degrees(np.arctan2(0.2 * w, 1 - w**2)), atol=1e-9)
+    assert np.max(np.abs(np.diff(ph))) < 5  # no 360-degree jump at w = Im r
+    fig = signals.bode("1/(s**2-0.2*s+1)", asymptotes=True)
+    assert validate_svg(fig.svg) == []
+    lo, hi = fig.facts["omega_range"]
+    ends = [math.degrees(math.atan2(0.2 * x, 1 - x**2)) for x in (lo, hi)]
+    assert fig.facts["phase_deg_range"] == pytest.approx(ends, abs=1e-9)  # 1.16 .. 179.9
+    # Non-minimum-phase complex zeros 0.2 +- j 1.99: the numerator adds 0 -> -180.
+    ph = signals.phase_deg(signals.plant("(s**2-0.4*s+4)/((s+1)*(s+2)*(s+3))"), w)
+    exact = -np.arctan2(0.4 * w, 4 - w**2) - np.arctan(w) - np.arctan(w / 2) - np.arctan(w / 3)
+    np.testing.assert_allclose(ph, np.degrees(exact), atol=1e-9)
+
+
 def test_bode_negative_margins():
     mg = signals.stability_margins("200/(s*(s+1)*(s+10))")
     assert mg["gm"] == pytest.approx(110 / 200, rel=1e-9)  # Routh: K_crit = 110
