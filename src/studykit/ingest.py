@@ -648,7 +648,7 @@ def scan(
                 )
             )
             continue
-        info = analyse_pdf(path)
+        info = analyse_pdf(path, keep_text=True)
         if info.error:
             result.skipped.append(
                 model.SkippedFile(origin=origin, reason="unreadable", note=info.error[:200])
@@ -707,7 +707,7 @@ def scan(
             )
         seen[digest] = cand
         result.candidates.append(cand)
-        texts += [p.text for p in info.pages[:1]]
+        texts += [p.text for p in info.pages]
     for cand in result.documents:
         wanted = (kinds or {}).get(cand.id) or (kinds or {}).get(cand.origin)
         if wanted:
@@ -721,12 +721,6 @@ def scan(
                 "export slides, scripts, sheets and exams as PDF into the folder",
             )
         )
-    # dates and language come from all text, so read it once more only for those
-    for cand in result.documents:
-        if cand.status in ("new", "changed"):
-            full = analyse_pdf(cand.path, keep_text=True)
-            cand.info.pages = full.pages or cand.info.pages
-            texts += [p.text for p in full.pages]
     result.lang = guess_lang(texts)
     result.exam_dates = _exam_dates(result.documents, today)
     return result
