@@ -920,25 +920,56 @@ and `data-rubric` `[{criterion, criterion_html, points}]`; the MC part is
 
 ### 3.3 PDF: pandoc 3.13 → Typst 0.15.1, in two explicit steps
 
-`studykit pdf [course] [doc …] [--force] [--no-figures] [--jobs n] [--json]` builds the
-documents of one course, or of every course when none is given (`just pdf`, and `just build`
-before the site). PDFs can only be built for courses inside the repository, since Typst reads
-files only below `--root`. The site reads the result through `_build/pdf/manifest.json` (§3.2).
+`studykit pdf [course] [doc …] [--force] [--no-figures] [--jobs n] [--json]`
+(`src/studykit/pdf.py`) builds the documents of one course, or of every course when none
+is given (`just pdf`; `just build` runs it before the site). It first builds the course's
+figures (cached; `--no-figures` skips that), then the documents in a thread pool (`--jobs`,
+default the CPU count). Typst reads files only below `--root`, the repository, so a course
+outside it cannot be built. The site reads the result through `_build/pdf/manifest.json`
+(§3.2).
 
-**Steps.**
-1. `studykit pdf <c> [doc]` assembles `_build/typ/<doc>.md`:
-   - It strips frontmatter and concatenates in course order.
-   - It generates headings and an exam cover with a points table.
-   - Rubric and answer labels go in as plain text with inline math.
-2. `pandoc -d common -d typst --log _build/logs/<doc>.json` writes `_build/typ/<doc>.typ`.
-3. `typst compile --root <repo> --ignore-system-fonts --diagnostic-format short --input density=<n> …`, run with `SOURCE_DATE_EPOCH=0`.
-   - Only Typst's embedded fonts are used (NewCM10, NewCMMath, DejaVu Sans Mono), so no fonts are vendored and page counts are the same on every machine.
-   - Every `warning:` line counts as an error.
-4. Page counts come from `len(pypdfium2.PdfDocument(pdf))` and are written to `_build/pdf/manifest.json`, which the site reads.
+**Steps per document.**
+1. Assemble `_build/typ/<doc>.md` (`Assembler` in `pdf.py`):
+   - Each course file's body, frontmatter stripped, goes into a part
+     `:::::: {.sk-part file=… lines=… first=…}` in course order, so the filter checks and
+     renders it as that file and reports findings at the course file and its own line
+     (`lib/document.lua`, §3.1).
+   - Generated blocks around the parts: headings and numbers, the document info, the exam
+     cover and the plan as `sk-gen` JSON, and meta lines, objectives, rubrics and answer
+     labels as plain text with inline math. Generated text is escaped, so a title is never
+     read as Markdown.
+2. `pandoc -d common -d typst -M sk-doc=<kind> -M sk-solutions=<mode> --log _build/logs/<doc>.json`
+   (through `studykit.pandoc`) writes `_build/typ/<doc>.typ`.
+3. `typst compile --root <repo> --ignore-system-fonts --diagnostic-format short` into
+   `_build/pdf/.<doc>.partial.pdf`, which replaces `<doc>.pdf` only when the document
+   succeeded. The cheat sheet adds `--input density=<n>` (fit, below).
+   - Only Typst's embedded fonts are used (New Computer Modern, New Computer Modern Math,
+     DejaVu Sans Mono), so no fonts are vendored and page counts are the same on every
+     machine.
+   - Every Typst `warning:` line and every warning in the pandoc log fails the document.
+4. The page count is `len(pypdfium2.PdfDocument(pdf))`; it goes into the manifest.
 
-A document is rebuilt only when the digest of its inputs changed (assembled Markdown, its figures, the index, the filter, the house library, the studykit sources, the tool versions, the cheat sheet's limit), stored in `_build/typ/<doc>.digest`. A document whose sources do not exist is not built.
+**Determinism.** Typst runs with `SOURCE_DATE_EPOCH=0` and without the caller's `TYPST_*`
+environment variables (no fonts or packages from the machine); the house library sets no
+document date; the toolchain is pinned exactly (§4.1). A forced rebuild writes the same
+bytes.
 
-**Manifest** (`_build/pdf/manifest.json`, the contract with the site):
+**Cache.** A document is rebuilt only when the digest of its inputs changed, or with
+`--force`: the pandoc and Typst versions, the `pandoc/` and `typst/` trees and studykit's
+Python sources (figures excluded), `_build/index.json`, the kind, the solution mode, the
+cheat sheet's limit, the assembled Markdown and the SVG of every figure it shows. A
+successful build stores the digest in `_build/typ/<doc>.digest` (the cheat sheet's density
+on a second line, so a cached run still reports it).
+
+**Failure.** A document fails on a filter finding, a pandoc or Typst error or warning,
+course files that do not assemble into it (a missing exam task file), or a cheat sheet over
+its limit. Its errors are printed, its previous PDF stays on disk, and it leaves the
+manifest. A figure that fails to build is a note; a document that shows it then fails to
+compile. The exit code is 1 when a document failed, 2 for a document id the course does
+not have. `--json` prints `{course, manifest, docs: [<manifest entry> + status
+(built|cached|failed), errors, overflow?], notes}`, a list of these without a course.
+
+**Manifest** (`_build/pdf/manifest.json`, the contract with the site, `lib/pdf.ts`):
 
 ```json
 {"schema": "studykit-pdf/1", "course": "<course id>", "docs": [
@@ -947,31 +978,55 @@ A document is rebuilt only when the digest of its inputs changed (assembled Mark
   {"id": "cheatsheet", "kind": "cheatsheet", "file": "cheatsheet.pdf", "title": "…", "pages": 1, "bytes": 73511, "max_pages": 2, "density": 0}]}
 ```
 
-Kinds: `overview`, `summary`, `exercises`, `exercises-blank`, `mc`, `exam`, `exam-solutions` (both with `exam`), `cheatsheet` (with `max_pages` and `density`) and `plan`. `pages` is the pypdfium2 page count and `bytes` the file size. A document that is not built is absent. One that fails keeps its previous PDF on disk but leaves the manifest, so the site never links a PDF that does not match the current sources; a document whose sources are gone leaves it and its PDF is deleted. When only some documents are requested, the others keep their entries while their PDFs exist.
+- Kinds: `overview`, `summary`, `exercises`, `exercises-blank`, `mc`, `exam`,
+  `exam-solutions` (both with `exam`), `cheatsheet` (with `max_pages` and `density`) and
+  `plan`. Entries come in that order, exams sorted by id, each exam before its solutions.
+- `pages` is the pypdfium2 page count, `bytes` the file size.
+- It lists what this run built or found up to date. A document that is not built (its
+  sources do not exist, or `cheatsheet.allowed` is false) is absent; one that fails leaves
+  it; one whose sources are gone leaves it and its PDF is deleted. When only some
+  documents are built (`doc …`, or validate with `--paths`), the others keep their entries
+  while their PDFs exist.
+- The site checks every entry (schema, course, kind, a plain `.pdf` file name that
+  exists, a page count, the exam id) and serves only those that pass.
 
-**Documents per course:**
+**Documents per course** (text in `course.lang`; „…“ below is German):
 
 | File | Contents |
 |---|---|
 | `overview.pdf` | The overview (§2.12) |
-| `summary.pdf` | The summary, with the overview as its first chapter |
-| `exercises.pdf` | Hints and solutions in appendices |
-| `exercises-blank.pdf` | Exercises only |
-| `mc.pdf` | Options (A)–(F) with empty boxes in a deterministic shuffle seeded by question ID; appendix with answer key, every `why` and the explanation |
-| `<exam>.pdf` | Cover page, „Seite x von y“, MC part if present |
-| `<exam>-solutions.pdf` | Solutions with rubric |
-| `cheatsheet.pdf` | The cheat sheet, in columns; its lines use `top-edge: "bounds"` so tall inline math keeps clear of the line above |
-| `plan.pdf` | The study plan |
+| `summary.pdf` | Contents, the overview as the first chapter, then one chapter per topic in teaching order, each on a new page with its sources and objectives |
+| `exercises.pdf` | Contents; the exercises grouped by topic, numbered n.m, sorted by difficulty and title, each with difficulty, minutes and kind; appendices „Hinweise“ (all hints of an exercise in one entry) and „Lösungen“ (with the results from `answers`), each entry linked back to its exercise |
+| `exercises-blank.pdf` | The same exercises without hints, solutions and results |
+| `mc.pdf` | The banks in topic order with their question counts; questions as in §2.6, the appendix „Lösungsschlüssel“ with the key table and every question's key, `why`s and explanation |
+| `<exam>.pdf` | Cover (name and Matrikelnummer fields; date, time, points and pass mark, aids; notes, with the MC scoring and negative-marking rule when there is an MC part; points table with an empty column for the result), each task on a new page with its points, the MC part; no hints or solutions |
+| `<exam>-solutions.pdf` | „<title> – Lösungen“: each task with its solution, rubric table and results; the MC part with each key inline |
+| `cheatsheet.pdf` | Two columns, set at the fitted density; its lines use `top-edge: "bounds"` so tall inline math keeps clear of the line above |
+| `plan.pdf` | Exam date, number of sessions and hours, the plan's date, then the sessions by week (§2.9) |
 
-German hyphenation comes from `set text(lang: "de")`.
+Footers: exams, their solutions and the cheat sheet carry „Seite x von y“, the other
+documents course · title and the page number. Hyphenation follows `set text(lang:
+course.lang)`.
 
-**Cheat-sheet fit** (`studykit cheatsheet fit <c>`). The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter.max_pages)`.
-1. Compile at densities 0–4 (9, 8.5, 8, 7.5, then 7 pt as the floor, with tighter leading and margins). Stop at the first one with at most `max` pages.
-2. If 7 pt still overflows, read `typst eval 'query(<cs-end>).first().location().position()' --in _build/typ/cheatsheet.typ` and the height of each section. Exit with code 3 and JSON such as `{"overflow_pages":0.42,"largest_sections":[{"title","line","height_pages"}…],"pages":2,"max_pages":1,"density":4,"used_pages":1.42,"kept":"…/cheatsheet.pdf"}`; the cheat sheet then leaves the manifest. Section heights run from a heading to the next one in the column flow, so they are estimates.
-3. The `authoring/parts/cheatsheet.md` procedure then condenses, in this order: derivations, duplicate examples, prose, then the lowest-priority (low weight, high mastery) topics. Rebuild after each round, for at most 3 rounds, then ask the user what to drop.
-4. More than 3 pages is a hard failure, and the previous valid PDF stays in place.
-
-`studykit pdf` builds `cheatsheet.pdf` through the same fit; the density it settled on is stored with the digest, so a cached run still reports it.
+**Cheat-sheet fit** (`studykit cheatsheet fit <c> [--force] [--no-figures] [--json]`,
+`src/studykit/cheatsheet.py`). `studykit pdf` builds `cheatsheet.pdf` through the same fit.
+The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`.
+1. Compile at densities 0–4 (9, 8.5, 8, 7.5, then 7 pt as the floor, with tighter leading,
+   spacing, margins and column gutter) and keep the first with at most `max` pages; the
+   manifest records that density.
+2. If 7 pt still overflows, `typst eval` over `_build/typ/cheatsheet.typ` reads the page
+   geometry (`<cs-page>`), where `<cs-end>` sits and where each `##` heading starts. Exit
+   code 3 with JSON such as `{"overflow_pages":0.42,"largest_sections":[{"title","line","height_pages"}…],"pages":2,"max_pages":1,"density":4,"used_pages":1.42,"kept":"…/cheatsheet.pdf"}`
+   (plus `course`, `file`, `status`, `fits`); `line` is the heading's line in
+   `cheatsheet.md`. A section's height runs from its heading to the next in the column flow,
+   so it is an estimate. The cheat sheet leaves the manifest and the previous valid PDF stays
+   in place. Exit code 0 means it fits, 1 that it did not build, 2 that the course has no
+   cheat sheet.
+3. *(Phase 5)* The `authoring/parts/cheatsheet.md` procedure then condenses, in this order:
+   derivations, duplicate examples, prose, then the lowest-priority (low weight, high
+   mastery) topics. Rebuild after each round, for at most 3 rounds, then ask the user what
+   to drop.
+4. More than 3 pages is never allowed (the schema caps both settings at 3).
 
 ### 3.4 Figures: `studykit.figures`, Python only, Matplotlib for everything
 
