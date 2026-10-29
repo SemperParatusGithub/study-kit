@@ -610,7 +610,9 @@ export class ProgressStore {
       ok: true,
       added,
       merged,
-      message: `Imported ${added + merged} items (${added} new, ${merged} merged)${saved ? '' : ', but this browser cannot store them'}.`,
+      message: `Imported ${added + merged} ${added + merged === 1 ? 'item' : 'items'} (${added} new, ${merged} merged)${
+        saved ? '' : `, but this browser cannot store ${added + merged === 1 ? 'it' : 'them'}`
+      }.`,
     };
   }
 

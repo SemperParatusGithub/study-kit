@@ -259,7 +259,11 @@ test('import merges a file of the same course and rejects others', () => {
   const r = s.importText(JSON.stringify(SPEC_EXAMPLE));
   assert.equal(r.ok, true);
   assert.deepEqual([r.added, r.merged], [3, 1]);
+  assert.equal(r.message, 'Imported 4 items (3 new, 1 merged).');
   assert.deepEqual(s.get('plan:s-2026-11-02-a'), { done: true });
+  const one = new ProgressStore('get2', new FakeStorage());
+  const single = { ...SPEC_EXAMPLE, items: { 'plan:s-2026-11-02-a': { done: true } } };
+  assert.equal(one.importText(JSON.stringify(single)).message, 'Imported 1 item (1 new, 0 merged).');
   assert.equal(s.importText('{nope').ok, false);
   const other = s.importText(JSON.stringify({ ...SPEC_EXAMPLE, course: 'other' }));
   assert.equal(other.ok, false);
