@@ -25,6 +25,7 @@ ROLES: dict[str, str] = {
 SERIES: tuple[str, ...] = tuple(ROLES[f"c{i}"] for i in range(1, 7))
 
 FG = ROLES["fg"]
+BG = ROLES["bg"]
 MUTED = ROLES["muted"]
 GRID = ROLES["grid"]
 

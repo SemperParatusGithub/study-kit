@@ -46,7 +46,8 @@ def lambdify(expr: sp.Expr) -> Callable[[np.ndarray], np.ndarray]:
 
     def safe(x):
         with np.errstate(all="ignore"):
-            y = np.asarray(fn(x), dtype=complex)
+            # Constant expressions lambdify to a scalar; give them the shape of x.
+            y = np.broadcast_to(np.asarray(fn(x), dtype=complex), np.shape(x))
             return np.where(np.abs(y.imag) < 1e-12, y.real, np.nan)
 
     return safe

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import os
-from collections.abc import Callable
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -64,6 +64,11 @@ def fmt_number(value: float, digits: int = 3) -> str:
     return text.replace(".", "{,}") if locale() == "de" else text
 
 
+def localize_tex(tex: str) -> str:
+    """Decimal comma inside TeX for German figures: 0.5 -> 0{,}5."""
+    return re.sub(r"(\d)\.(\d)", r"\1{,}\2", tex) if locale() == "de" else tex
+
+
 def axis_label(quantity: str, unit: str | None = None) -> str:
     """`U in V` (German, DIN 461) or `U / V` (English); quantity is TeX math."""
     if not unit:
@@ -72,17 +77,25 @@ def axis_label(quantity: str, unit: str | None = None) -> str:
     return f"${quantity}$ {sep} {unit}"
 
 
+class DecimalCommaFormatter(ticker.ScalarFormatter):
+    """ScalarFormatter that writes a decimal comma (German tick labels)."""
+
+    def __call__(self, x, pos=None):
+        text = super().__call__(x, pos)
+        return text.replace(".", "{,}") if "$" in text else text.replace(".", ",")
+
+    def get_offset(self):
+        text = super().get_offset()
+        return text.replace(".", "{,}") if "$" in text else text.replace(".", ",")
+
+
 def apply_locale(ax) -> None:
     """Use a decimal comma in tick labels when the course is German."""
     if locale() != "de":
         return
     for axis in (ax.xaxis, ax.yaxis):
-        base: Callable = axis.get_major_formatter()
-        if isinstance(base, ticker.ScalarFormatter):
-            base.set_useMathText(True)
-        axis.set_major_formatter(
-            ticker.FuncFormatter(lambda v, pos, base=base: base(v, pos).replace(".", "{,}"))
-        )
+        if type(axis.get_major_formatter()) is ticker.ScalarFormatter:
+            axis.set_major_formatter(DecimalCommaFormatter(useMathText=True))
 
 
 def finish(fig, alt: str, facts: dict | None = None) -> Figure:
