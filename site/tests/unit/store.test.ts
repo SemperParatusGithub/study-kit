@@ -313,6 +313,47 @@ test('import merges a file of the same course and rejects others', () => {
   assert.deepEqual(t.read().items, s.read().items);
 });
 
+test('import keeps only what studykit.model.Progress accepts: ISO timestamps, safe integers', () => {
+  const s = new ProgressStore('get2', new FakeStorage());
+  const attempt = { chosen: ['A'], score: 1, conf: 'sure', ms: 5 };
+  const file = {
+    schema: 'studykit-progress/1',
+    course: 'get2',
+    exported_at: 'Nov 20 2026',
+    items: {
+      'mc:mc-a-001': {
+        h: 'abcdef12', box: 2, due: '2026-11-24',
+        attempts: [
+          { ...attempt, t: 'Oct 3 2026' },
+          { ...attempt, t: '1' },
+          { ...attempt, t: '2026-02-30T10:00:00Z' },
+          { ...attempt, t: '2026-11-20T17:00:00Z', ms: 1e21 },
+          { ...attempt, t: '2026-11-21 08:15:00+01:00' },
+          { ...attempt, t: '2026-11-22' },
+        ],
+      },
+      'ex:ex-a': { h: 'abcdef12', hints: 1e21, answer_ok: null, rating: null, box: null, due: null },
+      'exam:pk-1': {
+        attempts: [
+          { started: '1', duration_s: 60, points: { mc: 1 }, total: 1 },
+          { started: '2026-11-19T09:00:00Z', duration_s: 1e21, points: { mc: 2 }, total: 2 },
+        ],
+      },
+    },
+  };
+  assert.equal(s.importText(JSON.stringify(file)).ok, true);
+  const out = JSON.parse(s.exportFile().text);
+  assert.deepEqual(
+    out.items['mc:mc-a-001'].attempts.map((a: { t: string; ms: number }) => [a.t, a.ms]),
+    [['2026-11-20T17:00:00Z', 0], ['2026-11-21 08:15:00+01:00', 5], ['2026-11-22', 5]],
+  );
+  assert.equal(out.items['ex:ex-a'].hints, 0);
+  assert.deepEqual(out.items['exam:pk-1'].attempts, [
+    { started: '2026-11-19T09:00:00Z', duration_s: 0, points: { mc: 2 }, total: 2 },
+  ]);
+  assert.ok(!/e\+/.test(s.exportFile().text), 'no number in exponent notation');
+});
+
 test('storage failures fall back to memory without throwing', () => {
   const fake = new FakeStorage();
   fake.failWrites = true;

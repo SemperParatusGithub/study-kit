@@ -28,8 +28,10 @@
 //
 // Migrations run on every read: a document without `schema` (written before the schema
 // was versioned) is version 0; its attempts carried `sure: boolean` instead of `conf`.
-// Entries that do not validate are dropped, so an export always validates. A document
-// with a newer schema is read as far as possible but never written (read-only).
+// Entries that do not validate are dropped, so an export always validates: timestamps are
+// ISO 8601 (as datetime.fromisoformat reads them, not whatever Date.parse takes), counts
+// are safe integers. A document with a newer schema is read as far as possible but never
+// written (read-only).
 
 import { dayOf, ENTRY_BOX, isDay, isDue, review, reviewDayOf, type Conf, type Review } from './leitner.ts';
 
@@ -102,7 +104,20 @@ const RATINGS: readonly Rating[] = ['solved', 'partial', 'not-yet'];
 type Raw = Record<string, unknown>;
 const isObj = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-const isTime = (v: unknown): v is string => typeof v === 'string' && !Number.isNaN(Date.parse(v));
+const ISO_TIME_RE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
+
+/** `v` when it is an ISO 8601 date or date-time that both JS and Python read, else null. */
+function time(v: unknown): string | null {
+  if (typeof v !== 'string' || !ISO_TIME_RE.test(v) || !isDay(v.slice(0, 10))) return null;
+  return Number.isNaN(Date.parse(v.replace(' ', 'T'))) ? null : v;
+}
+
+/** A count or duration: a non-negative number rounded to a safe integer, or null. */
+function count(v: unknown, round: (x: number) => number = Math.round): number | null {
+  if (!isNum(v) || v < 0) return null;
+  const n = round(v);
+  return Number.isSafeInteger(n) ? n : null;
+}
 
 export function kindOf(key: string): 'mc' | 'ex' | 'exam' | 'plan' | null {
   const m = KEY_RE.exec(key);
@@ -122,29 +137,31 @@ function day(v: unknown): string | null {
 }
 
 function mcAttempt(v: unknown, version: number): McAttempt | null {
-  if (!isObj(v) || !isTime(v.t) || !Array.isArray(v.chosen)) return null;
+  const t = isObj(v) ? time(v.t) : null;
+  if (!isObj(v) || !t || !Array.isArray(v.chosen)) return null;
   const conf = version === 0 && typeof v.sure === 'boolean' ? (v.sure ? 'sure' : 'unsure') : v.conf;
   if (conf !== 'sure' && conf !== 'unsure') return null;
   if (!isNum(v.score) || v.score < 0 || v.score > 1) return null;
   const chosen = v.chosen.filter((c): c is string => typeof c === 'string' && CHOICE_RE.test(c));
   return {
-    t: v.t,
+    t,
     chosen,
     score: v.score,
     conf,
-    ms: isNum(v.ms) && v.ms >= 0 ? Math.round(v.ms) : 0,
+    ms: count(v.ms) ?? 0,
   };
 }
 
 function examAttempt(v: unknown): ExamAttempt | null {
-  if (!isObj(v) || !isTime(v.started) || !isObj(v.points) || !isNum(v.total) || v.total < 0) {
+  const started = isObj(v) ? time(v.started) : null;
+  if (!isObj(v) || !started || !isObj(v.points) || !isNum(v.total) || v.total < 0) {
     return null;
   }
   const points: Record<string, number> = {};
   for (const [k, p] of Object.entries(v.points)) if (isNum(p)) points[k] = p;
   return {
-    started: v.started,
-    duration_s: isNum(v.duration_s) && v.duration_s >= 0 ? Math.round(v.duration_s) : 0,
+    started,
+    duration_s: count(v.duration_s) ?? 0,
     points,
     total: v.total,
   };
@@ -164,7 +181,7 @@ export function sanitizeEntry(key: string, v: unknown, version = 1): Entry | nul
     case 'ex':
       return {
         h: hash(v.h),
-        hints: isNum(v.hints) && v.hints >= 0 ? Math.trunc(v.hints) : 0,
+        hints: count(v.hints, Math.trunc) ?? 0,
         answer_ok: typeof v.answer_ok === 'boolean' ? v.answer_ok : null,
         rating: RATINGS.includes(v.rating as Rating) ? (v.rating as Rating) : null,
         box: box(v.box),
@@ -207,7 +224,7 @@ export function migrate(raw: unknown, course: string): Migrated {
   const version = versionOf(raw.schema);
   if (version === null) return { doc: emptyDoc(course), from: 1, newer: false };
   const doc = emptyDoc(course);
-  if (isTime(raw.exported_at)) doc.exported_at = raw.exported_at;
+  doc.exported_at = time(raw.exported_at) ?? doc.exported_at;
   const items = isObj(raw.items) ? raw.items : {};
   for (const [key, value] of Object.entries(items)) {
     const entry = sanitizeEntry(key, value, version);
