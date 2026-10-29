@@ -278,6 +278,22 @@ def test_flowchart_loop_layout(locale):
     assert back[-1][1] > nodes["d"]["xy"][1]
 
 
+def test_state_and_flowchart_labels_follow_the_locale(monkeypatch):
+    monkeypatch.setenv("STUDYKIT_LOCALE", "de")
+    sm = graph.state_machine({"A": "0.5", "B": "1.5"}, [("A", "B", "x > 0.5")], initial="A")
+    assert validate_svg(sm.svg) == []
+    assert "A (Ausgabe 0,5)" in sm.alt and "A → B (x > 0,5)" in sm.alt
+    nodes = [("s", "start", "S"), ("d", "decision", "x_k > 0.5?"), ("w", "process", "Warte 0.5 s")]
+    fc = graph.flowchart(nodes, [("s", "d"), ("d", "w", "ja")])
+    assert validate_svg(fc.svg) == []
+    assert "x_k > 0,5? → Warte 0,5 s (ja)" in fc.alt
+    # Drawn texts use the same rule as block diagrams, with plain text as the default.
+    assert graph._rich("x > 0.5") == ("x > 0,5", False)
+    assert graph._rich("x_k > 0.5?") == (r"$x_k > 0{,}5?$", True)
+    assert graph._rich("Ausgabe $s_{0.5}$") == (r"Ausgabe $s_{0{,}5}$", True)
+    assert graph._rich("S0") == ("S0", False)
+
+
 def test_flowchart_rejects_bad_input():
     with pytest.raises(ValueError, match="kind"):
         graph.flowchart([("a", "cloud", "x")], [])

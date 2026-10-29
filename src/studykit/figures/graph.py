@@ -5,8 +5,10 @@
     graph.topic_map(course_dir)   # `fig:topic-map` of the overview, from course.yaml
 
 Positions are computed here (ring/row/grid layouts, layered graphs, label placement that
-avoids states, edges and other labels); schemdraw only draws. Labels containing `$`, `_`,
-`^` or a backslash are TeX math, anything else is plain text.
+avoids states, edges and other labels); schemdraw only draws. Labels follow the rule of
+`block.label` with plain text as the default: `_`, `^` or a backslash make TeX math
+('S_0', 'x_k > 0.5?'), `$…$` marks inline math ('Ausgabe $s$'), anything else is upright
+text ('S0', 'n gerade?'); German figures get a decimal comma in both.
 """
 
 from __future__ import annotations
@@ -23,7 +25,8 @@ import yaml
 from schemdraw import flow
 
 from studykit.figures import core
-from studykit.figures.block import FONT_PT, LABEL_PT, Sheet, text_size
+from studykit.figures.block import FONT_PT, LABEL_PT, Sheet, plain, text_size
+from studykit.figures.block import label as _label
 from studykit.figures.palette import BG, FG, MUTED, color
 
 ARROW = {"arrowwidth": 0.15, "arrowlength": 0.25}
@@ -34,13 +37,8 @@ ARROW = {"arrowwidth": 0.15, "arrowlength": 0.25}
 
 
 def _rich(text: str) -> tuple[str, bool]:
-    """(text, parse_math): TeX when it has $ _ ^ or a backslash, plain text otherwise."""
-    text = str(text).strip()
-    if "$" in text:
-        return text, True
-    if any(ch in text for ch in "_^\\"):
-        return f"${core.localize_tex(text)}$", True
-    return text, False
+    """(text, parse_math) of a state, transition or flowchart label; see `block.label`."""
+    return _label(text, math=False)
 
 
 def _measure(text: str, size: float, weight: str = "normal") -> tuple[float, float]:
@@ -534,11 +532,16 @@ def _count_overlaps(rects: list[Rect]) -> int:
 def _state_alt(kind, names, outputs, trans, initial, accepting) -> str:
     de = core.locale() == "de"
     kind_txt = {"moore": "Moore", "mealy": "Mealy"}[kind]
+    txt = lambda x: plain(x, math=False)  # noqa: E731
+    out_word = "Ausgabe" if de else "output"
     states = ", ".join(
-        f"{n} ({'Ausgabe' if de else 'output'} {outputs[n]})" if outputs.get(n) else n
-        for n in names
+        f"{txt(n)} ({out_word} {txt(outputs[n])})" if outputs.get(n) else txt(n) for n in names
     )
-    arrows = "; ".join(f"{s} → {d}" + (f" ({lbl})" if lbl else "") for s, d, lbl in trans)
+    arrows = "; ".join(
+        f"{txt(s)} → {txt(d)}" + (f" ({txt(lbl)})" if lbl else "") for s, d, lbl in trans
+    )
+    initial = txt(initial) if initial else initial
+    accepting = [txt(a) for a in accepting]
     if de:
         text = f"Zustandsdiagramm eines {kind_txt}-Automaten mit {len(names)} Zuständen: {states}."
         if initial:
@@ -600,12 +603,8 @@ def _parse_nodes(nodes) -> list[_Node]:
     return out
 
 
-def _flow_text(text: str) -> tuple[str, bool]:
-    return (text, True) if "$" in text else (text, False)
-
-
 def _node_size(node: _Node) -> tuple[float, float]:
-    shown, math_ = _flow_text(node.text)
+    shown, math_ = _rich(node.text)
     w, h = text_size(shown, FONT_PT, math=math_)
     if node.kind == "decision":
         pw, ph = w + 0.3, h + 0.2
@@ -834,7 +833,7 @@ def flowchart(
                 sheet.add(elm.Line().at(pts[j]).to(pts[j + 1]))
         if route["label"]:
             p, side = pts[0], route["port"]
-            shown, math_ = _flow_text(route["label"])
+            shown, math_ = _rich(route["label"])
             if side == "S":
                 sheet.text(p + _v(0.1, -0.06), shown, ha="left", va="top", math=math_)
             elif side == "E":
@@ -843,7 +842,7 @@ def flowchart(
                 sheet.text(p + _v(-0.08, 0.06), shown, ha="right", va="bottom", math=math_)
     for n in nodes_:
         sheet.add(_node_element(n).fill(BG))
-        shown, math_ = _flow_text(n.text)
+        shown, math_ = _rich(n.text)
         sheet.text(n.xy, shown, size=FONT_PT, math=math_)
 
     facts = {
@@ -881,9 +880,9 @@ def flowchart(
 def _flow_alt(nodes: list[_Node], edges: list[tuple[str, str, str]]) -> str:
     de = core.locale() == "de"
     by_id = {n.id: n for n in nodes}
+    txt = lambda x: plain(x, math=False).replace("\n", " ")  # noqa: E731
     steps = "; ".join(
-        f"{by_id[u].text.replace(chr(10), ' ')} → {by_id[v].text.replace(chr(10), ' ')}"
-        + (f" ({lbl})" if lbl else "")
+        f"{txt(by_id[u].text)} → {txt(by_id[v].text)}" + (f" ({txt(lbl)})" if lbl else "")
         for u, v, lbl in edges
     )
     if de:
