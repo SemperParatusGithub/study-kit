@@ -95,6 +95,11 @@ def test_cli(capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["numeric"] == pytest.approx(1591.549, rel=1e-6)
     assert out["subs"] == {"R": "1000", "C": "1/10000000"}
+    # a repeated --subs adds to the earlier ones instead of replacing them
+    assert (
+        cli.main(["calc", "1/(2*pi*R*C)", "--subs", "R=1e3", "--subs", "C=100e-9", "--json"]) == 0
+    )
+    assert json.loads(capsys.readouterr().out)["numeric"] == pytest.approx(1591.549, rel=1e-6)
     assert cli.main(["calc", "2.2*kohm*47*nF", "--units"]) == 0
     assert "eng      103.4 µs" in capsys.readouterr().out
     assert cli.main(["calc", "x.real"]) == 2

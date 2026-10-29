@@ -134,7 +134,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_calc.add_argument("expr", help="the expression, e.g. '1/(2*pi*R*C)'")
     p_calc.add_argument(
-        "--subs", nargs="+", default=[], metavar="NAME=VALUE", help="values for symbols"
+        "--subs",
+        nargs="+",
+        action="extend",
+        default=[],
+        metavar="NAME=VALUE",
+        help="values for symbols (repeat --subs or list several)",
     )
     p_calc.add_argument(
         "--units",
