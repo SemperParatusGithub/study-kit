@@ -233,6 +233,10 @@ echo "guard: pdfs"
 expect pass "pdf under tests/fixtures" guard_in "$(tracked tests/fixtures/a.pdf)" pdfs
 expect fail "pdf" guard_in "$(tracked docs/a.pdf)" pdfs
 expect fail "upper-case pdf" guard_in "$(tracked docs/A.PDF)" pdfs
+expect fail "mixed-case pdf" guard_in "$(tracked docs/a.Pdf)" pdfs
+expect fail "pdf with an umlaut and a space" guard_in "$(tracked "docs/Skript Ü.pdf")" pdfs
+expect pass "pdf with an umlaut under tests/fixtures" \
+  guard_in "$(tracked "tests/fixtures/Übung.pdf")" pdfs
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures hook test(s) failed" >&2

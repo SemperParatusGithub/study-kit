@@ -7,6 +7,8 @@
 #   courses  only courses/README.md is tracked under courses/
 #   pdfs     no PDFs are tracked outside tests/fixtures/
 set -euo pipefail
+# The pathspec settings from the environment would change what the patterns below mean.
+unset GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS GIT_ICASE_PATHSPECS
 
 hooks="$(cd "$(dirname "$0")/../.." && pwd)/.githooks"
 
@@ -58,7 +60,10 @@ courses() {
 
 pdfs() {
   local pdfs
-  pdfs=$(git ls-files '*.pdf' '*.PDF' | grep -v '^tests/fixtures/' || true)
+  # git matches the paths itself, as in .githooks/pre-commit: its path output quotes names
+  # with non-ASCII characters, and the extension may be in any case.
+  pdfs=$(git -c core.quotePath=false ls-files -- ':(glob,icase)**/*.pdf' \
+    ':(exclude,glob)tests/fixtures/**')
   if [ -n "$pdfs" ]; then
     echo "::error::PDFs may only be tracked under tests/fixtures/"
     printf '%s\n' "$pdfs"
