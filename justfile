@@ -38,10 +38,20 @@ figures course="":
 dev: (figures "")
     pnpm -C site dev
 
-# strict site build with search index and link check (all courses; validates `course`)
-build course="": (figures course) (validate course)
+# Figures, validation and PDFs cover `course` (or every course); the site is built for all
+# courses and reads each course's PDF manifest.
+# figures, validation and PDFs, then the strict site build with search index and link check
+build course="": (figures course) (validate course) (pdf course)
     STUDYKIT_STRICT=1 pnpm -C site build
     {{sk}} check-links site/dist
+
+# PDFs of one course (or all) into <course>/_build/pdf, with manifest.json for the site
+pdf course="":
+    {{sk}} pdf {{course}}
+
+# cheat sheet within its page limit; exits 3 with the overflow when even 7 pt is too long
+cheatsheet course:
+    {{sk}} cheatsheet fit {{course}}
 
 # every internal link and #anchor of the built site resolves
 check-links dist="site/dist":
