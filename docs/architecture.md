@@ -1024,19 +1024,24 @@ German hyphenation comes from `set text(lang: "de")`.
 
 ## 4. Toolchain & reliability
 
-### 4.1 Pins (`toolchain.toml` is the single source; `just doctor` asserts them exactly)
+### 4.1 Pins (`toolchain.toml` is the single source)
+
+`just doctor` checks pandoc, typst and just exactly, uv, node and pnpm against the minimum
+versions in `[system.*]`, Python's major.minor against `.python-version`, and the installed
+`astro`, `katex` and `pagefind` against `site/package.json`; a busy port 4321 is only a
+warning. `doctor --quick` skips the site packages, the Typst fonts and the port.
 
 | Tool | Version | Source |
 |---|---|---|
 | pandoc | **3.13** (texmath 0.13.3.3) | `studykit tools install` → `.tools/bin`, sha256-checked, assets `pandoc-3.13-arm64-macOS.zip` and `pandoc-3.13-linux-amd64.tar.gz`. Fallback: one-line change to 3.12.1. |
 | typst | **0.15.1** | same installer; `typst-aarch64-apple-darwin.tar.xz` and `typst-x86_64-unknown-linux-musl.tar.xz` |
-| just | 1.59.0 | Homebrew; in CI a SHA-pinned setup action |
-| uv / Python | 0.11.30 / 3.14.6 | uv-managed: `requires-python = ">=3.14,<3.15"`, `python-preference = "only-managed"`. Falling back to 3.13 is a one-line change. |
-| node / pnpm | 24.17 / 11.22.0 | already installed (Astro needs Node ≥ 22.23.4) |
-| Python (`uv.lock`) | figure stack from §3.4, plus pydantic 2.14.1, PyYAML 6.0.3, pypdfium2 5.14.0; dev: pytest 9.1.1, ruff 0.17.1 | `exclude-newer = "7 days"` |
+| just | **1.59.0** | same installer; `just-1.59.0-aarch64-apple-darwin.tar.gz` and `just-1.59.0-x86_64-unknown-linux-musl.tar.gz`, locally and in CI |
+| uv / Python | ≥ 0.11.30 / 3.14 | uv-managed: `requires-python = ">=3.14,<3.15"`, `python-preference = "only-managed"`. Falling back to 3.13 is a one-line change. |
+| node / pnpm | ≥ 24.17.0 / ≥ 11.22.0 | installed by the user (`corepack enable pnpm`); CI pins 24.17.0 and 11.22.0 |
+| Python (`uv.lock`) | figure stack from §3.4, plus pydantic 2.14.1, PyYAML 6.0.3 (pypdfium2 5.14.0 comes with Phase 4); dev: pytest 9.1.1, ruff 0.17.1 | `exclude-newer = "7 days"` |
 | npm | from §3.2 | `minimumReleaseAge: 10080` |
 
-Not needed for any core build: Chromium, TeX, Graphviz, Mermaid, rsvg or resvg. Playwright downloads its browser only for `just e2e` and in CI.
+Not needed for any core build: Chromium, TeX, Graphviz, Mermaid, rsvg or resvg. Playwright downloads Chromium only for the browser tests (`just e2e` installs it; the element harness needs it too) and in CI.
 
 ### 4.2 justfile
 
