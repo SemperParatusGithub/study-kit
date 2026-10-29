@@ -307,6 +307,11 @@ test('import merges a file of the same course and rejects others', () => {
   const other = s.importText(JSON.stringify({ ...SPEC_EXAMPLE, course: 'other' }));
   assert.equal(other.ok, false);
   assert.match(other.message, /other/);
+  for (const course of [undefined, 42, '']) {
+    const none = s.importText(JSON.stringify({ ...SPEC_EXAMPLE, course }));
+    assert.equal(none.ok, false);
+    assert.equal(none.message, 'This progress file names no course, so it cannot be imported.');
+  }
   // round trip: export → import into an empty store gives the same items
   const t = new ProgressStore('get2', new FakeStorage());
   t.importText(s.exportFile().text);

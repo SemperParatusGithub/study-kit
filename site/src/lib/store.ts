@@ -658,6 +658,9 @@ export class ProgressStore {
     if (!isObj(raw) || versionOf(raw.schema) === null || !isObj(raw.items)) {
       return { ok: false, added: 0, merged: 0, message: 'This is not a study-kit progress file.' };
     }
+    if (typeof raw.course !== 'string' || raw.course === '') {
+      return { ok: false, added: 0, merged: 0, message: 'This progress file names no course, so it cannot be imported.' };
+    }
     if (raw.course !== this.course) {
       return {
         ok: false,
