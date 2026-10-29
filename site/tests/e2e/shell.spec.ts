@@ -71,6 +71,25 @@ test('search finds a German term of the sample course', async ({ page }) => {
   expect(hrefs).toContain(`${C}/summary/spannungsteiler/`);
 });
 
+test('search never shows hints, which a running mock exam keeps locked', async ({ page }) => {
+  await page.goto('/search/');
+  // words of the sample course's hints; a hint's own label reads "Hinweis 1", "Hinweis 2"
+  const found = await page.evaluate(async () => {
+    const pagefind = await import(/* @vite-ignore */ '/pagefind/pagefind.js');
+    await pagefind.init?.();
+    const out: string[] = [];
+    for (const q of ['Hinweis', 'Lösen', 'Fassen', 'Grenzfrequenz', 'entspricht dem Betrag']) {
+      const r = await pagefind.search(q);
+      for (const result of r.results as Array<{ data: () => Promise<{ url: string; excerpt: string }> }>) {
+        const d = await result.data();
+        if (/Hinweis \d/.test(d.excerpt.replace(/<[^>]+>/g, ''))) out.push(`${q}: ${d.url}`);
+      }
+    }
+    return out;
+  });
+  expect(found).toEqual([]);
+});
+
 test('a malformed #fragment breaks none of the shell scripts', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
