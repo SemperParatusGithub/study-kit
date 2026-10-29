@@ -10,14 +10,23 @@ export const getStaticPaths = coursePaths;
 const { course } = Astro.props as { course: Course };
 const c = course.id;
 const en = course.lang === 'en' ? undefined : 'en';
+const hasBank = (topic: string | null) => course.banks.some((b) => b.data.topic === topic);
+const tested = course.summaries.filter((s) => hasBank(s.data.topic)).length;
+const selfTest =
+  tested === 0
+    ? ''
+    : tested === course.summaries.length
+      ? ' Each ends with a short self-test.'
+      : tested === 1
+        ? ' One of them, marked below, ends with a short self-test.'
+        : ` ${tested} of them, marked below, end with a short self-test.`;
 ---
 
 <Base title="Summary" course={course} tab="summary">
   <div class="page-head" lang={en}>
     <h1>Summary</h1>
     <p class="muted">
-      {plural(course.summaries.length, 'chapter')}, one per topic, in teaching order. Each ends with
-      a short self-test.
+      {plural(course.summaries.length, 'chapter')}, one per topic, in teaching order.{selfTest}
     </p>
   </div>
 
@@ -42,6 +51,11 @@ const en = course.lang === 'en' ? undefined : 'en';
                   {topic?.focus && (
                     <span class="badge badge-accent" lang={en}>
                       Focus
+                    </span>
+                  )}
+                  {tested > 0 && tested < course.summaries.length && hasBank(s.data.topic) && (
+                    <span class="badge" lang={en}>
+                      Self-test
                     </span>
                   )}
                 </h2>
