@@ -3,8 +3,11 @@
 Sources: tests/fixtures/courses/mini (course "mini") and tests/fixtures/pandoc/ok (with its
 index.json). The fragments are what pandoc + pandoc/filters/studykit.lua emit for html, with
 sk-meta removed and data-h added the way the site loader does it, and wrapped in the
-exercise and exam elements the way the site shell does it (docs/architecture.md §3.2).
-<sk-math> stays in place; tests/elements/server.mjs renders it with KaTeX like the loader.
+exercise and exam elements the way the site shell does it (docs/architecture.md §3.2): the
+exercise's content hash on its <article data-h>, each exam task's on its <section data-h>.
+<sk-math> stays in place; tests/elements/server.mjs renders it with KaTeX like the loader
+and adds the label_html / criterion_html the shell renders from answer labels and rubric
+criteria.
 
 Regenerate from the repository root (needs the pinned pandoc in .tools/bin):
     uv run --frozen python site/tests/elements/make_fixtures.py
@@ -84,7 +87,7 @@ def exercise(rel: str) -> str:
     item = f"ex:{fm['id']}"
     h = short_hash(body)
     answers = html.escape(json.dumps(fm.get("answers", []), ensure_ascii=False), quote=True)
-    attrs = f'data-item="{item}" data-h="{h}"'
+    attrs = f'data-item="{item}"'
     body = HINTS_RE.sub(lambda m: f"<sk-hints {attrs}>\n{m.group(0)}</sk-hints>\n", body)
     body = SOLUTION_RE.sub(
         lambda m: (
@@ -94,7 +97,7 @@ def exercise(rel: str) -> str:
         ),
         body,
     )
-    return f'<article class="sk-exercise" data-item="{item}">\n{body}</article>\n'
+    return f'<article class="sk-exercise" data-item="{item}" data-h="{h}">\n{body}</article>\n'
 
 
 def exam(mini_mc: str) -> str:
@@ -110,14 +113,18 @@ def exam(mini_mc: str) -> str:
     points_each = 2
     mc_points = points_each * len(questions)
     total = fm["points"] + mc_points
-    task_attrs = f'data-task="{fm["id"]}" data-points="{fm["points"]}" data-rubric="{rubric}"'
+    task_attrs = (
+        f'data-task="{fm["id"]}" data-points="{fm["points"]}" data-rubric="{rubric}" '
+        f'data-h="{short_hash(task)}"'
+    )
     mc = "\n".join(questions)
     return (
         f'<sk-exam data-exam="probeklausur-1" data-duration-min="60" data-points="{total}" '
-        f'data-pass-points="{total // 2}" data-aids="{aids}" data-mc-scoring="all-or-nothing">\n'
+        f'data-pass-points="{total // 2}" data-aids="{aids}" data-mc-scoring="all-or-nothing" '
+        f'data-negative-marking="false">\n'
         f'<section class="sk-exam-task" {task_attrs}>\n'
         f"<h2>Aufgabe 1: {fm['title']} ({fm['points']} P)</h2>\n{task}</section>\n"
-        f'<section class="sk-exam-mc" data-points="{mc_points}">\n'
+        f'<section class="sk-exam-mc" data-points="{mc_points}" data-points-each="{points_each}">\n'
         f"<h2>Multiple-Choice-Teil ({mc_points} P)</h2>\n{mc}\n</section>\n</sk-exam>\n"
     )
 
