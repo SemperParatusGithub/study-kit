@@ -3,6 +3,9 @@
 Assertions are on facts and on validate_svg(), never on SVG bytes.
 """
 
+import math
+
+import numpy as np
 import pytest
 
 from studykit.figures import circuit
@@ -171,3 +174,153 @@ def test_current_arrow_needs_room_on_the_lead():
     with pytest.raises(ValueError, match="too short"), circuit.drawing(alt="x"):
         r = circuit.Resistor().right(1.2)
         circuit.zaehlpfeil_i(r, "I")
+
+
+# ---- templates ----------------------------------------------------------------------------
+
+
+def test_voltage_divider_facts(locale):
+    fig = circuit.voltage_divider("4.7 kΩ", "2.2 kΩ", "12 V")
+    _assert_ok(fig)
+    assert fig.facts["template"] == "circuit.voltage_divider"
+    assert _component(fig, "R1")["nodes"] == ["1", "2"]
+    assert _component(fig, "R2")["nodes"] == ["2", "0"]
+    assert _component(fig, "U0")["si"] == pytest.approx(12.0)
+    u2 = _arrow(fig, "U2")
+    assert (u2["element"], u2["from"], u2["to"]) == ("R2", "2", "0")
+    ratio = 2.2 / (4.7 + 2.2)
+    derived = fig.facts["derived"]
+    assert derived["ratio_U2_U0"] == pytest.approx(ratio, rel=1e-5)
+    assert derived["U2"] == pytest.approx(12 * ratio, rel=1e-5)
+    assert derived["U1"] + derived["U2"] == pytest.approx(12.0, rel=1e-5)
+    assert derived["I"] == pytest.approx(12 / 6900, rel=1e-5)
+    comma = "4,7 kΩ" if locale == "de" else "4.7 kΩ"
+    assert comma in fig.alt
+
+
+def test_loaded_and_symbolic_voltage_divider(de):
+    fig = circuit.voltage_divider("1 kΩ", "1 kΩ", "10 V", RL="2 kΩ")
+    _assert_ok(fig)
+    r_par = 1000 * 2000 / 3000
+    assert fig.facts["loaded"] is True
+    assert fig.facts["derived"]["U2"] == pytest.approx(10 * r_par / (1000 + r_par), rel=1e-5)
+    assert _component(fig, "RL")["nodes"] == ["2", "0"]
+    assert _arrow(fig, "IL")["element"] == "RL"
+    sym = circuit.voltage_divider("R", "2R")
+    _assert_ok(sym)
+    assert sym.facts["derived"] == {}
+    assert _component(sym, "R2")["label"] == "$R_2 = 2R$"
+
+
+@pytest.mark.parametrize(
+    ("build", "series", "shunt", "tau"),
+    [
+        (lambda: circuit.rc("lowpass", "1 kΩ", "100 nF"), "R", "C", 1e-4),
+        (lambda: circuit.rc("highpass", 1000, 4.7e-7, phasors=True), "C", "R", 4.7e-4),
+        (lambda: circuit.rl("lowpass", "100 Ω", "10 mH"), "L", "R", 1e-4),
+        (lambda: circuit.rl("highpass", "100 Ω", "10 mH"), "R", "L", 1e-4),
+    ],
+)
+def test_first_order_filters(de, build, series, shunt, tau):
+    fig = build()
+    _assert_ok(fig)
+    assert _component(fig, series)["nodes"] == ["in", "out"]
+    assert _component(fig, shunt)["nodes"] == ["out", "0"]
+    assert (_arrow(fig, "Ua")["from"], _arrow(fig, "Ua")["to"]) == ("out", "0")
+    assert fig.facts["derived"]["tau"] == pytest.approx(tau, rel=1e-5)
+    assert fig.facts["derived"]["f_c"] == pytest.approx(1 / (2 * math.pi * tau), rel=1e-5)
+
+
+def test_filter_kind_is_checked():
+    with pytest.raises(ValueError, match="lowpass"):
+        circuit.rc("bandpass", "1 kΩ", "1 nF")
+
+
+def test_rlc_series_and_parallel(locale):
+    w0 = 1 / math.sqrt(10e-3 * 1e-6)
+    series = circuit.rlc("series", "10 Ω", "10 mH", "1 µF", U0="230 V")
+    _assert_ok(series)
+    assert series.facts["source"] == "voltage"
+    assert [_component(series, n)["nodes"] for n in ("R", "L", "C")] == [
+        ["1", "2"],
+        ["2", "3"],
+        ["3", "0"],
+    ]
+    assert series.facts["derived"]["f_0"] == pytest.approx(w0 / (2 * math.pi), rel=1e-5)
+    assert series.facts["derived"]["Q"] == pytest.approx(math.sqrt(10e-3 / 1e-6) / 10, rel=1e-5)
+    parallel = circuit.rlc("parallel", "1 kΩ", "10 mH", "1 µF", I0="2 mA")
+    _assert_ok(parallel)
+    assert parallel.facts["source"] == "current"
+    assert _component(parallel, "I0")["si"] == pytest.approx(2e-3)
+    assert parallel.facts["derived"]["Q"] == pytest.approx(1000 * math.sqrt(1e-6 / 10e-3))
+    assert {a["name"] for a in parallel.facts["arrows"]} >= {"IR", "IL", "IC", "U", "I0"}
+
+
+def test_rlc_source_checks():
+    with pytest.raises(ValueError, match="I0 for a current source"):
+        circuit.rlc("series", "1 Ω", "1 mH", "1 µF", I0="1 A")
+    with pytest.raises(ValueError, match="topology"):
+        circuit.rlc("bridged")
+
+
+@pytest.mark.parametrize(
+    ("kind", "kwargs", "derived", "pins"),
+    [
+        ("inverting", {"R1": "10 kΩ", "R2": "47 kΩ"}, {"gain": -4.7}, ("n", "0")),
+        ("non_inverting", {"R1": "10 kΩ", "R2": "47 kΩ"}, {"gain": 5.7}, ("n", "in")),
+        ("follower", {}, {"gain": 1.0}, ("out", "in")),
+        ("integrator", {"R": "10 kΩ", "C": "100 nF"}, {"tau": 1e-3}, ("n", "0")),
+        ("differentiator", {"R": "10 kΩ", "C": "100 nF"}, {"tau": 1e-3}, ("n", "0")),
+    ],
+)
+def test_opamp_templates(de, kind, kwargs, derived, pins):
+    fig = circuit.opamp(kind, **kwargs)
+    _assert_ok(fig)
+    assert fig.facts["kind"] == kind
+    for key, value in derived.items():
+        assert fig.facts["derived"][key] == pytest.approx(value, rel=1e-5)
+    assert (fig.facts["opamp_pins"]["minus"], fig.facts["opamp_pins"]["plus"]) == pins
+    assert {a["name"] for a in fig.facts["arrows"]} == {"Ue", "Ua"}
+
+
+def test_opamp_component_nodes_and_symbols(en):
+    fig = circuit.opamp("inverting", "10 kΩ", "47 kΩ", symbol="triangle")
+    _assert_ok(fig)
+    assert _component(fig, "R1")["nodes"] == ["in", "n"]
+    assert _component(fig, "R2")["nodes"] == ["n", "out"]
+    assert {a["name"] for a in fig.facts["arrows"]} == {"Uin", "Uout"}
+    _assert_ok(circuit.opamp("non_inverting", "1 kΩ", "1 kΩ", symbol="triangle"))
+    with pytest.raises(ValueError, match="integrator uses"):
+        circuit.opamp("integrator", R1="1 kΩ")
+    with pytest.raises(ValueError, match="symbol"):
+        circuit.opamp("inverting", symbol="box")
+
+
+def test_wheatstone_bridge(locale):
+    fig = circuit.bridge("wheatstone", "1 kΩ", "2 kΩ", "1.5 kΩ", "3 kΩ", "10 V")
+    _assert_ok(fig)
+    assert fig.facts["derived"]["balanced"] is True
+    assert fig.facts["derived"]["U_AB"] == pytest.approx(0.0, abs=1e-9)
+    uab = _arrow(fig, "UAB")
+    assert (uab["from"], uab["to"]) == ("A", "B")
+    assert _component(fig, "R3")["nodes"] == ["T", "B"]
+
+
+def test_wheatstone_bridge_with_detector_resistor(de):
+    fig = circuit.bridge("wheatstone", "1 kΩ", "2 kΩ", "2 kΩ", "1 kΩ", "10 V", R5="500 Ω")
+    _assert_ok(fig)
+    g = [1 / r for r in (1e3, 2e3, 2e3, 1e3, 500.0)]
+    a = np.array([[g[0] + g[1] + g[4], -g[4]], [-g[4], g[2] + g[3] + g[4]]])
+    ua, ub = np.linalg.solve(a, np.array([g[0] * 10, g[2] * 10]))
+    assert fig.facts["derived"]["balanced"] is False
+    assert fig.facts["derived"]["U_AB"] == pytest.approx(ua - ub, rel=1e-5)
+    assert _arrow(fig, "UAB")["element"] == "R5"
+    with pytest.raises(ValueError, match="wheatstone"):
+        circuit.bridge("maxwell")
+
+
+@pytest.mark.parametrize("size", ["half", "cs", "full"])
+def test_templates_fit_every_size(de, size):
+    fig = circuit.rc("lowpass", "1 kΩ", "100 nF", size=size)
+    _assert_ok(fig)
+    assert fig.facts["scale_in_per_unit"] <= circuit.STYLE[size]["ipu"]
