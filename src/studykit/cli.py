@@ -29,7 +29,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_golden.add_argument("--update", action="store_true", help="rewrite the Typst snapshot")
     p_golden.set_defaults(func=cmd_golden)
 
+    p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
+    fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
+    p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
+    p_fig_build.add_argument("course", nargs="?", help="course id (default: all courses)")
+    p_fig_build.add_argument("--only", action="append", metavar="SLUG", help="only this figure")
+    p_fig_build.add_argument("--force", action="store_true", help="ignore the cache")
+    p_fig_build.set_defaults(func=cmd_fig_build)
+
     return parser
+
+
+def cmd_fig_build(args: argparse.Namespace) -> int:
+    from studykit.figures import runner  # imports Matplotlib; keep other commands fast
+
+    only = set(args.only) if args.only else None
+    return runner.build(args.course, only=only, force=args.force)
 
 
 def cmd_golden(args: argparse.Namespace) -> int:

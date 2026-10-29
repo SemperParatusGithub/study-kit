@@ -1,0 +1,61 @@
+{
+ "G": {
+  "den": [
+   1.0,
+   3.0,
+   3.0,
+   1.0
+  ],
+  "latex": "\\frac{2}{\\left(s + 1\\right)^{3}}",
+  "num": [
+   2.0
+  ],
+  "variable": "s"
+ },
+ "alt": "Nyquist plot of G(j omega) for G(s) = 2/(s^3 + 3*s^2 + 3*s + 1); the branch for omega > 0 is solid with arrows for increasing omega, the mirror branch dashed; the critical point -1 is marked; the curve does not encircle -1; the closed loop is stable.",
+ "closed_loop_poles": [
+  [
+   -2.25992104989,
+   0.0
+  ],
+  [
+   -0.370039475053,
+   -1.09112363597
+  ],
+  [
+   -0.370039475053,
+   1.09112363597
+  ]
+ ],
+ "closed_loop_rhp_poles": 0,
+ "closed_loop_stable": true,
+ "criterion_omega_range": [
+  0.001,
+  1259.9210498948728
+ ],
+ "encirclements_cw": 0,
+ "end": [
+  0.0,
+  0.0
+ ],
+ "nyquist_criterion_consistent": true,
+ "omega_range": [
+  0.001,
+  1259.9210498948728
+ ],
+ "open_loop_rhp_poles": 0,
+ "real_axis_crossings": [
+  {
+   "omega": 1.7320508075688772,
+   "re": -0.25
+  }
+ ],
+ "start": [
+  2.0,
+  0.0
+ ],
+ "sweep": "full",
+ "template": "signals.nyquist",
+ "unbounded": false,
+ "view_radius": null
+}

@@ -1,0 +1,54 @@
+{
+ "alt": "Graph of f(x) = x**2 - 2, g(x) = exp(-x) for x from -3 to 3; root at x = -1.414; root at x = 1.414; minimum at x = 0; intersection at x = 1.492.",
+ "functions": [
+  {
+   "expr": "x**2 - 2",
+   "latex": "x^{2} - 2",
+   "name": "f"
+  },
+  {
+   "expr": "exp(-x)",
+   "latex": "e^{- x}",
+   "name": "g"
+  }
+ ],
+ "points": [
+  {
+   "exact_x": "- \\sqrt{2}",
+   "kind": "root",
+   "of": "f",
+   "x": -1.4142135623730951,
+   "y": 0.0
+  },
+  {
+   "exact_x": "\\sqrt{2}",
+   "kind": "root",
+   "of": "f",
+   "x": 1.4142135623730951,
+   "y": 0.0
+  },
+  {
+   "exact_x": "0",
+   "kind": "minimum",
+   "of": "f",
+   "x": 0.0,
+   "y": -2.0
+  },
+  {
+   "exact_x": null,
+   "kind": "intersection",
+   "of": "f=g",
+   "x": 1.4916441946682422,
+   "y": 0.2250024034874687
+  }
+ ],
+ "template": "plot.functions",
+ "x_range": [
+  -3,
+  3
+ ],
+ "y_range": [
+  -3.4239117102598753,
+  17.22280808850832
+ ]
+}

@@ -1,0 +1,94 @@
+{
+ "G": {
+  "den": [
+   1.0,
+   11.0,
+   10.0,
+   0.0
+  ],
+  "latex": "\\frac{10}{s \\left(s + 1\\right) \\left(s + 10\\right)}",
+  "num": [
+   10.0
+  ],
+  "variable": "s"
+ },
+ "alt": "Bode diagram of G(s) = 10/(s^3 + 11*s^2 + 10*s) from 0.01 to 100 rad/s: magnitude in dB above, phase in degrees below; phase margin 47.4 degrees at 0.784 rad/s, gain margin 20.8 dB at 3.16 rad/s.",
+ "asymptotes": {
+  "high_frequency_slope_db_per_decade": -60,
+  "low_frequency_slope_db_per_decade": -20
+ },
+ "corners": [
+  {
+   "complex": false,
+   "kind": "pole",
+   "omega": 1.0,
+   "order": 1,
+   "slope_change_db_per_decade": -20
+  },
+  {
+   "complex": false,
+   "kind": "pole",
+   "omega": 10.0,
+   "order": 1,
+   "slope_change_db_per_decade": -20
+  }
+ ],
+ "k_bode": 1.0,
+ "k_bode_db": 0.0,
+ "magnitude_db_range": [
+  -100.04364801059506,
+  39.999561384288725
+ ],
+ "margins": {
+  "agree": true,
+  "check": {
+   "gain_crossovers": [
+    0.7844079147578313
+   ],
+   "gm": 11.0,
+   "gm_db": 20.827853703164504,
+   "method": "scipy.signal.freqresp + brentq",
+   "phase_crossovers": [
+    3.1622776601683795
+   ],
+   "pm_deg": 47.4039396296765,
+   "w_gc": 0.7844079147578313,
+   "w_pc": 3.1622776601683795
+  },
+  "control": {
+   "gain_crossovers": [
+    0.7844079147578314
+   ],
+   "gm": 11.0,
+   "gm_db": 20.827853703164504,
+   "method": "control.stability_margins",
+   "phase_crossovers": [
+    3.1622776601683795
+   ],
+   "pm_deg": 47.4039396296765,
+   "w_gc": 0.7844079147578314,
+   "w_pc": 3.1622776601683795
+  },
+  "gm": 11.0,
+  "gm_db": 20.827853703164504,
+  "mismatch": [],
+  "pm_deg": 47.4039396296765,
+  "w_gc": 0.7844079147578314,
+  "w_pc": 3.1622776601683795
+ },
+ "omega_range": [
+  0.01,
+  100.0
+ ],
+ "peak": {
+  "db": 39.999561384288725,
+  "omega": 0.01
+ },
+ "phase_deg_range": [
+  -263.7164681648169,
+  -90.63023445809799
+ ],
+ "template": "signals.bode",
+ "type": 1,
+ "unit": "rad/s"
+}

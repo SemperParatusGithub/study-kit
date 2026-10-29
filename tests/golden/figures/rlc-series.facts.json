@@ -1,0 +1,116 @@
+{
+ "ac": true,
+ "alt": "Schaltbild: Reihenschwingkreis. Eine Spannungsquelle U0 = 230 V speist R = 10 Ω, L = 10 mH, C = 1 µF in Reihe. Zählpfeile für den Strom I und die Spannungen an R, L und C.",
+ "arrows": [
+  {
+   "element": "U0",
+   "from": "1",
+   "kind": "voltage",
+   "name": "U0",
+   "symbol": "U_{0}",
+   "to": "0"
+  },
+  {
+   "element": "U0",
+   "from": "0",
+   "kind": "current",
+   "name": "I",
+   "symbol": "I",
+   "to": "1"
+  },
+  {
+   "element": "R",
+   "from": "1",
+   "kind": "voltage",
+   "name": "UR",
+   "symbol": "U_{R}",
+   "to": "2"
+  },
+  {
+   "element": "L",
+   "from": "2",
+   "kind": "voltage",
+   "name": "UL",
+   "symbol": "U_{L}",
+   "to": "3"
+  },
+  {
+   "element": "C",
+   "from": "3",
+   "kind": "voltage",
+   "name": "UC",
+   "symbol": "U_{C}",
+   "to": "0"
+  }
+ ],
+ "components": [
+  {
+   "kind": "voltage_source",
+   "label": null,
+   "name": "U0",
+   "nodes": [
+    "1",
+    "0"
+   ],
+   "si": 230.0,
+   "symbol": "U_0",
+   "unit": "V",
+   "value": "230 V"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R = 10\\,\\mathrm{\\Omega}$",
+   "name": "R",
+   "nodes": [
+    "1",
+    "2"
+   ],
+   "si": 10.0,
+   "symbol": "R",
+   "unit": "Ω",
+   "value": "10 Ω"
+  },
+  {
+   "kind": "inductor",
+   "label": "$L = 10\\,\\mathrm{mH}$",
+   "name": "L",
+   "nodes": [
+    "2",
+    "3"
+   ],
+   "si": 0.01,
+   "symbol": "L",
+   "unit": "H",
+   "value": "10 mH"
+  },
+  {
+   "kind": "capacitor",
+   "label": "$C = 1\\,\\mu\\mathrm{F}$",
+   "name": "C",
+   "nodes": [
+    "3",
+    "0"
+   ],
+   "si": 1e-06,
+   "symbol": "C",
+   "unit": "F",
+   "value": "1 µF"
+  }
+ ],
+ "derived": {
+  "Q": 10.0,
+  "bandwidth_Hz": 159.155,
+  "f_0": 1591.55,
+  "omega_0": 10000.0
+ },
+ "nodes": [
+  "0",
+  "1",
+  "2",
+  "3"
+ ],
+ "scale_in_per_unit": 0.34,
+ "source": "voltage",
+ "template": "circuit.rlc",
+ "topology": "series"
+}

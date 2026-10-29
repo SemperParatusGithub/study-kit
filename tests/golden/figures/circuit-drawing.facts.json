@@ -1,0 +1,85 @@
+{
+ "alt": "Reihenschaltung aus R und C an einer Gleichspannung",
+ "arrows": [
+  {
+   "element": "U0",
+   "from": "1",
+   "kind": "voltage",
+   "name": "U0",
+   "symbol": "U_0",
+   "to": "0"
+  },
+  {
+   "element": "R1",
+   "from": "1",
+   "kind": "voltage",
+   "name": "UR",
+   "symbol": "U_R",
+   "to": "2"
+  },
+  {
+   "element": "C",
+   "from": "0",
+   "kind": "voltage",
+   "name": "UC",
+   "symbol": "U_C",
+   "to": "2"
+  },
+  {
+   "element": "R1",
+   "from": "1",
+   "kind": "current",
+   "name": "I",
+   "symbol": "I",
+   "to": "2"
+  }
+ ],
+ "components": [
+  {
+   "kind": "voltage_source",
+   "label": null,
+   "name": "U0",
+   "nodes": [
+    "1",
+    "0"
+   ],
+   "si": 5.0,
+   "symbol": "U_0",
+   "unit": "V",
+   "value": "5 V"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_1 = 4{,}7\\,\\mathrm{k\\Omega}$",
+   "name": "R1",
+   "nodes": [
+    "1",
+    "2"
+   ],
+   "si": 4700.0,
+   "symbol": "R_1",
+   "unit": "Ω",
+   "value": "4.7 kΩ"
+  },
+  {
+   "kind": "capacitor",
+   "label": "$C = 10\\,\\mathrm{nF}$",
+   "name": "C",
+   "nodes": [
+    "2",
+    "0"
+   ],
+   "si": 1e-08,
+   "symbol": "C",
+   "unit": "F",
+   "value": "10 nF"
+  }
+ ],
+ "nodes": [
+  "0",
+  "1",
+  "2"
+ ],
+ "scale_in_per_unit": 0.34,
+ "template": "circuit.drawing"
+}

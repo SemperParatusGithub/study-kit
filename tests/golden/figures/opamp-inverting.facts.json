@@ -1,0 +1,66 @@
+{
+ "alt": "Schaltbild: Operationsverstärker als invertierender Verstärker mit R1 = 10 kΩ, R2 = 47 kΩ. Zählpfeile: Eingangsspannung Ue und Ausgangsspannung Ua, jeweils gegen Masse.",
+ "arrows": [
+  {
+   "from": "in",
+   "kind": "voltage",
+   "name": "Ue",
+   "symbol": "U_{\\mathrm{e}}",
+   "to": "0"
+  },
+  {
+   "from": "out",
+   "kind": "voltage",
+   "name": "Ua",
+   "symbol": "U_{\\mathrm{a}}",
+   "to": "0"
+  }
+ ],
+ "components": [
+  {
+   "kind": "resistor",
+   "label": "$R_1 = 10\\,\\mathrm{k\\Omega}$",
+   "name": "R1",
+   "nodes": [
+    "in",
+    "n"
+   ],
+   "si": 10000.0,
+   "symbol": "R_1",
+   "unit": "Ω",
+   "value": "10 kΩ"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_2 = 47\\,\\mathrm{k\\Omega}$",
+   "name": "R2",
+   "nodes": [
+    "n",
+    "out"
+   ],
+   "si": 47000.0,
+   "symbol": "R_2",
+   "unit": "Ω",
+   "value": "47 kΩ"
+  }
+ ],
+ "derived": {
+  "gain": -4.7
+ },
+ "kind": "inverting",
+ "nodes": [
+  "0",
+  "in",
+  "n",
+  "out"
+ ],
+ "opamp_pins": {
+  "minus": "n",
+  "out": "out",
+  "plus": "0"
+ },
+ "relation": "Ua = -R2/R1 * Ue",
+ "scale_in_per_unit": 0.3217,
+ "symbol": "din",
+ "template": "circuit.opamp"
+}

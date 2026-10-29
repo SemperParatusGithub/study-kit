@@ -1,0 +1,173 @@
+{
+ "alt": "Ablaufdiagramm mit 5 Elementen. Abläufe: Start → Messwert lesen; Messwert lesen → U > U_{max}?; U > U_{max}? → Ende (nein); U > U_{max}? → Alarm setzen (ja); Alarm setzen → Messwert lesen.",
+ "columns": 2,
+ "edges": [
+  {
+   "back": false,
+   "dst": "read",
+   "label": "",
+   "points": [
+    [
+     0.0,
+     -0.488
+    ],
+    [
+     0.0,
+     -1.488
+    ]
+   ],
+   "port": "S",
+   "src": "start"
+  },
+  {
+   "back": false,
+   "dst": "check",
+   "label": "",
+   "points": [
+    [
+     0.0,
+     -2.588
+    ],
+    [
+     0.0,
+     -3.587
+    ]
+   ],
+   "port": "S",
+   "src": "read"
+  },
+  {
+   "back": false,
+   "dst": "end",
+   "label": "nein",
+   "points": [
+    [
+     0.0,
+     -5.909
+    ],
+    [
+     0.0,
+     -6.972
+    ]
+   ],
+   "port": "S",
+   "src": "check"
+  },
+  {
+   "back": false,
+   "dst": "alarm",
+   "label": "ja",
+   "points": [
+    [
+     1.935,
+     -4.748
+    ],
+    [
+     5.901,
+     -4.748
+    ],
+    [
+     5.901,
+     -6.909
+    ]
+   ],
+   "port": "E",
+   "src": "check"
+  },
+  {
+   "back": true,
+   "dst": "read",
+   "label": "",
+   "points": [
+    [
+     5.901,
+     -8.009
+    ],
+    [
+     5.901,
+     -8.509
+    ],
+    [
+     8.697,
+     -8.509
+    ],
+    [
+     8.697,
+     -0.988
+    ],
+    [
+     0.0,
+     -0.988
+    ],
+    [
+     0.0,
+     -1.488
+    ]
+   ],
+   "port": "S",
+   "src": "alarm"
+  }
+ ],
+ "layers": 4,
+ "nodes": [
+  {
+   "column": 0,
+   "id": "start",
+   "kind": "start",
+   "layer": 0,
+   "text": "Start",
+   "xy": [
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "column": 0,
+   "id": "read",
+   "kind": "io",
+   "layer": 1,
+   "text": "Messwert lesen",
+   "xy": [
+    0.0,
+    -2.038
+   ]
+  },
+  {
+   "column": 0,
+   "id": "check",
+   "kind": "decision",
+   "layer": 2,
+   "text": "$U > U_{max}$?",
+   "xy": [
+    0.0,
+    -4.748
+   ]
+  },
+  {
+   "column": 1,
+   "id": "alarm",
+   "kind": "process",
+   "layer": 3,
+   "text": "Alarm setzen",
+   "xy": [
+    5.901,
+    -7.459
+   ]
+  },
+  {
+   "column": 0,
+   "id": "end",
+   "kind": "end",
+   "layer": 3,
+   "text": "Ende",
+   "xy": [
+    0.0,
+    -7.459
+   ]
+  }
+ ],
+ "scale": 1.0,
+ "shared_segments": 0,
+ "template": "graph.flowchart",
+ "width_in": 2.848
+}
