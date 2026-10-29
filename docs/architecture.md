@@ -1567,8 +1567,8 @@ call the CLI as `uv run --frozen studykit …`.
   works from any working directory):
   - `PostToolUse`, matcher `Write|Edit`: `studykit lint --hook` (status message
     "studykit lint"). It reads the event on stdin and lints `tool_input.file_path` when it
-    is a `.md`, `.yaml` or `.yml` file under `courses/`, `examples/` or
-    `$STUDYKIT_COURSES_DIR`. On errors or warnings it exits 2 with the findings and a
+    is a `.md`, `.yaml` or `.yml` file of a course (a `course.yaml` above it) under
+    `courses/`, `examples/` or `$STUDYKIT_COURSES_DIR`. On errors or warnings it exits 2 with the findings and a
     pointer to `content-format/errors.md` on stderr, so Claude fixes them at once; anything
     else exits 0 without output.
   - `PreToolUse`, matcher `Bash`, with `"if": "Bash(git *)"`: `studykit hook pre-git`

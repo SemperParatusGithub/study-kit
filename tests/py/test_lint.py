@@ -159,6 +159,8 @@ def test_hook_resolves_relative_paths(course_dir: Path, monkeypatch):
     [
         {"tool_input": {"file_path": str(MINI / "overview.md")}},  # tests/ is not a hook root
         {"tool_input": {"file_path": str(tools.repo_root() / "README.md")}},
+        # beside the courses, not in one (no course.yaml above it)
+        {"tool_input": {"file_path": str(REPO / "examples" / "sample-materials" / "README.md")}},
         {"tool_input": {}},
         {"something": "else"},
         "not an object",
