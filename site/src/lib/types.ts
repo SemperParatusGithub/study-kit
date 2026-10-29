@@ -71,7 +71,7 @@ export interface SummaryFm {
   topic: string;
   title: string;
   objectives?: string[];
-  sources?: { doc: string; pages?: string | null }[];
+  sources?: { doc: string; pages?: string | number | null }[];
 }
 
 export interface CheatsheetFm {
