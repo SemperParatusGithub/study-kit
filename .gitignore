@@ -1,1 +1,21 @@
+# macOS
 .DS_Store
+
+# Course data stays local: this repository is public
+/courses/*
+!/courses/README.md
+
+# Local toolchain and caches
+/.tools/
+/.venv/
+/.cache/
+node_modules/
+
+# Build outputs
+/site/dist/
+/site/.astro/
+**/_build/
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/agent-memory*/
