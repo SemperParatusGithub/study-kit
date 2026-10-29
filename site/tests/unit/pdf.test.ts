@@ -1,6 +1,6 @@
 // The PDF routes' data (src/lib/pdf.ts): the built-PDF manifest (schema studykit-pdf/1),
 // the source manifest, the labels, and reading both from a course directory on disk.
-// Also checks that tests/fake-pdfs.mjs writes well-formed PDFs and a manifest the site reads.
+// The PDFs here are small stand-ins (make-pdf.mjs); e2e/pdf.spec.ts checks the real ones.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -24,7 +24,7 @@ import {
   sourceFile,
   sourceHref,
 } from '../../src/lib/pdf.ts';
-import { cleanFakePdfs, makePdf, PRODUCER, writeFakePdfs } from '../fake-pdfs.mjs';
+import { makePdf, PRODUCER } from './make-pdf.mjs';
 
 const sizes: Record<string, number> = {
   'overview.pdf': 81234,
@@ -93,7 +93,6 @@ test('the manifest contract: every listed document whose file exists', () => {
   assert.equal(findPdf(docs, 'exam', 'probeklausur-1')?.file, 'probeklausur-1.pdf');
   assert.equal(findPdf(docs, 'exam-solutions', 'probeklausur-1')?.pages, 8);
   assert.equal(findPdf(docs, 'exam', 'probeklausur-2'), null);
-  assert.equal(findPdf(docs, 'plan'), null);
 });
 
 test('a missing, other-schema or other-course manifest yields no documents', () => {
@@ -240,7 +239,7 @@ function assertWellFormed(pdf: Buffer, pages: number): void {
   }
 }
 
-test('fake PDFs are well-formed, deterministic and carry their producer', () => {
+test('test PDFs are well-formed, deterministic and carry their producer', () => {
   const pdf = makePdf([['Probeklausur 1', 'Seite 1 von 2'], ['Lösungen (Teil 2)', 'Seite 2 von 2']], 'Lösungen');
   assertWellFormed(pdf, 2);
   assert.ok(pdf.includes(PRODUCER));
@@ -262,12 +261,19 @@ function tempCourse(files: Record<string, string>): { root: string; course: stri
   return { root, course };
 }
 
-test('reading a course: fake PDFs and sources are served, absent ones are not', (t) => {
-  const { root, course } = tempCourse({
-    'summary/01-a.md': '# a\n',
-    'exams/pk-1/exam.yaml': 'id: pk-1\ntitle: Probeklausur 1\n',
-    'cheatsheet.md': '---\ntitle: Formelblatt\nmax_pages: 2\n---\n',
-  });
+/** Write `pages` test pages to `path` (inside `course`), returning the size in bytes. */
+function writePdf(course: string, path: string, pages: number, title: string): number {
+  const bytes = makePdf(
+    Array.from({ length: pages }, (_, i) => [title, `Seite ${i + 1} von ${pages}`]),
+    title,
+  );
+  mkdirSync(join(course, path, '..'), { recursive: true });
+  writeFileSync(join(course, path), bytes);
+  return bytes.length;
+}
+
+test('reading a course: built PDFs and sources are served, absent ones are not', (t) => {
+  const { root, course } = tempCourse({});
   const before = process.env.STUDYKIT_COURSES_DIR;
   process.env.STUDYKIT_COURSES_DIR = root;
   t.after(() => {
@@ -276,15 +282,34 @@ test('reading a course: fake PDFs and sources are served, absent ones are not', 
     rmSync(root, { recursive: true, force: true });
   });
 
-  assert.deepEqual(readPdfs('get2'), []); // no manifest yet
+  // a course without _build/pdf/ and sources/: nothing to serve, so no route and no link
+  assert.deepEqual(readPdfs('get2'), []);
   assert.deepEqual(readSources('get2'), []);
   assert.equal(pdfFile('get2', 'summary.pdf'), null);
+  assert.equal(sourceFile('get2', 'vl-01'), null);
 
-  const written = writeFakePdfs(course, { sources: true, omit: ['exam-solutions'] });
-  assert.deepEqual(
-    written.docs.map((d: { file: string }) => d.file),
-    ['summary.pdf', 'pk-1.pdf', 'cheatsheet.pdf'],
+  const built = [
+    { id: 'summary', kind: 'summary', file: 'summary.pdf', title: 'Zusammenfassung', pages: 9 },
+    { id: 'pk-1', kind: 'exam', file: 'pk-1.pdf', title: 'Probeklausur 1', pages: 6, exam: 'pk-1' },
+    {
+      id: 'cheatsheet',
+      kind: 'cheatsheet',
+      file: 'cheatsheet.pdf',
+      title: 'Formelblatt',
+      pages: 2,
+      max_pages: 2,
+      density: 1,
+    },
+  ].map((d) => ({ ...d, bytes: writePdf(course, join('_build', 'pdf', d.file), d.pages, d.title) }));
+  writeFileSync(join(course, '_build', 'pdf', 'manifest.json'), JSON.stringify(manifest(built)));
+  writePdf(course, 'sources/raw/vl-01.pdf', 5, 'Vorlesung 1');
+  writePdf(course, 'sources/raw/uebungen/ue-01.pdf', 3, 'Übung 1');
+  writeFileSync(
+    join(course, 'sources', 'manifest.yaml'),
+    "documents:\n  - {id: vl-01, title: 'Vorlesung 1', pages: 5}\n" +
+      "  - {id: ue-01, title: 'Übung 1', pages: 3, file: uebungen/ue-01.pdf}\n",
   );
+
   const docs = readPdfs('get2');
   assert.deepEqual(docs.map((d) => [d.kind, d.file, d.pages]), [
     ['summary', 'summary.pdf', 9],
@@ -292,6 +317,7 @@ test('reading a course: fake PDFs and sources are served, absent ones are not', 
     ['cheatsheet', 'cheatsheet.pdf', 2],
   ]);
   assert.equal(findPdf(docs, 'cheatsheet')?.maxPages, 2);
+  assert.equal(findPdf(docs, 'plan'), null); // not built
   for (const d of docs) {
     const bytes = readFileSync(join(course, '_build', 'pdf', d.file));
     assert.equal(d.bytes, bytes.length);
@@ -306,10 +332,6 @@ test('reading a course: fake PDFs and sources are served, absent ones are not', 
   ]);
   assert.equal(sourceFile('get2', 'ue-01'), join(course, 'sources', 'raw', 'uebungen', 'ue-01.pdf'));
   assert.equal(sourceFile('get2', 'vl-02'), null);
-
-  cleanFakePdfs(course);
-  assert.deepEqual(readPdfs('get2'), []);
-  assert.deepEqual(readSources('get2'), []);
 });
 
 test('a route answers with the file, byte for byte; a missing file is a 404 in dev only', async (t) => {
