@@ -9,6 +9,9 @@ before changing that area, and keep code and spec in sync.
 - **Never commit anything under `courses/`** (except `courses/README.md`). The repository
   is public; course material and generated course content stay local. Never use
   `git add -f`.
+- **Never commit PDFs** outside `tests/fixtures/`. Course PDFs are built into
+  `<course>/_build/pdf` (`just pdf`), and tests generate theirs; the pre-commit hook and the
+  guard workflow reject the rest.
 - **Commits:** Conventional Commits v1.0.0, one logical change per commit,
   `<type>(<scope>): <description>` in lowercase imperative. **Never add a
   `Co-Authored-By` trailer** or any other AI attribution. `.githooks/commit-msg` enforces this.
@@ -24,7 +27,9 @@ before changing that area, and keep code and spec in sync.
 - Never compute numbers in your head; use Python (SymPy, NumPy, SciPy; `studykit calc`
   comes with Phase 5).
 - Run `studykit validate` (or the narrowest `just` recipe that covers your change) before
-  finishing.
+  finishing; a full validate also builds the course's PDFs.
+- After changing how PDFs look (`typst/`, `pdf.py`, the filter's Typst branch), build the
+  sample course's PDFs and look at the pages (render them to PNG with pypdfium2).
 - Grep and Glob may skip the gitignored `courses/`; use `studykit ls` or explicit paths.
 - Pin exact versions; `toolchain.toml`, `uv.lock` and `site/pnpm-lock.yaml` are the source
   of truth.
