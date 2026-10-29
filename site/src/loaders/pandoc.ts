@@ -5,7 +5,9 @@
 // Per course and sync the loader:
 //   1. sends the digests it already stores; the bridge rewrites _build/index.json, and
 //      returns `cached` for files whose digest (format, pandoc version, filter tree, index,
-//      file bytes) is unchanged, and HTML plus validated frontmatter for the rest;
+//      file bytes) is unchanged, and HTML plus validated frontmatter for the rest; the stored
+//      digest is prefixed with a STAMP of this loader's own inputs (its version, KaTeX, and
+//      the sources in SHAPING_SOURCES), so editing those rebuilds every entry too;
 //   2. removes the trailing sk-meta script and keeps its headings;
 //   3. hashes each <sk-mc> and each exercise or exam-task fragment as the filter wrote it
 //      (first 8 hex of sha256) for the progress content hash `h` (§2.11);
@@ -32,18 +34,27 @@ import {
   relativePath,
   repoRoot,
   run,
+  sha256,
+  siteRoot,
   strict,
 } from '../lib/sys.mjs';
 import type { DocData, DocKind } from '../lib/types';
 
 // Bump when this file changes what it stores, so cached entries are rebuilt.
 const LOADER_VERSION = 4;
-const STAMP = `sk${LOADER_VERSION}-katex${katex.version}:`;
+// The sources that shape a stored entry; editing any of them rebuilds every entry.
+const SHAPING_SOURCES = ['src/loaders/pandoc.ts', 'src/lib/katex.ts', 'src/lib/html.ts', 'src/lib/findings.ts'];
+const STAMP = `sk${LOADER_VERSION}-katex${katex.version}-${sourcesHash()}:`;
 const RENDER_SCHEMA = 1;
 const HASHED_KINDS: DocKind[] = ['exercise', 'exam-task'];
 const MC_KINDS: DocKind[] = ['mc', 'exam-mc'];
 // Course subdirectories whose changes never affect a rendered document.
 const IGNORED_DIRS = /^(?:_build|_history|state|progress|checks|sources|analysis)\//;
+
+/** First 12 hex of the sha256 over SHAPING_SOURCES ('' for a source that cannot be read). */
+function sourcesHash(): string {
+  return sha256(...SHAPING_SOURCES.map((rel) => readText(joinPath(siteRoot, rel)) ?? '')).slice(0, 12);
+}
 
 interface BridgeFile {
   rel: string;
