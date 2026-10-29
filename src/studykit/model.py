@@ -13,6 +13,7 @@ Errors raised by these validators use the SK-code as their pydantic error type, 
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
@@ -788,3 +789,14 @@ SCHEMAS: dict[str, type[Strict]] = {
     "verify": VerifyEntry,
     "progress": Progress,
 }
+
+JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
+
+
+def json_schemas() -> dict[str, str]:
+    """`schemas/<name>.schema.json` contents, exactly as committed."""
+    out = {}
+    for name, cls in SCHEMAS.items():
+        schema = {"$schema": JSON_SCHEMA_DIALECT, **cls.model_json_schema(by_alias=True)}
+        out[f"{name}.schema.json"] = json.dumps(schema, indent=2, ensure_ascii=False) + "\n"
+    return out

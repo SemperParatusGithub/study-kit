@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "PlanTask": {
+      "additionalProperties": false,
+      "properties": {
+        "do": {
+          "enum": [
+            "read",
+            "exercises",
+            "mc",
+            "exam",
+            "review",
+            "cheatsheet"
+          ],
+          "title": "Do",
+          "type": "string"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "pattern": "^(?P<scheme>ex|mc|topic|exam|src|fig):(?P<target>\\S+)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        },
+        "refs": {
+          "default": [],
+          "items": {
+            "pattern": "^(?P<scheme>ex|mc|topic|exam|src|fig):(?P<target>\\S+)$",
+            "type": "string"
+          },
+          "title": "Refs",
+          "type": "array"
+        },
+        "topic": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Topic"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Count"
+        }
+      },
+      "required": [
+        "do"
+      ],
+      "title": "PlanTask",
+      "type": "object"
+    },
+    "Session": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^s-[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "minutes": {
+          "exclusiveMinimum": 0,
+          "title": "Minutes",
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "learn",
+            "review",
+            "mixed",
+            "mock-exam",
+            "cheatsheet",
+            "buffer"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "topics": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Topics",
+          "type": "array"
+        },
+        "goal": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\n]*\\S[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Goal"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\n]*\\S[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "tasks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PlanTask"
+          },
+          "title": "Tasks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "minutes",
+        "kind"
+      ],
+      "title": "Session",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`plan.yaml`, written by `studykit plan` (goal and note text by Claude).",
+  "properties": {
+    "schema": {
+      "const": 1,
+      "title": "Schema",
+      "type": "integer"
+    },
+    "generated": {
+      "format": "date",
+      "title": "Generated",
+      "type": "string"
+    },
+    "exam_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Exam Date"
+    },
+    "sessions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Session"
+      },
+      "title": "Sessions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "generated"
+  ],
+  "title": "Plan",
+  "type": "object"
+}

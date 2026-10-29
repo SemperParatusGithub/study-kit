@@ -29,6 +29,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_golden.add_argument("--update", action="store_true", help="rewrite the Typst snapshot")
     p_golden.set_defaults(func=cmd_golden)
 
+    p_schema = sub.add_parser("schema", help="JSON schemas generated from the pydantic models")
+    schema_sub = p_schema.add_subparsers(dest="schema_command", metavar="<action>", required=True)
+    p_export = schema_sub.add_parser("export", help="write schemas/*.schema.json")
+    p_export.add_argument("--check", action="store_true", help="fail if the files are stale")
+    p_export.set_defaults(func=cmd_schema_export)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -38,6 +44,41 @@ def build_parser() -> argparse.ArgumentParser:
     p_fig_build.set_defaults(func=cmd_fig_build)
 
     return parser
+
+
+def cmd_schema_export(args: argparse.Namespace) -> int:
+    from studykit import model
+
+    out_dir = tools.repo_root() / "schemas"
+    wanted = model.json_schemas()
+    if args.check:
+        present = {p.name for p in out_dir.glob("*.schema.json")} if out_dir.is_dir() else set()
+        stale = sorted(
+            name
+            for name, text in wanted.items()
+            if name not in present or (out_dir / name).read_text() != text
+        )
+        extra = sorted(present - set(wanted))
+        for name in stale:
+            print(f"schemas/{name}: out of date", file=sys.stderr)
+        for name in extra:
+            print(f"schemas/{name}: no model exports it", file=sys.stderr)
+        if stale or extra:
+            print("run `studykit schema export` and commit the result", file=sys.stderr)
+            return 1
+        print(f"schemas: {len(wanted)} files up to date")
+        return 0
+    out_dir.mkdir(exist_ok=True)
+    for name, text in wanted.items():
+        path = out_dir / name
+        if not path.is_file() or path.read_text() != text:
+            path.write_text(text)
+            print(f"wrote schemas/{name}")
+    for path in out_dir.glob("*.schema.json"):
+        if path.name not in wanted:
+            path.unlink()
+            print(f"removed schemas/{path.name}")
+    return 0
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:
