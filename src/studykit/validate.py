@@ -2056,9 +2056,17 @@ def check_coverage(ctx: Context) -> None:
     for doc in tree.of_kind("exercise"):
         exercises.setdefault(doc.parts["topic"], []).append(doc)
     banks = {d.parts["topic"]: d for d in tree.of_kind("mc")}
-    mix = DEFAULT_MIX
+    # the types a bank must have: the exam profile's type mix (parts/mc.md), else the
+    # default mix; both limited to the types the course's exam uses
+    mix: dict[str, float] = dict(DEFAULT_MIX)
+    profile = tree.get("analysis/exam-profile.yaml")
+    profile_mc = profile.model.mc if profile is not None and profile.model is not None else None
+    if profile_mc is not None and profile_mc.type_mix:
+        mix = {t: float(v) for t, v in profile_mc.type_mix.items() if v > 0}
     if course.exam.mc and course.exam.mc.types:
-        mix = {t: DEFAULT_MIX[t] for t in course.exam.mc.types}
+        mix = {t: v for t, v in mix.items() if t in course.exam.mc.types} or {
+            t: DEFAULT_MIX[t] for t in course.exam.mc.types
+        }
     ex_target = course.targets.exercises_per_topic
     mc_target = course.targets.mc_per_topic
     for topic in topics:
@@ -2103,8 +2111,8 @@ def check_coverage(ctx: Context) -> None:
                     topic.id,
                     "SK-COV-MC",
                     f"MC bank '{topic.id}' has no {', '.join(missing)} questions",
-                    "follow the type mix of the exam profile (default 60% single, 25% multi, "
-                    "15% kprim)",
+                    "follow mc.type_mix of analysis/exam-profile.yaml (without one: 60% "
+                    "single, 25% multi, 15% kprim)",
                     "warning",
                 )
 

@@ -499,7 +499,8 @@ Beurteilen Sie für den RC-Tiefpass:
 - `mc_per_topic: auto` gives 10–25 questions per topic, scaled by weight
   (`max(10, ⌈25 · weight⌉)`, at most 25; SK-COV-MC).
 - The type mix follows the exam profile. Without one it is 60% single, 25% multi and 15% Kprim.
-  Validation only warns when a type of `course.exam.mc.types` is missing from a bank.
+  Validation only warns when a bank lacks a type of `course.exam.mc.types` that the
+  profile's `mc.type_mix` gives a share (every such type without a profile mix).
 - Distractors come from a catalogue of electrical-engineering misconceptions in
   `authoring/parts/mc.md` (§5.2): a forgotten 2π, √2 (amplitude vs. RMS), dB vs. linear, the
   sign of the phase, series vs. parallel, a wrong power of ten, degrees vs. radians, and more.

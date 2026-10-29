@@ -656,7 +656,8 @@ Fix: `/regenerate <course> exercises --topic <topic> --add <n>`.
 ### `SK-COV-MC`
 **error** (count) or **warning** (type mix). A topic's practice bank has fewer questions
 than `targets.mc_per_topic` (with `auto`: 10–25 by weight), or lacks a question type the
-exam uses.
+exam uses: a type with a share in `analysis/exam-profile.yaml` `mc.type_mix` (without a
+profile mix, every type), limited to `course.yaml` `exam.mc.types`.
 Fix: `/regenerate <course> mc --topic <topic> --add <n>`.
 
 ### `SK-COV-EXAM`

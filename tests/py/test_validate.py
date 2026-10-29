@@ -184,6 +184,29 @@ def test_explicit_mc_target_is_not_capped(mini: Path, denylist: Path):
     assert needs == {"30"}
 
 
+def test_mc_type_mix_follows_the_exam_profile(mini: Path, denylist: Path):
+    """A bank needs the types of the profile's mc.type_mix, not the default mix (mc.md)."""
+    bank = mini / "mc" / "rc-tiefpass.md"
+    text = bank.read_text()
+    bank.write_text(text[: text.index(":::: {.mcq #mc-rc-tiefpass-003")])
+    course = mini / "course.yaml"
+    course.write_text(course.read_text().replace("mc_per_topic: auto", "mc_per_topic: 2"))
+
+    def missing_types() -> list[str]:
+        report = run(mini, denylist, release=True)
+        return [
+            f.message for f in report.findings if f.code == "SK-COV-MC" and "has no" in f.message
+        ]
+
+    assert missing_types() == ["MC bank 'rc-tiefpass' has no kprim questions"]
+    profile = mini / "analysis" / "exam-profile.yaml"
+    profile.write_text(
+        profile.read_text()
+        + "mc: {present: true, types: [single, multi], type_mix: {single: 0.5, multi: 0.5}}\n"
+    )
+    assert missing_types() == []
+
+
 def test_coverage_reports_missing_parts(mini: Path, denylist: Path):
     (mini / "summary" / "01-spannungsteiler.md").unlink()
     (mini / "cheatsheet.md").unlink()
