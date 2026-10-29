@@ -25,7 +25,7 @@ that owns the file:
 
 Stages: Structure, Schema, Fences, MC and Math run in `studykit lint` and
 `validate --quick`; References, Figures and the later stages run in `validate`;
-Coverage only with `validate --release`. Stages whose tools are not there yet
+Site and Coverage only with `validate --release`. Stages whose tools are not there yet
 (pandoc filters, figure build, verification, PDF, site) are reported as skipped.
 
 ## Structure (SK-STRUCT)
@@ -211,6 +211,27 @@ Fix: one `::: solution` block as the last thing in the file.
 `python matlab octave c cpp vhdl verilog systemverilog julia text`, or is never closed.
 Fix: ```` ```python ````, or ```` ```text ```` for anything else.
 
+### `SK-BLOCK-TABLE`
+**error.** A `|` inside inline math or inline code on a pipe-table row (the header row or
+a row below the `|---|` delimiter). Pandoc splits a row at every `|` before it reads math
+or code, and nothing warns: `| $|\underline{Z}|$ | 1 |` becomes the cells `$` and
+`\underline{Z}`, and in the header row the whole table becomes a paragraph. `\|` is an
+escaped cell border there, so `$\|x\|$` turns into `|x|`. Tables in block quotes and list
+items count too; lines right after a paragraph line (no blank line between) are no table
+for pandoc and are not reported.
+Fix: in math `\lvert\underline{Z}\rvert` (absolute value), `\lVert x \rVert` (norm),
+`P(A \mid B)`; in code escape it, `` `a\|b` ``, which shows `a|b`.
+
+### `SK-BLOCK-HYPHEN`
+**warning.** A line ends in a letter and a hyphen and the next line of the paragraph
+starts with a letter: `[RC-` / `Tiefpass](topic:rc-filter)`. Markdown joins the lines with a
+space, so the page shows „RC- Tiefpass“. A next line starting with „und“, „oder“ (also
+„und/oder“), „u.“, „sowie“, „bis“, „wie“, „noch“, „als“, „bzw.“, „beziehungsweise“,
+„resp.“, „respektive“, „versus“, „vs.“, „and“, „or“, „nor“ or „to“ is a suspended compound
+(„Ein- und Ausgang“, „sowohl Ein- als auch Ausgang“) and not reported.
+Fix: keep the hyphenated word on one line, e.g. move `[RC-Tiefpass](topic:rc-filter)` to
+the next line as a whole.
+
 ## MC (SK-MCQ)
 
 ### `SK-MCQ-ATTR`
@@ -314,6 +335,15 @@ U_2 = U \cdot \frac{R_2}{R_1 + R_2}
 $$
 ```
 
+### `SK-MATH-THINSPACE`
+**error.** A space command stands between two digits: `10\,000` as a thousands separator
+or `1\,5` as a mistyped decimal comma. The same holds for `\:` `\;` `\>` `\ ` `~`
+`\thinspace` `\medspace` `\thickspace`, also in a group (`10{\,}000`). Both engines set a
+gap, so the number reads as two („1 5 V“), and the Typst decimal-comma fix-up only
+rewrites `{,}`. Reported by the Math stage and, with the same code and token rule, by
+`math.lua`.
+Fix: write `10000`, `10^4`, or `{,}` for a decimal comma (`1{,}5\,\mathrm{V}`).
+
 ### `SK-MATH-HINT-LEAK`
 **warning.** A hint contains a number that matches an answer within its tolerance (also
 with an SI prefix, e.g. `1,59 kHz` for `1591.55 Hz`).
@@ -349,7 +379,9 @@ Fix: write `figures/<slug>.py` and embed `![Caption](fig:<slug>)`.
 
 ### `SK-REF-FIGURE`
 **error.** A figure is not alone in its paragraph, has attributes such as `{width=…}`, or
-has an empty caption (the caption doubles as alt text).
+has an empty caption (the caption doubles as alt text). Inline math in the caption is
+fine: the page and the PDF render it, and the PDF's alt text reads it as plain text
+(`$\underline{U}_C$` → U_C, `$1{,}5\,\mathrm{k\Omega}$` → 1,5 kΩ).
 Fix: `![Bode-Diagramm des RC-Tiefpasses](fig:rc-bode)` on its own line between blank
 lines; the size comes from the figure script.
 
@@ -368,6 +400,41 @@ Fix: run `studykit fig build <course> --only <slug>`, fix the script and look at
 ### `SK-FIG-UNUSED`
 **warning.** A figure script is never embedded.
 Fix: embed it with `![Caption](fig:<slug>)` or delete the script.
+
+## Site (SK-SITE, `--release` only)
+
+With `--release`, validate builds the website as `just build` does (`STUDYKIT_STRICT=1`)
+for this course alone: `STUDYKIT_COURSES_DIR` is a temporary directory with a link to the
+course, so other courses next to it never fail its run. The build goes into a temporary
+`--outDir` (so `site/dist` and `site/public` stay untouched); then Pagefind runs over it,
+`pnpm -C site check` checks the site's types, and the link check runs. Content problems that
+only the build finds keep their own codes (`SK-FIG-BUILD`, `SK-MATH-KATEX`, …) at the
+course's files. The stage is skipped with a note when `pnpm`, `node` or `site/node_modules`
+is missing, for `--paths`, and while earlier stages report errors (the strict build would
+stop on them).
+
+### `SK-SITE-BUILD`
+**error.** The strict `astro build` (or Pagefind after it) failed without printing a
+content finding: a broken page template, a loader crash, a missing tool. Reported at the
+course's `course.yaml`, with the last lines of the build output.
+Fix: run `STUDYKIT_COURSES_DIR=<dir> just build <course>` and fix the first error it
+prints; a site bug goes to the site code, not the course.
+
+### `SK-SITE-CHECK`
+**error.** `astro check` reports a type error in the site code (path under `site/`), or
+fails without one while the build passed (reported at `site`, with the last output lines).
+It runs without `STUDYKIT_STRICT`, so a content problem shows as the build's finding, not
+here; this is a bug in `site/src`.
+Fix: `pnpm -C site check` shows the context.
+
+### `SK-SITE-LINK`
+**error** (warning for a lecture PDF under `/c/<course>/src/` or `/pdf/` that the site
+serves from course files). A link or `#anchor` in a built page points nowhere. The path
+names the page in the built site: `dist/c/<course>/summary/<topic>/index.html` is the page
+`/c/<course>/summary/<topic>/`. `studykit check-links site/dist` reports the same after
+`just build`.
+Fix: fix the link in the source file of that page (`ex:`, `mc:`, `topic:`, `exam:`,
+heading anchors), or build the page it points to.
 
 ## Coverage (SK-COV, `--release` only)
 

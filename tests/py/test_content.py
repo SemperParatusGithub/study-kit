@@ -16,7 +16,7 @@ def body(text: str, kind: str = "summary", first_line: int = 1) -> content.Body:
 
 
 def codes(b: content.Body) -> list[str]:
-    b.blocks, b.questions, b.formulas, b.links  # noqa: B018 - run every scanner
+    b.blocks, b.questions, b.formulas, b.links, b.hyphen_breaks  # noqa: B018 - every scanner
     return [f.code for f in b.findings]
 
 
@@ -126,6 +126,140 @@ def test_inline_math_positions_and_rules():
     assert found == [("x", 5, 4), ("y_2", 5, 33), ("z", 7, 8)]
     assert set(codes(body("Preis $5 und $x$\n"))) == {"SK-MATH-INLINE"}
     assert codes(body("$x$5\n")) == ["SK-MATH-INLINE"]
+
+
+TABLE = "| Größe | Wert |\n|---|:--:|\n{row}\n"
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        r"| $|\underline{Z}|$ | 1 |",  # pandoc 3.13 cuts the row: cells "$" and "\underline{Z}"
+        r"| $\|\underline{Z}\|$ | 1 |",  # '\|' is an escaped cell border, the math gets '|'
+        r"| $\left|x\right|$ | 1 |",
+        r"| $P(A|B)$ | 1 |",
+        r"| `a|b` | 1 |",
+    ],
+)
+def test_pipe_inside_math_or_code_on_a_table_row(row):
+    b = body(TABLE.format(row=row))
+    assert codes(b) == ["SK-BLOCK-TABLE"]
+    (f,) = b.findings
+    assert (f.line, f.col) == (3, 3)
+    assert f.fix.startswith("write \\lvert") or f.fix.startswith("escape it as \\|")
+    assert b.formulas == []  # never sent on to the denylist or KaTeX in its wrong form
+
+
+def test_pipe_in_the_header_row_is_reported():
+    # pandoc turns the whole table into a paragraph when the header row has extra cells
+    b = body("| Größe | $|Z|$ |\n|---|---|\n| a | b |\n", first_line=8)
+    assert codes(b) == ["SK-BLOCK-TABLE"]
+    assert [(f.line, f.col) for f in b.findings] == [(8, 11)]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        TABLE.format(row=r"| $\lvert\underline{Z}\rvert$ | $P(A \mid B)$ |"),
+        TABLE.format(row=r"| `a\|b` | $\lVert x \rVert$ |"),
+        "Betrag $|Z|$ im Text und `a|b` im Code.\n",  # not a table
+        "| kein | Trenner |\n| $|Z|$ | x |\n",  # no delimiter row: a paragraph
+        "$|Z|$\n\n---\n",  # a thematic break is no delimiter row
+        "```text\n| a | b |\n|---|---|\n| $|x|$ | `a|b` |\n```\n",  # code block
+    ],
+)
+def test_tables_without_pipes_in_cells_stay_clean(text):
+    assert codes(body(text)) == []
+
+
+def test_table_rows_end_with_the_paragraph():
+    b = body("| a | b |\n|---|---|\n| 1 | 2 |\n\nDanach $|x|$.\n")
+    assert b.table_rows == {1, 3}
+    assert codes(b) == []
+    # the body ends at the first line without a '|'; pandoc reads the rest as a paragraph
+    b = body("| a | b |\n|---|---|\n| 1 | 2 |\nx $a$ y\n| 3 | $|Z|$ |\n")
+    assert b.table_rows == {1, 3}
+    assert codes(b) == []
+
+
+# Each case checked with pandoc 3.13 and the project reader: a table there shows the cut
+# cell `<td>$</td>`, or none is built at all.
+@pytest.mark.parametrize(
+    ("text", "line"),
+    [
+        ("> | z | b |\n> |---|---|\n> | 1 | $|Z|$ |\n", 3),  # in a block quote
+        ("> > | z | b |\n> > |---|---|\n> > | 1 | $|Z|$ |\n", 3),
+        ("> Text\n>\n> | z | b |\n> |---|---|\n> | 1 | $|Z|$ |\n", 5),
+        ("- Punkt\n\n  | x | y |\n  |---|---|\n  | 1 | $|Z|$ |\n", 5),  # in a list item
+        ("- Punkt\n\n    | x | y |\n    |---|---|\n    | 1 | $|Z|$ |\n", 5),
+        ("1. Eins\n   - Unter\n\n     | y | y |\n     |---|---|\n     | 1 | $|Z|$ |\n", 6),
+        ("- | x | y |\n  |---|---|\n  | 1 | $|Z|$ |\n", 3),  # the item starts with it
+        ("> - Punkt\n>\n>   | x | y |\n>   |---|---|\n>   | 1 | $|Z|$ |\n", 5),
+        ("- a\n\n| z | b |\n|---|---|\n| 1 | $|Z|$ |\n", 5),  # after a list
+        ("| z | b |\n|---|---|\nx $|Z|$ y\n", 3),  # a row needs no leading '|'
+    ],
+)
+def test_tables_in_quotes_and_list_items_are_checked(text, line):
+    b = body(text)
+    assert codes(b) == ["SK-BLOCK-TABLE"]
+    assert b.findings[0].line == line
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Tabelle F, siehe:\n| a | b |\n|---|---|\n| x | $\\left|Z\\right|$ |\n",
+        "> Text\n> | z | b |\n> |---|---|\n> | 1 | $|Z|$ |\n",
+        "- Punkt\n  | x | y |\n  |---|---|\n  | 1 | $|Z|$ |\n",
+        "- a\n| z | b |\n|---|---|\n| 1 | $|Z|$ |\n",  # lazy continuation of the item
+        "> | z | b |\n> |---|---|\n| 1 | $|Z|$ |\n",  # the row has left the quote
+        "    | z | b |\n    |---|---|\n    | 1 | $|Z|$ |\n",  # an indented code block
+    ],
+)
+def test_no_table_where_pandoc_builds_none(text):
+    """A table cannot interrupt a paragraph: pandoc keeps it as text, math intact."""
+    b = body(text)
+    assert text.count("\n") not in b.table_rows  # the line with the math is no table row
+    assert "SK-BLOCK-TABLE" not in codes(b)
+
+
+@pytest.mark.parametrize(
+    ("text", "line", "col"),
+    [
+        ("Der [RC-\nTiefpass](topic:rc) filtert.\n", 1, 8),
+        ("Ein Spannungs-\nteiler.\n", 1, 14),
+        ("- Ein Spannungs-\n  teiler.\n", 1, 16),
+        ("Eine Netzwerk-\nanalyse.\n", 1, 14),
+        ("Spannungs-\nu teiler.\n", 1, 10),  # „u.“ needs its period
+    ],
+)
+def test_word_broken_after_a_hyphen(text, line, col):
+    b = body(text)
+    assert codes(b) == ["SK-BLOCK-HYPHEN"]
+    (f,) = b.hyphen_breaks
+    assert (f.line, f.col, f.severity) == (line, col, "warning")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Ein-\nund Ausgang.\n",
+        "Hoch-\noder Tiefpass, Hoch-\nbzw. Tiefpass, Hoch-\nsowie Tiefpass.\n",
+        "Zwei-\nbis dreimal; high-\nand low-pass.\n",
+        "Sowohl die Ein-\nals auch die Ausgangsspannung.\n",
+        "Hoch-\nund/oder Tiefpass, Ein-\nu. Ausgang, Hoch-\nbeziehungsweise Tiefpass.\n",
+        "Primär-\nrespektive Sekundärseite, Ein-\nresp. Ausgang, Ein-\nbzw Ausgang.\n",
+        "Gleichstrom-\nversus Wechselstromanalyse, Gleich-\nvs. Wechselstrom.\n",
+        "Der Term $a-$\nbleibt.\n",  # math ends the line
+        "Ein Wert von 5-\n10 V.\n",  # a range, not a word
+        "Ein Wort am Ende-\n\nNeuer Absatz.\n",  # the paragraph ends
+        "Code `a-`\nb.\n",
+        "$$\nx = a-\nb\n$$\n",
+        "```text\nein Spannungs-\nteiler\n```\n",
+    ],
+)
+def test_suspended_compounds_and_other_line_ends_are_fine(text):
+    assert codes(body(text)) == []
 
 
 def test_display_math_in_list_items_and_markers():

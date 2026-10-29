@@ -25,8 +25,13 @@ PANDOC_MISSING = not tools.bin_path(tools.repo_root(), "pandoc").exists()
 
 
 def run(course: Path, denylist: Path, **kw) -> validate.Report:
+    """Validate without KaTeX, figure builds and the site build unless asked for
+    (tests/py/test_sitecheck.py covers the Site stage)."""
     config = validate.Config(
-        denylist=denylist, katex=kw.pop("katex", False), figures=kw.pop("figures", False)
+        denylist=denylist,
+        katex=kw.pop("katex", False),
+        figures=kw.pop("figures", False),
+        site=kw.pop("site", False),
     )
     return validate.validate([course], config=config, **kw)
 

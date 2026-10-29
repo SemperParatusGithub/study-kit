@@ -3,12 +3,15 @@
 --   HTML   <figure class="sk-fig" data-slug="{slug}"><div class="sk-fig-slot"></div>
 --          <figcaption>{caption}</figcaption></figure>   (the site inlines the SVG)
 --   Typst  #figure(image("<figdir>/<slug>.svg", alt: "…"), caption: […])
+--          The caption may hold math: the HTML and Typst captions render it, and the alt
+--          text reads it as plain text (lib/alttext.lua: $\underline{U}_C$ → U_C).
 -- Typst reads no file outside --root and resolves a path starting with / against it, so
 -- the absolute sk-figdir is written relative to pandoc's working directory, which must
 -- be the repository root (the Typst root): /courses/<c>/_build/figures/<slug>.svg
 -- (docs/architecture.md §3.1). A figure directory outside it is a finding.
 
 local guard = require 'lib.guard'
+local alttext = require 'lib.alttext'
 
 local M = {}
 
@@ -59,6 +62,8 @@ function M.block(img, ctx, W)
   if #W.flatten(img.caption) == 0 then
     ctx:fail('SK-FIG', 'figure `' .. slug .. '` has no caption', 'write ![Caption, doubles as alt text](fig:' .. slug .. ')')
   end
+  -- before the walker turns math into markup: $\underline{U}_C$ reads as U_C
+  local alt = alttext.inlines(img.caption)
   local caption = W.inlines(img.caption, ctx)
 
   if ctx.target == 'html' then
@@ -82,7 +87,7 @@ function M.block(img, ctx, W)
         string.format(
           '#figure(image(%s, alt: %s), caption: [%s])',
           ctx.typst_str(dir .. '/' .. slug .. '.svg'),
-          ctx.typst_str(pandoc.utils.stringify(img.caption)),
+          ctx.typst_str(alt),
           ctx:typst_inlines(caption)
         )
       ),

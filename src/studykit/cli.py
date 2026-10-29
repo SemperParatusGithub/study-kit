@@ -60,7 +60,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_validate.add_argument("course", nargs="?", help="course id or directory (default: all)")
     p_validate.add_argument("--paths", nargs="+", type=Path, help="only report these files")
     p_validate.add_argument("--quick", action="store_true", help="stages up to Math only")
-    p_validate.add_argument("--release", action="store_true", help="add the Coverage stage")
+    p_validate.add_argument(
+        "--release", action="store_true", help="add the Site and Coverage stages"
+    )
     p_validate.add_argument("--json", action="store_true", help="machine-readable output")
     p_validate.set_defaults(func=cmd_validate)
 

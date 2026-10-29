@@ -138,7 +138,7 @@ def documented_codes() -> set[str]:
 def test_every_code_is_documented():
     sources = [
         REPO / "src" / "studykit" / f"{name}.py"
-        for name in ("yamlio", "model", "content", "validate", "lint")
+        for name in ("yamlio", "model", "content", "validate", "lint", "sitecheck", "checklinks")
     ]
     used = set()
     for path in sources:
@@ -151,7 +151,7 @@ def test_every_code_is_documented():
 def test_documented_codes_exist():
     sources = "".join(
         (REPO / "src" / "studykit" / f"{n}.py").read_text()
-        for n in ("yamlio", "model", "content", "validate", "lint")
+        for n in ("yamlio", "model", "content", "validate", "lint", "sitecheck", "checklinks")
     )
     stale = {code for code in documented_codes() if f'"{code}"' not in sources}
     assert not stale, f"errors.md documents codes nothing emits: {sorted(stale)}"
