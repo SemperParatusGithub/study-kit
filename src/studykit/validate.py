@@ -251,6 +251,7 @@ def check_structure(ctx: Context) -> None:
     _check_required_files(ctx)
     _check_ids(ctx)
     _check_exams(ctx)
+    _check_plan_dates(ctx)
 
 
 def _check_required_files(ctx: Context) -> None:
@@ -263,7 +264,7 @@ def _check_required_files(ctx: Context) -> None:
     course = tree.model
     required = [
         ("overview.md", "author it with the six sections of docs/architecture.md §2.12"),
-        ("plan.yaml", "`/regenerate <course> plan`, or write it as in docs/architecture.md §2.9"),
+        ("plan.yaml", "`studykit plan <course>`, then write the session goals"),
     ]
     if course is not None and course.cheatsheet.allowed:
         required.append(("cheatsheet.md", "`/regenerate <course> cheatsheet`, then fit it"))
@@ -279,6 +280,38 @@ def _check_required_files(ctx: Context) -> None:
                     fix,
                     "error" if ctx.release else "warning",
                 )
+            )
+
+
+def _check_plan_dates(ctx: Context) -> None:
+    """A plan made for another exam date: sessions on or after the exam are errors, a
+    different `exam_date` is a warning (the plan is stale)."""
+    plan, course = ctx.tree.get("plan.yaml"), ctx.tree.model
+    if plan is None or plan not in ctx.docs("plan") or plan.model is None or course is None:
+        return
+    exam = course.exam.date
+    fix = "replan with `studykit plan <course>` (done sessions and session goals are kept)"
+    if exam is None:
+        return
+    if plan.model.exam_date != exam:
+        planned = plan.model.exam_date.isoformat() if plan.model.exam_date else "an unknown date"
+        ctx.at_yaml(
+            plan,
+            ["exam_date"],
+            "SK-STRUCT-PLAN",
+            f"plan.yaml was made for the exam on {planned}, course.yaml has {exam.isoformat()}",
+            fix,
+            "warning",
+        )
+    for i, session in enumerate(plan.model.sessions):
+        if session.date >= exam:
+            ctx.at_yaml(
+                plan,
+                ["sessions", i, "date"],
+                "SK-STRUCT-PLAN",
+                f"session {session.id} on {session.date.isoformat()} is not before the exam "
+                f"on {exam.isoformat()}",
+                fix,
             )
 
 
@@ -1430,7 +1463,8 @@ def _check_plan(ctx: Context, plan: Doc, targets: dict) -> None:
                         loc,
                         "SK-REF-MISSING",
                         f"plan reference '{ref}' does not exist",
-                        "regenerate the plan (`/regenerate <course> plan`) or fix the id",
+                        "replan with `studykit plan <course>` (done sessions and goals are kept) "
+                        "or fix the id",
                     )
                 elif scheme not in targets:
                     ctx.at_yaml(
@@ -1534,25 +1568,153 @@ def _build_figures(ctx: Context) -> None:
         )
 
 
-# --- later phases: pluggable stages that skip until their tools exist ------------------------
+# --- Verification (SK-VER) -------------------------------------------------------------------
 
 
-def _module_missing(name: str, phase: str) -> Callable[[Context], str | None]:
-    def check(ctx: Context) -> str | None:
-        import importlib.util
+@stage("Verification", "SK-VER", 80)
+def check_verification(ctx: Context) -> None:
+    """The verification ledger (§2.10): broken, disputed, quarantined and stale entries,
+    ledgers and checks of items that do not exist, and with --release every item without a
+    fresh verified entry and every numeric MC question without a check script."""
+    from studykit import verify
 
-        if importlib.util.find_spec(f"studykit.{name}") is None:
-            return f"studykit.{name} is not available yet ({phase})"
-        return None
+    tree = ctx.tree
+    items = verify.items(tree)
+    known = {i.id for i in items}
+    counts: Counter[str] = Counter()
+    for item in items:
+        doc = item.doc
+        if ctx.selected is not None and doc.rel not in ctx.selected:
+            continue
+        cmd = f"studykit verify {tree.id} {item.id}"
+        try:
+            entry = verify.read_ledger(tree.root, item.id)
+        except ValueError as exc:
+            ledger = verify.ledger_path(tree.root, item.id)
+            ctx.add(
+                Finding(
+                    display_path(ledger),
+                    1,
+                    1,
+                    "SK-VER-LEDGER",
+                    str(exc).split(": ", 1)[-1][:200],
+                    f"delete it with `studykit verify {tree.id} {item.id} --clear` and run "
+                    "verify again",
+                )
+            )
+            continue
+        status = entry.status if entry else "unverified"
+        stale = entry is not None and verify.is_stale(entry, item)
+        counts[status] += 1
+        counts["stale"] += stale
+        if status == "quarantined":
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-QUARANTINED",
+                f"{item.id} is quarantined and hidden from the site and the PDFs: "
+                f"{entry.note if entry and entry.note else 'see its ledger'}",
+                "rewrite the item, then run `" + cmd + "` until it verifies (the report "
+                "lists it until then)",
+                severity="warning",
+            )
+        elif status == "disputed":
+            assert entry is not None
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-DISPUTED",
+                f"{item.id} is disputed (fix round {entry.rounds}): "
+                + "; ".join(verify.hide_key(p) for p in entry.problems[:3]),
+                "fix the item with the verifier's numbers from state/verify/"
+                f"{item.id}.json, then run `{cmd}`",
+                severity="error" if ctx.release else "warning",
+            )
+        elif stale:
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-STALE",
+                f"{item.id} changed since it was checked ({status})",
+                f"run `{cmd}` again",
+                severity="warning",
+            )
+        elif ctx.release and status == "unverified":
+            why = "; ".join(entry.problems[:2]) if entry else "no check has run"
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-UNVERIFIED",
+                f"{item.id} is not verified: {why}",
+                f"run the verifier on it: `studykit blind {tree.id} {item.id}`, write "
+                f"checks/{item.id}.py, then `{cmd}`",
+                severity="warning",
+            )
+        if (
+            ctx.release
+            and verify.numeric_question(item.question)
+            and not (tree.root / verify.CHECKS_DIR / f"{item.id}.py").is_file()
+        ):
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-CHECK",
+                f"numeric question {item.id} has no check script",
+                f"the verifier writes checks/{item.id}.py with mc_numeric(correct=…, "
+                "options=…, mistakes=…)",
+                severity="warning",
+            )
+    if ctx.selected is None:
+        _check_orphans(ctx, known)
+    total = sum(counts[s] for s in model.VERIFY_STATUSES)
+    ctx.note(
+        f"{counts['verified']} of {total} items verified, {counts['disputed']} disputed, "
+        f"{counts['quarantined']} quarantined, {counts['stale']} stale"
+    )
 
-    return check
 
+def _check_orphans(ctx: Context, known: set[str]) -> None:
+    from studykit import verify
 
-@stage("Verification", "SK-VER", 80, requires=_module_missing("verify", "Phase 5"))
-def check_verification(ctx: Context) -> None:  # pragma: no cover - replaced in Phase 5
-    # Phase 5 also enforces §2.6 "numeric questions require a check script": the verifier
-    # writes checks/<id>.py blind, after authoring, so lint cannot demand it earlier.
-    ctx.note("verification ledger checks are not implemented yet")
+    root = ctx.tree.root
+    for item_id in verify.ledger_ids(root):
+        if item_id not in known:
+            ctx.add(
+                Finding(
+                    display_path(verify.ledger_path(root, item_id)),
+                    1,
+                    1,
+                    "SK-VER-ORPHAN",
+                    f"a ledger entry for {item_id}, which the course does not have",
+                    f"remove it with `studykit verify {ctx.tree.id} orphans --clear`",
+                    "warning",
+                )
+            )
+    checks = root / verify.CHECKS_DIR
+    if not checks.is_dir():
+        return
+    for path in sorted(checks.iterdir()):
+        if path.suffix not in (".py", ".json") or path.name.startswith((".", "_")):
+            continue
+        stem = path.stem
+        if stem in known or stem.split(".")[0] in known or stem.startswith("sum-"):
+            continue
+        ctx.add(
+            Finding(
+                display_path(path),
+                1,
+                1,
+                "SK-VER-ORPHAN",
+                f"a check for {stem}, which the course does not have",
+                f"rename it to checks/<item-id>{path.suffix} or delete it",
+                "warning",
+            )
+        )
 
 
 # --- PDF (SK-PDF) -----------------------------------------------------------------------------
@@ -1910,6 +2072,24 @@ def run_course(
     return report
 
 
+def course_rel(path: Path, root: Path) -> tuple[str, bool] | None:
+    """`path` as a course-relative path of the course at `root` and whether it is a
+    directory, or None outside the course. A relative path is taken from the working
+    directory first, then from the course directory (`--paths mc/rc-filter.md`)."""
+    root = root.resolve()
+    candidates = [path] if path.is_absolute() else [Path.cwd() / path, root / path]
+    inside = []
+    for cand in candidates:
+        try:
+            rel = cand.resolve().relative_to(root).as_posix()
+        except ValueError:
+            continue
+        if cand.exists():
+            return rel, cand.is_dir()
+        inside.append(rel)
+    return (inside[0], False) if inside else None
+
+
 def validate(
     courses: list[Path],
     *,
@@ -1927,11 +2107,11 @@ def validate(
         if paths is not None:
             selected = set()
             for p in paths:
-                try:
-                    rel = p.resolve().relative_to(tree.root).as_posix()
-                except ValueError:
+                found = course_rel(p, tree.root)
+                if found is None:
                     continue
-                if p.is_dir():  # a directory selects every course file below it
+                rel, is_dir = found
+                if is_dir:  # a directory selects every course file below it
                     prefix = "" if rel == "." else rel + "/"
                     selected.update(r for r in tree.docs if r.startswith(prefix))
                 else:

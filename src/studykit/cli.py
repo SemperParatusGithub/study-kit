@@ -125,6 +125,109 @@ def build_parser() -> argparse.ArgumentParser:
     p_fit.add_argument("--json", action="store_true", help="machine-readable output")
     p_fit.set_defaults(func=cmd_cheatsheet_fit)
 
+    p_calc = sub.add_parser(
+        "calc",
+        help="evaluate a SymPy expression: exact, numeric, complex (j) and units",
+        description="Evaluate an expression safely with SymPy. ^ is a power, j the imaginary "
+        "unit; helpers: par(a, b, ...) parallel, pol(r, deg) phasor, mag, angd (angle in "
+        "degrees), db, lg, deg, rad, solve, diff, integrate.",
+    )
+    p_calc.add_argument("expr", help="the expression, e.g. '1/(2*pi*R*C)'")
+    p_calc.add_argument(
+        "--subs", nargs="+", default=[], metavar="NAME=VALUE", help="values for symbols"
+    )
+    p_calc.add_argument(
+        "--units",
+        action="store_true",
+        help="allow units (V, mA, kohm, kΩ, nF, µs, MHz, …) and give the result in SI units",
+    )
+    p_calc.add_argument("--digits", type=int, default=6, help="significant digits shown")
+    p_calc.add_argument("--json", action="store_true", help="machine-readable output")
+    p_calc.set_defaults(func=cmd_calc)
+
+    p_verify = sub.add_parser(
+        "verify",
+        help="run the verifier's checks and update the ledger state/verify/<id>.json",
+        description="Run checks/<id>.py or .json for the selected items, compare them with "
+        "the answer key and write the ledger. Other actions record the steps of the dispute "
+        "protocol (docs/architecture.md §5.3).",
+    )
+    p_verify.add_argument("course", help="course id or directory")
+    p_verify.add_argument(
+        "target",
+        nargs="?",
+        default="all",
+        help="an item id, a topic, an exam or all (default); for --clear also stale or orphans",
+    )
+    actions = p_verify.add_mutually_exclusive_group()
+    actions.add_argument(
+        "--status", action="store_true", help="show the ledger state without running checks"
+    )
+    actions.add_argument(
+        "--confirm",
+        metavar="FILE",
+        type=Path,
+        help="run a second method (checks/<id>.<tag>.py or .json) for one item and record it",
+    )
+    actions.add_argument(
+        "--dispute",
+        action="store_true",
+        help="record a dispute for one item by hand (with --note and --computed)",
+    )
+    actions.add_argument(
+        "--quarantine",
+        action="store_true",
+        help="quarantine one item by hand (with --note): hidden from the site and the PDFs",
+    )
+    actions.add_argument(
+        "--clear", action="store_true", help="delete the ledger entries of the target"
+    )
+    p_verify.add_argument("--method", help="--confirm: what the second method does")
+    p_verify.add_argument("--note", help="--dispute, --quarantine: the reason")
+    p_verify.add_argument(
+        "--computed",
+        nargs="+",
+        default=[],
+        metavar="KEY=VALUE",
+        help="--dispute: the verifier's numbers",
+    )
+    p_verify.add_argument("--report", action="store_true", help="also write state/verify/report.md")
+    p_verify.add_argument(
+        "--show-key",
+        action="store_true",
+        help="show the answer key in problems (the text output hides it from the verifier)",
+    )
+    p_verify.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="seconds per check script (default 120)",
+    )
+    p_verify.add_argument("--json", action="store_true", help="machine-readable output")
+    p_verify.set_defaults(func=cmd_verify)
+
+    p_blind = sub.add_parser(
+        "blind",
+        help="write the blind view _build/blind/<id>.md of an item for the verifier",
+    )
+    p_blind.add_argument("course", help="course id or directory")
+    p_blind.add_argument("id", help="exercise, exam task or MC question id")
+    p_blind.add_argument("--stdout", action="store_true", help="also print the view")
+    p_blind.set_defaults(func=cmd_blind)
+
+    p_hook = sub.add_parser(
+        "hook",
+        help="Claude Code PreToolUse hooks: read the event on stdin, print a decision",
+    )
+    p_hook.add_argument(
+        "name",
+        choices=["verifier-guard", "pre-git"],
+        help="verifier-guard: keep the verifier blind; pre-git: keep course files out of git",
+    )
+    p_hook.set_defaults(func=cmd_hook)
+
+    _add_study_commands(sub)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -134,6 +237,195 @@ def build_parser() -> argparse.ArgumentParser:
     p_fig_build.set_defaults(func=cmd_fig_build)
 
     return parser
+
+
+def _day(value: str) -> str:
+    from datetime import date
+
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"not a day YYYY-MM-DD: {value!r}") from exc
+
+
+def _add_study_commands(sub) -> None:
+    """progress, plan and status: the student's side of a course (§2.9, §2.11)."""
+    p_prog = sub.add_parser("progress", help="browser progress, examiner results, mastery")
+    prog_sub = p_prog.add_subparsers(dest="progress_command", metavar="<action>", required=True)
+
+    p_imp = prog_sub.add_parser(
+        "import", help="validate a browser export and merge it into progress/state.json"
+    )
+    p_imp.add_argument("course", help="course id or directory")
+    p_imp.add_argument("file", type=Path, help="studykit-progress-<course>-<date>.json")
+    p_imp.add_argument("--dry-run", action="store_true", help="report the changes, write nothing")
+    p_imp.add_argument("--json", action="store_true", help="machine-readable output")
+    p_imp.set_defaults(func=cmd_progress_import)
+
+    p_log = prog_sub.add_parser(
+        "log", help="append examiner results (JSON objects) to progress/examiner.jsonl"
+    )
+    p_log.add_argument("course", help="course id or directory")
+    p_log.add_argument(
+        "--json-line",
+        action="append",
+        metavar="JSON",
+        help="one result as a JSON object (repeatable); without it, JSON lines from stdin",
+    )
+    p_log.add_argument("--json", action="store_true", help="machine-readable output")
+    p_log.set_defaults(func=cmd_progress_log)
+
+    p_rep = prog_sub.add_parser("report", help="write progress/mastery.json and progress/report.md")
+    p_rep.add_argument("course", help="course id or directory")
+    p_rep.add_argument("--today", type=_day, help="the day to report for (default: today)")
+    p_rep.add_argument("--json", action="store_true", help="print mastery.json")
+    p_rep.set_defaults(func=cmd_progress_report)
+
+    p_plan = sub.add_parser("plan", help="schedule the study plan into plan.yaml (deterministic)")
+    p_plan.add_argument("course", help="course id or directory")
+    p_plan.add_argument(
+        "--from", dest="start", type=_day, help="first day to plan (default: today)"
+    )
+    p_plan.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
+    p_plan.add_argument("--json", action="store_true", help="machine-readable output")
+    p_plan.set_defaults(func=cmd_plan)
+
+    p_status = sub.add_parser(
+        "status", help="study status: days left, plan adherence, weak topics, reviews due"
+    )
+    p_status.add_argument("course", help="course id or directory")
+    p_status.add_argument("--today", type=_day, help="the day to report for (default: today)")
+    p_status.add_argument("--json", action="store_true", help="machine-readable output")
+    p_status.set_defaults(func=cmd_status)
+
+
+def _print_findings(found, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps({"ok": False, "findings": [f.to_dict() for f in found]}, indent=2))
+    else:
+        for f in found:
+            print(f.format(), file=sys.stderr)
+
+
+def cmd_progress_import(args: argparse.Namespace) -> int:
+    from studykit import progress
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    result, found = progress.import_file(tree.root, args.file, dry_run=args.dry_run)
+    if found:
+        _print_findings(found, args.json)
+        return 1
+    if args.json:
+        print(json.dumps({"ok": True, **result}, ensure_ascii=False, indent=2))
+    else:
+        print(progress.format_import(result))
+    return 0
+
+
+def cmd_progress_log(args: argparse.Namespace) -> int:
+    from studykit import content, progress
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    if tree.model is None:
+        print(f"error: {tree.id}: course.yaml does not validate", file=sys.stderr)
+        return 1
+    if args.json_line:
+        lines = [("--json-line", i, text) for i, text in enumerate(args.json_line, 1)]
+    else:
+        lines = [("<stdin>", i, text) for i, text in enumerate(sys.stdin.read().splitlines(), 1)]
+    results, found = progress.parse_examiner(lines, tree)
+    if found:
+        _print_findings(found, args.json)
+        return 1
+    if not results:
+        print("error: no examiner results given", file=sys.stderr)
+        return 2
+    path = progress.append_examiner(tree.root, results)
+    if args.json:
+        out = {
+            "ok": True,
+            "logged": len(results),
+            "file": content.display_path(path),
+            "results": results,
+        }
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        for r in results:
+            print(f"  {r.get('item') or r['topic']:<28} {r['kind']:<9} score {r['score']:g}")
+        print(f"logged {len(results)} result(s) to {content.display_path(path)}")
+    return 0
+
+
+def cmd_progress_report(args: argparse.Namespace) -> int:
+    from studykit import content, progress
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        snap = progress.snapshot(tree.root, args.today)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if snap.findings:
+        _print_findings(snap.findings, args.json)
+        return 1
+    report = progress.compute_report(snap)
+    mastery_path, report_path = progress.write_report(tree.root, report, snap.info)
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print(
+            f"mastery {progress.pct(report['overall'])}; "
+            f"{report['due']['mc']} MC and {report['due']['exercises']} exercise review(s) due; "
+            f"{len(report['misconceptions'])} misconception(s)\n"
+            f"wrote {content.display_path(mastery_path)} and {content.display_path(report_path)}"
+        )
+    return 0
+
+
+def cmd_plan(args: argparse.Namespace) -> int:
+    from studykit import plan
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    result, found = plan.run(tree.root, start=args.start, write=not args.dry_run)
+    errors = [f for f in found if f.is_error]
+    if args.json:
+        out = {"ok": not errors, "findings": [f.to_dict() for f in found], **result}
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        for f in found:
+            print(f.format(), file=sys.stderr)
+        if result:
+            print(plan.format_text(result, dry_run=args.dry_run))
+    return 1 if errors else 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    from studykit import status
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        result, found = status.study_status(tree.root, args.today)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if found:
+        _print_findings(found, args.json)
+        return 1
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(status.format_text(result))
+    return 0
 
 
 def _course_tree(arg: str):
@@ -227,11 +519,24 @@ def cmd_validate(args: argparse.Namespace) -> int:
             print(f"error: no course directory {root}", file=sys.stderr)
             return 1
         courses = [root]
+        # a path from the working directory or from the course directory, inside the course
+        missing = [
+            p
+            for p in args.paths or []
+            if validate.course_rel(p, root) is None or not (p.exists() or (root / p).exists())
+        ]
     elif args.paths:
         roots = {content.find_course_root(p.parent if p.is_file() else p) for p in args.paths}
         courses = sorted(r for r in roots if r is not None)
+        missing = [p for p in args.paths if not p.exists()]
     else:
         courses = content.list_courses()
+        missing = []
+    if missing:
+        where = f" in {content.display_path(courses[0])}" if args.course else ""
+        for p in missing:
+            print(f"error: --paths {p}: no such course file{where}", file=sys.stderr)
+        return 2
     report = validate.validate(courses, paths=args.paths, quick=args.quick, release=args.release)
     if not courses:
         report.notes.append(f"no courses found in {content.courses_dir()}")
@@ -378,6 +683,111 @@ def cmd_cheatsheet_fit(args: argparse.Namespace) -> int:
     else:
         print(cheatsheet.format_text(result))
     return code
+
+
+def cmd_calc(args: argparse.Namespace) -> int:
+    from studykit import calc
+
+    try:
+        result = calc.evaluate(args.expr, args.subs, units=args.units, digits=args.digits)
+    except calc.CalcError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(calc.format_text(result, args.digits))
+    return 0
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    from studykit import content, verify
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 2
+    one = (
+        ("--confirm", args.confirm),
+        ("--dispute", args.dispute),
+        ("--quarantine", args.quarantine),
+    )
+    try:
+        for flag, used in one:
+            if used and args.target in (None, "all"):
+                raise verify.VerifyError(f"{flag} needs one item id")
+        if (args.dispute or args.quarantine) and not args.note:
+            raise verify.VerifyError("give the reason with --note")
+        if args.confirm:
+            result = verify.confirm(
+                tree,
+                args.target,
+                args.confirm,
+                method=args.method,
+                timeout=args.timeout,
+                show_key=args.show_key or args.json,
+            )
+            failed = result["confirmation"] == "error"
+        elif args.dispute:
+            computed = verify.parse_pairs(args.computed)
+            result = verify.dispute(tree, args.target, note=args.note, computed=computed)
+            failed = False
+        elif args.quarantine:
+            result = verify.quarantine(tree, args.target, note=args.note)
+            failed = False
+        elif args.clear:
+            result = verify.clear(tree, args.target)
+            failed = False
+        elif args.status:
+            result = verify.status(tree, args.target, show_key=args.show_key or args.json)
+            failed = False
+        else:
+            result = verify.run(
+                tree, args.target, timeout=args.timeout, show_key=args.show_key or args.json
+            )
+            failed = any(
+                r["outcome"] in ("mismatch", "error") or r["status"] == "quarantined"
+                for r in result["items"]
+            )
+    except verify.VerifyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.report:
+        path = verify.write_report(content.CourseTree(tree.root))
+        result["report"] = content.display_path(path)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    elif "items" in result:
+        print(verify.format_text(result))
+    else:
+        print(verify.format_action(result))
+    if not args.json and result.get("report"):
+        print(f"wrote {result['report']}")
+    return 1 if failed else 0
+
+
+def cmd_blind(args: argparse.Namespace) -> int:
+    from studykit import blind, content, verify
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 2
+    try:
+        path, text = blind.write(tree, args.id)
+    except verify.VerifyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.stdout:
+        print(text, end="")
+    else:
+        print(f"wrote {content.display_path(path)}")
+    return 0
+
+
+def cmd_hook(args: argparse.Namespace) -> int:
+    from studykit import hook
+
+    sys.stdout.write(hook.run(args.name, sys.stdin.read()))
+    return 0
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:

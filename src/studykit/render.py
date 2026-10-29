@@ -23,6 +23,10 @@ Output (`--json`), one document:
         code, message, fix, severity}]}],
      "skipped": [{"rel": "…", "reason": "…"}]}
 
+Quarantined items (the index's `quarantined`, §2.10) never reach the site: their exercise
+and exam-task files are skipped, the filter drops quarantined MC questions, and an exam's
+data loses the quarantined tasks and their points (`verify.exam_without`).
+
 `data` is the frontmatter (or exam.yaml) as plain JSON: the pydantic model dumped in JSON
 mode when it validates, otherwise the raw mapping plus a schema finding. `html` is null for
 exam.yaml, for cached files and when the filter rejects the file. The html run has no source
@@ -42,7 +46,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from studykit import content, index, pandoc, tools
+from studykit import content, index, pandoc, tools, verify
 from studykit import findings as findings_mod
 from studykit.findings import Finding
 
@@ -205,12 +209,19 @@ def _fail(doc: content.Doc, message: str) -> Finding:
     )
 
 
+QUARANTINED = "quarantined by the verification ledger (state/verify)"
+
+
 def _select(
-    tree: content.CourseTree, paths: Iterable[str | Path] | None
+    tree: content.CourseTree, paths: Iterable[str | Path] | None, hidden: Iterable[str] = ()
 ) -> tuple[list[content.Doc], list[dict[str, str]]]:
-    docs = [d for d in tree if d.kind in KINDS]
+    hidden = set(hidden)
+    docs = [d for d in tree if d.kind in KINDS and not verify.hidden_file(d, hidden)]
     if paths is None:
-        return docs, []
+        skipped = [
+            {"rel": d.rel, "reason": QUARANTINED} for d in tree if verify.hidden_file(d, hidden)
+        ]
+        return docs, skipped
     wanted: list[content.Doc] = []
     skipped: list[dict[str, str]] = []
     for raw in paths:
@@ -228,6 +239,8 @@ def _select(
             skipped.append({"rel": rel, "reason": "no such course file"})
         elif doc.kind not in KINDS:
             skipped.append({"rel": rel, "reason": f"{doc.kind} files are not rendered"})
+        elif verify.hidden_file(doc, hidden):
+            skipped.append({"rel": rel, "reason": QUARANTINED})
         elif doc not in wanted:
             wanted.append(doc)
     return wanted, skipped
@@ -250,7 +263,8 @@ def render_course(
     base = b"\0".join(
         [FORMAT_TAG, version.encode(), tree_digest().encode(), index_file.read_bytes(), context]
     )
-    docs, skipped = _select(tree, paths)
+    hidden = data["quarantined"]
+    docs, skipped = _select(tree, paths, hidden)
     known = known or {}
 
     def one(doc: content.Doc) -> dict[str, Any]:
@@ -259,6 +273,8 @@ def render_course(
         if known.get(doc.rel) == digest:
             return {**row, "cached": True, "data": None, "html": None, "findings": []}
         fm, found = doc_data(doc)
+        if doc.kind == "exam" and hidden and isinstance(fm, dict):
+            fm = verify.exam_without(tree, doc, fm, hidden)
         html = None
         if doc.kind in HTML_KINDS and not (doc.is_markdown and doc.split.error):
             html, filter_findings = render_html(tree.root, doc)

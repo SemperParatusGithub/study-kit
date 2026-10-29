@@ -1,22 +1,178 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
-    "AnswerCheck": {
+    "Confirmation": {
       "additionalProperties": false,
+      "description": "A second method run on the item (`studykit verify --confirm`).",
       "properties": {
-        "claimed": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "content_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Content Sha256",
+          "type": "string"
+        },
+        "check": {
+          "title": "Check",
+          "type": "string"
+        },
+        "check_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Check Sha256",
+          "type": "string"
+        },
+        "method": {
           "anyOf": [
             {
-              "type": "number"
+              "type": "string"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "title": "Claimed"
+          "title": "Method"
+        },
+        "result": {
+          "enum": [
+            "pass",
+            "mismatch",
+            "error"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "results": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LedgerValue"
+          },
+          "title": "Results",
+          "type": "array"
+        },
+        "problems": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Problems",
+          "type": "array"
+        }
+      },
+      "required": [
+        "at",
+        "content_sha256",
+        "check",
+        "check_sha256",
+        "result"
+      ],
+      "title": "Confirmation",
+      "type": "object"
+    },
+    "Dispute": {
+      "additionalProperties": false,
+      "description": "A disagreement between the verifier and the item, for one version of the item.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "round": {
+          "description": "author fix rounds before this dispute",
+          "minimum": 0,
+          "title": "Round",
+          "type": "integer"
+        },
+        "content_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Content Sha256",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "verify",
+            "manual"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "confirmed": {
+          "default": false,
+          "description": "a second method agrees with the verifier",
+          "title": "Confirmed",
+          "type": "boolean"
+        },
+        "results": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LedgerValue"
+          },
+          "title": "Results",
+          "type": "array"
+        },
+        "problems": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Problems",
+          "type": "array"
+        }
+      },
+      "required": [
+        "at",
+        "round",
+        "content_sha256",
+        "source"
+      ],
+      "title": "Dispute",
+      "type": "object"
+    },
+    "LedgerValue": {
+      "additionalProperties": false,
+      "description": "One compared value: an answer key, an MC key or one Kprim statement.",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "expected": {
+          "default": null,
+          "title": "Expected"
         },
         "computed": {
+          "default": null,
+          "title": "Computed"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "abs_err": {
           "anyOf": [
             {
               "type": "number"
@@ -26,7 +182,7 @@
             }
           ],
           "default": null,
-          "title": "Computed"
+          "title": "Abs Err"
         },
         "rel_err": {
           "anyOf": [
@@ -40,7 +196,7 @@
           "default": null,
           "title": "Rel Err"
         },
-        "abs_err": {
+        "tol": {
           "anyOf": [
             {
               "type": "number"
@@ -50,25 +206,93 @@
             }
           ],
           "default": null,
-          "title": "Abs Err"
+          "title": "Tol"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
         }
       },
-      "title": "AnswerCheck",
+      "required": [
+        "key",
+        "ok"
+      ],
+      "title": "LedgerValue",
       "type": "object"
     }
   },
   "additionalProperties": false,
-  "description": "`state/verify/<item-id>.json`.",
+  "description": "`state/verify/<item-id>.json`: the verification state of one item.",
   "properties": {
+    "schema": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema",
+      "type": "integer"
+    },
     "item": {
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
       "title": "Item",
       "type": "string"
     },
+    "kind": {
+      "enum": [
+        "exercise",
+        "exam-task",
+        "mc"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "path": {
+      "description": "course-relative file of the item",
+      "title": "Path",
+      "type": "string"
+    },
     "content_sha256": {
+      "description": "sha256 of the item's source when checked",
       "pattern": "^[0-9a-f]{64}$",
       "title": "Content Sha256",
       "type": "string"
+    },
+    "status": {
+      "enum": [
+        "unverified",
+        "verified",
+        "disputed",
+        "quarantined"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "method": {
+      "anyOf": [
+        {
+          "enum": [
+            "script",
+            "blind",
+            "manual"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Method"
+    },
+    "check": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Check"
     },
     "check_sha256": {
       "anyOf": [
@@ -83,34 +307,38 @@
       "default": null,
       "title": "Check Sha256"
     },
-    "method": {
-      "enum": [
-        "script",
-        "blind",
-        "audit"
-      ],
-      "title": "Method",
-      "type": "string"
+    "rounds": {
+      "default": 0,
+      "description": "author fix rounds spent on disputes",
+      "minimum": 0,
+      "title": "Rounds",
+      "type": "integer"
     },
-    "result": {
-      "enum": [
-        "pass",
-        "fixed",
-        "disputed",
-        "quarantined"
-      ],
-      "title": "Result",
-      "type": "string"
-    },
-    "answers": {
-      "additionalProperties": {
-        "$ref": "#/$defs/AnswerCheck"
+    "results": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/LedgerValue"
       },
-      "default": {},
-      "title": "Answers",
-      "type": "object"
+      "title": "Results",
+      "type": "array"
     },
-    "reason": {
+    "problems": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Problems",
+      "type": "array"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "note": {
       "anyOf": [
         {
           "type": "string"
@@ -120,20 +348,50 @@
         }
       ],
       "default": null,
-      "title": "Reason"
+      "title": "Note"
+    },
+    "confirmations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Confirmation"
+      },
+      "title": "Confirmations",
+      "type": "array"
+    },
+    "disputes": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Dispute"
+      },
+      "title": "Disputes",
+      "type": "array"
+    },
+    "checked_at": {
+      "format": "date-time",
+      "title": "Checked At",
+      "type": "string"
     },
     "verified_at": {
-      "format": "date-time",
-      "title": "Verified At",
-      "type": "string"
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Verified At"
     }
   },
   "required": [
     "item",
+    "kind",
+    "path",
     "content_sha256",
-    "method",
-    "result",
-    "verified_at"
+    "status",
+    "checked_at"
   ],
   "title": "VerifyEntry",
   "type": "object"

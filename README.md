@@ -6,7 +6,11 @@ plan, a summary, exercises with hints and verified solutions, a multiple-choice 
 cheat sheet of at most three pages and mock exams modelled on past exams, all readable in
 the browser and exportable as PDF.
 
-> Status: under construction. The full design is in [docs/architecture.md](docs/architecture.md).
+> Status: the website, the PDFs and the Claude Code commands, agents and skills for
+> verifying, regenerating, tutoring and examining work (Phases 0–5). Building a course
+> from a folder of lecture material (`/register-new-subject`, Phase 6) comes next; until
+> then a course is written in the content format by hand or with `/regenerate`. The full
+> design is in [docs/architecture.md](docs/architecture.md).
 
 ## Requirements
 
@@ -15,6 +19,8 @@ macOS on Apple silicon or Linux x86_64 with:
 - [uv](https://docs.astral.sh/uv/) ≥ 0.11.30 (manages Python 3.14 itself)
 - Node.js ≥ 24.17 and pnpm ≥ 11.22 (`corepack enable pnpm`)
 - git and curl
+- [Claude Code](https://github.com/anthropics/claude-code) (`claude`) for the commands,
+  agents and skills in `.claude/`; everything else works without it
 
 pandoc, Typst and just are **not** installed system-wide: `studykit tools install` downloads
 the exact versions pinned in [toolchain.toml](toolchain.toml), verifies their sha256 and puts
@@ -42,6 +48,10 @@ your `PATH` (or use `.tools/bin/just`) to call `just` directly.
 | `just doctor` | Checks every tool against `toolchain.toml` and reports how to fix mismatches |
 | `just validate [course]` | Checks a course (or all) against the content format and builds its PDFs (`--quick` skips them); `--release` adds the site check (strict build, search index, type check, link check) and coverage |
 | `just lint <files>` | Quick check of edited course files, as the Claude Code hook runs it |
+| `just status <course>` | Study status: days to the exam, plan adherence, weakest topics, reviews due, last mock exam (`--today YYYY-MM-DD`, `--json`) |
+| `just verify <course> [target]` | Runs the verifier's existing checks for an item, topic, exam or `all` and updates the ledger `state/verify/`; `--status` only shows it, `--report` writes `state/verify/report.md` |
+| `just tutor <course> [topic]` | Starts Claude Code as the Socratic tutor (`/tutor`; an exercise id works too) |
+| `just examine <course> [mode]` | Starts Claude Code as the examiner (`/examine`) |
 | `just figures [course]` | Renders the figure scripts of a course |
 | `just test` | Python and Node unit tests, the git hooks, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
 | `just e2e` | Playwright tests of the built sample course in Chromium (build it first, see below) |
@@ -95,6 +105,38 @@ equivalent is:
 ```bash
 just lint-code && just ci && pnpm -C site run test:elements && just e2e
 ```
+
+## Studying with Claude Code
+
+Open Claude Code in the repository (`claude`). The commands take a course id from
+`courses/` (or a course directory). To try them, copy the sample course into `courses/`,
+which stays local:
+
+```bash
+cp -R examples/sample-course courses/
+```
+
+| Command | What it does |
+|---|---|
+| `/study-status <course>` | Where you stand: days to the exam, plan adherence, weakest topics, reviews due, the last mock exam, and one recommended next step. Read-only. |
+| `/tutor <course> [topic\|ex-id]` | Socratic tutoring: works through a topic or one exercise by asking rather than lecturing, checks every number with `studykit calc` and writes nothing. |
+| `/examine <course> [mode]` | Strict examiner. Modes: `diagnostic` (15 questions over all topics), `topic <t>`, `mc` (the default: due reviews, then weak topics), `weak`, `misconceptions`, `exam <id>` (a mock exam under time) and `oral`. It asks for your confidence before revealing anything and logs every graded item to `progress/examiner.jsonl`. |
+| `/import-progress <course> [file]` | Brings the progress from the website into the course: export it on the Progress page ("Export progress"), and the command finds the newest `studykit-progress-<course>-*.json` in `~/Downloads`, asks before importing, merges it, writes the mastery report and offers a replan. |
+| `/verify <course> [id\|topic\|exam\|all]` | Blind re-verification: verifier agents recompute each item from a view without key or solution, author agents fix disputed items for at most two rounds, and what stays disputed is quarantined (hidden from the website and the PDFs). The report is `state/verify/report.md`. |
+| `/regenerate <course> <part> [--topic t] [--add n] [--replace] [note]` | Rewrites one part (`overview`, `plan`, `summary`, `exercises`, `mc`, `figures`, `exams`, `cheatsheet` or `all`) and everything downstream: verification, plan, validation and PDFs. Old files go to `<course>/_history/`, surviving items keep their ids, and `--replace` and `all` ask first. Example: `/regenerate sample-course mc --topic rc-filter --add 3`. |
+
+`/tutor` and `/examine` are best started from the shell, so the persona has the session to
+itself: `just tutor sample-course rc-filter`, `just examine sample-course diagnostic`.
+
+A typical week: work through the plan on the website; export your progress and run
+`/import-progress`; `/study-status` names the next step; `/examine <course> mc` for due
+reviews or `/tutor <course> <topic>` for the weakest topic. The examiner's results update
+`progress/mastery.json`, which the course cards show until the browser has answers of its
+own, and `studykit plan` uses them when it replans (`/regenerate <course> plan`).
+
+Inside Claude Code, every edit of a course file is linted at once, git commands that would
+commit course files are blocked, and the verifier cannot read keys or solutions
+(docs/architecture.md §5).
 
 ## Your course data stays local
 

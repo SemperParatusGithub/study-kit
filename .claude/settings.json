@@ -3,5 +3,45 @@
   "attribution": {
     "commit": "",
     "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(just *)",
+      "Bash(uv run --frozen studykit *)",
+      "Bash(uv run --frozen python courses/*)",
+      "Read(/courses/**)",
+      "Edit(/courses/**)"
+    ],
+    "deny": [
+      "Bash(git add -f *)",
+      "Bash(git add --force *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --frozen --project \"${CLAUDE_PROJECT_DIR}\" studykit lint --hook",
+            "statusMessage": "studykit lint"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git *)",
+            "command": "uv run --frozen --project \"${CLAUDE_PROJECT_DIR}\" studykit hook pre-git",
+            "statusMessage": "studykit pre-git guard"
+          }
+        ]
+      }
+    ]
   }
 }

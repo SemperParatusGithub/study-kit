@@ -17,19 +17,23 @@ that owns the file:
 
 | File | Owner |
 |---|---|
-| `course.yaml` | `/register-new-subject` scaffold and synthesis (main thread) |
-| `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part) |
-| `plan.yaml` | `studykit plan` (only `goal` and `note` are hand-written) |
+| `course.yaml` | `/register-new-subject` scaffold and synthesis (main thread); `retired_ids` also by `/regenerate` |
+| `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part, started by `/regenerate` and `/verify`) |
+| `plan.yaml` | `studykit plan` (only `goal` and `note` are written by Claude afterwards) |
 | `analysis/exam-profile.yaml` | `exam-analyst` |
 | `sources/manifest.yaml` | `studykit ingest` |
+| `checks/`, `state/verify/` | `verifier` (blind) and `studykit verify` |
+| `progress/` | `studykit progress import`, `log` and `report` |
 
-The agents and commands in this table come with Phases 5 and 6; until then these files are
-written by hand.
+The `author` and `verifier` agents and the `studykit plan`, `verify` and `progress` commands
+exist (Phase 5). `/register-new-subject`, `exam-analyst` and `studykit ingest` come with
+Phase 6; until then `course.yaml`, `analysis/exam-profile.yaml` and `sources/manifest.yaml`
+are written by hand.
 
 Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
-`validate --quick`; References, Figures and PDF run in `validate`; Site and Coverage only
-with `validate --release`. Verification (Phase 5) is reported as skipped, and so is a stage
-whose tools are missing (pandoc or typst in `.tools/bin`, `site/node_modules`).
+`validate --quick`; References, Figures, Verification and PDF run in `validate`; Site and
+Coverage only with `validate --release`. A stage is reported as skipped when its tools are
+missing (pandoc or typst in `.tools/bin`, `site/node_modules`).
 
 The Pandoc stage runs the Lua filter set that builds the site and the PDFs on every file
 the earlier stages left without errors (at file scope in `lint` and `--quick`, where targets
@@ -46,9 +50,8 @@ an error card on the page.
 in an `exams/<exam-id>/` directory, or a file given to `lint`. A missing `overview.md`,
 `plan.yaml` or (when the exam allows one) `cheatsheet.md` is a warning while the course is
 being authored and an error with `--release`.
-Fix: create the file from its schema in `schemas/`, or remove the stray directory. Until
-`studykit plan` exists (Phase 5), write `plan.yaml` by hand against
-`schemas/plan.schema.json`.
+Fix: create the file from its schema in `schemas/`, or remove the stray directory;
+`plan.yaml` comes from `studykit plan <course>` (then write the session goals).
 
 ### `SK-STRUCT-PATH`
 **error.** A file is not where the layout (§2.1) expects it, its path disagrees with its
@@ -98,6 +101,13 @@ at a glance, how to study, prerequisites.
 **error.** In `exam.yaml`, task points plus MC questions × `points_each` do not add up to
 `points`.
 Fix: adjust task `points`, the number of questions in `mc.md`, `points_each` or the total.
+
+### `SK-STRUCT-PLAN`
+**error** (a session) or **warning** (the exam date). `plan.yaml` no longer fits the exam in
+`course.yaml`: a session is on or after the exam day (error), or the plan's `exam_date` is
+not the exam date (warning: the plan was made for another date).
+Fix: `studykit plan <course>` replans from today; done sessions and the goals of unchanged
+sessions are kept.
 
 ## Schema (SK-SCHEMA, SK-YAML)
 
@@ -458,6 +468,61 @@ Fix: run `studykit fig build <course> --only <slug>`, fix the script and look at
 **warning.** A figure script is never embedded.
 Fix: embed it with `![Caption](fig:<slug>)` or delete the script.
 
+## Verification (SK-VER)
+
+The stage reads the verification ledger `state/verify/<id>.json` of every exercise, exam
+task and MC question (`docs/architecture.md` §2.10); it runs no checks itself
+(`studykit verify` does). Findings point at the item's file and line. Without
+`--release` it reports only what needs attention (disputed, quarantined, stale, broken or
+orphaned entries) and notes how many items are verified; `--release` adds every item that
+is not verified and every numeric question without a check script.
+
+### `SK-VER-DISPUTED`
+**warning; error with `--release`.** The verifier's check disagrees with the item's key
+(a number outside its tolerance, a different MC key, a Kprim statement judged the other
+way, a distractor that does not follow from its mistake, an ambiguous question).
+Fix: the author fixes the item with the verifier's numbers from the ledger
+(`studykit verify <course> <id> --status --show-key` shows them), then
+`studykit verify <course> <id>` runs the check again. A dispute on the second fix quarantines
+the item.
+
+### `SK-VER-QUARANTINED`
+**warning.** The item stayed disputed after two author fix rounds (or was quarantined by
+hand with `--quarantine`). It is hidden from the website and the PDFs and listed in
+`state/verify/report.md`.
+Fix: rewrite the item and run `studykit verify <course> <id>`; it shows again once its
+check passes.
+
+### `SK-VER-STALE`
+**warning.** The item changed since it was checked: the content hash in its ledger entry
+no longer matches the file (an exercise or exam task) or the question's lines.
+Fix: run `studykit verify <course> <id>` again (the check is reused).
+
+### `SK-VER-UNVERIFIED`
+**warning, `--release` only.** The item has no ledger entry, or its last check did not run
+to a result (the script failed, a key is missing) or two methods disagree.
+Fix: `studykit blind <course> <id>`, let the verifier write `checks/<id>.py` or `.json`,
+then `studykit verify <course> <id>`.
+
+### `SK-VER-CHECK`
+**warning, `--release` only.** A numeric MC question (single or multi, every option a
+number with an optional unit) has no `checks/<id>.py`. Numeric questions are checked with
+`mc_numeric` (§2.6), which also proves that every distractor follows from its mistake.
+Fix: the verifier writes `checks/<id>.py` ending with `mc_numeric(correct=…, options=…,
+mistakes=…)`.
+
+### `SK-VER-LEDGER`
+**error.** A ledger file under `state/verify/` is not valid JSON or does not match
+`schemas/verify.schema.json`. Ledger files are written by `studykit verify` only.
+Fix: delete it with `studykit verify <course> <id> --clear` and run verify again.
+
+### `SK-VER-ORPHAN`
+**warning.** A ledger entry or a check file names an id the course does not have (an item
+was renamed or deleted). Second methods `checks/<id>.<tag>.py` and the planned formula
+audits `checks/sum-<topic>.py` are not orphans.
+Fix: `studykit verify <course> orphans --clear` removes the ledger entries; rename or
+delete the check file.
+
 ## PDF (SK-PDF)
 
 Every full `validate` builds the course's PDFs as `studykit pdf` does, into `_build/pdf`
@@ -572,3 +637,73 @@ Fix: `/regenerate <course> mc --topic <topic> --add <n>`.
 `duration_min` is more than 10 % away from the real exam in `course.yaml: exam`.
 Fix: `/regenerate <course> exams`, or lower the target; scale the mock exam's tasks to the
 real exam's points and time.
+
+## Progress (SK-PROGRESS, `studykit progress`)
+
+These codes are not validate stages: `studykit progress import` reports them for a browser
+export (and for `progress/state.json`, the merged state it keeps), `progress log` for an
+examiner result, and `progress report` and `studykit status` when the files under
+`progress/` do not read. Nothing is written while any is reported. For an import the
+position is the line of the entry's key in the file; for `progress log` it is the
+`--json-line` argument or the stdin line.
+
+### `SK-PROGRESS-FILE`
+**error.** The file cannot be read, is not JSON, or has no `items` object, so it is not a
+study-kit progress export.
+Fix: use the file the site's Export button downloads (progress page),
+`studykit-progress-<course>-<date>.json`.
+
+### `SK-PROGRESS-SCHEMA`
+**error.** The export's `schema` is not `studykit-progress/1`: a newer site wrote it (update
+study-kit), or it is an unversioned document from before the schema (import it on the site
+once and export it again; the site migrates it).
+Fix: `git pull && uv sync`, or re-export from the site.
+
+### `SK-PROGRESS-COURSE`
+**error.** The export names no course, or another course than the one it is imported into.
+Fix: import it into the course it names, or export the right course's progress page.
+
+### `SK-PROGRESS-ENTRY`
+**error.** An entry does not validate against `schemas/progress.schema.json`
+(`studykit.model.Progress`), or a timestamp is not ISO 8601 in the form the site writes
+(`Date.toISOString()`). The site drops such entries when it reads or imports a document, so
+an export it wrote never has one.
+Fix: export the progress again on the site instead of editing the file by hand.
+
+### `SK-PROGRESS-EXAMINER`
+**error.** An examiner result is not one JSON object per line, does not validate against
+`schemas/examiner.schema.json` (`studykit.model.ExaminerResult`: an MC result needs the
+question id, `conf` and `chosen`; a task or exercise its id; `points` come with
+`max_points`), names an item the course does not have, or a topic the item does not belong
+to; or an MC result's `chosen` names a letter the question does not have, or its `score`
+differs from the score the site gives `chosen` (`lib/scoring.ts` with
+`course.exam.mc.scoring`).
+Fix: `studykit progress log <course> --json-line '{"mode": "mc", "kind": "mc", "topic":
+"rc-filter", "item": "mc-rc-filter-003", "chosen": ["B"], "conf": "sure"}'`; `chosen` is in
+source letters (A = the first option in the file; Kprim: the statements judged true), and
+a left-out `score` is computed.
+
+## Plan (SK-PLAN, `studykit plan`)
+
+`studykit plan` reports these at `course.yaml`; errors write no plan. A plan it writes is
+read back and checked like validate checks it (schema, references), so the Structure and
+References codes never come from a fresh plan.
+
+### `SK-PLAN-STUDY`
+**error.** The plan has no time budget: `course.yaml` has no `study` settings, or
+`study.hours_per_week` is less than 15 minutes a week.
+Fix: `study: {start: YYYY-MM-DD, hours_per_week: 6, blocked: ['YYYY-MM-DD..YYYY-MM-DD']}`.
+
+### `SK-PLAN-DATE`
+**error** or **warning.** The first day to plan (`--from`, else today) is not before the
+exam, or there is no free study day left before it (error); or the exam date is unknown, so
+the plan runs 12 weeks and writes `exam_date: null` (warning).
+Fix: plan from an earlier day (`--from YYYY-MM-DD`), set `exam.date`, or shorten
+`study.blocked`.
+
+### `SK-PLAN-BUDGET`
+**warning.** The time does not cover the plan: too few sessions to learn every topic, a mock
+exam longer than the weekly budget, no session left for a mock exam, fewer mock exams than
+`targets.mock_exams`, or done sessions that already fill a week.
+Fix: start earlier, raise `study.hours_per_week`, skip topics, or write the missing mock
+exams; then plan again.

@@ -142,6 +142,9 @@ function M.link(el, ctx, W)
   if not r or ctx.target == 'check' then
     return { W.clean(el) }
   end
+  if (scheme == 'ex' or scheme == 'mc') and ctx:quarantined(rest) then
+    return el.content -- the target is hidden from the site and the PDFs (§2.10)
+  end
 
   if ctx.target == 'html' then
     local out = pandoc.Inlines({

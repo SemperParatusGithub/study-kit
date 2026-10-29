@@ -164,8 +164,15 @@ def test_wrapped_titled_and_reference_links_are_checked(mini: Path, denylist: Pa
 def test_release_adds_coverage(mini: Path, denylist: Path):
     # The mini overview wraps a topic link and an exercise wraps a figure caption.
     report = run(mini, denylist, release=True)
-    assert codes(report) == {"SK-COV-EXERCISES", "SK-COV-MC"}
-    assert all(f.path.endswith("course.yaml") for f in report.findings)
+    coverage = [f for f in report.findings if not f.code.startswith("SK-VER-")]
+    assert {f.code for f in coverage} == {"SK-COV-EXERCISES", "SK-COV-MC"}
+    assert all(f.path.endswith("course.yaml") for f in coverage)
+    # nothing is verified yet: a warning per item, never an error (§4.3 Verification)
+    assert {f.code for f in report.findings} - {f.code for f in coverage} <= {
+        "SK-VER-UNVERIFIED",
+        "SK-VER-CHECK",
+    }
+    assert all(f.severity == "warning" for f in report.findings if f.code.startswith("SK-VER"))
 
 
 def test_explicit_mc_target_is_not_capped(mini: Path, denylist: Path):
@@ -209,7 +216,8 @@ def test_missing_course_files_warn_while_authoring(mini: Path, denylist: Path):
 def test_skipped_stages_explain_why(mini: Path, denylist: Path):
     report = run(mini, denylist)
     stages = {s.name: s for s in report.courses[0].stages}
-    for name in ("Verification", "PDF", "Site"):
+    assert stages["Verification"].status == "ok"
+    for name in ("PDF", "Site"):
         assert stages[name].status == "skipped"
         assert stages[name].notes and stages[name].notes[0].startswith("skipped: ")
 
@@ -372,3 +380,15 @@ def test_mock_exam_size_follows_the_real_exam(mini: Path, denylist: Path):
         ("exams/probeklausur-1/exam.yaml", 5)
     ]
     assert "duration_min is 60 minutes, but the real exam has 90" in found[0].message
+
+
+def test_paths_relative_to_the_course(mini: Path, denylist: Path, monkeypatch, capsys):
+    # skills pass course-relative paths (`--paths mc/<topic>.md`) from the repository root
+    overlay(mini, BAD / "SK-MCQ-KEY")
+    overlay(mini, BAD / "SK-BLOCK-UNKNOWN")
+    monkeypatch.chdir(mini.parent)
+    assert codes(run(mini, denylist, paths=[Path("mc/spannungsteiler.md")])) == {"SK-MCQ-KEY"}
+    assert codes(run(mini, denylist, paths=[Path("mc")])) == {"SK-MCQ-KEY"}
+    # a path that is no file of the course is an error, never a silently empty selection
+    assert cli.main(["validate", str(mini), "--quick", "--paths", "mc/gibt-es-nicht.md"]) == 2
+    assert "mc/gibt-es-nicht.md: no such course file" in capsys.readouterr().err
