@@ -706,7 +706,7 @@ def _draw_margins(ax_m, ax_p, p, st, mg, to_x, x_span, m_lo, m_hi, p_lo, p_hi):
             f"${sym} = {_num_tex(mg['pm_deg'])}^\\circ$",
             (xg, (ref + ph_gc) / 2),
             **_free_side(falling, ph_gc < ref),
-            color=color(2),
+            color=FG,
             **label_style,
         )
         marks.append((xg, rf"${var}_\mathrm{{D}}$" if de else rf"${var}_\mathrm{{gc}}$"))
@@ -745,7 +745,7 @@ def _draw_margins(ax_m, ax_p, p, st, mg, to_x, x_span, m_lo, m_hi, p_lo, p_hi):
                 m_hi = max(m_hi, max(m_pc, 0.0) + 0.15 * span)
         _double_arrow(ax_m, (xp, m_pc), (xp, 0.0), color(1))
         ax_m.plot([xp], [m_pc], "o", ms=3.5, color=color(1), zorder=7)
-        ax_m.annotate(f"${text}$", where, color=color(1), **(label_style | side))
+        ax_m.annotate(f"${text}$", where, color=FG, **(label_style | side))
         m_lo, m_hi = min(m_lo, m_pc, 0.0), max(m_hi, m_pc, 0.0)
     # Crossover names at the top, right of their line; when the two lines are close the
     # lower frequency's name moves to the left of its line so the names do not collide.
@@ -1003,7 +1003,7 @@ def nyquist(
             ha="right",
             va="bottom",
             fontsize=7,
-            color=color(1),
+            color=FG,
         )
     if from_0 and h0 is not None and abs(h0) <= far:
         ax.plot([h0.real], [0], "o", ms=3, color=color(0), zorder=7)
@@ -1096,7 +1096,7 @@ def _stability_hint(ax, discrete: bool, box) -> None:
             xytext=(4, 4),
             textcoords="offset points",
             fontsize=7,
-            color=hint,
+            color=FG,
         )
     else:
         x0 = box[0][0]
@@ -1110,7 +1110,7 @@ def _stability_hint(ax, discrete: bool, box) -> None:
             ha="right",
             va="top",
             fontsize=7,
-            color=hint,
+            color=FG,
         )
 
 
@@ -1128,7 +1128,7 @@ def _mark_roots(ax, poles, zeros, pole_color: str, zero_color: str) -> None:
                     xytext=(4, 4),
                     textcoords="offset points",
                     fontsize=7,
-                    color=col,
+                    color=FG,
                 )
 
 
@@ -1615,15 +1615,16 @@ def _annotate_step(
                     {"xy": mid, "xytext": (-4, 0), "ha": "right", "va": "center"},
                 ],
                 [(tp, final), (tp, yp)],
-                color(1),
+                FG,
             )
         )
     if "rise" in annotate and info["rise_time"] is not None:
         t10, t90 = info["t10"] * scale, info["t90"] * scale
         y10, y90 = 0.1 * final, 0.9 * final
-        ax.plot([t10, t90], [y10, y90], "o", ms=3, color=color(4), zorder=6)
-        ax.plot([t10, t10], [y10, y90], color=color(4), lw=0.8, ls=":", zorder=3)
-        _double_arrow(ax, (t10, y90), (t90, y90), color(4), lw=0.9)
+        # c4: c5 and c6 have less than 3:1 contrast on white (WCAG 1.4.11)
+        ax.plot([t10, t90], [y10, y90], "o", ms=3, color=color(3), zorder=6)
+        ax.plot([t10, t10], [y10, y90], color=color(3), lw=0.8, ls=":", zorder=3)
+        _double_arrow(ax, (t10, y90), (t90, y90), color(3), lw=0.9)
         avoid += [
             segment_points(ax, (t10, y10), (t10, y90)),
             segment_points(ax, (t10, y90), (t90, y90)),
@@ -1638,7 +1639,7 @@ def _annotate_step(
                     {"xy": (t10, y90), "xytext": (-4, 0), "ha": "right", "va": "center"},
                 ],
                 [(t10, y90), (t90, y90)],
-                color(4),
+                FG,
             )
         )
     if "final" in annotate:
@@ -1673,7 +1674,7 @@ def _annotate_step(
                     for dx, ha in ((3, "left"), (-3, "right"))
                 ],
                 [(ts, y0), (ts, y1)],
-                color(2),
+                FG,
             )
         )
     points = np.concatenate(avoid)
@@ -2031,7 +2032,7 @@ def phasor(
             (where.real, where.imag),
             textcoords="offset points",
             fontsize=9,
-            color=col,
+            color=FG,
             zorder=7,
             **_label_offset(direction),
         )
@@ -2059,7 +2060,7 @@ def phasor(
             (ref_tip.real, ref_tip.imag),
             textcoords="offset points",
             fontsize=9,
-            color=color(len(names)),
+            color=FG,
             zorder=7,
             **_label_offset(ref_dir, 3.0),
         )
