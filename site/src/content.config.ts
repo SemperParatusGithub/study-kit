@@ -123,10 +123,4 @@ const plans = defineCollection({
   }),
 });
 
-// Written by `studykit progress report` (Phase 5); read loosely until that lands.
-const mastery = defineCollection({
-  loader: glob({ pattern: '*/progress/mastery.json', base, generateId: courseId }),
-  schema: z.looseObject({}),
-});
-
-export const collections = { courses, docs, plans, mastery };
+export const collections = { courses, docs, plans };

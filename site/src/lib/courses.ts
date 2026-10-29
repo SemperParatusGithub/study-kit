@@ -100,7 +100,10 @@ async function build(id: string): Promise<Course> {
   const data = entry.data;
   const docs = (await getCollection('docs', (d) => d.data.course === id)) as Doc[];
   const plan = (await getCollection('plans')).find((p) => p.id === id)?.data ?? null;
-  const mastery = (await getCollection('mastery')).find((m) => m.id === id)?.data ?? null;
+  // Written by `studykit progress report` (Phase 5); a course without it has no build-time
+  // mastery. Read directly: an empty collection would warn on every request.
+  const raw = readJson(joinPath(coursesDir(), id, 'progress', 'mastery.json'));
+  const mastery = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
 
   const topics: Topic[] = data.topics.map((t) => ({
     ...t,
@@ -158,7 +161,7 @@ async function build(id: string): Promise<Course> {
     banks,
     exams,
     plan,
-    mastery: (mastery as Record<string, unknown> | null) ?? null,
+    mastery,
   };
 }
 

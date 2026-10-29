@@ -659,7 +659,7 @@ How the scheduler places sessions:
   - exam-task score fraction
   - examiner results
   - misconceptions (last attempt sure but not fully right)
-- The site reads `mastery.json` at build time (the `mastery` collection), so examiner findings show up on the course home page.
+- The site reads `mastery.json` at build time (`lib/courses.ts`, straight from the course directory), so examiner findings show up on the course home page.
 
 ### 2.12 Overview (`overview.md`)
 
@@ -766,7 +766,7 @@ title: Überblick
   5. It replaces each `<sk-math>` with `katex.renderToString(tex, {displayMode, throwOnError: true, strict: 'error', trust: false})` (`lib/katex.ts`), and renders the inline math of the frontmatter labels (answer labels, rubric criteria, objectives) into `labels`.
   6. It stores `{id: '<course>/<rel>', data, rendered: {html, metadata: {headings}}}`, with the bridge digest behind a stamp of the loader version, the KaTeX version and a hash of the loader's own sources (`loaders/pandoc.ts`, `lib/katex.ts`, `lib/html.ts`, `lib/findings.ts`), so a change to any of them re-renders everything.
   7. In dev the watcher re-syncs a course 150 ms after one of its `.md`/`.yaml` files changes (all courses when its `course.yaml` is gone); only files whose digest changed re-render, all of them when the index changed. Changes under `_build`, `_history`, `state`, `progress`, `checks`, `sources` and `analysis` are ignored.
-- `plans` and `mastery`: `glob()` over `*/plan.yaml` and `*/progress/mastery.json` (read loosely until Phase 5 writes it).
+- `plans`: `glob()` over `*/plan.yaml`. `progress/mastery.json` is not a collection: `lib/courses.ts` reads it per course with `readJson`, so a course without one adds no warning.
 - **Errors:** a document's findings (filter, schema, KaTeX in the body or a label) become a red error card at its top with `file:line:col`, the code and the message. With `STUDYKIT_STRICT=1` the load throws instead, and a courses directory without a course fails the build.
 
 **Figures** are swapped in when the page renders. `lib/figures.ts` replaces each `data-slug` placeholder with the current `_build/figures/<slug>.web.svg` from the figure manifest, so the content cache can never serve a stale figure. Colours are `var(--fig-*)`, so the theme toggle also switches figures to dark mode. A missing figure is an error card in dev and fails a strict build.
