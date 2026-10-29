@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 import math
 
 import pytest
@@ -322,3 +323,19 @@ def test_topic_map_rejects_broken_course(tmp_path):
     unknown = "topics:\n  - {id: a, title: A, weight: 1, prereq: [x]}\n"
     with pytest.raises(ValueError, match="unknown topics: x"):
         graph.topic_map(_course(tmp_path, unknown))
+
+
+def test_topic_map_is_a_builtin_figure(tmp_path, monkeypatch):
+    from studykit.figures import builtins, runner
+
+    monkeypatch.setitem(runner.BUILTINS, "topic-map", builtins.topic_map)
+    monkeypatch.setenv("STUDYKIT_LOCALE", "en")
+    course = tmp_path / "get2"
+    course.mkdir()
+    _course(course, SMALL_COURSE)
+    outcomes = runner.build_course(course, only={"topic-map"})
+    assert [(o.slug, o.status) for o in outcomes] == [("topic-map", "built")]
+    out = course / "_build" / "figures"
+    facts = json.loads((out / "topic-map.facts.json").read_text())
+    assert facts["template"] == "graph.topic_map" and facts["alt"]
+    assert (out / "topic-map.web.svg").is_file()
