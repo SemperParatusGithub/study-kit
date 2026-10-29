@@ -177,18 +177,41 @@ retired_ids: []
 
   | Denied | Use instead |
   |---|---|
-  | `\overset`, `\stackrel`, `\xrightarrow` | `:=`, `\Rightarrow`, or `\;\circ\!\!-\!\!\!\bullet\;` for a Laplace correspondence |
+  | `\overset`, `\stackrel`, `\xrightarrow` | `:=`, `\Rightarrow`, or `\;\circ\!-\!\bullet\;` for a Laplace correspondence |
   | `\color`, `\textcolor` | (none) |
   | `\tag`, `\label`, `\eqref`, `\ref` | name the formula in prose |
   | `vmatrix`, `Vmatrix` | `\left|\begin{matrix}…\end{matrix}\right|` |
   | bare `matrix`/`array`, `\hline`, `\|` in array column specs | a Markdown table |
-  | `\big\Vert` | `\left\|…\right\|` |
+  | `\big…`/`\bigg…` delimiters, `\|`, `\left\|…\right\|`, `\left\lVert` | `\lVert … \rVert`; `\left.…\right|_{…}` for an evaluation bar |
+  | `\mathsf` | `\mathrm` (e.g. `^\mathrm{T}`) |
   | `\operatorname*`, `\limits` | (none) |
   | `\SI`, `\qty`, `\si` | `\,\mathrm{…}` |
   | `\R`, `\N` | `\mathbb{R}`, `\mathbb{N}` |
   | `\ce`, `\pu` | (none) |
 
 - **No custom macros:** no `\newcommand` and no `\def`.
+- **No Markdown block markers inside display math:** a line inside `$$ … $$` must not start
+  with `=`, `-`, `+`, `*`, `#`, `>` or `1.`; pandoc then reads a heading or list instead of
+  math, on the website *and* in the PDF. Keep `=` at the end of the previous line.
+
+**Verified in Phase 1** (`tests/golden/`, pandoc 3.13, Typst 0.15.1, KaTeX 0.16.47):
+- 109 corpus formulas render in KaTeX strict and compile through pandoc → Typst without
+  warnings, and the rendered PDF was reviewed page by page. `math.typ.snap` pins the Typst
+  translation so any drift after a toolchain bump fails `just test`.
+- Hard failures (kept in `math-denied.md`, which must keep failing): `\textcolor`, `\label`,
+  `\eqref`, `\ref`, `vmatrix`, `Vmatrix`, `\SI`, `\qty`, `\R`, `\N`, `\ce`, `\pu`, `\def`,
+  non-ASCII letters outside `\text{}`.
+- **Silent mis-conversions** (compile cleanly but render wrong in Typst, so only the lint
+  can stop them): `\tag` and `\color` are dropped; bare `matrix`/`array` become alignment
+  rows instead of a matrix; `\overset`/`\stackrel` become superscripts; `\xrightarrow` loses
+  its label stretch; `\operatorname*` subscripts do not go below; `\left\|…\right\|_2`
+  and `\|…\|_2` put the index under the bar; `\mathsf` comes out italic.
+- **Fixed in the Typst branch of `math.lua`** (Phase 3), because the source is right and
+  only the translation is off:
+  - decimal comma: `3{,}3` becomes `3\,3`, which Typst sets as "3, 3"; rewrite
+    digit `\,` digit to digit `","` digit;
+  - `cases`: Typst puts no gap between value and condition ("0t < 0"); insert `quad` after
+    each column separator inside `cases(…)`.
 
 **Other rules:**
 - **Figures:** `![Caption, doubles as alt text](fig:<slug>)` alone in its paragraph, with no attributes. The size comes from the figure script.
