@@ -1088,6 +1088,7 @@ sk-exam {
 }
 
 .sk-exam-last {
+  margin-block: 0.75rem 0;
   color: var(--ske-muted);
 }
 
@@ -1483,8 +1484,9 @@ sk-theme {
   margin-block: 0.6rem 0;
 }
 
+/* empty, it stays in place (a live region must exist before its text) but takes no room */
 .sk-export-status:empty {
-  display: none;
+  margin: 0;
 }
 
 .sk-export-status.is-ok {
@@ -1496,6 +1498,7 @@ sk-theme {
 }
 
 .sk-export-note {
+  margin-block: 0.6rem 0;
   font-size: 0.88rem;
   color: var(--ske-muted);
 }
