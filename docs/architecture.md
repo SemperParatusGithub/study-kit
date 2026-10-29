@@ -1128,6 +1128,14 @@ cheat sheet's limit, the assembled Markdown and the SVG of every figure it shows
 successful build stores the digest in `_build/typ/<doc>.digest` (the cheat sheet's density
 on a second line, so a cached run still reports it).
 
+**Quarantine.** Quarantined items (§2.10) are left out of every PDF: the assembler skips
+their exercises in `exercises.pdf` and `exercises-blank.pdf`, an exam's PDFs lose their
+tasks and MC questions with their points (the cover's points, pass mark and points table
+follow `verify.exam_without`, §3.2), the filter drops their questions from `mc.pdf` and the
+exams, whose question counts leave them out, and links to them become plain text.
+`_build/index.json`, which lists them, is part of every document's digest, so quarantining
+or releasing an item rebuilds the documents.
+
 **Failure.** A document fails on a filter finding, a pandoc or Typst error or warning,
 course files that do not assemble into it (a missing exam task file), or a cheat sheet over
 its limit. Its errors are printed, its previous PDF stays on disk, and it leaves the
@@ -1189,10 +1197,13 @@ The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`.
    so it is an estimate. The cheat sheet leaves the manifest and the previous valid PDF stays
    in place. Exit code 0 means it fits, 1 that it did not build, 2 that the course has no
    cheat sheet.
-3. *(Phase 5)* The `authoring/parts/cheatsheet.md` procedure then condenses, in this order:
-   derivations, duplicate examples, prose, then the lowest-priority (low weight, high
-   mastery) topics. Rebuild after each round, for at most 3 rounds, then ask the user what
-   to drop.
+3. The `author` agent's `authoring/parts/cheatsheet.md` procedure (§5.2) then condenses,
+   in this order: derivations and intermediate steps, duplicate examples and formulas,
+   prose (to keywords, merged boxes), and only then content of the lowest-priority topics
+   (lowest weight first, among those the highest mastery from `progress/mastery.json`),
+   starting with the largest sections the JSON names and cutting about 20 % more than
+   `overflow_pages`. It rebuilds after each round, for at most 3 rounds; if the sheet still
+   overflows it returns `fits: false` with the candidates to drop, so the user decides.
 4. More than 3 pages is never allowed (the schema caps both settings at 3).
 
 ### 3.4 Figures: `studykit.figures`, Python only, Matplotlib for everything
