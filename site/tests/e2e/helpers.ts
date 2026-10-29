@@ -1,7 +1,6 @@
 // Shared helpers of the end-to-end suite. Everything about the content (ids, types, the
 // right answers, topic titles) is read from the built pages at run time: options carry
 // data-correct, and the quiz order and option order are never assumed.
-import { readFileSync } from 'node:fs';
 import { expect, type Locator, type Page } from '@playwright/test';
 
 export const COURSE = 'sample-course';
@@ -15,21 +14,6 @@ export const C = `/c/${COURSE}`;
  * run in Europe/Berlin (playwright.config.ts), where this is 10:00 on 2026-11-16.
  */
 export const NOW = new Date('2026-11-16T10:00:00+01:00');
-
-export interface PoolQuestion {
-  id: string;
-  type: 'single' | 'multi' | 'kprim';
-  difficulty: number;
-  topic: string;
-  h: string;
-}
-
-/** The questions of a topic bank, from the built static endpoint /c/<c>/mc/<topic>.json. */
-export function pool(topic: string): PoolQuestion[] {
-  const url = new URL(`../../dist/c/${COURSE}/mc/${topic}.json`, import.meta.url);
-  const data = JSON.parse(readFileSync(url, 'utf8')) as { questions: PoolQuestion[] };
-  return data.questions;
-}
 
 /** Run the page clock from NOW (time flows; fastForward and setSystemTime move it). */
 export async function freezeDay(page: Page, at: Date = NOW): Promise<void> {

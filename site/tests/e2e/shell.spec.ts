@@ -29,7 +29,7 @@ test('the theme choice persists across a reload and applies before any module sc
     await route.continue();
   });
   await page.reload({ waitUntil: 'commit' });
-  await page.waitForFunction(() => document.body !== null);
+  await page.waitForFunction(() => document.body !== null, undefined, { polling: 50 });
   await expect(html).toHaveAttribute('data-theme', 'dark');
   await expect.poll(() => page.evaluate(bodyBackground)).toBe(dark);
   const early = await page.evaluate(() => ({
