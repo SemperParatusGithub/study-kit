@@ -925,23 +925,35 @@ def nyquist(
 ) -> core.Figure:
     """Nyquist plot of G(j omega): omega > 0 solid with arrows, the mirror branch dashed.
 
-    w: (low, high) frequency range in rad/s; by default a wide range around all corners.
+    w: (low, high) frequency range in rad/s; by default a wide range around all corners,
+    closed with the end points G(0) and G(j inf). A range that stops short of them (a
+    partial sweep) draws only G(j omega) for low <= omega <= high, without the omega = 0
+    marker. Encirclements, real-axis crossings and the stability verdict in facts always
+    come from the full Nyquist contour (facts: sweep, criterion_omega_range).
     lim: radius of the region kept in view when G has poles on the imaginary axis
     (the curve then runs off to infinity).
     """
     p = _continuous(G, "nyquist", proper=True)
     st = structure(p)
     freqs = _interesting_frequencies(st)
+    full_lo, full_hi = min(freqs) * 1e-3, max(freqs) * 1e3
     if w is None:
-        lo, hi = min(freqs) * 1e-3, max(freqs) * 1e3
+        lo, hi = full_lo, full_hi
     else:
         lo, hi = float(w[0]), float(w[-1])
+        if not 0 <= lo < hi:
+            raise ValueError("w must be (low, high) in rad/s with 0 <= low < high")
+    # The end points G(0) and G(j inf) belong to the curve only when the sweep reaches
+    # them; 0 and inf themselves cannot go on a log grid and stand for the default ends.
+    from_0, to_inf = lo <= full_lo, hi >= full_hi
+    lo, hi = (full_lo if lo == 0 else lo), (full_hi if math.isinf(hi) else hi)
     omega = _frequency_grid(st, lo, hi, 6000)
     H = p.tf(1j * omega)
     axis_poles = [q for q in p.poles() if q.real == 0]
     h0 = None if st.typ > 0 else (0j if st.typ < 0 else complex(st.k_bode))
     h_inf = complex(st.lead) if st.rel_degree == 0 else 0j
-    pos = np.concatenate([[h0] if h0 is not None else [], H, [h_inf]]).astype(complex)
+    head = [h0] if from_0 and h0 is not None else []
+    pos = np.concatenate([head, H, [h_inf] if to_inf else []]).astype(complex)
 
     # View: the whole curve, or (with poles on the imaginary axis) the part within radius.
     if axis_poles:
@@ -985,7 +997,7 @@ def nyquist(
             fontsize=7,
             color=color(1),
         )
-    if h0 is not None and abs(h0) <= far:
+    if from_0 and h0 is not None and abs(h0) <= far:
         ax.plot([h0.real], [0], "o", ms=3, color=color(0), zorder=7)
         ax.annotate(
             r"$\omega = 0$",
@@ -996,29 +1008,36 @@ def nyquist(
             color=FG,
         )
 
-    # Stability: encirclements of -1 (clockwise positive) and closed-loop poles.
+    # Stability: encirclements of -1 (clockwise positive) and closed-loop poles, always
+    # over the full contour, whatever part of it is drawn.
+    full = from_0 and to_inf
+    w_crit = omega if full else _frequency_grid(st, full_lo, full_hi, 6000)
+    H_crit = H if full else p.tf(1j * w_crit)
     p_rhp = int(sum(q.real > 0 for q in p.poles()))
     cl = _clean_roots(np.roots(np.polyadd(p.den, p.num)))
     z_rhp = int(sum(q.real > 0 for q in cl))
-    n_cw = _encirclements_cw(p, st, omega, H, h0, h_inf)
+    n_cw = _encirclements_cw(p, st, w_crit, H_crit, h0, h_inf)
     crossings = []
-    unit_im = H.imag / np.abs(H)  # sin of the phase: smooth, unlike Im G near poles
+    unit_im = H_crit.imag / np.abs(H_crit)  # sin of the phase: smooth, unlike Im G near poles
     for i in np.flatnonzero(np.sign(unit_im[:-1]) * np.sign(unit_im[1:]) < 0):
         x = brentq(
             lambda v: math.sin(cmath.phase(complex(p.tf(1j * v)))),
-            omega[i],
-            omega[i + 1],
-            xtol=1e-14 * omega[i],
+            w_crit[i],
+            w_crit[i + 1],
+            xtol=1e-14 * w_crit[i],
         )
         hx = complex(p.tf(1j * x))
         if abs(hx.imag) <= 1e-8 * abs(hx) and math.isfinite(abs(hx)):
             crossings.append({"omega": float(x), "re": hx.real})
+    first = h0 if from_0 else complex(H[0])  # h0 is None: G(0) is infinite
     facts = {
         "template": "signals.nyquist",
         "G": p.as_dict(),
+        "sweep": "full" if full else "partial",
         "omega_range": [float(omega[0]), float(omega[-1])],
-        "start": _pair(h0) if h0 is not None else None,
-        "end": _pair(h_inf),
+        "criterion_omega_range": [float(w_crit[0]), float(w_crit[-1])],
+        "start": None if first is None else _pair(first),
+        "end": _pair(h_inf if to_inf else complex(H[-1])),
         "unbounded": bool(axis_poles),
         "view_radius": radius,
         "real_axis_crossings": crossings,
@@ -1042,7 +1061,13 @@ def nyquist(
         else:
             sense = "clockwise" if n_cw > 0 else "counter-clockwise"
             turns = f"encircles -1 {abs(n_cw)} {'time' if abs(n_cw) == 1 else 'times'} {sense}"
-        alt += f"; the curve {turns}; the closed loop is {verdict}."
+        if full:
+            alt += f"; the curve {turns}; the closed loop is {verdict}."
+        else:
+            alt += (
+                f"; only omega from {omega[0]:.3g} to {omega[-1]:.3g} rad/s is drawn; the full "
+                f"Nyquist curve {turns} and the closed loop is {verdict}."
+            )
     return core.finish(fig, alt, facts)
 
 

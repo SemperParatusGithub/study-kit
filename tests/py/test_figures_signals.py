@@ -210,6 +210,25 @@ def test_nyquist_with_integrators():
     assert rhp.facts["closed_loop_stable"]
 
 
+def test_nyquist_partial_sweep():
+    fig = signals.nyquist("1/(s+1)", w=(0.5, 2))
+    assert validate_svg(fig.svg) == []
+    f = fig.facts
+    assert f["sweep"] == "partial" and f["omega_range"] == pytest.approx([0.5, 2])
+    assert f["start"] == pytest.approx([0.8, -0.4])  # G(j 0.5), not G(0)
+    assert f["end"] == pytest.approx([0.2, -0.4])  # G(j 2), not G(j inf)
+    # The criterion still uses the whole contour.
+    assert f["criterion_omega_range"][0] < 0.01 and f["criterion_omega_range"][1] > 100
+    assert f["encirclements_cw"] == 0 and f["closed_loop_stable"]
+    full = signals.nyquist("100/((s+1)*(s+2)*(s+3))")
+    part = signals.nyquist("100/((s+1)*(s+2)*(s+3))", w=(1, 10))
+    assert full.facts["sweep"] == "full" and full.facts["start"] == pytest.approx([100 / 6, 0])
+    for key in ("encirclements_cw", "closed_loop_rhp_poles", "real_axis_crossings"):
+        assert part.facts[key] == full.facts[key]
+    with pytest.raises(ValueError, match="low < high"):
+        signals.nyquist("1/(s+1)", w=(2, 1))
+
+
 def test_pole_zero(locale):
     fig = signals.pole_zero("(s+2)/((s+1)**2*(s**2+2*s+5))")
     assert validate_svg(fig.svg) == []
