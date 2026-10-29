@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=../../../schemas/exam-profile.schema.json
+# Exam profile without past exams: built from the round-1 answers (written exam with an
+# MC part) and the exercise sheets. The MC mix is the study-kit default (60 % single,
+# 25 % multi, 15 % Kprim, all or nothing, no negative marking); duration and aids come
+# from the course facts of the notes and are left out when the material does not state them.
+schema: 1
+confidence: low
+basis: user-answers
+format: mixed
+duration_min: 120
+aids: ['Nicht programmierbarer Taschenrechner']
+mc:
+  present: true
+  share: 0.2
+  types: [single, multi, kprim]
+  type_mix: {single: 0.6, multi: 0.25, kprim: 0.15}
+  scoring: all-or-nothing
+  negative_marking: false
+archetypes:
+  - id: verstaerkung-berechnen
+    title: Verstärkung einer OPV-Grundschaltung berechnen
+    topic: invertierender-verstaerker
+    share: 0.4
+    description: Die häufigste Aufgabe der Übungsblätter (4 von 10 Aufgaben)
+    sources: [{doc: uebung-03, pages: '1'}]
+  - id: summierer-ausgang
+    title: Ausgangsspannung eines Summierers
+    topic: summierer
+    share: 0.3
+    sources: [{doc: uebung-03, pages: '1'}]
+  - id: integrierer-sprung
+    title: Integrierer mit Sprungeingang
+    topic: integrierer
+    share: 0.3
+    sources: [{doc: uebung-03, pages: '1'}]
+notes:
+  - 'No past exams: archetypes and their shares follow the exercise sheets (tasks per archetype).'
+  - 'The MC share of 0.2 is an assumption for a written exam with an MC part.'
