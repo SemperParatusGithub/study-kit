@@ -48,6 +48,9 @@ $$
 f_\mathrm{g} = \frac{1}{2\pi \cdot 6{,}8\,\mathrm{k\Omega} \cdot 220\,\mathrm{nF}} \approx 106{,}4\,\mathrm{Hz}
 $$
 
+Die Grenzfrequenz liegt also knapp über $100\,\mathrm{Hz}$: Ein Signal mit
+$100\,\mathrm{Hz}$ wird schon um rund $3{,}3\,\mathrm{dB}$ gedämpft.
+
 **c)** $x = 50/106{,}4 \approx 0{,}470$:
 
 $$
@@ -56,4 +59,9 @@ $$
 
 Die Brummspannung wird also nur auf rund $43\,\%$ abgeschwächt: So nahe an der
 Grenzfrequenz dämpft ein Filter erster Ordnung wenig.
+
+Muss der Durchlassbereich ab $100\,\mathrm{Hz}$ sicher eingehalten werden, nimmt man den
+nächstgrößeren Normwert $8{,}2\,\mathrm{k\Omega}$ mit $f_\mathrm{g} \approx 88\,\mathrm{Hz}$.
+Dafür wird die Brummspannung noch schwächer gedämpft, mit $-6{,}1\,\mathrm{dB}$ statt
+$-7{,}4\,\mathrm{dB}$.
 :::
