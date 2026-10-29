@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AnswerCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "claimed": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claimed"
+        },
+        "computed": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Computed"
+        },
+        "rel_err": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rel Err"
+        },
+        "abs_err": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Abs Err"
+        }
+      },
+      "title": "AnswerCheck",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`state/verify/<item-id>.json`.",
+  "properties": {
+    "item": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Item",
+      "type": "string"
+    },
+    "content_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Content Sha256",
+      "type": "string"
+    },
+    "check_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Check Sha256"
+    },
+    "method": {
+      "enum": [
+        "script",
+        "blind",
+        "audit"
+      ],
+      "title": "Method",
+      "type": "string"
+    },
+    "result": {
+      "enum": [
+        "pass",
+        "fixed",
+        "disputed",
+        "quarantined"
+      ],
+      "title": "Result",
+      "type": "string"
+    },
+    "answers": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AnswerCheck"
+      },
+      "default": {},
+      "title": "Answers",
+      "type": "object"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "verified_at": {
+      "format": "date-time",
+      "title": "Verified At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "item",
+    "content_sha256",
+    "method",
+    "result",
+    "verified_at"
+  ],
+  "title": "VerifyEntry",
+  "type": "object"
+}

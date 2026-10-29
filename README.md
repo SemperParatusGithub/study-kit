@@ -36,8 +36,11 @@ your `PATH` (or use `.tools/bin/just`) to call `just` directly.
 | Command | What it does |
 |---|---|
 | `just doctor` | Checks every tool against `toolchain.toml` and reports how to fix mismatches |
-| `just test` | Python tests and the golden math corpus (KaTeX and pandoc → Typst) |
-| `just lint` | ruff lint and format check |
+| `just validate [course]` | Checks a course (or all) against the content format; `--release` adds coverage |
+| `just lint <files>` | Quick check of edited course files, as the Claude Code hook runs it |
+| `just figures [course]` | Renders the figure scripts of a course |
+| `just test` | Python tests, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
+| `just lint-code` | ruff lint and format check of the Python code |
 
 ## Your course data stays local
 

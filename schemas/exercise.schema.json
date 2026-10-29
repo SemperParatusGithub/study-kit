@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Answer": {
+      "additionalProperties": false,
+      "description": "One answer-key entry: numeric with a tolerance, or symbolic with its symbols.",
+      "properties": {
+        "key": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\n]*\\S[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "rtol": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rtol"
+        },
+        "atol": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Atol"
+        },
+        "expr": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\n]*\\S[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expr"
+        },
+        "symbols": {
+          "default": [],
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Symbols",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "label"
+      ],
+      "title": "Answer",
+      "type": "object"
+    },
+    "ItemSource": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Doc",
+          "type": "string"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "relation": {
+          "enum": [
+            "original",
+            "adapted",
+            "inspired"
+          ],
+          "title": "Relation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "doc",
+        "relation"
+      ],
+      "title": "ItemSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Frontmatter of `exercises/<topic>/<ex-id>.md`.",
+  "properties": {
+    "id": {
+      "pattern": "^ex-[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "pattern": "^[^\\n]*\\S[^\\n]*$",
+      "title": "Title",
+      "type": "string"
+    },
+    "topic": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Topic",
+      "type": "string"
+    },
+    "difficulty": {
+      "description": "1 worked-example level … 4 exam-hard",
+      "maximum": 4,
+      "minimum": 1,
+      "title": "Difficulty",
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "compute",
+        "derive",
+        "concept",
+        "sketch",
+        "code"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "minutes": {
+      "exclusiveMinimum": 0,
+      "title": "Minutes",
+      "type": "integer"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ItemSource"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "answers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Answer"
+      },
+      "title": "Answers",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "topic",
+    "difficulty",
+    "kind",
+    "minutes"
+  ],
+  "title": "Exercise",
+  "type": "object"
+}

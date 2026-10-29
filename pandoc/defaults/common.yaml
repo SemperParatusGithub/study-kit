@@ -1,0 +1,10 @@
+# Shared pandoc options for every study-kit document (docs/architecture.md §3.1).
+# Combine with exactly one target: -d common -d web | -d common -d typst | -d common -d json.
+# Paths use ${.} (the directory of this file), so any working directory works; run pandoc
+# from the repository root anyway, because Typst figure paths are written relative to it.
+# The filter needs metadata (sk-index, sk-course, sk-lang, sk-file, ...); build the argv
+# with studykit.pandoc instead of assembling it by hand.
+from: commonmark_x-smart-raw_html-raw_attribute-yaml_metadata_block-alerts-emoji
+filters:
+  - ${.}/../filters/studykit.lua
+fail-if-warnings: true

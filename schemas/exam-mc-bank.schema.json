@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Frontmatter of `exams/<exam-id>/mc.md`; each question's topic comes from its id.",
+  "properties": {
+    "title": {
+      "minLength": 1,
+      "pattern": "^[^\\n]*\\S[^\\n]*$",
+      "title": "Title",
+      "type": "string"
+    },
+    "topic": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Topic"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "title": "ExamMcBank",
+  "type": "object"
+}

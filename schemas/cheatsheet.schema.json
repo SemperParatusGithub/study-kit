@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Frontmatter of `cheatsheet.md`.",
+  "properties": {
+    "title": {
+      "minLength": 1,
+      "pattern": "^[^\\n]*\\S[^\\n]*$",
+      "title": "Title",
+      "type": "string"
+    },
+    "max_pages": {
+      "maximum": 3,
+      "minimum": 1,
+      "title": "Max Pages",
+      "type": "integer"
+    },
+    "priority": {
+      "default": [],
+      "items": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Priority",
+      "type": "array"
+    }
+  },
+  "required": [
+    "title",
+    "max_pages"
+  ],
+  "title": "Cheatsheet",
+  "type": "object"
+}

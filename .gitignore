@@ -10,6 +10,7 @@
 /.venv/
 /.cache/
 node_modules/
+__pycache__/
 
 # Build outputs
 /site/dist/
@@ -19,3 +20,4 @@ node_modules/
 # Claude Code local state
 .claude/settings.local.json
 .claude/agent-memory*/
+.claude/worktrees/

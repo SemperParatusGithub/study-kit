@@ -1,0 +1,5 @@
+# Standalone Typst source for `typst compile --root <repo> --ignore-system-fonts`.
+to: typst
+standalone: true
+template: ${.}/../../typst/pandoc-template.typ
+syntax-highlighting: idiomatic

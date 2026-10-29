@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "course": "rc-netzwerke",
+  "lang": "de",
+  "title": "RC-Netzwerke",
+  "topics": {
+    "gleichstrom": {"title": "Gleichstromnetzwerke", "order": 1},
+    "rc-filter": {"title": "RC-Filter und Bode-Diagramm", "order": 2}
+  },
+  "items": {
+    "overview": {"kind": "overview", "title": "Überblick", "topic": null, "path": "overview.md"},
+    "cheatsheet": {"kind": "cheatsheet", "title": "Formelsammlung", "topic": null, "path": "cheatsheet.md"},
+    "summary-rc-filter": {"kind": "summary", "title": "RC-Filter und Bode-Diagramm", "topic": "rc-filter", "path": "summary/02-rc-filter.md"},
+    "ex-rc-tp-grenzfrequenz": {"kind": "exercise", "title": "Grenzfrequenz eines RC-Tiefpasses", "topic": "rc-filter", "path": "exercises/rc-filter/ex-rc-tp-grenzfrequenz.md"},
+    "ex-spannungsteiler": {"kind": "exercise", "title": "Belasteter Spannungsteiler", "topic": "gleichstrom", "path": "exercises/gleichstrom/ex-spannungsteiler.md"},
+    "mc-rc-filter-003": {"kind": "mc", "title": "Grenzfrequenz berechnen", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "mc-rc-filter-011": {"kind": "mc", "title": "Eigenschaften des Tiefpasses", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "mc-rc-filter-020": {"kind": "mc", "title": "Kprim zum Tiefpass", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "mc-rc-filter-101": {"kind": "mc", "title": "Golden 101", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "mc-rc-filter-102": {"kind": "mc", "title": "Golden 102", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "mc-rc-filter-103": {"kind": "mc", "title": "Golden 103", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "mc-rc-filter-104": {"kind": "mc", "title": "Golden 104", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "mc-rc-filter-105": {"kind": "mc", "title": "Golden 105", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "mc-rc-filter-106": {"kind": "mc", "title": "Golden 106", "topic": "rc-filter", "path": "mc/rc-filter.md"},
+    "pk1-t1": {"kind": "exam-task", "title": "Spannungsteiler", "topic": "gleichstrom", "path": "exams/probeklausur-1/01-pk1-t1.md"},
+    "pk1-mc-01": {"kind": "mc", "title": "Einheit der Zeitkonstante", "topic": "rc-filter", "path": "exams/probeklausur-1/mc.md"}
+  },
+  "exams": {
+    "probeklausur-1": {"title": "Probeklausur 1"}
+  },
+  "figures": ["rc-bode", "rc-tp-schaltung", "topic-map"],
+  "sources": {
+    "vl-05": {"title": "Vorlesung 5", "pages": 40}
+  }
+}

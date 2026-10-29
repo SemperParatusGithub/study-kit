@@ -34,7 +34,9 @@ study-kit/
 │   ├── tools.py                    # `tools install` (pandoc/typst → .tools/bin, sha256) and `doctor`
 │   ├── model.py                    # pydantic models: the single schema source
 │   ├── yamlio.py                   # restricted SafeLoader (no YAML-1.1 yes/no/on/off, no sexagesimal) + scalar-style lint
-│   ├── content.py                  # discovery, frontmatter split, id index, fence-line scanner
+│   ├── content.py                  # discovery, frontmatter split, fence-line scanner, MC parser
+│   ├── index.py                    # _build/index.json: ids, topics, exams, sources, figures
+│   ├── findings.py                 # Finding (path:line:col SK-CODE message (fix: …)) and its parser
 │   ├── pandoc.py                   # run pandoc with shared defaults (targets: html5 | typst | json)
 │   ├── lint.py  validate.py        # per-file lint (hook) / full validation, findings as SK-codes
 │   ├── figures/                    # house.mplstyle palette.py core.py keypoints.py plot.py signals.py
@@ -150,6 +152,7 @@ focus: [wechselstrom]
 skip: []
 targets: {exercises_per_topic: auto, mc_per_topic: auto, mock_exams: 2}   # auto = f(weight)
 retired_ids: []
+status: draft                   # draft | ready; /register-new-subject sets ready when publish is green
 ```
 
 ### 2.3 Markdown conventions: one dialect, one parser
@@ -157,7 +160,9 @@ retired_ids: []
 **Reader:** `commonmark_x-smart-raw_html-raw_attribute-yaml_metadata_block-alerts-emoji`.
 - `studykit` and the site loader both strip frontmatter before calling pandoc.
 - Smart quotes are off; write „…“ directly.
-- Raw HTML and raw Typst are impossible.
+- Raw HTML is an error. pandoc 3.13 still produces RawBlock/RawInline for commonmark_x
+  despite `-raw_html`, so `guard.lua` rejects them; raw Typst needs `raw_attribute`,
+  which is off.
 
 **Container blocks.** This is a closed list. Every fence has a blank line before and after it. Unknown classes, and any paragraph that starts with `:::`, are hard errors in `guard.lua`.
 
@@ -182,7 +187,7 @@ retired_ids: []
   | `\color`, `\textcolor` | (none) |
   | `\tag`, `\label`, `\eqref`, `\ref` | name the formula in prose |
   | `vmatrix`, `Vmatrix` | `\left|\begin{matrix}…\end{matrix}\right|` |
-  | bare `matrix`/`array`, `\hline`, `\|` in array column specs | a Markdown table |
+  | `array`; `matrix` outside `\left( \right)`, `\left[ \right]`, `\left| \right|`, `\left\{ \right\}`; `\hline` | `pmatrix`/`bmatrix`/`Bmatrix`, or a Markdown table |
   | `\big…`/`\bigg…` delimiters, `\|`, `\left\|…\right\|`, `\left\lVert` | `\lVert … \rVert`; `\left.…\right|_{…}` for an evaluation bar |
   | `\mathsf` | `\mathrm` (e.g. `^\mathrm{T}`) |
   | `\operatorname*`, `\limits` | (none) |
@@ -216,7 +221,7 @@ retired_ids: []
 
 **Other rules:**
 - **Figures:** `![Caption, doubles as alt text](fig:<slug>)` alone in its paragraph, with no attributes. The size comes from the figure script.
-- **Links:** `[…](ex:<id>)`, `(mc:<id>)`, `(topic:<id>)`, `(exam:<id>)`, and `(src:<doc>#p=12)`, which opens the lecture PDF at that page. Every target must exist.
+- **Links:** `[…](ex:<id>)`, `(mc:<id>)`, `(topic:<id>)`, `(exam:<id>)`, and `(src:<doc>#p=12)`, which opens the lecture PDF at that page (`src:<doc>` alone opens the PDF). Every target must exist. `mc:` reaches practice-bank questions only; link an exam with `exam:`.
 - **Subtasks:** `**a)**` paragraphs.
 - **Code:** fenced, with a language from `python matlab octave c cpp vhdl verilog systemverilog julia text`.
 - **Forbidden:** raw HTML, H1 in the body, heading attributes, footnotes, bare URLs, and any image that isn't `fig:`.
@@ -385,6 +390,19 @@ Beurteilen Sie für den RC-Tiefpass:
   | `tags` | optional, comma-separated |
   | `source` | optional, `doc:page` |
   | `pin-last` | optional; keeps the last option last after shuffling, only for a "none of these" option |
+
+**How pandoc reads it** (verified in Phase 3 with pandoc 3.13, pinned by `tests/py/test_filters.py`):
+- Loose task lists keep their checkboxes. Each option arrives as
+  `[Para [Str "☒" | "☐", Space, …option…], Para […why…]]`, so the format above works as
+  written and the tight-list fallback from §7 risk 4 is not needed.
+- An item without a checkbox ends the task list and pandoc starts a new list after it;
+  `mcq.lua` joins consecutive lists and reports "option N is not a task item".
+- `:::` and `::::` look the same in the AST. The guard checks fence lengths on the source
+  lines whenever pandoc reads a file (always through `studykit.pandoc`); `lint.py` checks
+  them too.
+- The PDF shuffle is deterministic: the FNV-1a 32-bit hash of the question id seeds
+  mulberry32, then Fisher-Yates runs from the last option down (a `pin-last` option is left
+  out), and the keys (A)–(F) are assigned after shuffling.
 
 **Lint rules** (`mcq.lua` plus `lint.py`):
 - `single` has 3–5 options with exactly one `[x]`.
@@ -590,15 +608,15 @@ title: Überblick
 
 | Module | What it does |
 |---|---|
-| `guard` | Fails on any paragraph starting with `:::`, unknown classes, nesting deeper than mcq→explanation, or fence-length errors. |
-| `blocks` | HTML: `<aside class="sk-{name}">`, with `<details>` for hint and solution. Typst: `#sk-box(kind:…, title:…)[…]`. |
-| `mcq` | Reads the ☐/☒ task list (option text, why, explanation) and validates it. HTML: `<sk-mc data-id data-type data-h>` with `<sk-opt data-correct>` children. Typst: options (A)–(E) with empty boxes in a seeded shuffle, plus answer-key entries. |
-| `math` | Applies the denylist to every Math node. In HTML it emits `<sk-math data-tex="<base64>" data-display="0\|1"></sk-math>`. Base64 avoids entity-escaping problems, and since raw HTML is off, authors cannot fake these elements. |
-| `figures` | HTML: a `<figure class="sk-fig" data-slug>` placeholder. Typst: `#figure(image("/courses/<c>/_build/figures/<slug>.svg"), caption: …)`. |
-| `refs` | Resolves `ex:`, `mc:`, `topic:`, `exam:` and `src:` against a course ID index. HTML: route URLs. Typst: an in-document link, otherwise plain text such as „(→ Übung: Titel)“. |
-| `meta` | HTML: appends `<script type="application/json" id="sk-meta">` with headings and items (id, type, topics, difficulty, points). |
+| `guard` | Fails on any paragraph starting with `:::`, unknown classes, nesting deeper than mcq→explanation, fence-length errors, and raw HTML. |
+| `blocks` | HTML: `<aside class="sk-block sk-{name}" data-block="{name}">` with a `sk-block-title` div; hints are `<details class="sk-hint" data-index="n">`, the solution `<details class="sk-solution">`. Typst: `#sk-box(kind:…, title:…)[…]`. |
+| `mcq` | Reads the ☐/☒ task list (option text, why, explanation) and validates it. HTML: `<sk-mc data-id data-type data-difficulty data-topic data-pin-last>` (plus `data-tags`/`data-source` when set) with a `sk-stem` div, `<sk-opt data-key data-correct>` children holding the option text and a hidden `sk-why`, and a hidden `sk-explanation`. Typst: options (A)–(E) with empty boxes in a seeded shuffle, plus answer-key entries. |
+| `math` | Applies the denylist to every Math node. In HTML it emits `<sk-math data-tex="<base64>" data-display="0\|1"></sk-math>`. Base64 avoids entity-escaping problems, and since `guard` rejects raw HTML, authors cannot fake these elements. Typst: two fixes from Phase 1 (decimal comma, `cases` gap). The json lint run also converts to Typst, so the lint fails on what the PDF would fail on. |
+| `figures` | HTML: a `<figure class="sk-fig" data-slug>` placeholder with a `sk-fig-slot` and the caption. Typst: `#figure(image("/courses/<c>/_build/figures/<slug>.svg", alt: …), caption: …)`; the path is relative to the Typst root, and a figure directory outside it is a finding. |
+| `refs` | Resolves `ex:`, `mc:`, `topic:`, `exam:` and `src:` against a course ID index. HTML: `<a class="sk-ref sk-ref-{scheme}">` with route URLs. Typst: an in-document link, otherwise plain text such as „(→ Übung: Titel)“. With `-M sk-scope=file` (the quick lint of one file) targets missing from the index are not reported. |
+| `meta` | HTML: appends `<script type="application/json" id="sk-meta">` with headings (level, id, text) and items: the file's own index entry, then each MC question, as `{id, kind, topic, difficulty}` (MC items add `type`; difficulty is null when the index has none). |
 | `i18n` | Labels in German and English (Hinweis, Lösung, Aufgabe, Punkte …). |
-| `solutions` | Typst `-M solutions=inline\|appendix\|none`: moves solutions and MC keys into an appendix with back-links. |
+| `solutions` | Typst `-M sk-solutions=inline\|appendix\|none` (default appendix): hints, solutions and MC keys stay in place, move into an appendix with back-links, or are dropped. |
 
 ### 3.2 Website: Astro 7.4.2 static, pandoc loader, custom elements, plain CSS
 
@@ -890,7 +908,7 @@ ci:
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
 
-Every finding has the form `path:line:col SK-CODE message (fix: …)`. Each code is documented in `content-format/errors.md` with a fix recipe and the pipeline step that owns it. `--quick` covers the stages up to and including Math, for one file in under about 1 s, and is used by the hook.
+Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is the stage family from the table plus a rule (`SK-MCQ-COUNT`, `SK-YAML-ESCAPE`); warnings keep the shape and start the message with `warning:`. Each code is documented in `content-format/errors.md` with a fix recipe and the pipeline step that owns it. `--quick` covers the stages up to and including Math plus the Pandoc backstop, for one file in about 1 s, and is used by the hook.
 
 | Stage | Checks | Code |
 |---|---|---|
@@ -900,6 +918,7 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. Each code
 | MC | option counts per type, `[x]` invariants, a `why` on every option, one explanation, `pin-last` rule, no "all of the above", bank-bias warnings | SK-MCQ |
 | Math | denylist; KaTeX strict via `check-math.mjs`; pandoc→Typst with zero warnings; hint-leak rule | SK-MATH |
 | References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and archetypes | SK-REF |
+| Pandoc | the Lua filter set with the json target, on files the stages above left without errors: catches what only the filter sees (raw HTML, fixed-up Typst that fails) under the filter's family codes; file scope with `--quick` | SK-* |
 | Figures | build plus SVG validation, facts present, unreferenced scripts (warning) | SK-FIG |
 | Verification | ledger complete and fresh; disputed and quarantined items listed | SK-VER |
 | PDF | every document compiles with no warnings; cheat sheet ≤ its limit | SK-PDF |
