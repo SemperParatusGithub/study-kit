@@ -1809,7 +1809,7 @@ any content → figures → verify → pdf
 
 These follow your order (toolchain → figures → website → PDF → agents/skills → /register-new-subject), with a small guardrails phase first. Every commit is a Conventional Commit, one logical change, with no Co-Authored-By trailer.
 
-**Status:** Phases 0–4 are complete; Phase 5 is next. Sections of this document that describe
+**Status:** Phases 0–5 are complete; Phase 6 is next. Sections of this document that describe
 later phases mark the parts that do not exist yet.
 
 **Phase 0: guardrails.** Done when the hooks reject a bad message and staged course data, and the guard workflow is green.
@@ -1891,14 +1891,18 @@ Commits:
 - `ci: build and upload sample course pdfs`
 
 **Phase 5: agents and skills.** Done when, on the sample course:
-- the verifier catches a seeded wrong number and a seeded wrong MC key
-- the hook catches a broken fence
+- the verifier catches a seeded wrong number and a seeded wrong MC key (`test_verify.py`,
+  on a copy of the sample course)
+- the hook catches a broken fence (`test_claude.py` runs the configured lint hook)
 - `/regenerate sample-course mc --topic rc-filter --add 3`, `/tutor`, `/examine mc`, `/import-progress` and `/study-status` all work
 
 Commits:
 - `feat(verify): add check api, runner and per-item ledger`
 - `feat(verify): add blind item views`
 - `feat(cli): add sympy calc command`
+- `feat(cli): add verifier-guard and pre-git hooks`
+- `feat(validate): report the verification ledger in the verification stage`
+- `feat(verify): hide quarantined items on the site and in pdfs`
 - `feat(claude): add permissions and lint hooks`
 - `feat(claude): add content-format, authoring and figures skills`
 - `feat(claude): add author agent`
@@ -1906,8 +1910,10 @@ Commits:
 - `feat(claude): add verify and regenerate commands`
 - `feat(progress): add import, examiner log and mastery report`
 - `feat(plan): add deterministic study plan scheduler`
+- `feat(cli): add study status command`
 - `feat(claude): add tutor and examiner skills and agents`
 - `feat(claude): add import-progress and study-status commands`
+- `build: add verify, status, tutor and examine recipes`
 - `test(claude): lint skill and agent frontmatter and referenced files`
 
 **Phase 6: `/register-new-subject`.** Done when an end-to-end run on `examples/sample-materials`, including the rasterised scan, produces a course with a green `--release`, and an interrupted run resumes correctly.
@@ -1928,14 +1934,14 @@ Commits:
 |---|---|---|
 | 1 | KaTeX (web) and texmath (PDF) disagree on math. This is the only remaining two-engine split. | One written subset; `math.lua` denylist with replacements; KaTeX strict plus `--fail-if-warnings`; lint hook on every write; every full `validate` compiles the course's PDFs with every warning an error (SK-PDF); golden corpus in CI, re-run on every pandoc or Typst bump |
 | 2 | The custom pandoc loader is our own code: dev hot reload, speed, error mapping | The loader plus the render bridge (`studykit render`), with digest caching and a thread pool; error cards in dev; `+sourcepos` in lint; e2e tests; fallback is the research's remark path with name-only fences |
-| 3 | LLM arithmetic errors, or wrong MC keys and distractors | Blind verifier enforced by a hook; check scripts; `mc_numeric` with named mistakes and a separation check; two-method rule; content-hash ledger; quarantine instead of shipping |
+| 3 | LLM arithmetic errors, or wrong MC keys and distractors | `studykit calc` and Python for every number; blind verifier enforced by its guard hook (`verifier-guard`) and blind views; check scripts; `mc_numeric` with named mistakes and a separation check; two-method rule; content-hash ledger; quarantine instead of shipping |
 | 4 | Pandoc may not detect `[x]` in *loose* task-list items (option paragraph plus `why` paragraph) | Covered by the Phase 1 golden corpus. Fallback: a tight list with the `why` as an indented `::: why`-free sub-list item that `mcq.lua` reads |
-| 5 | Cheat sheet over 3 pages, or different page counts on different machines | Embedded Typst fonts only with `--ignore-system-fonts`, no `TYPST_*` environment, `SOURCE_DATE_EPOCH=0`; exact Typst pin; density presets with a 7 pt floor; overflow measured with `typst eval`; SK-PDF-CHEATSHEET in every full `validate`; capped condense rounds (Phase 5); hard failure that keeps the last valid PDF and drops it from the manifest |
+| 5 | Cheat sheet over 3 pages, or different page counts on different machines | Embedded Typst fonts only with `--ignore-system-fonts`, no `TYPST_*` environment, `SOURCE_DATE_EPOCH=0`; exact Typst pin; density presets with a 7 pt floor; overflow measured with `typst eval`; SK-PDF-CHEATSHEET in every full `validate`; at most 3 condense rounds by the author, then the user decides; hard failure that keeps the last valid PDF and drops it from the manifest |
 | 6 | Figures valid but visually wrong | Templates hide placement; mandatory PNG review; facts JSON is the numeric source; `plot.custom()` is the only raw route |
 | 7 | Course material leaks into the public repo | Gitignore; pre-commit hook; Claude `pre-git` hook and deny rules; CI guard; no agent memory; self-written sample course |
 | 8 | Toolchain drift (pandoc 3.13 is 3 days old; Typst 0.x breaking changes; Astro 7 Markdown churn) | sha256-pinned binaries shared by local and CI; lockfiles with 7-day cooldowns; `doctor`; Astro's Markdown pipeline not used at all; one-line fallback to pandoc 3.12.1 |
-| 9 | Lost browser progress (origin or port change, Safari eviction) or edits invalidating it | Fixed `localhost:4321` with strictPort; `storage.persist()`; export, import and merge; content hashes per item; `/import-progress` keeps copies |
-| 10 | Claude Code's Grep and Glob may skip the gitignored `courses/` | `studykit ls --json` and explicit paths in every procedure; Read is unaffected; checked in Phase 5 |
+| 9 | Lost browser progress (origin or port change, Safari eviction) or edits invalidating it | Fixed `localhost:4321` with strictPort; `storage.persist()`; export, import and merge; content hashes per item; `/import-progress` merges the export into `progress/state.json` and keeps a copy in `progress/browser/` |
+| 10 | Claude Code's Grep and Glob may skip the gitignored `courses/` | Every skill and agent lists course files with `studykit ls` and ids with `studykit index --json` and reads explicit paths (Read is unaffected); the hooks take the path from the event |
 | 11 | Cost and time of a full ingest and generation run on large courses | Text-first reading with vision only for flagged pages; 20-page chunks; sonnet for ingestion; caps of 6 agents; estimate and core-first mode; resumable status |
 | 12 | Mock exams copy past exams too closely | Modelled at archetype level; n-gram similarity warning (planned); new values and circuits required |
 | 13 | YAML pitfalls (backslash escapes, YAML 1.1 vs 1.2) | Scalar-style lint from parser events; restricted PyYAML loader that reads plain scalars like the YAML 1.2 core schema; the site gets frontmatter from that loader through the render bridge and reads `course.yaml` and `plan.yaml` with `yaml` 1.2 (core schema); no LaTeX in `course.yaml` |
