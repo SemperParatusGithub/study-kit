@@ -68,6 +68,7 @@ TEXT: dict[str, dict[str, Any]] = {
     "de": {
         "summary": "Zusammenfassung",
         "exercises": "Übungen",
+        "exercises-blank": "Übungsblatt",
         "exercises-sub": "Mit Hinweisen und Lösungen im Anhang",
         "exercises-blank-sub": "Aufgaben ohne Hinweise und Lösungen",
         "mc": "Multiple-Choice-Fragen",
@@ -176,6 +177,7 @@ TEXT: dict[str, dict[str, Any]] = {
     "en": {
         "summary": "Summary",
         "exercises": "Exercises",
+        "exercises-blank": "Exercise sheet",
         "exercises-sub": "With hints and solutions in the appendix",
         "exercises-blank-sub": "Exercises without hints and solutions",
         "mc": "Multiple-choice questions",
@@ -584,7 +586,7 @@ class Assembler:
         if not docs:
             return None
         kind = "exercises-blank" if blank else "exercises"
-        title = self.tx["exercises"]
+        title = self.tx[kind]
         md = Markdown()
         self.info(
             md,
