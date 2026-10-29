@@ -50,10 +50,11 @@ $\varphi = \arctan\frac{31{,}4}{40} \approx 38{,}1^\circ$.
 
 **d)** $U_R = I R \approx 180{,}9\,\mathrm{V}$ und $U_L = I X_L \approx 142{,}1\,\mathrm{V}$.
 
-**e)** $\underline{U}_R$ liegt in Richtung von $\underline{I}$, $\underline{U}_L$ ist um
-$90^\circ$ gedreht. Die Zeiger addieren sich geometrisch:
+**e)** $\underline{I}$ liegt als Bezugszeiger auf der positiven reellen Achse,
+$\underline{U}_R$ in derselben Richtung; $\underline{U}_L$ ist um $90^\circ$ gedreht und
+setzt an der Spitze von $\underline{U}_R$ an. Die Zeiger addieren sich geometrisch:
 $\sqrt{180{,}9^2 + 142{,}1^2}\,\mathrm{V} \approx 230\,\mathrm{V}$. Die algebraische Summe
 der Beträge, rund $323\,\mathrm{V}$, hat keine physikalische Bedeutung.
 
-![Zeigerdiagramm: UR = 180,9 V und UL = 142,1 V ergeben U = 230 V bei 38,1°](fig:ws-zeiger-rl-230v)
+![Zeigerdiagramm mit dem Strom als Bezugszeiger: Die Teilspannungen 180,9 V und 142,1 V ergeben die Netzspannung 230 V bei 38,1°](fig:ws-zeiger-rl-230v)
 :::

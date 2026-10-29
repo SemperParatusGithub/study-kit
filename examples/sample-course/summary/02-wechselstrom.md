@@ -118,7 +118,7 @@ Die Teilspannungen $U_R = 60\,\mathrm{V}$ und $U_L = 80\,\mathrm{V}$ ergeben zus
 $U = 100\,\mathrm{V}$, nicht $140\,\mathrm{V}$.
 :::
 
-![Zeigerdiagramm des Beispiels: UR = 60 V und UL = 80 V ergeben U = 100 V, die dem Strom um 53,1° vorauseilt](fig:ws-zeiger-rl)
+![Zeigerdiagramm des Beispiels mit dem Strom als Bezugszeiger: Die Teilspannungen 60 V und 80 V ergeben die Gesamtspannung 100 V, die dem Strom um 53,1° vorauseilt](fig:ws-zeiger-rl)
 
 Bei einer RC-Reihenschaltung zeigt $\underline{U}_C$ von der Spitze von $\underline{U}_R$
 aus nach unten, und die Gesamtspannung eilt dem Strom nach.

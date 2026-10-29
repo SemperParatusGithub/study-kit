@@ -38,10 +38,13 @@ Spitze von $\underline{U}_R$.
 **a)** $U_R = I R = 10\,\mathrm{mA} \cdot 220\,\Omega = 2{,}2\,\mathrm{V}$ und
 $U_C = I X_C = 10\,\mathrm{mA} \cdot 330\,\Omega = 3{,}3\,\mathrm{V}$.
 
-**b)** $\underline{U}_R$ zeigt nach rechts, $\underline{U}_C$ von seiner Spitze aus senkrecht
-nach unten; $\underline{U}$ verbindet den Ursprung mit der Spitze von $\underline{U}_C$.
+**b)** $\underline{I}$ liegt als Bezugszeiger auf der positiven reellen Achse; seine Länge
+folgt einem eigenen Maßstab, weil er eine andere Einheit hat. $\underline{U}_R$ ist mit dem
+Strom in Phase und zeigt ebenfalls nach rechts, $\underline{U}_C$ von seiner Spitze aus
+senkrecht nach unten; $\underline{U}$ verbindet den Ursprung mit der Spitze von
+$\underline{U}_C$.
 
-![Zeigerdiagramm: UR = 2,2 V und UC = 3,3 V ergeben U = 3,97 V bei -56,3°](fig:ws-zeiger-rc)
+![Zeigerdiagramm mit dem Strom als Bezugszeiger: Die Teilspannungen 2,2 V und 3,3 V ergeben die Gesamtspannung 3,97 V bei −56,3°](fig:ws-zeiger-rc)
 
 **c)** $\underline{U} = (2{,}2 - \mathrm{j}\,3{,}3)\,\mathrm{V}$, also
 
