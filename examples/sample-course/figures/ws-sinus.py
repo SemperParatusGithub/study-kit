@@ -32,7 +32,6 @@ def build():
             ha="center",
             va="bottom",
             fontsize=8,
-            color=color(1),
         )
         # amplitude: arrow from the axis to the second maximum
         ax.annotate(

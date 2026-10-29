@@ -18,6 +18,8 @@ from studykit import cli, content, findings, tools, validate
 
 CASES = sorted(p.name for p in BAD.iterdir() if p.is_dir())
 NEEDS_KATEX = {"SK-MATH-KATEX"}
+# Rules only the pandoc filter checks (the Pandoc stage).
+NEEDS_PANDOC = {"SK-BLOCK-MARKDOWN", "SK-BLOCK-RAW", "SK-MATH-TYPST", "SK-REF-LINK"}
 # A duplicate is reported at every occurrence, the untouched original included.
 ALSO_ON_THE_ORIGINAL = {"SK-STRUCT-DUP"}
 KATEX_MISSING = validate.katex_available(tools.repo_root())
@@ -58,6 +60,8 @@ def test_mini_course_passes_katex(mini: Path, denylist: Path):
 def test_bad_fixture_yields_its_code(code: str, mini: Path, denylist: Path):
     if code in NEEDS_KATEX and KATEX_MISSING:
         pytest.skip(f"KaTeX unavailable: {KATEX_MISSING}")
+    if code in NEEDS_PANDOC and PANDOC_MISSING:
+        pytest.skip("pandoc is not installed in .tools/bin")
     written = overlay(mini, BAD / code)
     report = run(mini, denylist, katex=code in NEEDS_KATEX)
     found = report.findings
@@ -103,10 +107,22 @@ def test_the_filter_reports_what_the_python_stages_miss(quick: bool, mini: Path,
     summary.write_text(summary.read_text() + "\nText mit <span>rohem HTML</span>.\n")
     report = run(mini, denylist, quick=quick)
     assert {(f.code, f.message.split("`")[1]) for f in report.findings} == {
-        ("SK-BLOCK", "<span>"),
-        ("SK-BLOCK", "</span>"),
+        ("SK-BLOCK-RAW", "<span>"),
+        ("SK-BLOCK-RAW", "</span>"),
     }
     assert all(f.path.endswith("summary/01-spannungsteiler.md") for f in report.findings)
+
+
+@pytest.mark.skipif(PANDOC_MISSING, reason="pandoc is not installed in .tools/bin")
+@pytest.mark.parametrize("quick", [False, True])
+@pytest.mark.parametrize("code", ["SK-REF-FIGURE", "SK-REF-IMAGE"])
+def test_a_figure_mistake_has_one_code_in_lint_and_validate(
+    code: str, quick: bool, mini: Path, denylist: Path
+):
+    """--quick (the lint hook) leaves figures to the filter, a full run to References."""
+    overlay(mini, BAD / code)
+    report = run(mini, denylist, quick=quick)
+    assert {f.code for f in report.findings} == {code}
 
 
 def test_figures_are_built_and_failures_reported(mini: Path, denylist: Path):

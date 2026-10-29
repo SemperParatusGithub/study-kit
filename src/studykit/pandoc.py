@@ -34,8 +34,8 @@ DEFAULTS: dict[str, str] = {"html": "web", "typst": "typst", "json": "json"}
 EXIT_FINDINGS = 65
 
 # `path:line:col SK-CODE message (fix: …)`, the finding format of every study-kit check.
-# The filters mostly report the family (SK-MATH); a rule they share with validate keeps
-# its full code (SK-MATH-THINSPACE).
+# The filters report a family plus a rule like every check (SK-MATH-TYPST); a rule they
+# share with validate has the code validate uses for it (SK-REF-FIGURE).
 FINDING = re.compile(
     r"^(?P<path>\S+?):(?P<line>\d+):(?P<col>\d+) (?P<code>SK-[A-Z]+(?:-[A-Z0-9]+)*) "
     r"(?P<message>.*)$"

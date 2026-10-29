@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-LETTER
 message: 'the explanation refers to option B by its letter'
 line: 24
 ---

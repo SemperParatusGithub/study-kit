@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-FIG
+code: SK-REF-FIGURE
 message: 'figure `rc-bode` is not alone in its paragraph'
 line: 8
 ---

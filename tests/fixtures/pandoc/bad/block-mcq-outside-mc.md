@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-BLOCK
+code: SK-BLOCK-PLACEMENT
 message: 'mcq blocks are only allowed in mc/<topic>.md'
 line: 8
 ---

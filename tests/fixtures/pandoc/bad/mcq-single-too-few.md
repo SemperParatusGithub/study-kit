@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-COUNT
 message: 'single needs 3–5 options, found 2'
 line: 8
 ---

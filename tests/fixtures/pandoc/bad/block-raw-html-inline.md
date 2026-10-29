@@ -1,6 +1,6 @@
 ---
 sk-file: summary/02-rc-filter.md
-code: SK-BLOCK
+code: SK-BLOCK-RAW
 message: 'raw HTML `<img src=x onerror=alert(1)>` is not allowed'
 line: 8
 ---

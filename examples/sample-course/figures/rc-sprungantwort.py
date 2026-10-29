@@ -45,7 +45,6 @@ def build():
             ha="right",
             va="bottom",
             fontsize=7,
-            color=color(1),
         )
         ax.set_xlim(0, 5)
         ax.set_ylim(0, 1.1)

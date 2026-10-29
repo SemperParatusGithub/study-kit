@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-ATTR
 message: 'type must be single, multi or kprim'
 line: 8
 ---

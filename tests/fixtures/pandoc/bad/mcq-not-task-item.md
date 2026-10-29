@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-FORMAT
 message: 'option 2 is not a task item'
 line: 15
 ---

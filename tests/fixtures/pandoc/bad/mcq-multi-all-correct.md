@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-KEY
 message: 'multi needs at least one [x] and at least one [ ], found 4 of 4'
 line: 8
 ---

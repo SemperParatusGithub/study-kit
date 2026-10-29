@@ -1,6 +1,6 @@
 ---
 sk-file: mc/rc-filter.md
-code: SK-MCQ
+code: SK-MCQ-ATTR
 message: 'unknown attribute `points`'
 line: 8
 ---

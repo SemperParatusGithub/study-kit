@@ -33,7 +33,6 @@ def build():
             xytext=(-4, 2),
             ha="right",
             va="bottom",
-            color=color(0),
             **style,
         )
         ax.annotate(
@@ -42,7 +41,6 @@ def build():
             xytext=(4, 2),
             ha="left",
             va="bottom",
-            color=color(1),
             **style,
         )
         ax.annotate(

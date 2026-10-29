@@ -8,7 +8,8 @@ instead of assembling pandoc arguments itself, so the argv stays in one place
 2. picks the files: overview, summary, exercise, mc, exam-mc, exam-task and cheatsheet are
    rendered to HTML, exam.yaml comes back as data only; `paths` narrows the selection;
 3. computes each file's digest: sha256 of a format tag, the pandoc version, the filter tree
-   (`pandoc/` plus the studykit modules that shape the output), the index and the file
+   (`pandoc/` plus this module and the studykit modules it imports), the index, the
+   frontmatter validation context (topics and limits from course.yaml) and the file
    bytes. A file whose digest the caller already holds (`known`) comes back as `cached`
    without running pandoc;
 4. renders the rest with `pandoc.run_filtered(target="html")` in a thread pool.
@@ -31,8 +32,10 @@ its findings a line and column. Filter findings never raise: they are returned.
 
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import hashlib
+import json
 import os
 from collections.abc import Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -48,8 +51,49 @@ FORMAT_TAG = b"studykit-render/1"
 HTML_KINDS = ("overview", "summary", "exercise", "mc", "exam-mc", "exam-task", "cheatsheet")
 DATA_KINDS = ("exam",)
 KINDS = HTML_KINDS + DATA_KINDS
-# Modules whose code decides what the bridge returns besides pandoc itself.
-SHAPING_MODULES = ("content.py", "findings.py", "index.py", "model.py", "pandoc.py", "render.py")
+PACKAGE = Path(__file__).parent
+
+
+def _imported_modules(path: Path) -> set[str]:
+    """Names of the studykit modules `path` imports (`from studykit import x`, …)."""
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            if node.module == "studykit":
+                names.update(alias.name for alias in node.names)
+            elif node.module.startswith("studykit."):
+                names.add(node.module.split(".")[1])
+        elif isinstance(node, ast.Import):
+            names.update(
+                alias.name.split(".")[1]
+                for alias in node.names
+                if alias.name.startswith("studykit.")
+            )
+    return names
+
+
+def shaping_modules() -> list[Path]:
+    """This module and every studykit module it imports, directly or through another one.
+
+    Their code decides what the bridge returns besides pandoc itself (frontmatter parsing,
+    schema findings, the index), so they are part of every file's digest. Following the
+    imports keeps the list complete when a module gains a dependency.
+    """
+    seen: set[str] = set()
+    todo = [Path(__file__).stem]
+    files = {PACKAGE / "__init__.py"}
+    while todo:
+        name = todo.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        module, package = PACKAGE / f"{name}.py", PACKAGE / name
+        sources = sorted(package.rglob("*.py")) if package.is_dir() else [module]
+        for source in sources:
+            if source.is_file():
+                files.add(source)
+                todo.extend(_imported_modules(source))
+    return sorted(files)
 
 
 def pandoc_version() -> str:
@@ -66,7 +110,7 @@ def tree_digest(root: Path | None = None) -> str:
         for p in (root / "pandoc").rglob("*")
         if p.is_file() and not any(part.startswith(".") for part in p.parts)
     )
-    files += [Path(__file__).with_name(name) for name in SHAPING_MODULES]
+    files += shaping_modules()
     h = hashlib.sha256()
     for path in files:
         try:
@@ -200,12 +244,14 @@ def render_course(
     tree = content.CourseTree(course_dir)
     index_file, data = index.write(tree)
     version = pandoc_version()
+    # The validation context carries course.yaml values the index does not hold
+    # (cheatsheet.max_pages); it also computes the shared context before the threads.
+    context = json.dumps(tree.context, sort_keys=True, default=str).encode()
     base = b"\0".join(
-        [FORMAT_TAG, version.encode(), tree_digest().encode(), index_file.read_bytes()]
+        [FORMAT_TAG, version.encode(), tree_digest().encode(), index_file.read_bytes(), context]
     )
     docs, skipped = _select(tree, paths)
     known = known or {}
-    tree.context  # noqa: B018 - compute the shared validation context before the threads
 
     def one(doc: content.Doc) -> dict[str, Any]:
         digest = file_digest(base, doc.path)
