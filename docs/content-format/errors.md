@@ -19,14 +19,22 @@ that owns the file:
 |---|---|
 | `course.yaml` | `/register-new-subject` scaffold and synthesis (main thread) |
 | `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part) |
-| `plan.yaml` | `studykit plan` (only `goal` and `note` are hand-written) |
+| `plan.yaml` | `studykit plan` (Phase 5; only `goal` and `note` are hand-written); until then written by hand |
 | `analysis/exam-profile.yaml` | `exam-analyst` |
 | `sources/manifest.yaml` | `studykit ingest` |
 
-Stages: Structure, Schema, Fences, MC and Math run in `studykit lint` and
-`validate --quick`; References, Figures and the later stages run in `validate`;
-Site and Coverage only with `validate --release`. Stages whose tools are not there yet
-(pandoc filters, figure build, verification, PDF, site) are reported as skipped.
+Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
+`validate --quick`; References and Figures run in `validate`; Site and Coverage only with
+`validate --release`. Verification (Phase 5) and PDF (Phase 4) are reported as skipped, and
+so is a stage whose tools are missing (pandoc in `.tools/bin`, `site/node_modules`).
+
+The Pandoc stage runs the Lua filter set that builds the site and the PDFs on every file
+the earlier stages left without errors (at file scope in `lint` and `--quick`, where targets
+missing from the course are not reported). Its findings use the codes below: a rule that
+both the filter and a stage check has one code (e.g. `SK-REF-FIGURE`, `SK-BLOCK-FENCE`,
+`SK-MCQ-KEY`), and the rules only the filter sees have their own (`SK-BLOCK-RAW`,
+`SK-BLOCK-MARKDOWN`, `SK-REF-LINK`, `SK-MATH-TYPST`). The website shows the same findings as
+an error card on the page.
 
 ## Structure (SK-STRUCT)
 
@@ -35,17 +43,21 @@ Site and Coverage only with `validate --release`. Stages whose tools are not the
 in an `exams/<exam-id>/` directory, or a file given to `lint`. A missing `overview.md`,
 `plan.yaml` or (when the exam allows one) `cheatsheet.md` is a warning while the course is
 being authored and an error with `--release`.
-Fix: create the file from its schema in `schemas/`, or remove the stray directory.
+Fix: create the file from its schema in `schemas/`, or remove the stray directory. Until
+`studykit plan` exists (Phase 5), write `plan.yaml` by hand against
+`schemas/plan.schema.json`.
 
 ### `SK-STRUCT-PATH`
 **error.** A file is not where the layout (§2.1) expects it, its path disagrees with its
 `topic`, an exam task file is not listed in `exam.yaml`, `mc.md` exists without an `mc:`
-part, or a linted file is not inside a course.
+part, or a linted file is not inside a course. The filter reports it too when it cannot tell
+the file kind from the path it was given.
 Fix: move or rename it, e.g. `summary/rc-filter.md` → `summary/03-rc-filter.md`,
 `exercises/<topic>/<ex-id>.md`, `mc/<topic>.md`, `exams/<exam-id>/NN-<task-id>.md`.
 
 ### `SK-STRUCT-ID`
-**error.** An id does not match its pattern (`ex-…`, `mc-<topic>-NNN`, `<exam>-tN`,
+**error.** An id does not match its pattern (`ex-…`, `mc-<topic>-NNN`, exam tasks
+`<prefix>-tN` with any kebab prefix such as `pk1-t1`,
 kebab-case topics, docs, slugs and exams; course ids `^[a-z0-9][a-z0-9-]{1,39}$`) or does
 not match its file or directory name.
 Fix: keep the file name and the `id` equal. Ids are never renamed once published; rename
@@ -161,7 +173,7 @@ Fix: plain text, e.g. `Ohm` instead of `\Omega`.
 
 ### `SK-YAML-DUPKEY`
 **error.** A mapping repeats a key. PyYAML would silently keep the last value; the site's
-YAML 1.2 parser rejects the file.
+YAML parser (for `course.yaml` and `plan.yaml`) rejects the file.
 Fix: keep one entry per key.
 
 ## Fences (SK-BLOCK)
@@ -193,8 +205,8 @@ only in exercises and exam tasks; `definition`, `theorem`, `example`, `note`, `w
 Fix: move the content or turn it into plain Markdown.
 
 ### `SK-BLOCK-NESTING`
-**error.** A block is nested in another one. The only allowed nesting is `explanation`
-inside `mcq`.
+**error.** A block is nested in another one, or (reported by the filter) sits inside a
+list. The only allowed nesting is `explanation` inside `mcq`.
 Fix: close the outer block before opening the next one.
 
 ### `SK-BLOCK-HINTS`
@@ -231,6 +243,22 @@ space, so the page shows „RC- Tiefpass“. A next line starting with „und“
 („Ein- und Ausgang“, „sowohl Ein- als auch Ausgang“) and not reported.
 Fix: keep the hyphenated word on one line, e.g. move `[RC-Tiefpass](topic:rc-filter)` to
 the next line as a whole.
+
+### `SK-BLOCK-RAW`
+**error.** Raw HTML (`<br>`, `<span …>`, an `<!-- … -->` comment) or another raw block or
+inline in the body. pandoc 3.13 still reads raw HTML although the dialect turns it off, so
+the filter rejects it on every target (§2.3); it is reported by the Pandoc stage.
+Fix: use Markdown, math or a container block; a remark for authors goes into the
+explanation or is deleted.
+
+### `SK-BLOCK-MARKDOWN`
+**error.** Markdown the dialect does not allow (§2.3): an H1 heading in the body, a heading
+with attributes, a footnote, or `{…}` attributes on a span (`[text]{.x}`), on inline code
+(`` `a`{.x} ``) or on a table (a `{…}` line above it). The HTML writer copies attributes onto
+the element, so an `onclick` would reach the page; `mcq` is the only block with attributes.
+Reported by the Pandoc stage.
+Fix: start the body at `##` (the title comes from the frontmatter), say a footnote in the
+text or a `::: note` box, and remove the `{…}`.
 
 ## MC (SK-MCQ)
 
@@ -311,8 +339,11 @@ Fix: `\begin{aligned}` instead of `align`; a determinant is
 
 ### `SK-MATH-KATEX`
 **error.** KaTeX in strict mode (the site's renderer) rejects the formula: an unknown
-command, a syntax error, or Unicode letters outside `\text{…}`. Runs only when
-`site/node_modules` is installed; otherwise Math reports an info note.
+command, a syntax error, or Unicode letters outside `\text{…}`. The KaTeX check runs only
+when `site/node_modules` is installed (otherwise Math reports an info note); the filter
+reports non-ASCII characters outside `\text{…}` under this code too, so they show up
+without KaTeX. The website reports a formula KaTeX rejects in the body or in a frontmatter
+label under this code.
 Fix: follow the KaTeX message; words go in `\text{…}`, units in `\mathrm{…}`.
 
 ### `SK-MATH-BLOCKMARK`
@@ -349,29 +380,51 @@ Fix: write `10000`, `10^4`, or `{,}` for a decimal comma (`1{,}5\,\mathrm{V}`).
 with an SI prefix, e.g. `1,59 kHz` for `1591.55 Hz`).
 Fix: give the method or an intermediate result in the hint, never the final value.
 
+### `SK-MATH-TYPST`
+**error.** pandoc cannot convert the formula to Typst without a warning, so the PDF would
+fail on it. `math.lua` converts every formula on its own, also in the lint's json run, and
+reports the first warning. Reported by the Pandoc stage.
+Fix: stay within the math subset of `docs/architecture.md` §2.3 (allowed environments,
+no denied constructs); rewrite the part the message names.
+
 ## Pandoc filters (SK-PANDOC)
 
 ### `SK-PANDOC-FAIL`
-**error.** The pandoc filter run failed without a structured finding. Structured
-findings from the Lua filters (`guard`, `mcq`, `math`, `refs`) appear under their own
-SK-codes in the same format, with the course-relative file and source line.
-Fix: run `studykit lint <file>`; if the file is clean, the filter itself has a bug.
+**error.** The pandoc run failed without a structured finding (pandoc itself failed, or
+the filter crashed), or the filter ran without the metadata `studykit.pandoc` passes:
+no `-M sk-file` or `sk-index`, an index it cannot read, an unsupported language, a bad
+`sk-scope` or `sk-solutions`, an `sk-figdir` outside the working directory, or no
+`pandoc/math-denylist.json`. Filter findings use the same codes as the stages, with the
+course-relative file and source line.
+Fix: run `studykit lint <file>`; if the file is clean, run pandoc through `studykit.pandoc`
+(or `studykit render`); otherwise the filter itself has a bug.
 
 ## References (SK-REF)
+
+The References stage runs in `validate`. The filter checks links, images and figures in
+`lint` and `validate --quick` as well, with the same codes; a missing target is reported
+there only in a full run.
 
 ### `SK-REF-MISSING`
 **error.** A reference target does not exist: `ex:`, `mc:` (practice-bank questions
 only), `topic:`, `exam:`, `src:<doc>` (in `sources/manifest.yaml`), `fig:<slug>`
 (`figures/<slug>.py`, or the built-in `topic-map`), plan refs, exam task files and the
 MC file in `exam.yaml`, `modeled_on` documents, frontmatter `source`/`sources`
-documents, and exam-task archetypes (in `analysis/exam-profile.yaml`).
+documents, and exam-task archetypes (in `analysis/exam-profile.yaml`; without a profile
+the archetypes are not checked).
 Fix: use an existing id (`studykit ls <course> --json` lists them) or create the target.
 
 ### `SK-REF-SCHEME`
 **error.** A link target is not a study-kit reference (a relative path, an unknown
-scheme), or a plan ref cannot be resolved. External `https://` and `mailto:` links are
-allowed.
+scheme, `fig:` as a link), or a plan ref cannot be resolved. External `https://` and
+`mailto:` links are allowed (see `SK-REF-LINK`).
 Fix: `[…](ex:<id>)`, `(mc:<id>)`, `(topic:<id>)`, `(exam:<id>)`, `(src:<doc>#p=<n>)`.
+
+### `SK-REF-LINK`
+**error.** A bare URL: a URL or `www.…` in the text, an autolink `<https://…>`, or a link
+whose text is its own URL (or e-mail address); or a link with `{…}` attributes. Reported by
+the Pandoc stage.
+Fix: `[descriptive text](https://…)`, and no `{…}` after the link.
 
 ### `SK-REF-IMAGE`
 **error.** An image is not a `fig:` reference. Figures are code (§3.4).
@@ -394,7 +447,9 @@ Fix: `src:<doc>#p=<page>` with a page from 1 to the document's page count.
 ### `SK-FIG-BUILD`
 **error.** A figure script (or a builtin such as the topic map) does not build: it raises,
 runs longer than 60 s, has no alt text, or its SVG fails validation (colours outside the
-palette, text not converted to paths, too large).
+palette, text not converted to paths, text drawn in a colour below 4.5:1 on the page, too
+large). Only `fg`, `muted` and `c1` are readable as text; draw labels in `fg` and let a
+coloured line or marker be the key.
 Fix: run `studykit fig build <course> --only <slug>`, fix the script and look at the PNG.
 
 ### `SK-FIG-UNUSED`
