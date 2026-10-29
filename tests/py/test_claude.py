@@ -21,7 +21,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from studykit import cli, hook, lint
+from studykit import cli, hook, lint, pipeline, validate
+from studykit.model import ChunkNotes
 
 REPO = Path(__file__).resolve().parents[2]
 CLAUDE = REPO / ".claude"
@@ -30,9 +31,20 @@ AGENTS = CLAUDE / "agents"
 SAMPLE = REPO / "examples" / "sample-course"
 ERRORS = REPO / "docs" / "content-format" / "errors.md"
 
-INTERNAL = {"content-format", "authoring", "figures", "verify-protocol"}
-COMMANDS = {"regenerate", "verify", "tutor", "examine", "import-progress", "study-status"}
-AGENT_NAMES = {"author", "verifier", "tutor", "examiner"}
+INTERNAL = {"content-format", "authoring", "figures", "verify-protocol", "ingest"}
+COMMANDS = {
+    "register-new-subject",
+    "add-material",
+    "regenerate",
+    "verify",
+    "tutor",
+    "examine",
+    "import-progress",
+    "study-status",
+}
+AGENT_NAMES = {"ingester", "exam-analyst", "author", "verifier", "tutor", "examiner"}
+# the first argument of each command's argument-hint (§5.2)
+FIRST_ARG = {name: "<course>" for name in COMMANDS} | {"register-new-subject": "<folder>"}
 
 SKILL_KEYS = {
     "name",
@@ -94,6 +106,14 @@ HOOK_EVENTS = {"PreToolUse", "PostToolUse", "Stop", "SubagentStop"}
 
 # docs/architecture.md §5.3: (model, effort, maxTurns, tools, preloaded skills)
 AGENT_SPEC = {
+    "ingester": (
+        "sonnet",
+        "medium",
+        40,
+        ["Read", "Write", "Glob", "Bash"],
+        ["ingest", "content-format"],
+    ),
+    "exam-analyst": ("opus", "high", 50, ["Read", "Write", "Glob", "Grep", "Bash"], ["ingest"]),
     "author": (
         "opus",
         "high",
@@ -206,7 +226,7 @@ def test_user_commands_run_only_when_typed(name: str):
     assert data["disable-model-invocation"] is True
     assert data.get("user-invocable", True) is True
     assert data.get("context") != "fork"  # main thread: AskUserQuestion works there
-    assert data["argument-hint"].startswith("<course>")
+    assert data["argument-hint"].startswith(FIRST_ARG[name])
     assert "$0" in body or "$ARGUMENTS" in body
 
 
@@ -376,7 +396,10 @@ def test_the_command_checker_catches_mistakes():
     top = subparsers(cli.build_parser())
     assert check_command("studykit verify c id --confirm checks/x.py --method m", top) == []
     assert check_command("uv run --frozen studykit progress log c --json-line x", top) == []
-    assert check_command("studykit ingest scan x", top)
+    assert check_command("studykit ingest scan x --dry-run --json", top) == []
+    assert check_command("studykit pipeline status c --json", top) == []
+    assert check_command("studykit ingest digest x", top)
+    assert check_command("studykit pipeline resume c", top)
     assert check_command("studykit progress show c", top)
     assert check_command("studykit verify c --showkey", top)
     assert check_command("studykit hook guard", top)
@@ -482,6 +505,174 @@ def test_templates_pass_lint_in_the_sample_course(tmp_path: Path):
     assert "def build()" in (base / "figure.py").read_text("utf-8")
     report = lint.lint_files(targets)
     assert [f.format() for f in report.findings] == []
+
+
+# --- ingest templates ---------------------------------------------------------------------
+
+INGEST = SKILLS / "ingest"
+# templates/<name> -> the course file it becomes in a draft course made for it
+INGEST_TEMPLATES = {
+    "notes.md": "sources/notes/vl-03-c01.md",
+    "exam-profile.yaml": "analysis/exam-profile.yaml",
+    "exam-profile-no-exams.yaml": "analysis/exam-profile.yaml",
+    "notation.yaml": "analysis/notation.yaml",
+    "outline.md": "sources/outline.md",
+}
+DRAFT_COURSE = """\
+schema: 1
+id: opv
+title: 'opv'
+lang: de
+status: draft
+exam: {date: 2027-02-17, duration_min: 90, points: 60, format: mixed}
+cheatsheet: {allowed: true, max_pages: 2}
+study: {start: 2026-10-29, hours_per_week: 6, blocked: []}
+topics:
+  - {id: draft, title: 'Themen folgen nach dem Einlesen', weight: 1, prereq: []}
+focus: []
+skip: []
+targets: {exercises_per_topic: auto, mc_per_topic: auto, mock_exams: 2}
+retired_ids: []
+"""
+# the documents the templates cite: (id, pages, kind)
+INGEST_DOCS = [
+    ("vl-03", 14, "slides"),
+    ("klausur-ws2526", 2, "exam"),
+    ("klausur-ws2526-loesung", 1, "exam-solutions"),
+    ("uebung-03", 1, "exercises"),
+]
+
+
+def draft_course(root: Path) -> Path:
+    """A course as `ingest init` and `ingest extract` leave it, with the chunk of the notes
+    template planned at the template's sha256."""
+    course = root / "opv"
+    (course / "sources" / "notes").mkdir(parents=True)
+    (course / "analysis").mkdir()
+    (course / "course.yaml").write_text(DRAFT_COURSE)
+    notes, _ = split(INGEST / "templates" / "notes.md")
+    lines = ["schema: 1", "course: opv", "documents:"]
+    for i, (doc, pages, kind) in enumerate(INGEST_DOCS):
+        sha = notes["source_sha256"] if doc == notes["doc"] else f"{i:064x}"
+        lines.append(
+            f"  - {{id: {doc}, title: {doc}, file: {doc}.pdf, origin: {doc}.pdf, "
+            f"sha256: '{sha}', bytes: 1000, pages: {pages}, kind: {kind}, "
+            "kind_from: filename, text_share: 1, added: 2026-10-29}"
+        )
+    (course / "sources" / "manifest.yaml").write_text("\n".join(lines) + "\n")
+    first, last = notes["pages"].split("-")
+    (course / "sources" / "chunks.yaml").write_text(
+        "schema: 1\nmax_pages: 20\nchunks:\n"
+        f"  - {{id: {notes['chunk']}, doc: {notes['doc']}, kind: {notes['kind']}, "
+        f"first: {first}, last: {last}, flagged: [], scanned: [], "
+        f"sha256: '{notes['source_sha256']}'}}\n"
+    )
+    return course
+
+
+def test_every_ingest_template_is_listed_and_tested():
+    base = INGEST / "templates"
+    present = {p.relative_to(base).as_posix() for p in base.rglob("*") if p.is_file()}
+    assert present == set(INGEST_TEMPLATES)
+    text = (INGEST / "SKILL.md").read_text("utf-8") + (INGEST / "exam-analysis.md").read_text(
+        "utf-8"
+    )
+    for name in INGEST_TEMPLATES:
+        assert f"templates/{name}" in text
+
+
+@pytest.mark.parametrize("profile", ["exam-profile.yaml", "exam-profile-no-exams.yaml"])
+def test_ingest_templates_validate_in_a_draft_course(tmp_path: Path, profile: str):
+    course = draft_course(tmp_path)
+    base = INGEST / "templates"
+    for name in ("notes.md", profile, "notation.yaml"):
+        shutil.copyfile(base / name, course / INGEST_TEMPLATES[name])
+    paths = [course / "sources", course / "analysis"]
+    report = validate.validate(
+        [course], paths=paths, config=validate.Config(figures=False, pdf=False, site=False)
+    )
+    assert [f.format() for f in report.findings if f.is_error] == []
+    notes, _ = split(base / "notes.md")
+    assert ChunkNotes.model_validate(notes).topics
+
+
+def test_outline_template_names_its_topics_and_chunks():
+    text = (INGEST / "templates" / "outline.md").read_text("utf-8")
+    rows = re.findall(r"^\| [0-9]+ \| ([a-z0-9-]+) \|", text, re.M)
+    chunks = re.findall(r"^\| ([a-z0-9-]+-c[0-9]{2,}) \|", text, re.M)
+    assert len(rows) >= 2 and chunks
+    for ident in rows:
+        assert f"## {ident}:" in text
+    for chunk in chunks:
+        assert text.count(chunk) >= 2  # in the chunk table and under a topic
+
+
+# --- the register and add-material commands -----------------------------------------------
+
+
+def test_register_command_covers_every_pipeline_step_in_order():
+    _, body = split(SKILLS / "register-new-subject" / "SKILL.md")
+    headings = [int(n) for n in re.findall(r"^## ([0-9]+)\. ", body, re.M)]
+    assert headings == list(range(len(pipeline.STEPS)))
+    for n, name in enumerate(pipeline.STEPS):
+        if n >= 2:  # 0 and 1 are judged by the step after them
+            assert f"pipeline step {n} (`{name}`)" in body, name
+    assert "pipeline status <c> --json" in body
+    assert "resume.step" in body
+
+
+def test_register_command_asks_the_planned_questions():
+    _, body = split(SKILLS / "register-new-subject" / "SKILL.md")
+    round1 = body.split("## 1. Ask, round 1", 1)[1].split("\n## 2.", 1)[0]
+    rows = [r for r in re.findall(r"^\| (.+?) \|", round1, re.M) if r not in ("Header", "---")]
+    assert rows == ["Exam date", "Format", "Cheat sheet", "Hours/week"]
+    assert all(len(r) <= 12 for r in rows)  # AskUserQuestion headers
+    assert "past exams or" in round1 and "language" in round1
+    round2 = body.split("## 6. Ask, round 2", 1)[1].split("\n## 7.", 1)[0]
+    for needle in ("focus 3,5; skip 9; merge 6+7; ok", "mock exams", "scope", "Go"):
+        assert needle in round2
+
+
+@pytest.mark.parametrize("name", ["register-new-subject", "add-material"])
+def test_ingest_commands_cap_agents_and_judge_by_files(name: str):
+    _, body = split(SKILLS / name / "SKILL.md")
+    assert "at most 6" in body
+    assert "pipeline status" in body
+    assert "not from" in body or "never from" in body  # agents' reports are not the gate
+    for agent in ("ingester", "exam-analyst"):
+        assert f"`{agent}`" in body
+    # the user's folder is read by studykit ingest only
+    assert "Never Read, Write or list" in body
+
+
+def test_add_material_uses_the_rebuild_dependencies():
+    _, body = split(SKILLS / "add-material" / "SKILL.md")
+    spec = (REPO / "docs" / "architecture.md").read_text("utf-8")
+    block = spec.split("**Rebuild dependencies**", 1)[1].split("```", 2)[1].strip()
+    assert block in body
+    for part in ("summary", "exercises", "mc", "overview", "exams", "plan"):
+        assert f"/regenerate <c> {part}" in body
+
+
+RULE_FOR = {
+    "uv run --frozen studykit": "Bash(uv run --frozen studykit *)",
+    "date -u": "Bash(date -u *)",
+    "mkdir -p": "Bash(mkdir -p *)",
+    "cp -p": "Bash(cp -p *)",
+    "ls ": "Bash(ls *)",
+}
+
+
+@pytest.mark.parametrize("name", sorted(COMMANDS - {"tutor", "examine"}))
+def test_commands_preapprove_what_they_run(name: str):
+    """A command's allowed-tools cover the shell commands it writes out (§5.1); `just` is
+    allowed project-wide."""
+    data, body = split(SKILLS / name / "SKILL.md")
+    allowed = set(data.get("allowed-tools") or [])
+    for snippet in code_snippets(body):
+        for prefix, rule in RULE_FOR.items():
+            if snippet.startswith(prefix):
+                assert rule in allowed, f"{name}: {snippet}"
 
 
 # --- settings.json ------------------------------------------------------------------------

@@ -19,7 +19,7 @@ them in the same change.
 
 ## 1. Repository layout
 
-Entries marked (Phase n) are planned and do not exist yet.
+Everything below exists; the optional Phase 7 (§6) would add to it.
 
 ```
 study-kit/
@@ -33,9 +33,12 @@ study-kit/
 ├── .github/workflows/ci.yml  guard.yml
 ├── .github/scripts/guard.sh        # the guard workflow's checks: `commits`, `courses`, `pdfs`
 ├── .github/scripts/test-hooks.sh   # tests of the git hooks and guard.sh in throwaway repositories (`just test`)
+├── docs/architecture.md            # this specification
+├── docs/walkthrough.md             # registering a subject and studying it, step by step
+├── docs/content-format/errors.md   # every SK code with its fix and owner (§4.3)
 ├── src/studykit/
 │   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links, pdf, cheatsheet fit,
-│   │                               # calc, verify, plan, status and progress import|log|report
+│   │                               # calc, verify, plan, status, progress import|log|report, ingest and pipeline
 │   ├── tools.py                    # `tools install`: pandoc, typst and just → .tools/bin, sha256-checked
 │   ├── doctor.py                   # `doctor`: tool versions, site packages, Typst fonts, git hooks, courses/ ignored, port 4321
 │   ├── model.py                    # pydantic models: the single schema source
@@ -56,7 +59,8 @@ study-kit/
 │   ├── hook.py                     # `hook verifier-guard|pre-git`: Claude Code PreToolUse hooks (§5.1, §5.3)
 │   ├── pdf.py                      # `pdf`: assemble → pandoc → typst per document, digest cache, _build/pdf/manifest.json (§3.3)
 │   ├── cheatsheet.py               # `cheatsheet fit`: density loop 0–4, overflow measured with `typst eval` (§3.3)
-│   ├── ingest.py                   # (Phase 6) scan, copy, page text, chunk plan
+│   ├── ingest.py                   # `ingest scan|init|extract|add|round2`: inventory, source copy, manifest, page text, chunk plan (§5.4)
+│   ├── pipeline.py                 # `pipeline status|report`: the output-derived state of /register-new-subject (§5.4)
 │   ├── plan.py                     # `plan`: deterministic study-plan scheduler (§2.9)
 │   ├── progress.py                 # `progress import|log|report`: browser export, examiner log, mastery (§2.11)
 │   ├── status.py                   # `status`: the study status of /study-status (§2.11)
@@ -85,15 +89,18 @@ study-kit/
 ├── schemas/*.schema.json           # generated from pydantic; committed; drift-checked by `just test`
 ├── examples/
 │   ├── sample-course/              # self-written German mini course `sample-course` using every feature (CI fixture)
-│   └── sample-materials/           # (Phase 6) self-written Typst sources for fake slides, exercise sheet, exam + one rasterised "scan"
-├── tests/py/                       # pytest (§4.4); test_claude.py checks the .claude/ layer
+│   └── sample-materials/           # self-written Typst sources (op-amp circuits) for fake slides, script, exercise sheet, past exam
+│                                   # and one rasterised "scan"; `just sample-materials` builds the PDFs into its gitignored _build/
+├── tests/py/                       # pytest (§4.4); test_claude.py checks the .claude/ layer; materials.py makes lecture PDFs at test time
 ├── tests/golden/{math.md,math-denied.md,math.typ.snap,blocks.md,mcq.md,figures/}
 ├── tests/fixtures/{bad/<SK-CODE>/,courses/mini/,pandoc/{ok,bad}/,figures/gallery/,progress/}
 ├── .claude/
 │   ├── settings.json               # attribution, permissions, the lint and pre-git hooks (§5.1)
-│   ├── agents/                     # author.md verifier.md tutor.md examiner.md (§5.3); (Phase 6) ingester.md exam-analyst.md
+│   ├── agents/                     # ingester.md exam-analyst.md author.md verifier.md tutor.md examiner.md (§5.3)
 │   └── skills/                     # §5.2: <name>/SKILL.md per skill
+│       ├── register-new-subject/  add-material/   # user commands that build and extend a course (§5.4)
 │       ├── regenerate/  verify/  tutor/  examine/  import-progress/  study-status/   # user commands
+│       ├── ingest/                 # SKILL.md, exam-analysis.md, templates/ (notes, exam profile with and without past exams, notation, outline)
 │       ├── content-format/         # SKILL.md, templates/ (course.yaml, overview, summary, exercises, MC bank, exam/, cheat sheet, plan, exam profile, figure)
 │       ├── authoring/              # SKILL.md, parts/{overview,summary,exercises,mc,exam,cheatsheet,plan}.md
 │       ├── figures/                # SKILL.md, reference.md (the studykit.figures API)
@@ -131,9 +138,17 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── plan.yaml                       # written by `studykit plan` (§2.9); Claude writes only each session's goal and note
 ├── figures/<slug>.py
 ├── checks/<item-id>.py | <item-id>.json    # verifier output; <item-id>.<tag>.py|json a second method
-├── sources/raw/*.pdf  manifest.yaml  text/<doc>/p0001.txt  notes/<chunk>.md  outline.md
-├── analysis/exam-profile.yaml  notation.yaml
+├── sources/                        # the lecture material and what was read from it (§5.4)
+│   ├── manifest.yaml               # `studykit ingest`: documents (id, kind, sha256, pages, origin), skipped files, the ask-round answers
+│   ├── raw/<doc>.pdf               # `ingest init|add`: copies of the user's PDFs; the user's folder is only read
+│   ├── text/<doc>/index.json  p0001.txt   # `ingest extract`: page text and per-page flags (visual, scanned, why)
+│   ├── text/<doc>/p0001.vision.md  # the ingester's transcription of a scanned page
+│   ├── chunks.yaml                 # `ingest extract`: chunks `<doc>-cNN` of at most 20 pages with flagged and scanned pages
+│   ├── notes/<chunk>.md            # the ingester's digest of one chunk (frontmatter `ChunkNotes`)
+│   └── outline.md                  # the synthesis step: topics, their sources and every chunk id
+├── analysis/exam-profile.yaml  notation.yaml   # the exam-analyst: archetypes, MC rules, topic weights; j vs. i, phasors, decimal sign
 ├── state/verify/<item-id>.json     # ledger, one file per item (no locking); report.md
+├── state/pipeline/report.md        # `studykit pipeline report` (step 14), with the fingerprint that marks it current
 ├── progress/state.json  browser/*.json  examiner.jsonl  mastery.json  report.md   # §2.11, written by `studykit progress`
 ├── _history/<timestamp>/…          # copies saved by /regenerate before overwriting (UTC timestamp, same relative paths)
 └── _build/{index.json,figures,typ,pdf,blind,logs}   # typ: assembled .md/.typ and digests; pdf: PDFs and manifest.json; logs: pandoc logs
@@ -141,11 +156,12 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 
 Discovery (`content.py`) knows the content kinds above (course, overview, summary, exercise,
 mc, exam, exam task, exam MC, cheat sheet, plan, figure scripts, exam profile, notation,
-manifest, outline). It never enters `_build`, `_history`, `state`, `progress`, `checks`,
-`sources/raw`, `sources/text` and `sources/notes`; any other file in the course is
-SK-STRUCT-PATH.
+manifest, chunk plan, outline, chunk notes). It never enters `_build`, `_history`, `state`,
+`progress`, `checks`, `sources/raw` and `sources/text` (so page texts and transcriptions are
+neither validated nor linted); any other file in the course is SK-STRUCT-PATH. Chunk notes are Markdown like the content files (the Fences, Math and
+References stages check them) but are never rendered, so the Pandoc stage skips them.
 
-**Schemas.** The pydantic models in `model.py` are the single source. `just schema` exports them to `schemas/*.schema.json`, which editors use through `# yaml-language-server: $schema=…`; `just test` fails when the committed files are stale (`schema export --check`). `analysis/exam-profile.yaml`, `analysis/notation.yaml` and `sources/manifest.yaml` have no model yet and get only the YAML lint; validate reads the profile's archetype ids and the manifest's document ids and page counts. The site declares only a minimal `astro/zod` schema for the fields it renders, so a site that no longer matches the data fails the strict build of the sample course.
+**Schemas.** The pydantic models in `model.py` are the single source. `just schema` exports them to `schemas/*.schema.json`, which editors use through `# yaml-language-server: $schema=…`; `just test` fails when the committed files are stale (`schema export --check`). The ingest files have models too (§5.4): `sources/manifest.yaml` (`SourceManifest`: per document id, title, file in `sources/raw/`, origin in the user's folder, sha256, bytes, pages, kind, where the kind came from, text-layer share, added and updated days; the skipped files; the ask-round answers), `sources/chunks.yaml` (`ChunkPlan`), the frontmatter of `sources/notes/<chunk>.md` (`ChunkNotes`), `analysis/exam-profile.yaml` (`ExamProfile`; archetype, MC-type and topic-weight shares add up to 1, SK-SCHEMA-SHARES) and `analysis/notation.yaml` (`Notation`). The References stage checks that they agree (SK-REF-CHUNK, SK-REF-MISSING); validate reads the profile's archetype ids and the manifest's document ids and page counts. The site declares only a minimal `astro/zod` schema for the fields it renders, so a site that no longer matches the data fails the strict build of the sample course.
 
 **IDs.**
 - Kebab-case ASCII, unique per course, with prefixes `ex-`, `mc-<topic>-NNN`, and `<prefix>-tN` for exam tasks (any kebab prefix, e.g. `pk1-t1` in `probeklausur-1`).
@@ -189,6 +205,7 @@ skip: []
 targets: {exercises_per_topic: auto, mc_per_topic: auto, mock_exams: 2}   # auto = f(weight)
 retired_ids: []
 status: draft                   # draft | ready; /register-new-subject sets ready when publish is green
+                                # (`ingest init` writes a draft with one placeholder topic `draft`, which a ready course may not keep: SK-STRUCT-DRAFT)
 ```
 
 ### 2.3 Markdown conventions: one dialect, one parser
@@ -495,7 +512,8 @@ Beurteilen Sie für den RC-Tiefpass:
 - `mc_per_topic: auto` gives 10–25 questions per topic, scaled by weight
   (`max(10, ⌈25 · weight⌉)`, at most 25; SK-COV-MC).
 - The type mix follows the exam profile. Without one it is 60% single, 25% multi and 15% Kprim.
-  Validation only warns when a type of `course.exam.mc.types` is missing from a bank.
+  Validation only warns when a bank lacks a type of `course.exam.mc.types` that the
+  profile's `mc.type_mix` gives a share (every such type without a profile mix).
 - Distractors come from a catalogue of electrical-engineering misconceptions in
   `authoring/parts/mc.md` (§5.2): a forgotten 2π, √2 (amplitude vs. RMS), dB vs. linear, the
   sign of the phase, series vs. parallel, a wrong power of ten, degrees vs. radians, and more.
@@ -832,8 +850,8 @@ TypeScript on the shared cases in `tests/fixtures/progress/` and compares every 
   prints): days left, plan adherence (done sessions, and past sessions not done as the
   site's banner counts them), the next three sessions, the three weakest answered topics and
   the topics not practised yet (they count 0 in the mastery), reviews
-  due, the last mock exam and hints for the next step. It is the student's status; the
-  pipeline status of §5.4 needs another name.
+  due, the last mock exam and hints for the next step. It is the student's status; where
+  `/register-new-subject` stands is `studykit pipeline status` (§5.4).
 - The site reads `mastery.json` at build time (`lib/courses.ts`, straight from the course directory: `overall`, else the mean of `topics.<id>.mastery`), so examiner results show up on the course home page until the browser has answers of its own.
 
 ### 2.12 Overview (`overview.md`)
@@ -867,7 +885,10 @@ title: Überblick
 - Links to topics use `topic:` references; every topic must be linked at least once.
 - Written by the `author` agent with `authoring/parts/overview.md` (§5.2):
   `/regenerate <course> overview` re-runs it, and `/regenerate <course> all` (like the
-  Phase 6 author wave) writes it first so the other parts can link to it.
+  author wave of `/register-new-subject`, §5.4 step 7) writes it first so the other parts
+  can link to it. It links only
+  what exists, so the exercises and mock exams get their links when the course is
+  published (§5.4 step 13) or at the end of `/regenerate <course> all`.
 - Web: `/c/<c>/` (the Overview tab). PDF: `overview.pdf`, also the first chapter of
   `summary.pdf`.
 - A missing `overview.md` is SK-STRUCT-MISSING (a warning, an error with `--release`); the
@@ -1219,9 +1240,12 @@ The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`.
 - Fonts are Matplotlib's bundled DejaVu Sans for text and `mathtext.fontset: cm` for math, so no fonts are vendored.
 - Environment of every figure child: `SOURCE_DATE_EPOCH=0`, `MPL_IGNORE_SYSTEM_FONTS=1`,
   `MPLBACKEND=Agg`, `MPLCONFIGDIR=.cache/mpl-nosys` (Matplotlib keys its font cache by its
-  version only, so this cache never holds system fonts), `STUDYKIT_LOCALE` from the course.
+  version only, so this cache never holds system fonts), `STUDYKIT_LOCALE` from
+  `course.lang` and `STUDYKIT_DECIMAL` (`comma` or `point`) from `analysis/notation.yaml`'s
+  `decimal`, else a comma for German courses; both are part of each figure's cache key.
   The runner builds the font cache once before the children start in parallel.
-- With `locale='de'`: a house decimal-comma formatter and "U in V" axis labels.
+- With `locale='de'`: "U in V" axis labels; with a decimal comma: a house decimal-comma
+  formatter for ticks, values and labels.
 - **Palette** of fixed, unique hex values:
 
   | Role | Hex |
@@ -1355,6 +1379,14 @@ setup:                       # idempotent
     {{sk}} doctor
 doctor *flags:               # toolchain.toml versions, site packages, Typst fonts, hooks, courses/ ignored, port 4321 (warning)
     {{sk}} doctor {{flags}}
+sample-materials *args:      # examples/sample-materials → its gitignored _build/materials (§5.4)
+    uv run --frozen python examples/sample-materials/build.py {{args}}
+[positional-arguments]
+ingest *args:                # scan | init | extract | add | round2 (§5.4)
+    {{sk}} ingest "$@"
+[positional-arguments]
+pipeline course *flags:      # the pipeline status of /register-new-subject (§5.4); --json
+    {{sk}} pipeline status "$@"
 figures course="":
     {{sk}} fig build {{course}}
 dev: (figures "")            # http://localhost:4321 (strictPort)
@@ -1411,8 +1443,8 @@ lint-code:
 site build, which copies every PDF its manifest lists into `site/dist`; `check-links`. It
 sets `STUDYKIT_STRICT=1` itself and builds the whole site (all courses); its `course`
 argument picks what figures, validation and PDFs cover. `cheatsheet` is the fit on its own
-(exit code 3 with the overflow, §3.3). `verify` and `status` pass their arguments to the CLI
-unchanged (`[positional-arguments]`, so a `--note` with spaces survives). `tutor` and
+(exit code 3 with the overflow, §3.3). `verify`, `status`, `ingest` and `pipeline` pass
+their arguments to the CLI unchanged (`[positional-arguments]`, so a `--note` with spaces survives). `tutor` and
 `examine` need the `claude` CLI: they start Claude Code with the `tutor` or `examiner`
 agent as the main thread and its command as the first message (`just tutor get2 rc-filter`
 runs `/tutor get2 rc-filter`), so the persona talks with the student directly and the
@@ -1424,22 +1456,24 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
 
 | Stage | Checks | Code |
 |---|---|---|
-| Structure | required files (`overview.md`, `plan.yaml` and an allowed `cheatsheet.md` are warnings until `--release`), known file paths, ID patterns and file names, unique and non-retired IDs, acyclic prerequisites, topics ⊆ course topics, the six overview sections, exam points add up | SK-STRUCT |
-| Schema | pydantic validation of YAML and frontmatter; scalar-style lint; control characters; label and rubric fields are text plus inline math only | SK-SCHEMA, SK-YAML |
+| Structure | required files (`overview.md`, `plan.yaml` and an allowed `cheatsheet.md` are warnings until `--release`), known file paths, ID patterns and file names, unique and non-retired IDs, acyclic prerequisites, topics ⊆ course topics, the six overview sections, exam points add up, a ready course without the placeholder topic `draft` | SK-STRUCT |
+| Schema | pydantic validation of YAML and frontmatter (the ingest files too); scalar-style lint; control characters; label and rubric fields are text plus inline math only; the exam profile's shares add up to 1 | SK-SCHEMA, SK-YAML |
 | Fences | line scan outside code: exact fence forms, allowed placement, depth, blank lines, hint and solution count, code languages; `\|` on pipe-table rows; line-end hyphens (warning) | SK-BLOCK |
 | MC | option counts per type, `[x]` invariants, a `why` on every option, one explanation, `pin-last` rule, no "all of the above", no option letters, bank-bias warnings | SK-MCQ |
 | Math | denylist and environment allowlist; KaTeX strict via `check-math.mjs` (skipped with a note without `site/node_modules`); inline and display form; block markers; space commands between digits; hint-leak warning | SK-MATH |
-| References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and MC file, `modeled_on` and frontmatter source documents, archetypes, `src:` pages | SK-REF |
+| References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and MC file, `modeled_on` and frontmatter source documents, archetypes, `src:` pages; chunk notes against `sources/chunks.yaml` and the chunk plan against the manifest, the profile's exams and topics | SK-REF |
 | Pandoc | the Lua filter set with the json target, on files the stages above left without errors; also with `--quick`, then at file scope (targets missing from the index are not reported). The filter reports family-plus-rule codes: the code validate uses for a rule both check (e.g. SK-REF-FIGURE), and SK-BLOCK-RAW, SK-BLOCK-MARKDOWN, SK-REF-LINK and SK-MATH-TYPST for rules only it checks; a failure without a finding is SK-PANDOC-FAIL | SK-* |
 | Figures | build (cached) plus SVG validation; unreferenced scripts (warning) | SK-FIG |
 | Verification | reads the ledger (§2.10) and runs no checks (`studykit verify` does): a broken entry (SK-VER-LEDGER, error), a disputed item (SK-VER-DISPUTED, warning, error with `--release`), quarantined and stale items (SK-VER-QUARANTINED, SK-VER-STALE, warnings), and on a whole course (not with `--paths`) ledgers and check files of unknown ids (SK-VER-ORPHAN, warning; `<id>.<tag>.*` and `sum-*` are not orphans); with `--release` every unverified item (SK-VER-UNVERIFIED) and every numeric MC question without `checks/<id>.py` (SK-VER-CHECK), both warnings. The note counts verified, disputed, quarantined and stale items | SK-VER |
 | PDF | every full validate, not `--quick` or `lint`: builds the course's PDFs into `_build/pdf` as `studykit pdf` does, manifest included, but without building figures (the Figures stage did); cached, so only documents whose inputs changed rebuild; with `--paths` only the documents made from those files. Every document compiles with no Typst or pandoc warning, and the cheat sheet fits its limit; a filter finding in a document keeps its own code; the note reports how many PDFs are ready and the cheat sheet's pages and density. A Typst diagnostic is reported at the file and line of the course item (exercise, question, task, chapter) it points into, else at the file that defines the document, else `course.yaml`; an overflow at the cheat sheet's `max_pages`. Skipped with a note when PDF building is turned off (`Config.pdf`, for tests), pandoc or typst is missing, the course is outside the repository, or an earlier stage found errors | SK-PDF-COMPILE, SK-PDF-WARNING, SK-PDF-CHEATSHEET, SK-PDF-BUILD |
 | Site | `--release` only, for whole courses (not with `--paths`), and only when the stages above found no errors: strict `astro build` into a temporary `--outDir` with `STUDYKIT_COURSES_DIR` set to a temporary directory that holds one symlink to the course; Pagefind with `--force-language`; `pnpm -C site check` without `STUDYKIT_STRICT`; `check-links` over the course's own pages, reported as `dist/<page>` | SK-SITE |
-| Coverage | `--release` only: the overview links every topic; each topic has a summary, at least `targets.exercises_per_topic` (4 with `auto`) exercises over two or more difficulties, and at least `targets.mc_per_topic` MC questions (with `auto`: 10–25 by weight); a bank lacking a type of `course.exam.mc.types` (warning); at least `targets.mock_exams` mock exams, each within ±10% of the points and time in `course.yaml: exam` | SK-COV |
+| Coverage | `--release` only: the overview links every topic; each topic has a summary, at least `targets.exercises_per_topic` (4 with `auto`) exercises over two or more difficulties, and at least `targets.mc_per_topic` MC questions (with `auto`: 10–25 by weight); a bank lacking a type the exam uses (warning: a type with a share in the profile's `mc.type_mix`, else every type, limited to `course.exam.mc.types`); at least `targets.mock_exams` mock exams, each within ±10% of the points and time in `course.yaml: exam` | SK-COV |
 
-Two families are not stages: `studykit progress` reports SK-PROGRESS (an export, the merged
-state or an examiner result that does not validate) and `studykit plan` SK-PLAN (§2.9,
-§2.11); both write nothing while one is an error. The lint hook (`studykit lint --hook`,
+Three families are not stages: `studykit progress` reports SK-PROGRESS (an export, the merged
+state or an examiner result that does not validate), `studykit plan` SK-PLAN (§2.9,
+§2.11) and `studykit ingest scan|init|add` SK-INGEST (§5.4: a folder without PDFs, office
+files and images, duplicates, unreadable PDFs, a draft `course.yaml` that would not
+validate); each writes nothing while one is an error. The lint hook (`studykit lint --hook`,
 §5.1) shows errors and warnings of the quick stages on every Write or Edit of a course file.
 
 ### 4.4 Tests
@@ -1455,7 +1489,20 @@ state or an examiner result that does not validate) and `studykit plan` SK-PLAN 
   - YAML loading, the schemas, validate's stages, the render bridge, the Site stage, `check-links`, `doctor` and `tools`
   - `studykit pdf` on the sample course (`test_pdf.py`): every document builds without warnings, the manifest follows the contract with pypdfium2 page counts, a second run is cached, generated text is escaped, `mc.pdf` has an answer key for every question in the order validate and the site use, the exam has „Seite x von y“ and its points table but no solutions, the solutions PDF has every rubric, `exercises.pdf` has every solution and the blank sheet none, a failed compile keeps the previous PDF and leaves the manifest, a filter finding names the course file and line, unknown documents are refused, no course builds every course; `cheatsheet fit` (`test_cheatsheet.py`: the limit, the density loop, positions through the columns, the overflow JSON with section lines, exit code 3 keeping the previous PDF, the 3-page failure); validate's PDF stage (`test_validate_pdf.py`: built once and reused, `--paths`, the overflow at `max_pages`, a missing figure at the file that shows it, the skip reasons, where problems are reported)
   - *(planned)* key points of function plots (`cos x = x`, touching roots, poles) beyond the
-    gallery snapshot; *(Phase 6)* ingest of a generated two-page PDF
+    gallery snapshot
+  - the ingest side (`test_ingest.py`, `test_pipeline.py`) on material generated at test
+    time (`tests/py/materials.py`: hand-written text PDFs, a Pillow "scan" without a text
+    layer, a duplicate, a `.pptx`, a photo): kinds from file name, cover and page shape,
+    document ids, chunk ranges, the inventory leaves the folder untouched, init writes a
+    manifest and a draft `course.yaml` that validate and is idempotent, extract's page text,
+    flags and chunk plan (kept on a second run), add copies only what is new or changed
+    and replans a changed document, round 2, the validate checks of notes and the exam
+    profile; `pipeline status` reports the right resume point for a course at each step
+    (an interrupted reading wave, changed material, a damaged extract, the core scope)
+    and on a copy of the sample course, and `pipeline report` proves step 14 until the
+    content changes; `examples/sample-materials` builds and scans as expected (kinds
+    from the file names, the circuit slides and the scan as visual pages, the exam date on
+    the last slide)
   - verification on copies of the sample course: `calc` (exact, complex, units, a parser
     that rejects Python), blind views without keys, solutions or marks (`test_blind.py`),
     the runner and ledger (`test_verify.py`: a correct item verifies, a seeded wrong number
@@ -1477,9 +1524,15 @@ state or an examiner result that does not validate) and `studykit plan` SK-PLAN 
     when typed, the agents' model, effort, turns, tools and preloaded skills, only the
     verifier with a hook); every file, repository path, `studykit` command and flag, `just`
     recipe and SK code that a skill or an agent names exists (in `CLAUDE.md` too: paths,
-    commands and recipes); the check-script
+    commands and recipes), and each command's `allowed-tools` cover the shell commands it
+    writes out; the check-script
     recipes run and pass the verifier guard; every content-format template passes lint in a
-    copy of the sample course; `settings.json` has the attribution, permissions and hooks
+    copy of the sample course, and the ingest templates (notes, both exam profiles,
+    notation) validate in a draft course; `/register-new-subject` has the steps 0–14 of
+    `pipeline status` in order, with a gate on each step's status from step 2 on, and asks rounds 1 and 2 as §5.4
+    says; both ingest commands cap agents at 6, read `pipeline status`, judge by files and never
+    touch the user's folder; `/add-material` quotes the rebuild dependencies of §5.4
+    verbatim; `settings.json` has the attribution, permissions and hooks
     of §5.1, and the hook commands run as Claude Code runs them (the lint hook catches a
     broken fence from any directory, pre-git denies a forced add, the guard keeps the
     verifier blind)
@@ -1526,21 +1579,20 @@ characters or quotes are caught too.
 
 ## 5. Claude Code layer
 
-Phase 5 built this layer; Phase 6 adds the ingest side. What exists:
+Phase 5 built this layer; Phase 6 added the ingest side. What exists:
 - `.claude/settings.json` with attribution, permissions and hooks, and `CLAUDE.md` (§5.1);
-- the user commands `/regenerate`, `/verify`, `/tutor`, `/examine`, `/import-progress` and
-  `/study-status`, and the internal skills `content-format`, `authoring`, `figures` and
-  `verify-protocol` (§5.2);
-- the agents `author`, `verifier`, `tutor` and `examiner` (§5.3);
+- the user commands `/register-new-subject`, `/add-material`, `/regenerate`, `/verify`,
+  `/tutor`, `/examine`, `/import-progress` and `/study-status`, and the internal skills
+  `ingest`, `content-format`, `authoring`, `figures` and `verify-protocol` (§5.2);
+- the agents `ingester`, `exam-analyst`, `author`, `verifier`, `tutor` and `examiner` (§5.3);
 - the commands they run: `ls`, `index`, `lint` (and `lint --hook`), `validate`, `fig build`,
   `cheatsheet fit`, `pdf`, `calc`, `blind`, `verify`, `hook verifier-guard|pre-git`,
-  `plan`, `progress import|log|report` and `status`, and the recipes `just verify`,
-  `just status`, `just tutor` and `just examine` (§4.2).
+  `plan`, `progress import|log|report`, `status`, `ingest scan|init|extract|add|round2`
+  and `pipeline status|report`, and the recipes `just verify`, `just status`,
+  `just tutor`, `just examine`, `just ingest`, `just pipeline` and
+  `just sample-materials` (§4.2).
 
-Planned for Phase 6: `/register-new-subject` and `/add-material`, the `ingest` skill, the
-`ingester` and `exam-analyst` agents, `studykit ingest` and the output-derived pipeline
-status (§5.4). `tests/py/test_claude.py` keeps the layer in line with this section and the
-CLI (§4.4).
+`tests/py/test_claude.py` keeps the layer in line with this section and the CLI (§4.4).
 
 Every procedure finds course files with `studykit ls <c>` and ids with
 `studykit index <c> --json` and reads them by explicit path, because Grep and Glob may skip the gitignored `courses/`
@@ -1560,15 +1612,23 @@ call the CLI as `uv run --frozen studykit …`.
 - `permissions.deny`: `Bash(git add -f *)`, `Bash(git add --force *)`. There is no deny on
   `.claude/**`, so Claude can change its own skills and agents.
 - A command's `allowed-tools` pre-approves what it runs while it is active: every command
-  except `/tutor` and `/examine` has `Bash(uv run --frozen studykit *)`; `/regenerate` adds
-  `Bash(date -u *)`, `Bash(mkdir -p *)` and `Bash(cp -p *)` for `_history/`, and
-  `/import-progress` adds `Bash(ls *)` to find the export.
+  except `/tutor` and `/examine` has `Bash(uv run --frozen studykit *)`; `/regenerate` and
+  `/add-material` add `Bash(date -u *)`, `Bash(mkdir -p *)` and `Bash(cp -p *)` for
+  `_history/`, `/register-new-subject` adds `Bash(just *)`, and `/import-progress` adds
+  `Bash(ls *)` to find the export.
+- **The user's materials folder needs no rule.** It can be anywhere, and a `Read(//…)` rule
+  broad enough to cover it would open the whole disk, so there is none. Only
+  `studykit ingest scan|init|add` reads the folder (Bash, allowed above); `init` and `add`
+  copy the PDFs into `sources/raw/`, and every agent reads those copies under
+  `courses/` (`Read(/courses/**)`, `Edit(/courses/**)` for notes, transcriptions and
+  `analysis/`). The commands never Read or list the folder themselves. A course outside
+  the project (`STUDYKIT_COURSES_DIR`) prompts for its reads and writes, as before.
 - **Hooks** (each runs `uv run --frozen --project "${CLAUDE_PROJECT_DIR}" studykit …`, so it
   works from any working directory):
   - `PostToolUse`, matcher `Write|Edit`: `studykit lint --hook` (status message
     "studykit lint"). It reads the event on stdin and lints `tool_input.file_path` when it
-    is a `.md`, `.yaml` or `.yml` file under `courses/`, `examples/` or
-    `$STUDYKIT_COURSES_DIR`. On errors or warnings it exits 2 with the findings and a
+    is a `.md`, `.yaml` or `.yml` file of a course (a `course.yaml` above it) under
+    `courses/`, `examples/` or `$STUDYKIT_COURSES_DIR`. On errors or warnings it exits 2 with the findings and a
     pointer to `content-format/errors.md` on stderr, so Claude fixes them at once; anything
     else exits 0 without output.
   - `PreToolUse`, matcher `Bash`, with `"if": "Bash(git *)"`: `studykit hook pre-git`
@@ -1594,7 +1654,8 @@ states them:
   `studykit validate` before finishing; look at the pages after changing how PDFs look;
   find course files with `studykit ls`; exact pins;
 - the Claude Code layer: the commands, agents and hooks, the files only the CLI writes
-  (`state/verify/`, `progress/`, `plan.yaml` but its goals and notes), what Phase 6 adds,
+  (`state/verify/`, `progress/`, `plan.yaml` but its goals and notes), the ingest commands
+  with who writes which ingest file (the user's folder only through `studykit ingest`),
   and `test_claude.py` after any change to a skill or an agent.
 
 ### 5.2 Skills
@@ -1606,9 +1667,9 @@ the main thread and can use AskUserQuestion and start agents). `just tutor` and
 
 | Skill | Arguments | Purpose and output |
 |---|---|---|
-| `/register-new-subject` | `<folder> [course-id]` | *(Phase 6)* Full pipeline (§5.4). Produces `courses/<id>/`, a green `validate --release`, the PDFs, and a report. |
+| `/register-new-subject` | `<folder> [course-id]` | Full pipeline (§5.4): inventory, two rounds of questions, ingest, ingesters per chunk and the exam analysis, topic synthesis, the author, figure and verifier waves, mock exams, cheat sheet, plan and publish. Resumes at the first step `studykit pipeline status` does not show as done. Produces `courses/<id>/`, a green `validate --release`, the PDFs, the built site and `state/pipeline/report.md`. |
 | `/regenerate` | `<course> <overview\|plan\|summary\|exercises\|mc\|figures\|exams\|cheatsheet\|all> [--topic t] [--add n] [--replace] [note]` | Re-runs one authoring step and everything downstream of it. Copies every content file the run may overwrite (downstream ones too) to `_history/<UTC timestamp>/` and asks before `--replace` or `all`. Without a mode it improves the part in place; `--add n` adds n items, `--replace` rewrites the part. Items that survive keep their ids; removed ids go into `retired_ids`. Authors: one per topic for summary, exercises and mc (at most 6 in parallel), one per mock exam (at most 3), one for the overview or the cheat sheet (then its fit loop); figures and the plan it runs itself. Downstream: the cheat sheet after a summary, `/verify` of the added and changed items, `studykit plan` after exercises or exams, then `validate` (errors routed to the owning author, at most 3 rounds) and `pdf`. Reports what was added, changed and removed, the verification counts, validate, the PDFs and the `_history/` directory. |
-| `/add-material` | `<course> <file\|folder>` | *(Phase 6)* Incremental ingest, topic-map diff, then suggests which parts to regenerate. |
+| `/add-material` | `<course> <file\|folder>` | Incremental ingest (`ingest add`, ingesters for the new chunks, the exam analysis again when exams changed), a topic-map diff applied after confirmation (old outline, profile and `course.yaml` saved to `_history/`), then the `/regenerate` runs the rebuild dependencies call for, suggested, not run. |
 | `/verify` | `<course> [id\|topic\|exam\|all]` | Blind re-verification with the dispute loop (§5.3); ends with `state/verify/report.md`, a validate run and a table of verified, fixed, disputed, quarantined and unverified items with reasons. |
 | `/tutor` | `<course> [topic\|ex-id]` | Socratic tutoring persona (below). Writes nothing. |
 | `/examine` | `<course> [diagnostic\|topic <t>\|mc\|weak\|misconceptions\|exam <id>\|oral]` | Strict examiner persona (below), `mc` without a mode. Logs every graded item. |
@@ -1660,7 +1721,7 @@ through `skills:`):
 | `content-format` | The format in brief (layout, ids, YAML rules, frontmatter per kind, the dialect of §2.3), how to find and check files (`ls`, `index`, the lint hook, `validate --paths`), copy-ready `templates/` for every file kind (each passes lint in a copy of the sample course), and the SK codes with a pointer to `errors.md` |
 | `authoring` | Shared quality rules for every part, id handling, the finishing steps (look at the figure PNGs, `validate --paths`), the compact result JSON, and the fix round after a dispute (re-derive independently, then `fixed` or `key-correct` with the step the verifier got wrong). `parts/{overview,summary,exercises,mc,exam,cheatsheet,plan}.md` hold each part's procedure; the agent reads the part it needs by path, so not every part is preloaded. `parts/mc.md` holds the misconception catalogue, the type-mix rules, "one concept per stem", options of similar length, and the requirement that every distractor's `why` names its mistake; `parts/cheatsheet.md` the condense loop (§3.3); `parts/plan.md` the goals after `studykit plan`. |
 | `figures` | Which template for which figure, how to write `figures/<slug>.py`, the rule "render → look at the PNG → fix" with an overlap, clipping and anchor checklist, and the validator's rules; `reference.md` is the API reference |
-| `ingest` | *(Phase 6)* Chunk digest procedure, notes template, exam-profile template |
+| `ingest` | Chunk digest procedure (page text first, `Read(pdf, pages=…)` only for flagged pages, scanned pages transcribed into `sources/text/`), the notes rules and `templates/notes.md`, `exam-analysis.md` (the exam-analyst's procedure) with `templates/exam-profile.yaml`, `exam-profile-no-exams.yaml` and `notation.yaml`, `templates/outline.md` for the synthesis step, and the gates |
 | `verify-protocol` | Blindness, the procedure for one item, the two-method rule and the dispute, fix and quarantine loop; `recipes.md` has check scripts that run as written: nodal analysis with a mesh-current second method, phasors, a Laplace step response with a simulated second method, stability margins with brentq, numeric MC with `mc_numeric`, conceptual MC and review |
 
 The persona text for `tutor` and `examiner` lives only in the `/tutor` and `/examine`
@@ -1676,8 +1737,8 @@ the `just` recipes start them. No agent has memory, and only the verifier has a 
 
 | Agent | Model / effort | Tools | Preloaded skills | Writes |
 |---|---|---|---|---|
-| `ingester` | *(Phase 6)* sonnet / medium, maxTurns 40 | Read, Write, Glob, Bash | ingest, content-format | `sources/notes/<chunk>.md`; transcriptions of scanned pages into `sources/text/` |
-| `exam-analyst` | *(Phase 6)* opus / high, maxTurns 50 | Read, Write, Glob, Grep, Bash | ingest | `analysis/exam-profile.yaml` (archetypes, frequencies, points, minutes per point, MC share, types, scoring, negative marking, topic weights, confidence) and `notation.yaml` (j vs. i, ε(t) vs. σ(t), underlined phasors) |
+| `ingester` | sonnet / medium, maxTurns 40 | Read, Write, Glob, Bash | ingest, content-format | `sources/notes/<chunk>.md`; transcriptions of scanned pages into `sources/text/` |
+| `exam-analyst` | opus / high, maxTurns 50 | Read, Write, Glob, Grep, Bash | ingest | `analysis/exam-profile.yaml` (archetypes, frequencies, points, minutes per point, MC share, types, scoring, negative marking, topic weights, confidence) and `notation.yaml` (j vs. i, ε(t) vs. σ(t), underlined phasors) |
 | `author` | opus / high, maxTurns 80 | Read, Write, Edit, Glob, Grep, Bash | content-format, authoring, figures | One part per call: the overview, one topic's summary, exercises or MC bank, a mock exam or the cheat sheet, plus its figure scripts; mode new, `add <n>`, `replace` or `fix <id>`. Never `course.yaml`, `checks/`, `state/`, `progress/`, `_build/`, `_history/` or git. Must end with `studykit validate --paths <own files>` free of errors and return the compact JSON (`{"error": …}` when the assignment is impossible). |
 | `verifier` | opus / high, maxTurns 50 | Read, Write, Bash | verify-protocol, content-format | `checks/**` only, one item per call |
 | `tutor` | opus | Read, Grep, Glob, Bash | none (§5.2) | nothing, not even through Bash; started via `just tutor` (main thread) |
@@ -1751,53 +1812,149 @@ grades calculations with the rubric using `studykit calc`.
 
 ### 5.4 `/register-new-subject <folder> [course-id]`
 
-*Phase 6, planned.* It reuses what Phase 5 built: the `author` and `verifier` agents, the
-dispute loop of `/verify`, `studykit plan`, `validate` and `pdf`.
+`.claude/skills/register-new-subject/SKILL.md` implements the steps below on top of
+`studykit ingest` and `studykit pipeline`, with the `ingester` and `exam-analyst` agents
+and the `ingest` skill. It reuses what Phase 5 built: the `author` and `verifier` agents,
+the dispute loop of `/verify`, `studykit plan`, `validate` and `pdf`. `docs/walkthrough.md`
+follows a run on `examples/sample-materials`.
 
-The state is derived from outputs by a pipeline status command (manifest hashes plus file
-presence plus ledger; `studykit status` is already the student's status, §2.11, so this one
-gets another name). There is no separate state file. Running the command again resumes at
-the first unfinished step. Success is judged from files and gates, never from an agent's own
-report.
+The state is derived from outputs by `studykit pipeline status <course> [--json]`
+(manifest hashes plus file presence plus ledger; `studykit status` is the student's status,
+§2.11). There is no separate state file. The command reads it at the start and after
+every step and continues at `resume.step`, the first step that is not done (deferred steps
+aside); a `stale` step is redone, a `done` one never. Success is judged from files and
+gates, never from an agent's own report. The orchestrator is the command's main thread: it
+asks the user, starts at most 6 agents at a time (3 for mock exams), computes every number
+with `studykit calc` and asks only in rounds 1 and 2 unless a step stops. A failed gate's
+findings are routed by file and SK code to their owner (the ingester of a chunk, the
+exam-analyst, the author of a part, the `/verify` procedure, `studykit plan`, the user, or
+the main thread itself; `errors.md` names the owners); a step that fails its gate twice
+stops the run with the findings and how to continue, and publish gets 3 rounds.
 
 0. **Preflight:**
    - `just doctor --quick`
-   - propose a course ID from the folder name; if it already exists, offer to resume
-   - `studykit ingest scan <folder> --dry-run --json` builds an inventory: PDFs, pages, text-layer share, guessed kind from filename and cover page, duplicates (sha256), and unsupported files (pptx/docx get "export as PDF")
+   - the course id from the argument, or proposed from the folder name (ä → ae, …) and confirmed; if the course exists, offer to resume it. When the folder changed since the copy (step 2's `todo`: `folder_changed`, `folder_new`), `ingest add` runs before synthesis; after it, that is `/add-material`'s job
+   - `studykit ingest scan <folder> --dry-run --json` builds an inventory table: PDFs, pages, text-layer share, visual and scanned pages, the guessed kind (from file name, cover page or page shape; `?` when uncertain), duplicates (sha256), unsupported files (office files and images get "export as PDF"), the language and exam dates found in the text
 1. **Ask, round 1** (one AskUserQuestion call with 4 questions, after showing the inventory table):
-   - Exam date: "Unknown yet", "the date found in the materials", or free text via Other.
+   - Exam date: the dates found in the materials (with document and page), "Unknown yet", or free text via Other.
    - Exam format: written / written + MC part / MC only / oral.
    - Cheat sheet: not allowed / 1 / 2 / 3 pages.
    - Hours per week.
 
-   A second call covers uncertain document kinds (multi-select "these are past exams or solutions") and confirms the detected output language.
-2. **Scaffold** (Python): copy sources to `sources/raw` (the user's folder is only read), write `manifest.yaml` and a draft `course.yaml`, and gate on schema validation.
-3. **Extract** (Python): pypdfium2 page text into `sources/text`. A page is flagged *visual* if it has fewer than 200 characters, garbled glyphs or large image areas. Chunks are at most 20 pages, matching the Read tool's PDF page limit, and never cross a document boundary. Past exams are kept whole.
-4. **Read** (parallel, at most 6 at a time):
-   - one `ingester` per chunk, reading the text first and calling `Read(pdf, pages=…)` only for flagged pages
-   - `exam-analyst` runs alongside over all exams and solutions; with no past exams it writes a low-confidence profile from the round-1 answers
-   - Gate: the notes schema holds, every chunk has notes, formulas pass the math lint
+   A second call covers uncertain document kinds (multi-select "Which of these are past exams or their solutions?", at most four documents per question) and confirms the detected output language.
+2. **Scaffold** (Python, `ingest init`): copy the PDFs to `sources/raw` (the user's folder is only read), write `manifest.yaml` with the round-1 answers and a draft `course.yaml`; exam duration and points only when the found exam date's context states them. Gate: the step is done and `validate --paths course.yaml sources/manifest.yaml` has no error.
+3. **Extract** (Python, `ingest extract`): pypdfium2 page text into `sources/text`. A page is flagged *visual* if it has fewer than 200 characters, garbled glyphs, large image areas or many drawn shapes, and *scanned* without a text layer. Chunks are at most 20 pages, matching the Read tool's PDF page limit, and never cross a document boundary. Past exams and their solutions are kept whole.
+4. **Read** (parallel, at most 6 at a time, the longest chunks first):
+   - one `ingester` per chunk in the step's `todo`, reading the text first, calling `Read(pdf, pages=…)` only for flagged pages and transcribing scanned pages to `pNNNN.vision.md`
+   - `exam-analyst` runs alongside over all exams and solutions and writes the exam profile and the notation; with no past exams it writes a low-confidence profile from the round-1 answers
+   - Gate: the notes schema holds, every chunk has notes at its document's sha256, every scanned page has its transcription, no lint errors in notes or analysis (so formulas pass the math lint)
 5. **Synthesize** (main thread):
-   - merge note digests into 6–15 topics with prerequisites and weights (exam point shares, falling back to lecture coverage)
-   - write `outline.md`
-   - fill in `course.yaml` topics
+   - merge the notes' candidate topics into 6–15 topics (fewer only for a very small course) with prerequisites on earlier topics and weights: with a profile of medium or high confidence the profile's `topic_weights` added up over the merged slugs (exam point shares, MC part included), else lecture coverage, computed with `studykit calc` to two decimals summing to 1
+   - write `outline.md` from `ingest/templates/outline.md` (topic table, one section per topic with sources, merged slugs, key formulas and archetypes, every chunk id)
+   - fill in `course.yaml` topics, title, short, semester and the exam from the profile or the course facts; map the profile's candidate slugs to course topics
+   - Gate: the step is done and `validate --paths course.yaml analysis sources` has no error
 6. **Ask, round 2:**
-   - Show a numbered topic table (weight, sources, past-exam frequency). The user replies in one line, for example `focus 3,5; skip 9; merge 6+7; ok`.
-   - Then AskUserQuestion: number of mock exams (1/2/3), scope (full / core first: summary + MC + plan), and go/no-go with a cost and time estimate.
-7. **Author wave** (at most 6 parallel): first one `author` for `overview.md` (§2.12), then one `author` per (topic, part) for summary, exercises and MC bank, following `notation.yaml`. The hook lints every write. Gate: `validate --quick` over the new files.
-8. **Figures:** `just figures <c>`. Failures, and PNGs with problems, go back to the owning author (at most 2 rounds).
-9. **Verify wave** (at most 6 parallel): one `verifier` per topic, with the dispute loop described in §5.3.
-10. **Mock exams:** `author` with `parts/exam.md` (at most 3 in parallel), including `mc.md` when `exam.mc.present`, then verification. Gate: points, time and archetypes match the profile.
-11. **Cheat sheet:** `author` with `parts/cheatsheet.md`, the fit loop, then the verifier's formula audit. Gate: page count ≤ the limit.
-12. **Plan:** `studykit plan` (deterministic), then the main thread writes the session goals.
-13. **Publish:** `just pdf <c>`, `just build <c>`, `studykit validate <c> --release`. Failures are routed by SK-code to the owning agent, for at most 3 rounds. `status` is set to `ready` only when everything is green.
-14. **Report:**
+   - Show a numbered topic table (weight, sources, past-exam frequency) and the exam as `course.yaml` now has it. The user replies in one line, for example `focus 3,5; skip 9; merge 6+7; ok` (also `weight <n>=<w>` and `exam <minutes> min <points> pts`), repeated until `ok`.
+   - An estimate for both scopes (authors, items, opus agent runs, time, each as a range) computed with `studykit calc`.
+   - Then AskUserQuestion: number of mock exams (1/2/3, default the number of past exams, at most 3, else 2), scope (full / core first: summary + MC + plan), and go/no-go with the estimate. `ingest round2` records the answers; no-go stops, and the next run resumes here.
+7. **Author wave** (at most 6 parallel): first one `author` for `overview.md` (§2.12), then one per topic for the summary, then one per (topic, part) for the MC bank and, unless the scope is core, the exercises, each told to follow `notation.yaml` and the chunk notes `outline.md` lists for its topic (mode `add <n>` when a resumed part falls short). The hook lints every write. Gate: `validate --quick` over the new files and the step's Coverage counts.
+8. **Figures:** `just figures <c>` and a look at every new PNG. Failures, and PNGs with problems, go back to the owning author (at most 2 rounds). Then a validate of step 7's files without `--quick` checks the references and figures the quick gate skipped.
+9. **Verify wave** (at most 6 parallel): the `/verify` procedure per topic, one `verifier` per item (§5.3: one item per call), with the dispute loop described in §5.3.
+10. **Mock exams** (deferred with scope core): `author` with `parts/exam.md` (at most 3 in parallel), including `mc.md` when `exam.mc.present`, then verification. Gate: count, points and time within ±10 %, the MC part, the profile's archetypes, every item verified or quarantined.
+11. **Cheat sheet** (deferred with scope core; done when none is allowed): `author` with `parts/cheatsheet.md`, the fit loop (the user picks what to drop after three condense rounds), then a formula audit: every display formula must appear with the same symbols in its topic's summary chapter (the main thread checks it until the verifier's `checks/sum-*.py` audits exist, §2.10). Gate: a fresh `cheatsheet.pdf` within the limit.
+12. **Plan:** `studykit plan` (deterministic), then the main thread writes the session goals; SK-PLAN findings go to the user.
+13. **Publish:** the overview gets its `exam:` and `ex:` links and each summary chapter the `ex:` links of its topic's exercises (both were written before the exercises and mock exams existed), `just pdf <c>`, `studykit validate <c> --release`, then `status: ready` and `just build <c>` (back to draft if the build fails). Failures are routed by SK-code to the owning agent, for at most 3 rounds. `status` is set to `ready` only when everything is green. With `scope: core` the Coverage stage still asks for the deferred parts, so the course is built as a draft and becomes ready after them.
+14. **Report:** `studykit pipeline report <c>` writes `state/pipeline/report.md`, and the command tells the user:
     - counts per part (exercises by difficulty, MC by type, exams, figures)
     - share verified, fixed and quarantined, with reasons
     - cheat-sheet pages and font size
+    - what was assumed (exam duration, points, MC rules from a low-confidence profile) and the deferred steps
     - next steps: `just dev` → `http://localhost:4321/c/<id>/`, `/examine <id> diagnostic` (15 MC questions to seed the Leitner boxes and the plan), `/tutor`
 
-**Rebuild dependencies** used by `/regenerate`:
+**The Python side** (`ingest.py`, `pipeline.py`; every command takes `--json`):
+
+```
+studykit ingest scan <folder> [--dry-run] [--kind DOC=KIND …] [--today D]                    # step 0
+studykit ingest init <folder> <course-id> --exam-date unknown|YYYY-MM-DD                     # steps 1–2
+      --exam-format written|written-mc|mc|oral --cheatsheet 0|1|2|3 --hours-per-week H
+      [--lang de|en] [--title T] [--short S] [--semester S] [--exam-minutes N] [--exam-points P]
+      [--start D] [--kind DOC=KIND …] [--today D] [--dry-run]
+studykit ingest extract <course>                                                              # step 3
+studykit ingest round2 <course> --mock-exams 1|2|3 --scope full|core [--no-go] [--today D]    # step 6
+studykit ingest add <course> <file|folder> [--kind DOC=KIND …] [--today D] [--dry-run]        # /add-material
+studykit pipeline status <course>                                                             # the resume point
+studykit pipeline report <course> [--today D]                                                 # step 14
+```
+
+- `scan` only reads: per PDF the proposed document id (kebab-case from the file name),
+  pages, text-layer share, visual and scanned pages, the kind (`slides`, `script`,
+  `exercises`, `solutions`, `exam`, `exam-solutions`, `other`) from the file name, else the
+  cover page, else landscape pages (`kind_from`; anything but the file name or the user is
+  `uncertain`, the candidates for the second question of round 1), duplicates by sha256,
+  office files and images with "export as PDF", and future dates near "Klausur"/"exam"
+  for the exam-date question. A page is visual with fewer than 200 characters, 10 % garbled
+  glyphs, images over a quarter of the page or 30 drawn shapes (a circuit has 40 to 50);
+  scanned with fewer than 20 characters.
+- `init` copies each PDF to `sources/raw/<doc>.pdf`, records the round-1 answers in the
+  manifest (`answers.round1`; a new course needs all four) and writes a draft `course.yaml`
+  (status draft, the exam format and MC part, the cheat-sheet policy, the study budget, one
+  placeholder topic `draft`, `targets.mock_exams: 2`); both must validate. On an existing
+  course it resumes: it copies what is new, changed or missing and leaves `course.yaml`
+  alone. `--kind` records a kind the user decided (`kind_from: user`).
+- `extract` writes `sources/text/<doc>/p0001.txt` and `index.json` (per page: characters,
+  garbled share, image share, shapes, visual, scanned, the reasons) and `sources/chunks.yaml`:
+  chunks `<doc>-cNN` of at most 20 pages, as even as possible, never across documents,
+  past exams and their solutions whole, each with its flagged and scanned pages and the
+  document's sha256. A document whose text is current is not read again, and its chunks
+  keep their ids. The ingester writes `sources/notes/<chunk>.md` (frontmatter `chunk`,
+  `doc`, `pages: 'first-last'`, `source_sha256` = the chunk's sha256, `kind`, `title`,
+  candidate `topics`, the `visual_pages` it looked at) and its transcription of a scanned
+  page as `sources/text/<doc>/p0001.vision.md`.
+- `add` is init's copy plus extract for a course that exists: a PDF with a known sha256 is
+  skipped (another name: SK-INGEST-DUPLICATE), one with a known origin but new content
+  replaces that document (`updated`), so its chunks are planned again and their notes go
+  stale. It lists the chunks to read.
+- `round2` records `answers.round2` (mock exams, scope, go) and sets
+  `targets.mock_exams` in a `course.yaml` that has `ingest init`'s flow form.
+- `pipeline status` derives each step's status (`done`, `pending`, `partial`, `stale`),
+  its `proof` (the files that show it), `details` and a machine-readable `todo` (chunks
+  without notes, topics without summary, items not verified, stale PDFs, …) and returns the
+  first step that is not done as `resume`. The proofs: the manifest (0) and its round-1
+  answers (1); the manifest, `course.yaml` and the sha256 of every file in `sources/raw/`,
+  plus the ingested folder compared by sha256 (2); page texts and chunks at each
+  document's sha256 (3); notes matching their chunk for every chunk, a transcription of
+  every scanned page, the exam profile and notation, no lint errors in them (4); `sources/outline.md` naming every topic id and
+  every chunk id, and topics other than `draft` (5); `answers.round2` with go and the same
+  `targets.mock_exams` (6); the Coverage stage for the overview, summaries, exercises and
+  MC banks (7); the figure runner's cache keys (8); the ledger of the topics' items (9);
+  the mock exams' count, size, MC part, archetypes and ledger (10); a fresh cheat sheet
+  within its limit (11); a valid plan for the exam date with every goal (12);
+  `status: ready`, fresh PDFs (the digests `studykit pdf` would compute) and the built
+  site (13); the report's fingerprint of the current content, ledger and PDF manifest
+  (14). With `scope: core` the exercises, mock exams and cheat sheet are deferred.
+- `pipeline report` writes `state/pipeline/report.md`: counts per part (exercises by
+  difficulty, MC by type, exams, figure scripts), verified, fixed, quarantined and
+  disputed items with their reasons, the cheat sheet's pages and font size, and the next
+  steps.
+
+**`/add-material <course> <file|folder>`** (`.claude/skills/add-material/SKILL.md`) brings
+new or changed PDFs into a course whose step 0 is done:
+1. Preview with `ingest add --dry-run` (added, changed, known, skipped with the reason);
+   nothing added or changed ends the command; uncertain kinds are asked as in round 1.
+2. Copy `course.yaml`, `sources/outline.md` and `analysis/exam-profile.yaml` to
+   `_history/<UTC timestamp>/`, then `ingest add`, which copies and extracts and lists the
+   chunks to read. Gate: pipeline steps 2 and 3 are done.
+3. Ingesters for those chunks and for step 4's `todo`, and the exam-analyst again when an
+   exam or its solutions was added or changed (at most 6 agents). Gate: step 4 is done.
+4. A topic-map diff (weights before and after, chunks per topic, new archetypes, proposed
+   new topics; ids of existing topics never change), applied after one AskUserQuestion:
+   apply, apply without new topics, or keep the topics and only extend the outline. Gate:
+   step 5 is done and `validate --paths course.yaml analysis sources` has no error.
+5. From the rebuild dependencies below, the `/regenerate` runs that bring the content up to
+   date, suggested with their reason but not run, and a report with the steps that
+   `pipeline status` now shows as stale or partial.
+
+**Rebuild dependencies** used by `/regenerate` and `/add-material`:
 
 ```
 sources → notes → {topics, exam-profile} → plan
@@ -1813,8 +1970,9 @@ any content → figures → verify → pdf
 
 These follow your order (toolchain → figures → website → PDF → agents/skills → /register-new-subject), with a small guardrails phase first. Every commit is a Conventional Commit, one logical change, with no Co-Authored-By trailer.
 
-**Status:** Phases 0–5 are complete; Phase 6 is next. Sections of this document that describe
-later phases mark the parts that do not exist yet.
+**Status:** Phases 0–6 are complete; Phase 7 is optional. The few parts of this document
+marked *planned* (the summary and cheat-sheet formula audits `checks/sum-*.py`, the mock
+exams' archetype-mix and n-gram checks, key points of function plots) do not exist yet.
 
 **Phase 0: guardrails.** Done when the hooks reject a bad message and staged course data, and the guard workflow is green.
 - `chore: ignore course data, build outputs and local tool dirs`
@@ -1921,6 +2079,12 @@ Commits:
 - `test(claude): lint skill and agent frontmatter and referenced files`
 
 **Phase 6: `/register-new-subject`.** Done when an end-to-end run on `examples/sample-materials`, including the rasterised scan, produces a course with a green `--release`, and an interrupted run resumes correctly.
+
+The run built `opamp-grundlagen` (3 topics, 21 exercises, 37 MC questions, 1 mock exam, a
+cheat sheet of 1 of 2 pages, 19 figure scripts) with every item verified and a green
+`validate --release`; it ran over several sessions, each resuming at the step
+`pipeline status` reported, and `test_pipeline.py` checks the resume point after each step
+and after an interrupted reading wave.
 - `feat(ingest): add inventory, source copy and manifest`
 - `feat(ingest): extract page text and plan chunks`
 - `feat(claude): add ingester and exam-analyst agents`
@@ -1946,6 +2110,6 @@ Commits:
 | 8 | Toolchain drift (pandoc 3.13 is 3 days old; Typst 0.x breaking changes; Astro 7 Markdown churn) | sha256-pinned binaries shared by local and CI; lockfiles with 7-day cooldowns; `doctor`; Astro's Markdown pipeline not used at all; one-line fallback to pandoc 3.12.1 |
 | 9 | Lost browser progress (origin or port change, Safari eviction) or edits invalidating it | Fixed `localhost:4321` with strictPort; `storage.persist()`; export, import and merge; content hashes per item; `/import-progress` merges the export into `progress/state.json` and keeps a copy in `progress/browser/` |
 | 10 | Claude Code's Grep and Glob may skip the gitignored `courses/` | Every skill and agent lists course files with `studykit ls <c>` and ids with `studykit index <c> --json` and reads explicit paths (Read is unaffected); the hooks take the path from the event |
-| 11 | Cost and time of a full ingest and generation run on large courses | Text-first reading with vision only for flagged pages; 20-page chunks; sonnet for ingestion; caps of 6 agents; estimate and core-first mode; resumable status |
+| 11 | Cost and time of a full ingest and generation run on large courses | Text-first reading: ingesters read the extracted page text and open PDF pages only where `ingest extract` flagged them, and transcribe a scanned page once into `pNNNN.vision.md`; chunks of at most 20 pages, past exams whole; the `ingester` on sonnet with medium effort and 40 turns; at most 6 agents at a time (3 for mock exams) and at most 2 fix rounds per step (3 for publish); round 2 shows an estimate of authors, items, agent runs and time for both scopes before the go, and no-go stops; scope core builds summary, MC and plan first and defers exercises, mock exams and the cheat sheet; `pipeline status` derives every step from the files, so a resumed run redoes only its `todo` (missing or stale notes, items not verified, stale PDFs); `ingest extract` and `add` skip documents whose sha256 is known and keep their chunk ids, and `/add-material` reads only new and changed chunks; figures and PDFs are cached by digest (a code change to `src/studykit` still makes every figure, and with them the PDFs, stale) |
 | 12 | Mock exams copy past exams too closely | Modelled at archetype level; n-gram similarity warning (planned); new values and circuits required |
 | 13 | YAML pitfalls (backslash escapes, YAML 1.1 vs 1.2) | Scalar-style lint from parser events; restricted PyYAML loader that reads plain scalars like the YAML 1.2 core schema; the site gets frontmatter from that loader through the render bridge and reads `course.yaml` and `plan.yaml` with `yaml` 1.2 (core schema); no LaTeX in `course.yaml` |

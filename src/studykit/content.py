@@ -43,7 +43,9 @@ PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("exam-profile", re.compile(r"^analysis/exam-profile\.yaml$")),
     ("notation", re.compile(r"^analysis/notation\.yaml$")),
     ("manifest", re.compile(r"^sources/manifest\.yaml$")),
+    ("chunks", re.compile(r"^sources/chunks\.yaml$")),
     ("outline", re.compile(r"^sources/outline\.md$")),
+    ("notes", re.compile(rf"^sources/notes/(?P<chunk>{K}-c[0-9]{{2,}})\.md$")),
 ]
 # Expected layout per directory, for the SK-STRUCT-PATH hint.
 LAYOUT = {
@@ -54,13 +56,22 @@ LAYOUT = {
     "exams": "exams/<exam-id>/{exam.yaml, NN-<task-id>.md, mc.md}",
     "figures": "figures/<slug>.py",
     "analysis": "analysis/{exam-profile.yaml, notation.yaml}",
-    "sources": "sources/{manifest.yaml, outline.md}",
+    "sources": "sources/{manifest.yaml, chunks.yaml, outline.md, notes/<chunk>.md}",
 }
 # Generated or private trees that discovery never enters.
 SKIP_DIRS = {"_build", "_history", "state", "progress", "checks", "__pycache__"}
-SKIP_SUBTREES = {"sources/raw", "sources/text", "sources/notes"}
-MARKDOWN_KINDS = {"overview", "summary", "exercise", "mc", "exam-mc", "exam-task", "cheatsheet"}
-YAML_KINDS = {"course", "plan", "exam", "exam-profile", "notation", "manifest"}
+SKIP_SUBTREES = {"sources/raw", "sources/text"}
+MARKDOWN_KINDS = {
+    "overview",
+    "summary",
+    "exercise",
+    "mc",
+    "exam-mc",
+    "exam-task",
+    "cheatsheet",
+    "notes",
+}
+YAML_KINDS = {"course", "plan", "exam", "exam-profile", "notation", "manifest", "chunks"}
 
 BLOCKS = ("hint", "solution", "definition", "theorem", "example", "note", "warning", "takeaways")
 ALLOWED_BLOCKS = {
@@ -71,6 +82,7 @@ ALLOWED_BLOCKS = {
     "mc": {"mcq"},
     "exam-mc": {"mcq"},
     "overview": set(),
+    "notes": set(),
 }
 CODE_LANGUAGES = [
     "python",

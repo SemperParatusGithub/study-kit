@@ -124,6 +124,22 @@ def test_facts_match_the_snapshots(built):
     assert not problems, json.dumps(problems, indent=1, ensure_ascii=False)
 
 
+def test_course_decimal_sign_comes_from_the_notation(tmp_path: Path):
+    """notation.yaml's `decimal` wins over the language and is part of the cache key."""
+    course = tmp_path / "c"
+    (course / "analysis").mkdir(parents=True)
+    (course / "course.yaml").write_text("lang: de\n")
+    assert runner.course_decimal(course) == "comma"
+    german = runner.style_key(course)
+    (course / "analysis" / "notation.yaml").write_text("schema: 1\ndecimal: point\n")
+    assert runner.course_decimal(course) == "point"
+    assert runner.style_key(course) != german
+    assert runner.child_env("de", decimal="point")["STUDYKIT_DECIMAL"] == "point"
+    (course / "course.yaml").write_text("lang: en\n")
+    (course / "analysis" / "notation.yaml").write_text("schema: 1\n")
+    assert runner.course_decimal(course) == "point"
+
+
 def test_children_use_only_the_bundled_fonts(tmp_path: Path):
     """A cold font cache holds matplotlib's own fonts only (docs/architecture.md §3.4).
 

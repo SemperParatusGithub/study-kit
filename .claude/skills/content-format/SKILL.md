@@ -75,7 +75,9 @@ Any other file in the course is SK-STRUCT-PATH.
 `studykit verify`):
 
 - numeric: `{key, label, value, unit, rtol | atol}`; units are plain text (`Hz`, `kHz`,
-  `µs`, `Ω`, `°`, `dB`); use `rtol: 5.0e-3` for computed values, `atol` for dB and degrees.
+  `µs`, `Ω`, `°`, `dB`); a dimensionless value (a gain $V$) has no `unit` key, since an
+  empty one is SK-SCHEMA-VALUE; use `rtol: 5.0e-3` for computed values, `atol` for dB and
+  degrees.
 - symbolic: `{key, label, expr: 'U0*R2/(R1 + R2)', symbols: [U0, R1, R2]}` in SymPy syntax.
 - Every number a student is asked for gets an answer key; a derivation without a number
   gets none.
@@ -127,8 +129,9 @@ Short worked reasoning. Never refer to an option by letter (options are shuffled
   `=`, `-`, `+`, `*`, `#`, `>` or `1.` (keep `=` at the end of the previous line).
 - Units and numbers: `3{,}3\,\mathrm{k\Omega}`, decimal comma `{,}` in German, imaginary
   unit `\mathrm{j}`, phasors `\underline{U}`, subscripts in `\mathrm{…}` (`f_\mathrm{g}`),
-  words in `\text{…}`. No space command between two digits (`10000` or `10^4`, never
-  `10\,000`).
+  words in `\text{…}`. A course's `analysis/notation.yaml` overrides these defaults
+  (`decimal: point`, `imaginary_unit: i`, its symbols). No space command between two
+  digits (`10000` or `10^4`, never `10\,000`).
 - Environments: `aligned`, `gathered`, `cases`, `pmatrix`, `bmatrix`, `Bmatrix` only.
 - Denied (the lint prints the replacement; list in `pandoc/math-denylist.json`):
   `\overset`, `\stackrel`, `\xrightarrow`, `\underset`, `\color`, `\textcolor`, `\tag`,

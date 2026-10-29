@@ -26,7 +26,8 @@ The file format is in the content-format skill; figures follow the figures skill
 1. Read `course.yaml` (language, topics, weights, focus, skip, exam format, targets) and,
    when they exist, `analysis/exam-profile.yaml` (archetypes, MC mix, scoring),
    `analysis/notation.yaml` (j or i, phasor style), `sources/outline.md` and the notes in
-   `sources/notes/` for your topic. List files with
+   `sources/notes/` of the chunks the outline lists for your topic (formulas, examples,
+   exercise archetypes and `src:` page links to cite). List files with
    `uv run --frozen studykit ls <course>` and ids with
    `uv run --frozen studykit index <course> --json`.
 2. Read what the part already has. Existing items whose id survives keep their id and file

@@ -1239,7 +1239,7 @@ def _stamp(path: Path) -> tuple[str, int | None] | None:
     return lines[0], density
 
 
-def _digest(ctx: Context, plan: Plan) -> str:
+def _digest(ctx: Context, plan: Plan, index_bytes: bytes | None = None) -> str:
     figures = ctx.build / "figures"
     h = hashlib.sha256()
     for part in (
@@ -1247,7 +1247,7 @@ def _digest(ctx: Context, plan: Plan) -> str:
         ctx.pandoc_version.encode(),
         ctx.typst_version.encode(),
         ctx.sources.encode(),
-        (ctx.build / "index.json").read_bytes(),
+        index_bytes if index_bytes is not None else (ctx.build / "index.json").read_bytes(),
         plan.kind.encode(),
         plan.solutions.encode(),
         str(plan.max_pages).encode(),
@@ -1364,6 +1364,51 @@ def _fit_cheatsheet(ctx: Context, plan: Plan, typ: Path, tmp: Path, out: Outcome
         out.overflow = cheatsheet.overflow_unmeasured(limit, result.pages or 0, str(exc))
     out.problems = [Problem("overflow", cheatsheet.overflow_message(out.overflow))]
     out.pages = None
+
+
+def freshness(course_dir: Path) -> dict[str, str]:
+    """Per document the course can build: `fresh` (the manifest lists it and its PDF was
+    built from the current inputs), `stale` or `missing`. Builds and writes nothing: the
+    digest is computed as `build_one` would, with the index computed in memory. Raises
+    FileNotFoundError when pandoc or typst is not installed."""
+    root = tools.repo_root()
+    course_dir = course_dir.resolve()
+    tree = content.CourseTree(course_dir)
+    ids = available(tree)
+    previous = read_manifest(course_dir) or {}
+    listed = {d.get("id") for d in previous.get("docs") or [] if isinstance(d, dict)}
+    out = {d: "missing" for d in ids}
+    present = [
+        d for d in ids if d in listed and (course_dir / "_build" / "pdf" / f"{d}.pdf").is_file()
+    ]
+    if not present:
+        return out
+    for binary in (pandoc.pandoc_bin(), typst_bin()):
+        if not Path(binary).exists():
+            raise FileNotFoundError(f"{binary} is not installed (run `just setup`)")
+    ctx = Context(
+        root,
+        course_dir,
+        tool_version(pandoc.pandoc_bin()),
+        tool_version(typst_bin()),
+        source_digest(root),
+    )
+    index_bytes = index.dumps(index.build(tree)).encode()
+    try:
+        builders = Assembler(tree).builders()
+    except AssemblyError:
+        return {d: "stale" if d in present else "missing" for d in ids}
+    for doc_id in present:
+        try:
+            plan = builders[doc_id]()
+        except AssemblyError, KeyError:
+            plan = None
+        stamp = _stamp(ctx.build / "typ" / f"{doc_id}.digest")
+        fresh = (
+            plan is not None and stamp is not None and stamp[0] == _digest(ctx, plan, index_bytes)
+        )
+        out[doc_id] = "fresh" if fresh else "stale"
+    return out
 
 
 def manifest_path(course_dir: Path) -> Path:

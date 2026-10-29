@@ -2,8 +2,9 @@
 
 Import from `studykit.figures` (`from studykit.figures import plot, circuit, block, graph`).
 Every builder returns `Figure(svg, png, alt, facts)` and takes `size=` (`'col'` 3.6×2.4 in,
-`'half'` 2.9×2.1, `'full'` 6.2×3.0, `'cs'` 2.4×1.6) and `alt=`. The locale (decimal comma,
-`U in V` axis labels) comes from the course. Source: `src/studykit/figures/`.
+`'half'` 2.9×2.1, `'full'` 6.2×3.0, `'cs'` 2.4×1.6) and `alt=`. The locale (`U in V` axis
+labels) comes from `course.lang`, the decimal sign from `notation.yaml` (`decimal`; a comma
+for German courses without it). Source: `src/studykit/figures/`.
 
 ## plot (function plots, control and signals)
 
@@ -15,7 +16,10 @@ label.
 
 `plot.bode(G, w=None, unit='rad/s', asymptotes=False, margins=False, size='col', alt=None)`
 : magnitude in dB over phase in degrees. `w=(lo, hi)` in `unit` (`'rad/s'` or `'Hz'`).
-`margins=True` marks gain and phase margin, re-checked with `scipy.signal`.
+`margins=True` marks gain and phase margin, re-checked with `scipy.signal`. The phase is
+anchored at −90° per integrator and another −180° for a negative gain (the control
+convention), so the inverting integrator −1/(sRC) shows −270°; draw the +90° of the
+circuit textbooks with `plot.custom`.
 
 `plot.nyquist(G, mark_critical=True, w=None, lim=None, name='G', size='col', alt=None)`
 : ω > 0 solid with arrows, mirror branch dashed, −1 marked.
@@ -35,7 +39,9 @@ head to tail with the sum from the origin (`total='U'` names it); `reference={'I
 draws the reference phasor at its own scale beside its axis.
 
 `plot.signals(t, series, stem=False, unit='s', y_label=None, y_unit=None, legend=None, size='col', alt=None)`
-: `series = {'u_1': array or callable of t}`; `stem=True` for sequences x[n].
+: `series = {'u_1': array or callable of t}`; `stem=True` for sequences x[n]. With
+`unit='s'` the axis shows the largest of s, ms, µs and ns in which the end time is at least
+0.2 (0.3 s stays in seconds); to keep ms, pass `t * 1e3` with `unit='ms'`.
 
 `plot.custom(alt, size='col', **subplot_kw)` (context manager)
 : `c.ax` (house-styled axes), `c.facts` (dict for numbers), `c.figure` after the block.
@@ -72,7 +78,9 @@ gain).
 : `c.resistor(symbol, value, nodes=('1', '2'), loc='auto')`, `c.capacitor(…)`,
 `c.inductor(…)`, `c.source_v(symbol, value, nodes, ac=False)`, `c.source_i(…)`,
 `c.wire(p1, p2)`, `c.dot(xy)`, `c.terminal(xy)`, `c.ground(xy)`, `c.text(xy, tex)`; each
-element chains schemdraw placement (`.at((x, y)).down(3)`, `.right()`). Then
+element chains schemdraw placement (`.at((x, y)).down(3)`, `.right()`). An op-amp for a
+circuit no template covers (a summing amplifier): `op = circuit.Opamp().anchor('minus').at((x, y))`
+inside the block, then wire to `op.minus`, `op.plus` and `op.out`. Then
 `circuit.zaehlpfeil_u(element, 'U_R', side=None, reverse=False)` and
 `circuit.zaehlpfeil_i(element, 'I', end='start', reverse=False)`. `c.figure` after the
 block. Ground is the IEC earth symbol, an AC source a circle with ~.

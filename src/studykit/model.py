@@ -353,6 +353,12 @@ class Course(Strict):
                             f"{name} lists unknown topic '{value}'",
                             f"use a topic id from this list: {', '.join(ids)}",
                         )
+        if self.status == "ready" and DRAFT_TOPIC in ids:
+            raise sk_error(
+                "SK-STRUCT-DRAFT",
+                f"a ready course still has the placeholder topic '{DRAFT_TOPIC}'",
+                "write the real topics (synthesis, docs/architecture.md §5.4) or set status: draft",
+            )
         return self
 
     @property
@@ -986,6 +992,280 @@ class Mastery(Strict):
     sources: MasterySources
 
 
+# --- ingest: sources, chunks, notes, exam profile, notation (§2.1, §5.4) -------------------
+
+DOC_KINDS = ("slides", "script", "exercises", "solutions", "exam", "exam-solutions", "other")
+DocKind = Literal["slides", "script", "exercises", "solutions", "exam", "exam-solutions", "other"]
+PAST_EXAM_KINDS = ("exam", "exam-solutions")
+# The one topic of a draft course.yaml (`studykit ingest init`) until synthesis (§5.4 step 5)
+# writes the real ones; a course with it cannot be `ready`.
+DRAFT_TOPIC = "draft"
+ChunkId = Annotated[
+    str,
+    Field(pattern=rf"^{KEBAB}-c[0-9]{{2,}}$", description="<doc>-cNN, e.g. vl-03-c01"),
+]
+PageRange = Annotated[str, Field(pattern=r"^[0-9]+-[0-9]+$")]
+SHARE_TOLERANCE = 0.02
+
+
+def _shares(values: list[float], what: str, fix: str) -> None:
+    if values and abs(sum(values) - 1) > SHARE_TOLERANCE:
+        raise sk_error("SK-SCHEMA-SHARES", f"{what} add up to {sum(values):.3g}, not 1", fix)
+
+
+class Round1(Strict):
+    """The answers of §5.4 step 1, recorded by `studykit ingest init`."""
+
+    exam_date: Literal["unknown"] | IsoDate
+    exam_format: Literal["written", "written-mc", "mc", "oral"]
+    cheatsheet_pages: int = Field(ge=0, le=3, description="0 = no cheat sheet allowed")
+    hours_per_week: PositiveNumber
+    lang: Literal["de", "en"]
+    answered: IsoDate
+
+
+class Round2(Strict):
+    """The answers of §5.4 step 6, recorded by `studykit ingest round2`."""
+
+    mock_exams: int = Field(ge=1, le=3)
+    scope: Literal["full", "core"] = Field(
+        description="core: summary, MC and plan first; exercises, mock exams and the cheat "
+        "sheet later"
+    )
+    go: bool
+    answered: IsoDate
+
+
+class AskAnswers(Strict):
+    """What the user answered in the ask rounds of /register-new-subject."""
+
+    round1: Round1 | None = None
+    round2: Round2 | None = None
+
+
+class SourceDocument(Strict):
+    """One PDF of `sources/raw/`, copied from the user's folder."""
+
+    id: DocId
+    title: Text
+    file: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9-]*\.pdf$")] = Field(
+        description="file name inside sources/raw/"
+    )
+    origin: Text = Field(description="path in the user's folder, relative to it")
+    sha256: Sha256
+    bytes: int = Field(ge=0)
+    pages: PositiveInt
+    kind: DocKind
+    kind_from: Literal["filename", "cover", "layout", "user", "none"]
+    text_share: float = Field(ge=0, le=1, description="share of pages with a text layer")
+    added: IsoDate
+    updated: IsoDate | None = Field(None, description="when a changed file replaced it")
+
+
+class SkippedFile(Strict):
+    """A file of the user's folder that was not copied, and why."""
+
+    origin: Text
+    reason: Literal["unsupported", "image", "duplicate", "unreadable", "ignored"]
+    note: Text | None = None
+    duplicate_of: DocId | None = None
+
+
+class SourceManifest(Strict):
+    """`sources/manifest.yaml`, written by `studykit ingest init|add`."""
+
+    schema_version: Literal[1] = Field(alias="schema")
+    course: CourseId
+    folder: Text | None = Field(None, description="the folder last ingested (only read)")
+    answers: AskAnswers = AskAnswers()
+    documents: list[SourceDocument] = []
+    skipped: list[SkippedFile] = []
+
+    @field_validator("documents")
+    @classmethod
+    def _unique_documents(cls, docs: list[SourceDocument]) -> list[SourceDocument]:
+        for name in ("id", "file", "sha256"):
+            values = [getattr(d, name) for d in docs]
+            for value in values:
+                if values.count(value) > 1:
+                    raise sk_error(
+                        "SK-STRUCT-DUP",
+                        f"document {name} '{value}' appears twice",
+                        "list every source document once (`studykit ingest add` dedupes)",
+                    )
+        return docs
+
+
+class Chunk(Strict):
+    """One reading unit of §5.4 step 4: at most 20 pages of one document (a past exam whole)."""
+
+    id: ChunkId
+    doc: DocId
+    kind: DocKind
+    first: PositiveInt
+    last: PositiveInt
+    flagged: list[PositiveInt] = Field(
+        [], description="visual pages: little text, garbled glyphs or large graphics"
+    )
+    scanned: list[PositiveInt] = Field([], description="pages without a text layer")
+    sha256: Sha256 = Field(description="sha256 of the document the chunk was planned from")
+
+    @model_validator(mode="after")
+    def _pages_inside(self) -> Chunk:
+        fix = "plan the chunks again with `studykit ingest extract <course>`"
+        if self.last < self.first:
+            raise sk_error("SK-SCHEMA-VALUE", f"chunk {self.id} ends before it starts", fix)
+        outside = [p for p in (*self.flagged, *self.scanned) if not self.first <= p <= self.last]
+        if outside:
+            raise sk_error(
+                "SK-SCHEMA-VALUE", f"chunk {self.id} flags pages {outside} outside it", fix
+            )
+        return self
+
+
+class ChunkPlan(Strict):
+    """`sources/chunks.yaml`, written by `studykit ingest extract|add`."""
+
+    schema_version: Literal[1] = Field(alias="schema")
+    max_pages: PositiveInt = 20
+    chunks: list[Chunk] = []
+
+    @field_validator("chunks")
+    @classmethod
+    def _unique_chunks(cls, chunks: list[Chunk]) -> list[Chunk]:
+        ids = [c.id for c in chunks]
+        for cid in ids:
+            if ids.count(cid) > 1:
+                raise sk_error(
+                    "SK-STRUCT-DUP", f"chunk id '{cid}' appears twice", "plan the chunks again"
+                )
+        return chunks
+
+
+class ChunkNotes(Strict):
+    """Frontmatter of `sources/notes/<chunk>.md`, the ingester's digest of one chunk."""
+
+    chunk: ChunkId
+    doc: DocId
+    pages: PageRange = Field(description="the chunk's pages as first-last, e.g. '1-14'")
+    source_sha256: Sha256 = Field(description="the chunk's sha256 from sources/chunks.yaml")
+    kind: DocKind
+    title: Text
+    topics: list[TopicId] = Field(
+        min_length=1, description="candidate topic slugs; synthesis maps them to course topics"
+    )
+    visual_pages: list[PositiveInt] = Field(
+        [], description="flagged pages read as images (Read with pages=…)"
+    )
+
+
+class ProfileMc(Strict):
+    present: bool
+    share: Fraction | None = Field(None, description="share of the exam's points")
+    count: PositiveInt | None = Field(None, description="questions per exam")
+    types: list[Literal["single", "multi", "kprim"]] = []
+    type_mix: dict[Literal["single", "multi", "kprim"], Fraction] = {}
+    scoring: Literal["all-or-nothing", "partial", "kprim"] = "all-or-nothing"
+    negative_marking: bool = False
+
+    @field_validator("type_mix")
+    @classmethod
+    def _mix_sums(cls, mix: dict[str, float]) -> dict[str, float]:
+        _shares(list(mix.values()), "mc.type_mix shares", "make the type shares add up to 1")
+        return mix
+
+
+class Archetype(Strict):
+    """A recurring kind of exam task: what mock exams are modelled on (§2.7)."""
+
+    id: ArchetypeId
+    title: Text
+    topic: TopicId | None = Field(None, description="a course topic once synthesis wrote them")
+    share: Fraction = Field(description="share of the exam's points")
+    frequency: Fraction | None = Field(None, description="share of past exams that have it")
+    points: PositiveNumber | None = None
+    minutes: PositiveInt | None = None
+    description: Text | None = None
+    sources: list[SourcePages] = []
+
+
+class NotationRules(Strict):
+    """Notation conventions the authors follow (§5.3 exam-analyst)."""
+
+    imaginary_unit: Literal["j", "i"] | None = None
+    phasor: Literal["underline", "bold", "hat", "arrow", "plain"] | None = None
+    phasor_magnitude: Literal["rms", "peak"] | None = None
+    step: Literal["epsilon", "sigma", "u", "theta"] | None = Field(
+        None, description="unit step: epsilon(t), sigma(t), u(t) or theta(t)"
+    )
+    decimal: Literal["comma", "point"] | None = None
+
+
+class NotationSymbol(Strict):
+    symbol: Label
+    meaning: Text
+
+
+class Notation(NotationRules):
+    """`analysis/notation.yaml`, written by the exam-analyst."""
+
+    schema_version: Literal[1] = Field(alias="schema")
+    symbols: list[NotationSymbol] = []
+    notes: list[Text] = []
+
+
+class ExamProfile(Strict):
+    """`analysis/exam-profile.yaml`, written by the exam-analyst (§5.3)."""
+
+    schema_version: Literal[1] = Field(alias="schema")
+    confidence: Literal["low", "medium", "high"]
+    basis: Literal["past-exams", "course-description", "user-answers"]
+    exams: list[DocId] = Field([], description="past exams analysed (sources/manifest.yaml)")
+    format: Literal["written", "mc", "oral", "mixed"] | None = None
+    duration_min: PositiveInt | None = None
+    points: PositiveNumber | None = None
+    pass_points: PositiveNumber | None = None
+    minutes_per_point: PositiveNumber | None = None
+    aids: list[Text] = []
+    mc: ProfileMc | None = None
+    archetypes: list[Archetype] = Field(min_length=1)
+    topic_weights: dict[TopicId, Fraction] = {}
+    notation: NotationRules | None = None
+    notes: list[Text] = []
+
+    @field_validator("archetypes")
+    @classmethod
+    def _archetypes(cls, archetypes: list[Archetype]) -> list[Archetype]:
+        ids = [a.id for a in archetypes]
+        for aid in ids:
+            if ids.count(aid) > 1:
+                raise sk_error(
+                    "SK-STRUCT-DUP", f"archetype '{aid}' appears twice", "merge the two entries"
+                )
+        _shares(
+            [a.share for a in archetypes],
+            "archetype shares",
+            "give each archetype its share of the exam's points so that they add up to 1",
+        )
+        return archetypes
+
+    @field_validator("topic_weights")
+    @classmethod
+    def _weights(cls, weights: dict[str, float]) -> dict[str, float]:
+        _shares(list(weights.values()), "topic_weights", "make the topic weights add up to 1")
+        return weights
+
+    @model_validator(mode="after")
+    def _basis(self) -> ExamProfile:
+        if self.basis == "past-exams" and not self.exams:
+            raise sk_error(
+                "SK-SCHEMA-VALUE",
+                "basis past-exams lists no exams",
+                "list the analysed past exams' document ids in `exams`, or change the basis",
+            )
+        return self
+
+
 # --- registry ------------------------------------------------------------------------------
 
 # File kind (content.py) -> frontmatter or YAML model.
@@ -1000,6 +1280,11 @@ MODELS: dict[str, type[Strict]] = {
     "cheatsheet": Cheatsheet,
     "exam": Exam,
     "plan": Plan,
+    "exam-profile": ExamProfile,
+    "notation": Notation,
+    "manifest": SourceManifest,
+    "chunks": ChunkPlan,
+    "notes": ChunkNotes,
 }
 
 # Exported JSON schemas: schemas/<name>.schema.json.
@@ -1018,6 +1303,11 @@ SCHEMAS: dict[str, type[Strict]] = {
     "progress": Progress,
     "examiner": ExaminerResult,
     "mastery": Mastery,
+    "exam-profile": ExamProfile,
+    "notation": Notation,
+    "manifest": SourceManifest,
+    "chunks": ChunkPlan,
+    "notes": ChunkNotes,
 }
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"

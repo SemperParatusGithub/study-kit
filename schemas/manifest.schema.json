@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AskAnswers": {
+      "additionalProperties": false,
+      "description": "What the user answered in the ask rounds of /register-new-subject.",
+      "properties": {
+        "round1": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Round1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "round2": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Round2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "AskAnswers",
+      "type": "object"
+    },
+    "Round1": {
+      "additionalProperties": false,
+      "description": "The answers of §5.4 step 1, recorded by `studykit ingest init`.",
+      "properties": {
+        "exam_date": {
+          "anyOf": [
+            {
+              "const": "unknown",
+              "type": "string"
+            },
+            {
+              "format": "date",
+              "type": "string"
+            }
+          ],
+          "title": "Exam Date"
+        },
+        "exam_format": {
+          "enum": [
+            "written",
+            "written-mc",
+            "mc",
+            "oral"
+          ],
+          "title": "Exam Format",
+          "type": "string"
+        },
+        "cheatsheet_pages": {
+          "description": "0 = no cheat sheet allowed",
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Cheatsheet Pages",
+          "type": "integer"
+        },
+        "hours_per_week": {
+          "exclusiveMinimum": 0,
+          "title": "Hours Per Week",
+          "type": "number"
+        },
+        "lang": {
+          "enum": [
+            "de",
+            "en"
+          ],
+          "title": "Lang",
+          "type": "string"
+        },
+        "answered": {
+          "format": "date",
+          "title": "Answered",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exam_date",
+        "exam_format",
+        "cheatsheet_pages",
+        "hours_per_week",
+        "lang",
+        "answered"
+      ],
+      "title": "Round1",
+      "type": "object"
+    },
+    "Round2": {
+      "additionalProperties": false,
+      "description": "The answers of §5.4 step 6, recorded by `studykit ingest round2`.",
+      "properties": {
+        "mock_exams": {
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Mock Exams",
+          "type": "integer"
+        },
+        "scope": {
+          "description": "core: summary, MC and plan first; exercises, mock exams and the cheat sheet later",
+          "enum": [
+            "full",
+            "core"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "go": {
+          "title": "Go",
+          "type": "boolean"
+        },
+        "answered": {
+          "format": "date",
+          "title": "Answered",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mock_exams",
+        "scope",
+        "go",
+        "answered"
+      ],
+      "title": "Round2",
+      "type": "object"
+    },
+    "SkippedFile": {
+      "additionalProperties": false,
+      "description": "A file of the user's folder that was not copied, and why.",
+      "properties": {
+        "origin": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Origin",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "unsupported",
+            "image",
+            "duplicate",
+            "unreadable",
+            "ignored"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\n]*\\S[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "duplicate_of": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duplicate Of"
+        }
+      },
+      "required": [
+        "origin",
+        "reason"
+      ],
+      "title": "SkippedFile",
+      "type": "object"
+    },
+    "SourceDocument": {
+      "additionalProperties": false,
+      "description": "One PDF of `sources/raw/`, copied from the user's folder.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Title",
+          "type": "string"
+        },
+        "file": {
+          "description": "file name inside sources/raw/",
+          "pattern": "^[a-z0-9][a-z0-9-]*\\.pdf$",
+          "title": "File",
+          "type": "string"
+        },
+        "origin": {
+          "description": "path in the user's folder, relative to it",
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Origin",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "bytes": {
+          "minimum": 0,
+          "title": "Bytes",
+          "type": "integer"
+        },
+        "pages": {
+          "exclusiveMinimum": 0,
+          "title": "Pages",
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "slides",
+            "script",
+            "exercises",
+            "solutions",
+            "exam",
+            "exam-solutions",
+            "other"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "kind_from": {
+          "enum": [
+            "filename",
+            "cover",
+            "layout",
+            "user",
+            "none"
+          ],
+          "title": "Kind From",
+          "type": "string"
+        },
+        "text_share": {
+          "description": "share of pages with a text layer",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Text Share",
+          "type": "number"
+        },
+        "added": {
+          "format": "date",
+          "title": "Added",
+          "type": "string"
+        },
+        "updated": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "when a changed file replaced it",
+          "title": "Updated"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "file",
+        "origin",
+        "sha256",
+        "bytes",
+        "pages",
+        "kind",
+        "kind_from",
+        "text_share",
+        "added"
+      ],
+      "title": "SourceDocument",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`sources/manifest.yaml`, written by `studykit ingest init|add`.",
+  "properties": {
+    "schema": {
+      "const": 1,
+      "title": "Schema",
+      "type": "integer"
+    },
+    "course": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,39}$",
+      "title": "Course",
+      "type": "string"
+    },
+    "folder": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the folder last ingested (only read)",
+      "title": "Folder"
+    },
+    "answers": {
+      "$ref": "#/$defs/AskAnswers",
+      "default": {
+        "round1": null,
+        "round2": null
+      }
+    },
+    "documents": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SourceDocument"
+      },
+      "title": "Documents",
+      "type": "array"
+    },
+    "skipped": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SkippedFile"
+      },
+      "title": "Skipped",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "course"
+  ],
+  "title": "SourceManifest",
+  "type": "object"
+}

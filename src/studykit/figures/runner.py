@@ -51,6 +51,27 @@ def course_locale(course: Path) -> str:
     return "en"
 
 
+def course_decimal(course: Path) -> str:
+    """The decimal sign of the course's figures, `comma` or `point`.
+
+    `decimal` of analysis/notation.yaml when it sets one, else a comma for German courses.
+    """
+    notation = course / "analysis" / "notation.yaml"
+    if notation.is_file():
+        try:
+            data = yaml.safe_load(notation.read_text()) or {}
+        except yaml.YAMLError:
+            data = {}
+        if isinstance(data, dict) and data.get("decimal") in ("comma", "point"):
+            return str(data["decimal"])
+    return "comma" if course_locale(course) == "de" else "point"
+
+
+def style_key(course: Path) -> bytes:
+    """The part of a figure's cache key that the course sets: language and decimal sign."""
+    return f"{course_locale(course)}/{course_decimal(course)}".encode()
+
+
 def _tree_digest(root: Path) -> str:
     digest = hashlib.sha256()
     for path in sorted((root / "src" / "studykit").rglob("*")):
@@ -89,16 +110,23 @@ def mpl_config_dir() -> Path:
     return tools.repo_root() / ".cache" / "mpl-nosys"
 
 
-def child_env(locale: str, mpl_dir: Path | None = None) -> dict[str, str]:
+def child_env(
+    locale: str, mpl_dir: Path | None = None, decimal: str | None = None
+) -> dict[str, str]:
     """The environment of a figure child (docs/architecture.md §3.4).
 
     MPL_IGNORE_SYSTEM_FONTS keeps matplotlib to its bundled fonts (the house style uses
     only DejaVu Sans and Computer Modern): a cold cache then takes a fraction of a second
     to build instead of a scan of every system font, which on a busy machine ran past the
     timeout in every child of the first wave, so none of them ever wrote the cache.
+    STUDYKIT_DECIMAL is the course's decimal sign (`course_decimal`); without it the
+    language decides.
     """
+    env = {key: value for key, value in os.environ.items() if key != "STUDYKIT_DECIMAL"}
+    if decimal:
+        env["STUDYKIT_DECIMAL"] = decimal
     return {
-        **os.environ,
+        **env,
         "STUDYKIT_LOCALE": locale,
         "MPLBACKEND": "Agg",
         "MPLCONFIGDIR": str(mpl_dir or mpl_config_dir()),
@@ -122,8 +150,8 @@ def warm_font_cache(env: dict[str, str]) -> None:
     )
 
 
-def _run_script(script: Path, out_dir: Path, slug: str, locale: str) -> Outcome:
-    env = child_env(locale)
+def _run_script(script: Path, out_dir: Path, slug: str, locale: str, decimal: str) -> Outcome:
+    env = child_env(locale, decimal=decimal)
     try:
         proc = subprocess.run(
             [sys.executable, "-I", "-m", "studykit.figures.child", str(script), str(out_dir), slug],
@@ -145,12 +173,20 @@ def _run_script(script: Path, out_dir: Path, slug: str, locale: str) -> Outcome:
     return Outcome(slug, "failed", [tail], _rel(script))
 
 
-def _run_builtin(name: str, course: Path, out_dir: Path, locale: str) -> Outcome:
+def _run_builtin(name: str, course: Path, out_dir: Path, locale: str, decimal: str) -> Outcome:
     os.environ["STUDYKIT_LOCALE"] = locale
+    before = os.environ.get("STUDYKIT_DECIMAL")
+    os.environ["STUDYKIT_DECIMAL"] = decimal
     try:
         fig = BUILTINS[name](course)
     except Exception as exc:
         return Outcome(name, "failed", [f"{type(exc).__name__}: {exc}"], f"builtin:{name}")
+    finally:
+        # the decimal sign is per course; the next build in this process sets its own
+        if before is None:
+            os.environ.pop("STUDYKIT_DECIMAL", None)
+        else:
+            os.environ["STUDYKIT_DECIMAL"] = before
     problems = write_outputs(fig, out_dir, name)
     return Outcome(name, "failed" if problems else "built", problems, f"builtin:{name}")
 
@@ -164,6 +200,8 @@ def build_course(course: Path, only: set[str] | None = None, force: bool = False
     manifest_path = out_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
     locale = course_locale(course)
+    decimal = course_decimal(course)
+    style = style_key(course)
     tree = _tree_digest(root).encode()
 
     jobs: list[tuple[str, bytes, Callable[[], Outcome]]] = []
@@ -183,9 +221,13 @@ def build_course(course: Path, only: set[str] | None = None, force: bool = False
                 )
             )
             continue
-        key = _key([script.read_bytes(), tree, locale.encode()])
+        key = _key([script.read_bytes(), tree, style])
         jobs.append(
-            (slug, key.encode(), lambda s=script, g=slug: _run_script(s, out_dir, g, locale))
+            (
+                slug,
+                key.encode(),
+                lambda s=script, g=slug: _run_script(s, out_dir, g, locale, decimal),
+            )
         )
     builtin_input = (
         (course / "course.yaml").read_bytes() if (course / "course.yaml").is_file() else b""
@@ -193,8 +235,10 @@ def build_course(course: Path, only: set[str] | None = None, force: bool = False
     for name in sorted(BUILTINS):
         if only and name not in only:
             continue
-        key = _key([name.encode(), builtin_input, tree, locale.encode()])
-        jobs.append((name, key.encode(), lambda n=name: _run_builtin(n, course, out_dir, locale)))
+        key = _key([name.encode(), builtin_input, tree, style])
+        jobs.append(
+            (name, key.encode(), lambda n=name: _run_builtin(n, course, out_dir, locale, decimal))
+        )
 
     outcomes: dict[str, Outcome] = {}
     todo = []
@@ -211,7 +255,7 @@ def build_course(course: Path, only: set[str] | None = None, force: bool = False
     for slug, _, run in builtin_jobs:
         outcomes[slug] = run()
     if script_jobs:
-        warm_font_cache(child_env(locale))
+        warm_font_cache(child_env(locale, decimal=decimal))
     with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         for (slug, _, _), outcome in zip(
             script_jobs, pool.map(lambda j: j[2](), script_jobs), strict=True

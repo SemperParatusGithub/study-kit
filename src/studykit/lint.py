@@ -5,9 +5,10 @@ Math and the Pandoc backstop, each file checked in the context of its course so 
 retired ids and duplicates are known.
 
 With `--hook` it is the Claude Code PostToolUse hook for Write and Edit: it reads the hook
-JSON from stdin, lints `tool_input.file_path` when that is a course file under
-`courses/**` or `examples/**` (or $STUDYKIT_COURSES_DIR), and exits 2 with the findings on
-stderr so Claude fixes them right away. Anything else exits 0 silently.
+JSON from stdin, lints `tool_input.file_path` when that is a file of a course (a
+`course.yaml` above it) under `courses/**` or `examples/**` (or $STUDYKIT_COURSES_DIR), and
+exits 2 with the findings on stderr so Claude fixes them right away. Anything else exits 0
+silently.
 """
 
 from __future__ import annotations
@@ -84,6 +85,10 @@ def hook_target(payload: object) -> Path | None:
     if path.suffix not in LINTED_SUFFIXES or not path.is_file():
         return None
     if not any(path.is_relative_to(r) for r in hook_roots()):
+        return None
+    # files beside the courses (examples/sample-materials, a course folder before its
+    # course.yaml exists) are not course content
+    if content.find_course_root(path.parent) is None:
         return None
     return path
 

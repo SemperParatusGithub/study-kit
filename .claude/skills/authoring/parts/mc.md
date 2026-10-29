@@ -27,7 +27,10 @@ written with [exam.md](exam.md), never copied into a bank.
   reason in one line. A distractor without a nameable mistake is replaced.
 - Numeric distractors are produced by applying the mistake to the same data, computed in
   Python, so the verifier can reproduce each one (`mc_numeric`); every distractor differs
-  from the correct value by more than 5 %, and no two options coincide.
+  from the correct value by more than 5 %, and no two options coincide. Write each numeric
+  option as the bare value with its unit (`$4.82\,\mathrm{kHz}$`, `$-4.68$`), never
+  `$V \approx …$` or `$U_a = …$`: only then does studykit treat the question as numeric
+  and ask for its `mc_numeric` check (SK-VER-CHECK).
 - Kprim: four independent statements about one situation, about half true; each statement
   decidable on its own.
 - multi: 4-6 options, at least one right and one wrong; a final "Keine der Aussagen ist

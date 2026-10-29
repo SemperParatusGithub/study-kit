@@ -1,6 +1,7 @@
 schema: 1
+course: mini
 documents:
-  - {id: vl-01, title: Vorlesung 1, pages: 20}
-  - {id: vl-02, title: Vorlesung 2, pages: 24}
-  - {id: ue-01, title: Übung 1, pages: 4}
-  - {id: ue-02, title: Übung 2, pages: 4}
+  - {id: vl-01, title: Vorlesung 1, file: vl-01.pdf, origin: VL01.pdf, sha256: 'f75daba61485e022cd9bedc2c4d61efa9f157cdae05c9025e9e96c0a2be4d319', bytes: 20000, pages: 20, kind: slides, kind_from: filename, text_share: 1, added: 2026-10-29}
+  - {id: vl-02, title: Vorlesung 2, file: vl-02.pdf, origin: VL02.pdf, sha256: 'c182c4e00153428442aeb946367b7bd1d6aea25861f8a594ccf00fa15ee5ef3c', bytes: 24000, pages: 24, kind: slides, kind_from: filename, text_share: 1, added: 2026-10-29}
+  - {id: ue-01, title: Übung 1, file: ue-01.pdf, origin: Uebung01.pdf, sha256: '14da6c4332806c7606b59f9dac6416e0d1b1400c7ac0918d3f7021aa1573d6a6', bytes: 4000, pages: 4, kind: exercises, kind_from: filename, text_share: 1, added: 2026-10-29}
+  - {id: ue-02, title: Übung 2, file: ue-02.pdf, origin: Uebung02.pdf, sha256: '93797c1abe6cef041f76f8671c112bdcabe53a6ff0219d41f0fc024e1055cde6', bytes: 4000, pages: 4, kind: exercises, kind_from: filename, text_share: 1, added: 2026-10-29}

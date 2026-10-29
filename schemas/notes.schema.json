@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Frontmatter of `sources/notes/<chunk>.md`, the ingester's digest of one chunk.",
+  "properties": {
+    "chunk": {
+      "description": "<doc>-cNN, e.g. vl-03-c01",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-c[0-9]{2,}$",
+      "title": "Chunk",
+      "type": "string"
+    },
+    "doc": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Doc",
+      "type": "string"
+    },
+    "pages": {
+      "description": "the chunk's pages as first-last, e.g. '1-14'",
+      "pattern": "^[0-9]+-[0-9]+$",
+      "title": "Pages",
+      "type": "string"
+    },
+    "source_sha256": {
+      "description": "the chunk's sha256 from sources/chunks.yaml",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Sha256",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "slides",
+        "script",
+        "exercises",
+        "solutions",
+        "exam",
+        "exam-solutions",
+        "other"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "pattern": "^[^\\n]*\\S[^\\n]*$",
+      "title": "Title",
+      "type": "string"
+    },
+    "topics": {
+      "description": "candidate topic slugs; synthesis maps them to course topics",
+      "items": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Topics",
+      "type": "array"
+    },
+    "visual_pages": {
+      "default": [],
+      "description": "flagged pages read as images (Read with pages=…)",
+      "items": {
+        "exclusiveMinimum": 0,
+        "type": "integer"
+      },
+      "title": "Visual Pages",
+      "type": "array"
+    }
+  },
+  "required": [
+    "chunk",
+    "doc",
+    "pages",
+    "source_sha256",
+    "kind",
+    "title",
+    "topics"
+  ],
+  "title": "ChunkNotes",
+  "type": "object"
+}

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Chunk": {
+      "additionalProperties": false,
+      "description": "One reading unit of §5.4 step 4: at most 20 pages of one document (a past exam whole).",
+      "properties": {
+        "id": {
+          "description": "<doc>-cNN, e.g. vl-03-c01",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-c[0-9]{2,}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "doc": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Doc",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "slides",
+            "script",
+            "exercises",
+            "solutions",
+            "exam",
+            "exam-solutions",
+            "other"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "first": {
+          "exclusiveMinimum": 0,
+          "title": "First",
+          "type": "integer"
+        },
+        "last": {
+          "exclusiveMinimum": 0,
+          "title": "Last",
+          "type": "integer"
+        },
+        "flagged": {
+          "default": [],
+          "description": "visual pages: little text, garbled glyphs or large graphics",
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "title": "Flagged",
+          "type": "array"
+        },
+        "scanned": {
+          "default": [],
+          "description": "pages without a text layer",
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "title": "Scanned",
+          "type": "array"
+        },
+        "sha256": {
+          "description": "sha256 of the document the chunk was planned from",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "doc",
+        "kind",
+        "first",
+        "last",
+        "sha256"
+      ],
+      "title": "Chunk",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`sources/chunks.yaml`, written by `studykit ingest extract|add`.",
+  "properties": {
+    "schema": {
+      "const": 1,
+      "title": "Schema",
+      "type": "integer"
+    },
+    "max_pages": {
+      "default": 20,
+      "exclusiveMinimum": 0,
+      "title": "Max Pages",
+      "type": "integer"
+    },
+    "chunks": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Chunk"
+      },
+      "title": "Chunks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "title": "ChunkPlan",
+  "type": "object"
+}

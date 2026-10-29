@@ -83,8 +83,11 @@ WORD = re.compile(r"[^\W\d_]{3,}[?!.,:;]*")  # a run of 3+ letters standing alon
 
 
 def localize_text(text: str) -> str:
-    """Decimal comma in plain German text: 0.5 -> 0,5 (math uses `core.localize_tex`)."""
-    return re.sub(r"(\d)\.(\d)", r"\1,\2", text) if core.locale() == "de" else text
+    """Decimal comma in plain text when the figure uses one: 0.5 -> 0,5.
+
+    Math uses `core.localize_tex`.
+    """
+    return re.sub(r"(\d)\.(\d)", r"\1,\2", text) if core.decimal_comma() else text
 
 
 def _localize_mixed(text: str) -> str:
@@ -104,7 +107,8 @@ def label(text: str, math: bool = True) -> tuple[str, bool]:
     - anything else ('K', 'G(s)', '1 + sT', 'S0', '1/0'): math when `math` is true (block
       diagrams), plain text otherwise (states, transitions, flowchart boxes).
 
-    German figures get a decimal comma everywhere: 0,5 in text and 0{,}5 in math.
+    A figure with a decimal comma (`core.decimal_comma`) gets it everywhere: 0,5 in text
+    and 0{,}5 in math.
     """
     text = str(text).strip()
     if not text:

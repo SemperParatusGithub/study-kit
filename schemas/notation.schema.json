@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "NotationSymbol": {
+      "additionalProperties": false,
+      "properties": {
+        "symbol": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Symbol",
+          "type": "string"
+        },
+        "meaning": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Meaning",
+          "type": "string"
+        }
+      },
+      "required": [
+        "symbol",
+        "meaning"
+      ],
+      "title": "NotationSymbol",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`analysis/notation.yaml`, written by the exam-analyst.",
+  "properties": {
+    "imaginary_unit": {
+      "anyOf": [
+        {
+          "enum": [
+            "j",
+            "i"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Imaginary Unit"
+    },
+    "phasor": {
+      "anyOf": [
+        {
+          "enum": [
+            "underline",
+            "bold",
+            "hat",
+            "arrow",
+            "plain"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Phasor"
+    },
+    "phasor_magnitude": {
+      "anyOf": [
+        {
+          "enum": [
+            "rms",
+            "peak"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Phasor Magnitude"
+    },
+    "step": {
+      "anyOf": [
+        {
+          "enum": [
+            "epsilon",
+            "sigma",
+            "u",
+            "theta"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "unit step: epsilon(t), sigma(t), u(t) or theta(t)",
+      "title": "Step"
+    },
+    "decimal": {
+      "anyOf": [
+        {
+          "enum": [
+            "comma",
+            "point"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decimal"
+    },
+    "schema": {
+      "const": 1,
+      "title": "Schema",
+      "type": "integer"
+    },
+    "symbols": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/NotationSymbol"
+      },
+      "title": "Symbols",
+      "type": "array"
+    },
+    "notes": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "pattern": "^[^\\n]*\\S[^\\n]*$",
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "title": "Notation",
+  "type": "object"
+}

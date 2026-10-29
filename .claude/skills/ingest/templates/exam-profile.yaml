@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=../../../schemas/exam-profile.schema.json
+# Exam profile from one past exam (90 min, 60 points: 3 tasks with 48 points and an MC
+# part of 6 questions at 2 points). Shares computed with `studykit calc`, rounded to two
+# decimals, the remainder on the largest. Topics are candidate slugs until synthesis.
+schema: 1
+confidence: medium
+basis: past-exams
+exams: [klausur-ws2526]
+format: mixed
+duration_min: 90
+points: 60
+pass_points: 30
+minutes_per_point: 1.5
+aids: ['Nicht programmierbarer Taschenrechner', 'Ein handschriftliches Formelblatt (A4, beidseitig)']
+mc:
+  present: true
+  share: 0.2
+  count: 6
+  types: [single, multi]
+  type_mix: {single: 0.67, multi: 0.33}
+  scoring: all-or-nothing
+  negative_marking: false
+archetypes:
+  - id: invertierer-dimensionieren
+    title: Invertierenden Verstärker berechnen und dimensionieren
+    topic: invertierender-verstaerker
+    share: 0.29
+    frequency: 1
+    points: 14
+    minutes: 21
+    description: Verstärkung und Ausgangsspannung aus den Widerständen, dann ein Widerstand für eine Zielverstärkung
+    sources: [{doc: klausur-ws2526, pages: '1'}, {doc: klausur-ws2526-loesung, pages: '1'}]
+  - id: summierer-ausgang
+    title: Ausgangsspannung eines Summierers
+    topic: summierer
+    share: 0.33
+    frequency: 1
+    points: 16
+    minutes: 24
+    sources: [{doc: klausur-ws2526, pages: '2'}]
+  - id: integrierer-saettigung
+    title: Integrierer mit Sprungeingang bis zur Sättigung
+    topic: integrierer
+    share: 0.38
+    frequency: 1
+    points: 18
+    minutes: 27
+    sources: [{doc: klausur-ws2526, pages: '2'}]
+topic_weights: {idealer-opv: 0.07, invertierender-verstaerker: 0.30, summierer: 0.27, integrierer: 0.36}
+notation: {imaginary_unit: j, phasor: underline, decimal: comma}
+notes:
+  - 'Archetype shares are shares of the task points (48); the MC part is mc.share of all points.'
+  - 'Only one past exam: confidence medium; frequencies are 1 by construction.'

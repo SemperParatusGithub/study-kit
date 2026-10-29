@@ -116,10 +116,10 @@ class Quantity:
 
     @property
     def plain(self) -> str:
-        """Readable text for alt text, with a decimal comma in German figures."""
+        """Readable text for alt text, with the figure's decimal sign."""
         if self.si is None:
             return self.text
-        return self.text.replace(".", ",") if core.locale() == "de" else self.text
+        return self.text.replace(".", ",") if core.decimal_comma() else self.text
 
 
 def _unit_tex(prefix: str, unit: str) -> str:
@@ -242,11 +242,12 @@ def plain_name(symbol: str) -> str:
 
 
 def value_label(symbol: str, q: Quantity | None, stacked: bool = False) -> str:
-    """'$R_1 = 4{,}7\\,\\mathrm{k\\Omega}$' or '$R_1$' when there is no value.
+    """'$R_1 = 4{,}7\\,\\mathrm{k\\Omega}$', or '$R_1$' when there is no value or the value
+    is the symbol itself (opamp('inverting', 'R_1', 'R_2') draws 'R_1', not 'R_1 = R_1').
 
     stacked=True puts a numeric value on a second line under the symbol, for tight spots.
     """
-    if q is None:
+    if q is None or (q.si is None and q.tex == symbol):
         return f"${symbol}$"
     if stacked and q.si is not None:
         return f"${symbol}$\n${q.tex}$"
