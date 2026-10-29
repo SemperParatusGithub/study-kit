@@ -1,0 +1,74 @@
+---
+// Progress (docs/architecture.md §2.11, §3.2): <sk-progress> draws topic bars, sure/unsure
+// calibration and exam history from browser progress; <sk-export> exports and imports it.
+import Base from '../../../layouts/Base.astro';
+import { coursePaths, overallMastery, type Course } from '../../../lib/courses';
+import { todayIso } from '../../../lib/format';
+
+export const getStaticPaths = coursePaths;
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const topics = course.topics.map((t) => ({
+  id: t.id,
+  title: t.title,
+  weight: t.weight,
+  focus: t.focus,
+  skip: t.skip,
+  mc: course.banks.filter((b) => b.data.topic === t.id).flatMap((b) => b.data.questions.map((q) => q.id)),
+  exercises: course.exercises.filter((e) => e.data.topic === t.id).map((e) => e.data.id),
+}));
+const exams = course.exams.map((e) => ({ id: e.id, title: e.doc.data.title, points: e.fm.points }));
+const mastery = overallMastery(course);
+---
+
+<Base title="Progress" course={course} tab="progress">
+  <div class="page-head" lang={en}>
+    <h1>Progress</h1>
+    <p class="muted">
+      Your answers live in this browser only (key <code>studykit:v1:{c}</code>). Export them now and
+      then: Claude Code reads the file with <code>/import-progress</code> for the tutor and the plan.
+    </p>
+    {
+      mastery !== null && (
+        <p class="small">
+          Last mastery report (from <code>progress/mastery.json</code>): {Math.round(mastery * 100)}%.
+        </p>
+      )
+    }
+  </div>
+
+  <sk-progress
+    data-course={c}
+    data-topics={JSON.stringify(topics)}
+    data-exams={JSON.stringify(exams)}
+    data-exam-date={course.examDate ?? ''}
+  ></sk-progress>
+  <noscript>
+    <p class="notice" lang={en}>Progress is computed in the browser and needs JavaScript.</p>
+  </noscript>
+
+  <section class="card backup" aria-labelledby="backup-title" lang={en}>
+    <h2 id="backup-title">Back up and move</h2>
+    <p class="small muted">
+      Export downloads <code>studykit-progress-{c}-{todayIso()}.json</code>. Import merges a file
+      into what this browser already has; nothing is overwritten.
+    </p>
+    <sk-export data-course={c}></sk-export>
+  </section>
+</Base>
+
+<style>
+  sk-progress {
+    margin-bottom: var(--space-6);
+  }
+
+  .backup {
+    max-width: 44rem;
+  }
+
+  .backup h2 {
+    font-size: 1.1rem;
+  }
+</style>
