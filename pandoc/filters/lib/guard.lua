@@ -253,8 +253,11 @@ local function split_lines(text)
   return lines
 end
 
-function M.scan_fences(text, ctx)
+--- Check the fence lines of `text`. `first` is the file line of its first line (default 1;
+--- an assembled PDF document scans each part with the line its body starts on).
+function M.scan_fences(text, ctx, first)
   local lines = split_lines(text)
+  local offset = (first or 1) - 1
   local function blank(i)
     return i < 1 or i > #lines or lines[i]:match('^%s*$') ~= nil
   end
@@ -262,7 +265,7 @@ function M.scan_fences(text, ctx)
     return i >= 1 and i <= #lines and lines[i]:match('^%s*:::') ~= nil
   end
   local function fail(i, message, fix, code)
-    ctx:fail(code or 'SK-BLOCK-FENCE', message, fix, i .. ':1')
+    ctx:fail(code or 'SK-BLOCK-FENCE', message, fix, (i + offset) .. ':1')
   end
 
   local stack = {}

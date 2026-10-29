@@ -54,6 +54,23 @@ jobs:
         id: checks
         run: .tools/bin/just ci
 
+      # The sample course's PDFs: `just build` in `just ci` built them already (this reuses
+      # them), unless `just ci` stopped before; uploaded on every run for review
+      - name: Sample-course PDFs
+        if: ${{ !cancelled() }}
+        run: .tools/bin/just pdf sample-course
+        env:
+          STUDYKIT_COURSES_DIR: ${{ github.workspace }}/examples
+
+      - name: Upload the sample-course PDFs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sample-course-pdfs
+          path: examples/sample-course/_build/pdf/
+          if-no-files-found: warn
+          retention-days: 14
+
       # The two browser suites run even after an earlier failure, so one failure does not
       # hide the other: the harness needs only Chromium, the e2e suite also the site/dist
       # that `just ci` built.

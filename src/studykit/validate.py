@@ -43,6 +43,7 @@ class Config:
     denylist: Path | None = None  # default: <root>/pandoc/math-denylist.json
     katex: bool = True
     figures: bool = True  # build the figure scripts in the Figures stage (cached)
+    pdf: bool = True  # build the PDFs in the PDF stage (unchanged documents are reused)
     site: bool = True  # build and check the website in the Site stage (--release only)
 
     @property
@@ -1554,9 +1555,139 @@ def check_verification(ctx: Context) -> None:  # pragma: no cover - replaced in 
     ctx.note("verification ledger checks are not implemented yet")
 
 
-@stage("PDF", "SK-PDF", 90, requires=_module_missing("pdf", "Phase 4"))
-def check_pdf(ctx: Context) -> None:  # pragma: no cover - replaced in Phase 4
-    ctx.note("PDF checks are not implemented yet")
+# --- PDF (SK-PDF) -----------------------------------------------------------------------------
+
+
+def _pdf_ready(ctx: Context) -> str | None:
+    if not ctx.config.pdf:
+        return "PDF build is off (Config.pdf)"
+    root = tools.repo_root()
+    for tool in ("pandoc", "typst"):
+        if not tools.bin_path(root, tool).exists():
+            return f"{tool} is not installed in .tools/bin (run `just setup`)"
+    try:
+        ctx.tree.root.relative_to(root.resolve())
+    except ValueError:
+        return "the course is outside the repository, and Typst reads only files below it"
+    if any(f.is_error for f in ctx.prior):
+        return "fix the errors above first; the PDFs are built from checked files"
+    return None
+
+
+@stage("PDF", "SK-PDF", 90, requires=_pdf_ready)
+def check_pdf(ctx: Context) -> None:
+    """Build the course's PDFs as `studykit pdf` does and report the documents that fail.
+
+    Runs in every full validate (not `--quick` or lint): a document whose inputs did not
+    change is reused by its digest, so a run after a small edit rebuilds only the documents
+    that contain the file. With `--paths` only the documents built from those files are
+    built. Writes `_build/pdf` and its manifest like `studykit pdf`, so a failing document
+    leaves the manifest and keeps its previous PDF.
+    """
+    from studykit import pdf
+
+    tree = ctx.tree
+    assert tree.course_doc is not None  # run_course stops earlier without course.yaml
+    try:
+        build = pdf.make(tree.root, files=ctx.selected, figures=False)
+    except Exception as exc:  # the build itself broke: a bug, not a content problem
+        ctx.at(
+            tree.course_doc,
+            1,
+            1,
+            "SK-PDF-BUILD",
+            f"the PDF build stopped: {type(exc).__name__}: {exc}",
+            f"run `studykit pdf {tree.id}` and fix the first error it prints",
+        )
+        return
+    for out in build.outcomes:
+        for problem in out.problems:
+            ctx.add(_pdf_finding(tree, out, problem))
+    if not build.outcomes:
+        ctx.note("no PDF document is built from the selected files")
+        return
+    ready = [o for o in build.outcomes if o.ok]
+    built = sum(o.status == "built" for o in ready)
+    note = (
+        f"{len(ready)} of {len(build.outcomes)} PDFs in "
+        f"{display_path(build.manifest.parent)} ({built} built, "
+        f"{len(ready) - built} up to date)"
+    )
+    for o in ready:
+        if o.kind == "cheatsheet":
+            note += f"; cheat sheet {o.pages} of {o.max_pages} pages at density {o.density}"
+    ctx.note(note)
+
+
+def _pdf_place(tree: CourseTree, out, problem) -> tuple[Doc, int, int]:
+    """Where a PDF problem is reported: the course file (and the line of its item) that a
+    Typst diagnostic points into, else the file that defines the document (overview.md,
+    cheatsheet.md, plan.yaml, exam.yaml), else course.yaml."""
+    from studykit import pdf
+
+    course_doc = tree.course_doc
+    assert course_doc is not None
+    if problem.path and problem.line:
+        typ = tree.root / "_build" / "typ" / f"{out.id}.typ"
+        if (tools.repo_root() / problem.path).resolve() == typ.resolve():
+            found = pdf.locate(tree, typ, problem.line)
+            if found is not None and tree.get(found[0]) is not None:
+                return tree.get(found[0]), found[1], 1  # type: ignore[return-value]
+    primary = tree.get(out.primary) if out.primary else None
+    return primary or course_doc, 1, 1
+
+
+def _pdf_finding(tree: CourseTree, out, problem) -> Finding:
+    """One SK-PDF finding (or the filter's own finding) for a problem of a failed PDF."""
+    if problem.kind == "finding":
+        parsed = findings_mod.parse(problem.message)
+        if parsed:
+            return parsed[0]
+    doc, line, col = _pdf_place(tree, out, problem)
+    where = f" (at {problem.path}:{problem.line}:{problem.col})" if problem.path else ""
+    if problem.kind == "overflow":
+        if doc.rel == "cheatsheet.md" and isinstance(doc.get("max_pages"), int) and doc.yaml:
+            line, col = doc.yaml.locate(["max_pages"])
+        return Finding(
+            doc.display,
+            line,
+            col,
+            "SK-PDF-CHEATSHEET",
+            problem.message,
+            "condense it: derivations first, then duplicate examples, prose and the "
+            f"lowest-priority topics; `studykit cheatsheet fit {tree.id} --json` measures "
+            "each section",
+        )
+    if problem.kind == "typst-error":
+        return Finding(
+            doc.display,
+            line,
+            col,
+            "SK-PDF-COMPILE",
+            f"{out.file}: Typst error: {problem.message}{where}",
+            "look at that line of the .typ file and rewrite the construct here (math or a "
+            "table Typst cannot set); a missing figure needs `studykit fig build`, an "
+            "error in typst/studykit.typ is a bug in the house library",
+        )
+    if problem.kind in ("typst-warning", "pandoc-warning"):
+        tool = "Typst" if problem.kind == "typst-warning" else "pandoc"
+        return Finding(
+            doc.display,
+            line,
+            col,
+            "SK-PDF-WARNING",
+            f"{out.file}: {tool} warning: {problem.message}{where}",
+            "every warning fails the PDF; change the construct it names "
+            f"(pandoc's messages are in _build/logs/{out.id}.json)",
+        )
+    return Finding(
+        doc.display,
+        line,
+        col,
+        "SK-PDF-BUILD",
+        f"{out.file} could not be built: {problem.message}",
+        f"run `studykit pdf {tree.id} {out.id}` and fix the first error it prints",
+    )
 
 
 def _site_ready(ctx: Context) -> str | None:

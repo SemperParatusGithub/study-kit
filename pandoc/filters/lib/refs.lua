@@ -6,8 +6,9 @@
 --          topic  /c/<c>/summary/<topic>/       exam   /c/<c>/exams/<exam>/
 --          src    /c/<c>/src/<doc>.pdf#page=<n>   (src:<doc> alone: the PDF, no page)
 --        mc: links only reach practice-bank questions; exam questions are not linkable.
--- Typst: a link when the target is a label in this document, otherwise the text plus
---        „(→ Übung: Titel)“.
+-- Typst: a link when the target is a label in this document (an exercise or exam task,
+--        a question, a summary chapter for topic:), otherwise the text plus
+--        „(→ Übung: Titel)“, or the text alone when it is the title.
 -- Other links: http(s) and mailto stay as they are; bare URLs and every other target
 -- (relative paths, fig: as a link, …) are errors.
 
@@ -72,7 +73,8 @@ function M.resolve(scheme, rest, ctx)
     if type(topic) ~= 'table' then
       return missing('SK-REF-MISSING', 'unknown topic `' .. rest .. '`', 'use a topic id from course.yaml')
     end
-    return { route = base .. 'summary/' .. rest .. '/', title = topic.title or rest }
+    -- in a PDF that holds the chapter, the link jumps to it (its item is summary-<topic>)
+    return { route = base .. 'summary/' .. rest .. '/', title = topic.title or rest, anchor = 'summary-' .. rest }
   elseif scheme == 'exam' then
     local exam = idx.exams[rest]
     if type(exam) ~= 'table' then
@@ -155,6 +157,13 @@ function M.link(el, ctx, W)
   -- Typst
   if r.anchor and ctx.labels[r.anchor] then
     return { pandoc.Link(el.content, '#' .. r.anchor) }
+  end
+  -- link text that already is the target's title needs no „(→ Thema: …)“ after it
+  local function norm(s)
+    return (pandoc.text.lower(s):gsub('%s+', ' '):gsub('^ ', ''):gsub(' $', ''))
+  end
+  if norm(pandoc.utils.stringify(el.content)) == norm(r.title) then
+    return el.content
   end
   local out = pandoc.Inlines({})
   out:extend(el.content)
