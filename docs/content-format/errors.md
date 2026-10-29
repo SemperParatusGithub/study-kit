@@ -461,7 +461,8 @@ Fix: embed it with `![Caption](fig:<slug>)` or delete the script.
 ## PDF (SK-PDF)
 
 Every full `validate` builds the course's PDFs as `studykit pdf` does, into `_build/pdf`
-with its manifest; `validate --quick` and `lint` never do. It runs in every full validate
+with its manifest, using the figures the Figures stage built; `validate --quick` and `lint`
+never do. It runs in every full validate
 rather than only with `--release` because it is cheap and finds what only Typst sees while
 the author is still on the file: a document whose inputs did not change is reused by its
 digest, so after an edit only the documents that contain the file are rebuilt (Typst
