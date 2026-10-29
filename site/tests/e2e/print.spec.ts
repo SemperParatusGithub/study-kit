@@ -34,3 +34,36 @@ test('an exercise prints its hints and solution; printing does not count as usin
   await expect(page.getByRole('button', { name: 'Show hint 1 of 2' })).toBeVisible();
   expect((await progress(page))?.items?.['ex:ex-rc-tp-grenzfrequenz']?.hints ?? 0).toBe(0);
 });
+
+test('summary, MC topic and exam pages print without their quizzes and buttons', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept());
+  await page.goto(`${C}/summary/rc-filter/`);
+  await elementsReady(page);
+  await print(page);
+  await expect(page.locator('details.toc-mobile')).toBeHidden();
+  await expect(page.locator('#test-yourself')).toBeHidden();
+
+  await page.goto(`${C}/mc/rc-filter/`);
+  await elementsReady(page);
+  await print(page);
+  await expect(page.locator('section.practice')).toBeHidden();
+  expect(await page.locator('.question-meta').first().evaluate((el) => getComputedStyle(el).breakAfter)).toBe('avoid');
+
+  await page.goto(`${C}/exams/probeklausur-1/`);
+  await elementsReady(page);
+  const exam = page.locator('sk-exam');
+  await print(page);
+  await expect(exam.getByRole('button', { name: 'Start exam' })).toBeHidden();
+  await unprint(page);
+  await exam.getByRole('button', { name: 'Start exam' }).click();
+  await print(page);
+  // the running exam's sticky head prints no empty strip; its hints stay locked
+  const head = exam.locator('.sk-exam-head');
+  expect(await head.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  await expect(exam.locator('details.sk-hint').first()).toBeHidden();
+  await unprint(page);
+  await exam.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await print(page);
+  await expect(exam.getByRole('button', { name: 'Retake exam' })).toBeHidden();
+});

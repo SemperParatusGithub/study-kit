@@ -1645,6 +1645,9 @@ sk-theme {
   .sk-reveal-confirm,
   .sk-assess,
   .sk-exam-bar,
+  .sk-exam-alert,
+  .sk-exam-cover > .sk-btn,
+  .sk-exam-actions,
   .sk-quiz-nav,
   .sk-quiz-status,
   sk-theme,
@@ -1655,5 +1658,13 @@ sk-theme {
   sk-mc,
   .sk-rubric {
     break-inside: avoid;
+  }
+
+  /* the running exam's head is only its (hidden) bar: no empty strip on paper */
+  .sk-exam-head.is-sticky {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: none;
   }
 }

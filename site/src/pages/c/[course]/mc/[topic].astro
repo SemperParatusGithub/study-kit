@@ -38,7 +38,7 @@ const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
     <p class="muted" lang={en}>{plural(bank.data.questions.length, 'question')}</p>
   </div>
 
-  <section class="practice card" aria-labelledby="practice-title" lang={en}>
+  <section class="practice card no-print" aria-labelledby="practice-title" lang={en}>
     <h2 id="practice-title">Practice this topic</h2>
     <p class="muted small">Questions from this bank in random order, with feedback after each answer.</p>
     <QuizSlot course={course} mode="practice" topics={[topicId]} intro={false} framed={false} />
