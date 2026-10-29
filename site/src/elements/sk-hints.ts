@@ -6,7 +6,9 @@
 // `sk:hint` {item, used, total}.
 // Hints used in this attempt stay visible after a reload; once a rated exercise has come up
 // for review, a new attempt starts with every hint closed again (store.exHints). Without JS
-// the hints are plain collapsible <details>.
+// the hints are plain collapsible <details>. A printed page shows every hint (scripts/site.ts
+// opens every <details>), except in a running exam, where they stay locked; that is not
+// using them.
 
 import { emit, examDate, h, hashOf, isPrinting, langs, storeOf } from './util.ts';
 
@@ -16,6 +18,20 @@ export class SkHints extends HTMLElement {
   private used = 0;
   private button: HTMLButtonElement | null = null;
   private status: HTMLElement | null = null;
+  /** Hints shown only for printing, hidden again after it. */
+  private printed: HTMLDetailsElement[] = [];
+  private onBeforePrint = () => {
+    if (this.closest('[inert]')) return; // a running exam keeps its hints locked
+    this.printed = this.hints.filter((d) => d.hidden);
+    for (const d of this.printed) d.hidden = false;
+  };
+  private onAfterPrint = () => {
+    for (const d of this.printed) {
+      d.hidden = true;
+      d.open = false;
+    }
+    this.printed = [];
+  };
 
   get item(): string {
     return this.dataset.item ?? '';
@@ -26,6 +42,8 @@ export class SkHints extends HTMLElement {
   }
 
   connectedCallback(): void {
+    window.addEventListener('beforeprint', this.onBeforePrint);
+    window.addEventListener('afterprint', this.onAfterPrint);
     if (this.ready) return;
     this.ready = true;
     this.hints = [...this.querySelectorAll<HTMLDetailsElement>('details.sk-hint')].sort(
@@ -49,6 +67,11 @@ export class SkHints extends HTMLElement {
     this.button.addEventListener('click', () => this.revealNext());
     this.append(h('div', { class: 'sk-hints-bar', lang: langs(this).ui }, this.button, this.status));
     this.render(false);
+  }
+
+  disconnectedCallback(): void {
+    window.removeEventListener('beforeprint', this.onBeforePrint);
+    window.removeEventListener('afterprint', this.onAfterPrint);
   }
 
   private revealNext(): void {
