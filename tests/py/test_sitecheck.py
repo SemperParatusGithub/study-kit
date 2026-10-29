@@ -78,6 +78,9 @@ def test_astro_check_errors_become_sk_site_check():
     assert sitecheck.check_findings(Run(0, CHECK_OUTPUT)) == []  # warnings never fail
     (generic,) = sitecheck.check_findings(Run(1, "something broke\n"))
     assert generic.code == "SK-SITE-CHECK" and "something broke" in generic.message
+    # after a failed build the same cause is reported there; type errors still show
+    assert sitecheck.check_findings(Run(1, "something broke\n"), unparsed=False) == []
+    assert len(sitecheck.check_findings(Run(1, CHECK_OUTPUT), unparsed=False)) == 1
 
 
 def test_links_on_other_courses_pages_are_left_to_their_own_run(tmp_path: Path):
@@ -139,7 +142,7 @@ def test_check_builds_into_a_temporary_directory_and_checks_it(tmp_path: Path):
     assert seen == [{"mini": course.resolve()}] * 3
     assert len({env["STUDYKIT_COURSES_DIR"] for _, env, _ in calls}) == 1
     assert not Path(calls[0][1]["STUDYKIT_COURSES_DIR"]).exists()  # removed afterwards
-    assert [env.get("STUDYKIT_STRICT") for _, env, _ in calls] == ["1", "1", "1"]
+    assert [env.get("STUDYKIT_STRICT") for _, env, _ in calls] == ["1", "1", None]
     assert sorted((f.path, f.code, f.message.split(":")[0]) for f in found) == [
         ("dist/c/mini/index.html", "SK-SITE-LINK", "href='#oben'"),
         ("dist/c/mini/index.html", "SK-SITE-LINK", "href='/c/mini/fehlt/'"),
@@ -152,7 +155,8 @@ def test_a_failed_build_skips_pagefind_and_links_but_still_runs_astro_check(tmp_
 
     def fake(argv: list[str], env: dict[str, str], cwd: Path) -> Run:
         argvs.append(argv)
-        return Run(1, STRICT_OUTPUT) if "build" in argv else Run(0, "")
+        # astro check fails on the same loader problem: reported once, by the build
+        return Run(1, STRICT_OUTPUT) if "build" in argv else Run(1, "loader crashed")
 
     found = sitecheck.check(REPO, tmp_path / "c", "c", "en", course_doc="c/course.yaml", run=fake)
     assert [a[-1] for a in argvs] == [argvs[0][-1], "check"]
@@ -208,12 +212,6 @@ def test_the_mini_course_builds_strictly_and_a_missing_figure_fails(mini: Path):
 
     svg = mini / "_build" / "figures" / "rc-bode.web.svg"
     svg.unlink()
-
-    def without_astro_check(argv, env, cwd):
-        return Run(0, "") if argv[-1] == "check" else sitecheck._run(argv, env, cwd)
-
-    found = sitecheck.check(
-        REPO, mini, "mini", "de", course_doc="mini/course.yaml", run=without_astro_check
-    )
-    # reported at the course's own file, not at the temporary link
+    # reported once, at the course's own file; astro check (types only) does not repeat it
+    found = sitecheck.check(REPO, mini, "mini", "de", course_doc="mini/course.yaml")
     assert [(f.code, f.path) for f in found] == [("SK-FIG-BUILD", str(svg.resolve()))]

@@ -402,7 +402,7 @@ With `--release`, validate builds the website as `just build` does (`STUDYKIT_ST
 for this course alone: `STUDYKIT_COURSES_DIR` is a temporary directory with a link to the
 course, so other courses next to it never fail its run. The build goes into a temporary
 `--outDir` (so `site/dist` and `site/public` stay untouched); then Pagefind runs over it,
-`pnpm -C site check`, and the link check. Content problems that
+`pnpm -C site check` checks the site's types, and the link check runs. Content problems that
 only the build finds keep their own codes (`SK-FIG-BUILD`, `SK-MATH-KATEX`, …) at the
 course's files. The stage is skipped with a note when `pnpm`, `node` or `site/node_modules`
 is missing, for `--paths`, and while earlier stages report errors (the strict build would
@@ -416,8 +416,10 @@ Fix: run `STUDYKIT_COURSES_DIR=<dir> just build <course>` and fix the first erro
 prints; a site bug goes to the site code, not the course.
 
 ### `SK-SITE-CHECK`
-**error.** `astro check` reports a type error in the site code (path under `site/`).
-Course content cannot cause this; it is a bug in `site/src`.
+**error.** `astro check` reports a type error in the site code (path under `site/`), or
+fails without one while the build passed (reported at `site`, with the last output lines).
+It runs without `STUDYKIT_STRICT`, so a content problem shows as the build's finding, not
+here; this is a bug in `site/src`.
 Fix: `pnpm -C site check` shows the context.
 
 ### `SK-SITE-LINK`

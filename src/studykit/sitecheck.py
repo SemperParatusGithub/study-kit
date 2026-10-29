@@ -7,7 +7,8 @@ Three checks over the website as `just build` makes it, for one course:
    followed by Pagefind over that directory (the search page loads its bundle).
    STUDYKIT_COURSES_DIR is a temporary directory that holds only a link to the course, so
    the site contains this course alone and a neighbouring course can never fail its run;
-2. `pnpm -C site check` (`astro check`: types of the site code against the content);
+2. `pnpm -C site check` (`astro check`: the types of the site code) without
+   STUDYKIT_STRICT, so a content problem shows once, as the build's finding;
 3. `studykit check-links` over the built pages.
 
 A strict build that fails on a content problem prints the findings in the study-kit
@@ -67,16 +68,19 @@ def _run(argv: list[str], env: dict[str, str], cwd: Path) -> Run:
     return Run(proc.returncode, ANSI_RE.sub("", proc.stdout + "\n" + proc.stderr))
 
 
-def environment(root: Path, courses_dir: Path) -> dict[str, str]:
+def environment(root: Path, courses_dir: Path, *, strict: bool = True) -> dict[str, str]:
     env = dict(os.environ)
     env["PATH"] = os.pathsep.join([str(root / ".tools" / "bin"), env.get("PATH", "")])
     env.update(
-        STUDYKIT_STRICT="1",
         STUDYKIT_COURSES_DIR=str(courses_dir.resolve()),
         ASTRO_TELEMETRY_DISABLED="1",
         NO_COLOR="1",
         FORCE_COLOR="0",
     )
+    if strict:
+        env["STUDYKIT_STRICT"] = "1"
+    else:
+        env.pop("STUDYKIT_STRICT", None)
     return env
 
 
@@ -140,8 +144,12 @@ def build_findings(
     ]
 
 
-def check_findings(run: Run) -> list[Finding]:
-    """`astro check` errors (paths are relative to site/); warnings and hints are not shown."""
+def check_findings(run: Run, *, unparsed: bool = True) -> list[Finding]:
+    """`astro check` errors (paths are relative to site/); warnings and hints are not shown.
+
+    A failure without a type error is one SK-SITE-CHECK with the last output lines, unless
+    `unparsed` is False (the build failed already and reported the same cause).
+    """
     if run.code == 0:
         return []
     found = []
@@ -158,7 +166,7 @@ def check_findings(run: Run) -> list[Finding]:
                     "fix the site code (`pnpm -C site check` shows the context)",
                 )
             )
-    if found:
+    if found or not unparsed:
         return found
     return [
         Finding(
@@ -242,6 +250,9 @@ def check(
             notes.append(f"built {pages} page(s) into a temporary directory; links checked")
         else:
             notes.append("the strict site build failed, so links were not checked")
-        checked = run([pnpm, "-C", str(site), "check"], env, root)
-        out_findings += check_findings(checked)
+        # Types only: without STUDYKIT_STRICT a content problem is an error card, not a throw.
+        checked = run(
+            [pnpm, "-C", str(site), "check"], environment(root, courses, strict=False), root
+        )
+        out_findings += check_findings(checked, unparsed=built.code == 0)
     return out_findings
