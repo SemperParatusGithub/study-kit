@@ -372,6 +372,9 @@ function W.inline(el, ctx)
     return { W.clean(el) }
   elseif t == 'Code' then
     return { W.clean(el) }
+  elseif t == 'RawInline' then
+    guard.raw(el, ctx)
+    return {}
   elseif el.content ~= nil and t ~= 'Cite' then
     -- Emph, Strong, Underline, Strikeout, Superscript, Subscript, SmallCaps, Quoted
     el.content = W.inlines(el.content, ctx)
@@ -447,7 +450,10 @@ function W.block(el, ctx, parent)
   elseif t == 'CodeBlock' then
     guard.code(el, ctx)
     return { W.clean(el) }
-  elseif t == 'RawBlock' or t == 'HorizontalRule' then
+  elseif t == 'RawBlock' then
+    guard.raw(el, ctx)
+    return {}
+  elseif t == 'HorizontalRule' then
     return { el }
   end
   return { W.clean(W.generic(el, ctx)) }

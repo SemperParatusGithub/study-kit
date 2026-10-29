@@ -2,7 +2,8 @@
 -- (docs/architecture.md §2.3). Fails on unknown classes, misplaced or nested blocks,
 -- paragraphs that start with ::: (a fence pandoc did not read as one) and, when the
 -- source text is available, on fence lines that are not exactly `::: name`,
--- `:::: {.mcq …}`, `:::` or `::::`.
+-- `:::: {.mcq …}`, `:::` or `::::`. Also rejects raw HTML, which the reader still
+-- produces although the dialect turns it off.
 
 local M = {}
 
@@ -166,6 +167,18 @@ end
 
 function M.note(_, ctx)
   ctx:fail('SK-BLOCK', 'footnotes are not allowed', 'say it in the text or in a `::: note` box')
+end
+
+--- Raw HTML from the reader. commonmark_x keeps raw_html even with -raw_html (pandoc
+--- 3.13), so the dialect's "no raw HTML" rule is enforced here, on every target; the
+--- element is dropped. The walker never revisits the raw elements the modules emit.
+function M.raw(el, ctx)
+  local excerpt = el.text:gsub('%s+', ' '):gsub('^ ', ''):gsub(' $', '')
+  if utf8.len(excerpt) and utf8.len(excerpt) > 40 then
+    excerpt = excerpt:sub(1, utf8.offset(excerpt, 38) - 1) .. '…'
+  end
+  local what = el.format == 'html' and 'raw HTML' or ('raw ' .. el.format)
+  ctx:fail('SK-BLOCK', what .. ' `' .. excerpt .. '` is not allowed', 'use Markdown, math or a container block')
 end
 
 function M.span(el, ctx)
