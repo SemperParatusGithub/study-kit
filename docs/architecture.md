@@ -1183,6 +1183,12 @@ characters or quotes are caught too.
 
 ## 5. Claude Code layer
 
+*Phase 5 and 6.* What exists: `.claude/settings.json` with `attribution` only, empty
+`.claude/agents/` and `.claude/skills/`, and `studykit lint --hook`, the command the
+PostToolUse hook below runs. The commands this section names besides `lint`, `validate`,
+`ls` and `fig build` (`calc`, `blind`, `verify`, `plan`, `progress`, `ingest`, `status`, `hook`)
+are planned.
+
 ### 5.1 Project configuration
 
 **`.claude/settings.json`:**
@@ -1320,6 +1326,9 @@ any content → figures → verify → pdf
 ## 6. Implementation phases
 
 These follow your order (toolchain → figures → website → PDF → agents/skills → /register-new-subject), with a small guardrails phase first. Every commit is a Conventional Commit, one logical change, with no Co-Authored-By trailer.
+
+**Status:** Phases 0–3 are complete; Phase 4 is next. Sections of this document that describe
+later phases mark the parts that do not exist yet.
 
 **Phase 0: guardrails.** Done when the hooks reject a bad message and staged course data, and the guard workflow is green.
 - `chore: ignore course data, build outputs and local tool dirs`
