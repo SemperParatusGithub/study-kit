@@ -208,6 +208,27 @@ test('exercise helpers keep hints, answer check and rating', () => {
   assert.deepEqual([solved.rating, solved.box, solved.due], ['solved', 2, '2026-11-06']);
 });
 
+test('rating an exercise again before its review replaces the rating, it moves no further', () => {
+  const s = new ProgressStore('c', new FakeStorage());
+  const d = { today: '2026-11-02' };
+  const first = s.rateEx('ex-a', '12345678', 'solved', d);
+  assert.deepEqual([first.box, first.due], [2, '2026-11-05']);
+  // clicking "Solved" again, or a double click: the same rating of the same attempt
+  for (let i = 0; i < 4; i++) assert.deepEqual(s.rateEx('ex-a', undefined, 'solved', d), first);
+  // changed within the attempt: partly, then solved again
+  assert.deepEqual(s.rateEx('ex-a', undefined, 'partial', d).box, 1);
+  assert.deepEqual(s.rateEx('ex-a', undefined, 'solved', d), first);
+  // from a higher box: the review moves it up once, re-rating keeps it there
+  s.updateEx('ex-b', '12345678', { rating: 'solved', box: 3, due: '2026-11-02' });
+  const reviewed = s.rateEx('ex-b', undefined, 'solved', d);
+  assert.deepEqual([reviewed.box, reviewed.due], [4, '2026-11-16']);
+  assert.deepEqual(s.rateEx('ex-b', undefined, 'solved', d), reviewed);
+  assert.equal(s.rateEx('ex-b', undefined, 'solved', { today: '2026-11-05' }).box, 4);
+  // the top box stays the top box
+  s.updateEx('ex-c', '12345678', { rating: 'solved', box: 5, due: '2026-12-02' });
+  assert.equal(s.rateEx('ex-c', undefined, 'solved', d).box, 5);
+});
+
 test('more than one hint caps "solved" at "partial", also a rating given before the hints', () => {
   const s = new ProgressStore('c', new FakeStorage());
   // rated with two hints open: stored as partial

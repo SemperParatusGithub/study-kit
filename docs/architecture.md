@@ -1090,7 +1090,8 @@ and `data-rubric` `[{criterion, criterion_html, points}]`; the MC part is
     when the answer was "sure". The misconception is not stored; it follows from the last
     attempt (§2.11).
   - Exercises are scheduled from the self-assessment as "unsure" answers: solved = 1,
-    partly = 0.5, not yet = 0.
+    partly = 0.5, not yet = 0. Rating an exercise again before its review comes up replaces
+    the rating of the same attempt: a second "Solved" moves the box no further.
   - Exam clamp, with limit = `exam_date − 2 days` and window = `[exam_date − 10, limit]`:
     nothing is due during the two rest days; a due day past the limit moves to the window
     start (reviewed before the window) or to the limit (reviewed inside it), so every

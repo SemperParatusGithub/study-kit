@@ -595,7 +595,12 @@ export class ProgressStore {
     const open = this.openReview(id, prev, when);
     const hints = open?.hints ?? prev?.hints ?? 0;
     const capped = cappedRating(rating, hints);
-    const r = review(prev?.box, RATING_SCORE[capped], 'unsure', when.today ?? dayOf(), when.examDate);
+    // Rated again before its review has come up: the same attempt, so the new rating replaces
+    // the last one instead of moving the box once more (a double click on "Solved" must not
+    // skip boxes). "Solved" moved the attempt up one box (or kept it in the top box), so it
+    // began one box lower; the other ratings put it in the entry box from any box.
+    const base = !open && prev?.rating === 'solved' && prev.box !== null ? Math.max(0, prev.box - 1) : prev?.box;
+    const r = review(base, RATING_SCORE[capped], 'unsure', when.today ?? dayOf(), when.examDate);
     if (open) this.setSession(`ex:${id}`, null);
     return this.updateEx(id, h, { hints, rating: capped, box: r.box, due: r.due });
   }
