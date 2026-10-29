@@ -11,6 +11,7 @@ dependencies = [
     "matplotlib>=3.11.2",
     "numpy>=2.5",
     "pydantic>=2.14.1",
+    "pypdfium2==5.14.0",
     "pyyaml>=6.0.3",
     "schemdraw>=0.23",
     "scipy>=1.18.1",
