@@ -885,6 +885,10 @@ and `data-rubric` `[{criterion, criterion_html, points}]`; the MC part is
 
 ### 3.3 PDF: pandoc 3.13 → Typst 0.15.1, in two explicit steps
 
+*Phase 4.* What exists: the Typst branch of the filter set (§3.1), `typst/pandoc-template.typ`
+and a stub `typst/studykit.typ` with the functions the filter calls. `studykit pdf`,
+`studykit cheatsheet fit`, the PDF stage of validate and the PDF routes do not exist yet.
+
 **Steps.**
 1. `studykit pdf <c> [doc]` assembles `_build/typ/<doc>.md`:
    - It strips frontmatter and concatenates in course order.
@@ -903,7 +907,7 @@ and `data-rubric` `[{criterion, criterion_html, points}]`; the MC part is
 | `summary.pdf` | The summary |
 | `exercises.pdf` | Hints and solutions in appendices |
 | `exercises-blank.pdf` | Exercises only |
-| `mc.pdf` | Options (A)–(E) with empty boxes in a deterministic shuffle seeded by question ID; appendix with answer key, every `why` and the explanation |
+| `mc.pdf` | Options (A)–(F) with empty boxes in a deterministic shuffle seeded by question ID; appendix with answer key, every `why` and the explanation |
 | `<exam>.pdf` | Cover page, „Seite x von y“, MC part if present |
 | `<exam>-solutions.pdf` | Solutions with rubric |
 | `cheatsheet.pdf` | The cheat sheet |
