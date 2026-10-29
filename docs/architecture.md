@@ -931,7 +931,10 @@ German hyphenation comes from `set text(lang: "de")`.
 **House style** (`house.mplstyle`) and determinism:
 - `svg.fonttype: path`, `svg.hashsalt: studykit`, `savefig.transparent: True`, `metadata={'Date': None, 'Creator': None}`.
 - Fonts are Matplotlib's bundled DejaVu Sans for text and `mathtext.fontset: cm` for math, so no fonts are vendored.
-- Environment: `SOURCE_DATE_EPOCH=0`, `MPL_IGNORE_SYSTEM_FONTS=1`, `MPLBACKEND=Agg`, `MPLCONFIGDIR=.cache/mpl`.
+- Environment of every figure child: `SOURCE_DATE_EPOCH=0`, `MPL_IGNORE_SYSTEM_FONTS=1`,
+  `MPLBACKEND=Agg`, `MPLCONFIGDIR=.cache/mpl-nosys` (Matplotlib keys its font cache by its
+  version only, so this cache never holds system fonts), `STUDYKIT_LOCALE` from the course.
+  The runner builds the font cache once before the children start in parallel.
 - With `locale='de'`: a house decimal-comma formatter and "U in V" axis labels.
 - **Palette** of fixed, unique hex values:
 
@@ -940,7 +943,13 @@ German hyphenation comes from `set text(lang: "de")`.
   | fg | `#1f2328` |
   | muted | `#6e7781` |
   | grid | `#d0d7de` |
+  | bg | `#ffffff` (the page, for shapes that hide what is behind them) |
   | c1–c6 (Okabe-Ito) | `#0072b2 #d55e00 #009e73 #cc79a7 #e69f00 #56b4e9` |
+
+  Text is drawn only in fg, muted or c1, the roles with at least 4.5:1 on the page. Labels
+  are drawn in fg, and the coloured line or marker next to them is the key; c2–c6 are for
+  lines and markers only. `tokens.css` maps every role to `--fig-<role>` with a dark-mode
+  value.
 
 **Finalize** (stdlib ElementTree) writes four files per figure:
 - `<slug>.svg` with literal colours, for Typst.
@@ -961,7 +970,9 @@ German hyphenation comes from `set text(lang: "de")`.
   - python-control only computes; the house code draws.
   - `scipy.signal` and brentq independently re-check margins and crossover frequencies; a
     disagreement is an error, not a silent pick.
-- **Phasors:** `plot.phasor({'U_R': (5, 0), 'U_L': (3, 90)}, chain=True)`.
+- **Phasors:** `plot.phasor({'U_R': (5, 0), 'U_L': (3, 90)}, chain=True)`; `reference={'I': (2, 0)}`
+  draws the phasor the others refer to at its own scale beside its axis, and `angle_name=`
+  names the phase angle (TeX, default `\varphi`).
 - **Circuits** (IEC style): `circuit.voltage_divider / rc / rl / rlc / opamp / bridge`, plus house DIN EN 60617 sources, `zaehlpfeil_u`/`zaehlpfeil_i` reference arrows, a filled inductor, and the escape hatch `circuit.drawing()`.
   - Values are strings with units (`'4,7 kΩ'`, `'100 nF'`), SI numbers, or symbols (`'R'`,
     `'2R'`); a wrong unit or SPICE shorthand such as `'4.7k'` is an error. facts list every
@@ -991,7 +1002,7 @@ German hyphenation comes from `set text(lang: "de")`.
   - exit code 0
   - the SVG parses, with an `svg` root and a `viewBox`
   - no `<script>`, `on*` attributes, `<foreignObject>`, `<text>` or external `href`
-  - palette colours only
+  - palette colours only, and text only in fg, muted or c1 (≥ 4.5:1 on the page)
   - at most 400 KB and a non-empty bounding box
   - missing-glyph warnings and mathtext parse errors are fatal, reported with the script path
 
