@@ -1,0 +1,60 @@
+name: guard
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Commit messages are Conventional Commits without co-authors
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            range="$PR_BASE..$PR_HEAD"
+          elif [ -z "$PUSH_BEFORE" ] || [ "$PUSH_BEFORE" = 0000000000000000000000000000000000000000 ]; then
+            range="origin/$DEFAULT_BRANCH..HEAD"
+          else
+            range="$PUSH_BEFORE..HEAD"
+          fi
+          echo "checking $range"
+          status=0
+          for sha in $(git rev-list --no-merges "$range"); do
+            git log -1 --format=%B "$sha" > "$RUNNER_TEMP/msg"
+            if ! sh .githooks/commit-msg "$RUNNER_TEMP/msg"; then
+              echo "::error::commit $sha violates the commit rules"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: No course data is tracked
+        run: |
+          tracked=$(git ls-files courses)
+          if [ "$tracked" != "courses/README.md" ]; then
+            echo "::error::only courses/README.md may be tracked under courses/"
+            printf '%s\n' "$tracked"
+            exit 1
+          fi
+
+      - name: No PDFs outside tests/fixtures
+        run: |
+          pdfs=$(git ls-files '*.pdf' '*.PDF' | grep -v '^tests/fixtures/' || true)
+          if [ -n "$pdfs" ]; then
+            echo "::error::PDFs may only be tracked under tests/fixtures/"
+            printf '%s\n' "$pdfs"
+            exit 1
+          fi
