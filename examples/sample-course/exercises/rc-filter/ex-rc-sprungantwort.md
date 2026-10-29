@@ -57,5 +57,5 @@ $$
 t_\mathrm{r} = t_{90} - t_{10} = \tau \ln\frac{0{,}9}{0{,}1} = \tau \ln 9 \approx 2{,}20\,\tau \approx 103\,\mathrm{ms}
 $$
 
-![Normierte Sprungantwort des RC-Glieds mit τ = 47 ms; die Anstiegszeit beträgt 0,103 s](fig:rc-sprung-47ms)
+![Normierte Sprungantwort des RC-Glieds mit τ = 47 ms; die Anstiegszeit beträgt 103 ms](fig:rc-sprung-47ms)
 :::

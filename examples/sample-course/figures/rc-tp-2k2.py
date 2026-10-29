@@ -4,4 +4,4 @@ from studykit.figures import circuit
 
 
 def build():
-    return circuit.rc("lowpass", "2,2 kΩ", "47 nF")
+    return circuit.rc("lowpass", "2,2 kΩ", "47 nF", phasors=True)

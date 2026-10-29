@@ -5,8 +5,8 @@ from studykit.figures import circuit
 ALT = (
     "Schaltbild der Ersatzspannungsquelle: Die ideale Spannungsquelle Uq liegt in Reihe mit "
     "dem Innenwiderstand Ri zwischen den Klemmen A und B. An den Klemmen hängt der "
-    "Lastwiderstand RL. Zählpfeile: Uq an der Quelle, Klemmenspannung U an der Last und "
-    "Laststrom I von A zur Last."
+    "Lastwiderstand RL. Zählpfeile: Uq an der Quelle, Lastspannung UL an der Last und "
+    "Laststrom IL von A zur Last."
 )
 
 
@@ -23,6 +23,6 @@ def build():
         c.text((3, h + 0.35), "$A$")
         c.text((3, -0.4), "$B$")
         circuit.zaehlpfeil_u(src, r"U_\mathrm{q}", side="left")
-        circuit.zaehlpfeil_i(top, "I", side="top", nodes=("A", "B"))
-        circuit.zaehlpfeil_u(rl, "U", side="right")
+        circuit.zaehlpfeil_i(top, r"I_\mathrm{L}", side="top", nodes=("A", "B"))
+        circuit.zaehlpfeil_u(rl, r"U_\mathrm{L}", side="right")
     return c.figure

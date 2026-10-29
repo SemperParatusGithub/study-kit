@@ -115,10 +115,11 @@ Die beiden Kenngrößen bestimmt man getrennt:
 
 Für den Spannungsteiler mit den Klemmen an $R_2$ ergibt das
 $U_\mathrm{q} = U_0 \cdot R_2/(R_1 + R_2)$ und $R_\mathrm{i} = R_1 \parallel R_2$. Eine Last
-bildet mit dem Innenwiderstand einen einfachen Teiler:
+bildet mit dem Innenwiderstand einen einfachen Teiler. Für die Lastspannung, beim Teiler
+also $U_2$, gilt:
 
 $$
-U_2 = U_\mathrm{q} \cdot \frac{R_\mathrm{L}}{R_\mathrm{i} + R_\mathrm{L}}
+U_\mathrm{L} = U_\mathrm{q} \cdot \frac{R_\mathrm{L}}{R_\mathrm{i} + R_\mathrm{L}}
 $$
 
 ::: example
@@ -127,7 +128,7 @@ $$
 Für $U_0 = 12\,\mathrm{V}$ und $R_1 = R_2 = 1\,\mathrm{k\Omega}$ ist
 $U_\mathrm{q} = 6\,\mathrm{V}$ und $R_\mathrm{i} = 500\,\Omega$. Eine Last
 $R_\mathrm{L} = 1\,\mathrm{k\Omega}$ erhält
-$U_2 = 6\,\mathrm{V} \cdot 1000/1500 = 4\,\mathrm{V}$, genau wie mit
+$U_\mathrm{L} = 6\,\mathrm{V} \cdot 1000/1500 = 4\,\mathrm{V}$, genau wie mit
 $R_2 \parallel R_\mathrm{L}$ gerechnet.
 :::
 

@@ -1,4 +1,8 @@
-"""Normalised step response of the RC element of ex-rc-sprungantwort: tau = 47 ms."""
+"""Normalised step response of the RC element of ex-rc-sprungantwort: tau = 47 ms.
+
+The transfer function is written with s in 1/ms, so the time axis and the rise-time label
+read in milliseconds like the exercise.
+"""
 
 from studykit.figures import plot
 
@@ -10,5 +14,7 @@ ALT = (
 
 
 def build():
-    tau = 10e3 * 4.7e-6
-    return plot.step_response(f"1/(1 + {tau!r}*s)", annotate=("final", "rise"), alt=ALT)
+    tau_ms = 10e3 * 4.7e-6 * 1e3  # R = 10 kΩ, C = 4.7 µF
+    return plot.step_response(
+        f"1/(1 + {tau_ms!r}*s)", annotate=("final", "rise"), unit="ms", alt=ALT
+    )
