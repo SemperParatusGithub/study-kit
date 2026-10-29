@@ -145,6 +145,67 @@ def build_parser() -> argparse.ArgumentParser:
     p_calc.add_argument("--json", action="store_true", help="machine-readable output")
     p_calc.set_defaults(func=cmd_calc)
 
+    p_verify = sub.add_parser(
+        "verify",
+        help="run the verifier's checks and update the ledger state/verify/<id>.json",
+        description="Run checks/<id>.py or .json for the selected items, compare them with "
+        "the answer key and write the ledger. Other actions record the steps of the dispute "
+        "protocol (docs/architecture.md §5.3).",
+    )
+    p_verify.add_argument("course", help="course id or directory")
+    p_verify.add_argument(
+        "target",
+        nargs="?",
+        default="all",
+        help="an item id, a topic, an exam or all (default); for --clear also stale or orphans",
+    )
+    actions = p_verify.add_mutually_exclusive_group()
+    actions.add_argument(
+        "--status", action="store_true", help="show the ledger state without running checks"
+    )
+    actions.add_argument(
+        "--confirm",
+        metavar="FILE",
+        type=Path,
+        help="run a second method (checks/<id>.<tag>.py or .json) for one item and record it",
+    )
+    actions.add_argument(
+        "--dispute",
+        action="store_true",
+        help="record a dispute for one item by hand (with --note and --computed)",
+    )
+    actions.add_argument(
+        "--quarantine",
+        action="store_true",
+        help="quarantine one item by hand (with --note): hidden from the site and the PDFs",
+    )
+    actions.add_argument(
+        "--clear", action="store_true", help="delete the ledger entries of the target"
+    )
+    p_verify.add_argument("--method", help="--confirm: what the second method does")
+    p_verify.add_argument("--note", help="--dispute, --quarantine: the reason")
+    p_verify.add_argument(
+        "--computed",
+        nargs="+",
+        default=[],
+        metavar="KEY=VALUE",
+        help="--dispute: the verifier's numbers",
+    )
+    p_verify.add_argument("--report", action="store_true", help="also write state/verify/report.md")
+    p_verify.add_argument(
+        "--show-key",
+        action="store_true",
+        help="show the answer key in problems (the text output hides it from the verifier)",
+    )
+    p_verify.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="seconds per check script (default 120)",
+    )
+    p_verify.add_argument("--json", action="store_true", help="machine-readable output")
+    p_verify.set_defaults(func=cmd_verify)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -413,6 +474,66 @@ def cmd_calc(args: argparse.Namespace) -> int:
     else:
         print(calc.format_text(result, args.digits))
     return 0
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    from studykit import content, verify
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 2
+    one = (
+        ("--confirm", args.confirm),
+        ("--dispute", args.dispute),
+        ("--quarantine", args.quarantine),
+    )
+    try:
+        for flag, used in one:
+            if used and args.target in (None, "all"):
+                raise verify.VerifyError(f"{flag} needs one item id")
+        if (args.dispute or args.quarantine) and not args.note:
+            raise verify.VerifyError("give the reason with --note")
+        if args.confirm:
+            result = verify.confirm(
+                tree, args.target, args.confirm, method=args.method, timeout=args.timeout
+            )
+            failed = result["confirmation"] == "error"
+        elif args.dispute:
+            computed = verify.parse_pairs(args.computed)
+            result = verify.dispute(tree, args.target, note=args.note, computed=computed)
+            failed = False
+        elif args.quarantine:
+            result = verify.quarantine(tree, args.target, note=args.note)
+            failed = False
+        elif args.clear:
+            result = verify.clear(tree, args.target)
+            failed = False
+        elif args.status:
+            result = verify.status(tree, args.target, show_key=args.show_key or args.json)
+            failed = False
+        else:
+            result = verify.run(
+                tree, args.target, timeout=args.timeout, show_key=args.show_key or args.json
+            )
+            failed = any(
+                r["outcome"] in ("mismatch", "error") or r["status"] == "quarantined"
+                for r in result["items"]
+            )
+    except verify.VerifyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.report:
+        path = verify.write_report(content.CourseTree(tree.root))
+        result["report"] = content.display_path(path)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    elif "items" in result:
+        print(verify.format_text(result))
+    else:
+        print(" ".join(f"{k}: {v}" for k, v in result.items() if k != "course"))
+    if not args.json and result.get("report"):
+        print(f"wrote {result['report']}")
+    return 1 if failed else 0
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:

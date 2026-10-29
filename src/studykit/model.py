@@ -656,25 +656,69 @@ class Plan(Strict):
 
 # --- verification ledger (§2.10) ----------------------------------------------------------
 
+VERIFY_STATUSES = ("unverified", "verified", "disputed", "quarantined")
 
-class AnswerCheck(Strict):
-    claimed: float | None = None
-    computed: float | None = None
-    rel_err: float | None = None
+
+class LedgerValue(Strict):
+    """One compared value: an answer key, an MC key or one Kprim statement."""
+
+    key: str
+    expected: Any = None
+    computed: Any = None
+    unit: str | None = None
     abs_err: float | None = None
+    rel_err: float | None = None
+    tol: float | None = None
+    ok: bool
+
+
+class Confirmation(Strict):
+    """A second method run on the item (`studykit verify --confirm`)."""
+
+    at: IsoDateTime
+    content_sha256: Sha256
+    check: str
+    check_sha256: Sha256
+    method: str | None = None
+    result: Literal["pass", "mismatch", "error"]
+    results: list[LedgerValue] = []
+    problems: list[str] = []
+
+
+class Dispute(Strict):
+    """A disagreement between the verifier and the item, for one version of the item."""
+
+    at: IsoDateTime
+    round: int = Field(ge=0, description="author fix rounds before this dispute")
+    content_sha256: Sha256
+    source: Literal["verify", "manual"]
+    note: str | None = None
+    confirmed: bool = Field(False, description="a second method agrees with the verifier")
+    results: list[LedgerValue] = []
+    problems: list[str] = []
 
 
 class VerifyEntry(Strict):
-    """`state/verify/<item-id>.json`."""
+    """`state/verify/<item-id>.json`: the verification state of one item."""
 
+    schema_version: Literal[1] = Field(1, alias="schema")
     item: Annotated[str, Field(pattern=rf"^{KEBAB}$")]
-    content_sha256: Sha256
+    kind: Literal["exercise", "exam-task", "mc"]
+    path: str = Field(description="course-relative file of the item")
+    content_sha256: Sha256 = Field(description="sha256 of the item's source when checked")
+    status: Literal["unverified", "verified", "disputed", "quarantined"]
+    method: Literal["script", "blind", "manual"] | None = None
+    check: str | None = None
     check_sha256: Sha256 | None = None
-    method: Literal["script", "blind", "audit"]
-    result: Literal["pass", "fixed", "disputed", "quarantined"]
-    answers: dict[str, AnswerCheck] = {}
-    reason: str | None = None
-    verified_at: IsoDateTime
+    rounds: int = Field(0, ge=0, description="author fix rounds spent on disputes")
+    results: list[LedgerValue] = []
+    problems: list[str] = []
+    warnings: list[str] = []
+    note: str | None = None
+    confirmations: list[Confirmation] = []
+    disputes: list[Dispute] = []
+    checked_at: IsoDateTime
+    verified_at: IsoDateTime | None = None
 
 
 # --- browser progress export (§2.11) ------------------------------------------------------
