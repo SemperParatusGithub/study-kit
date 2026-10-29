@@ -2,9 +2,10 @@
 
 Course files go through `pandoc -d common -d <target>` with the Lua filter in
 `pandoc/filters/` (docs/architecture.md §3.1). The filter needs metadata about the file
-(`-M sk-index=… -M sk-course=… -M sk-lang=… -M sk-file=…`, plus `sk-solutions` and
-`sk-figdir` for Typst); `argv()` builds that list so no caller assembles it by hand, and
-`run_filtered()` runs one course file end to end.
+(`-M sk-index=… -M sk-course=… -M sk-lang=… -M sk-file=…`, plus `sk-solutions`,
+`sk-figdir` and, for a PDF document assembled by `studykit pdf`, `sk-doc` for Typst);
+`argv()` builds that list so no caller assembles it by hand, `run_filtered()` runs one
+course file end to end and `run_file()` converts a file on disk (the PDF documents).
 """
 
 from __future__ import annotations
@@ -119,14 +120,20 @@ class Document:
     solutions: Solutions = "appendix"  # Typst only
     figdir: Path | None = None  # Typst only: absolute directory of the built figures
     scope: Scope = "course"  # "file": do not report link or figure targets the index lacks
+    doc: str | None = None  # Typst only: the assembled PDF document kind (lib/document.lua)
 
 
 def defaults_dir(root: Path | None = None) -> Path:
     return (root or tools.repo_root()) / "pandoc" / "defaults"
 
 
-def argv(doc: Document, target: Target, *, root: Path | None = None) -> list[str]:
-    """pandoc arguments (without the binary and the input) for `doc` and `target`."""
+def argv(
+    doc: Document, target: Target, *, root: Path | None = None, log: Path | None = None
+) -> list[str]:
+    """pandoc arguments (without the binary and the input) for `doc` and `target`.
+
+    `log` adds `--log <file>`: pandoc writes its messages there as JSON.
+    """
     if target not in DEFAULTS:
         raise ValueError(f"unknown target {target!r}; expected one of {sorted(DEFAULTS)}")
     defaults = defaults_dir(root)
@@ -150,6 +157,12 @@ def argv(doc: Document, target: Target, *, root: Path | None = None) -> list[str
         args += ["-M", f"sk-solutions={doc.solutions}"]
         if doc.figdir is not None:
             args += ["-M", f"sk-figdir={Path(doc.figdir).resolve()}"]
+        if doc.doc is not None:
+            args += ["-M", f"sk-doc={doc.doc}"]
+    elif doc.doc is not None:
+        raise ValueError("assembled documents (doc=…) are Typst only")
+    if log is not None:
+        args += ["--log", str(Path(log).resolve())]
     return args
 
 
@@ -182,6 +195,28 @@ def convert(body: str, doc: Document, target: Target, *, root: Path | None = Non
         return run([*argv(doc, target, root=root), str(source)], cwd=root).stdout
 
 
+def run_file(
+    source: Path,
+    doc: Document,
+    target: Target,
+    *,
+    output: Path | None = None,
+    log: Path | None = None,
+    root: Path | None = None,
+) -> str:
+    """Convert the file `source` as it is (no frontmatter handling) in the repository root.
+
+    With `output` pandoc writes the result there and the return value is empty; `log`
+    receives pandoc's messages as JSON. Raises FilterError with the formatted findings
+    when the filter rejects the document.
+    """
+    root = root or tools.repo_root()
+    args = argv(doc, target, root=root, log=log)
+    if output is not None:
+        args += ["-o", str(Path(output).resolve())]
+    return run([*args, str(Path(source).resolve())], cwd=root).stdout
+
+
 def course_document(
     course_dir: Path,
     relpath: str,
@@ -190,6 +225,7 @@ def course_document(
     solutions: Solutions = "appendix",
     figdir: Path | None = None,
     scope: Scope = "course",
+    doc: str | None = None,
 ) -> Document:
     """The Document for a file of a course tree, with course id and language from the index."""
     index = (index or course_dir / "_build" / "index.json").resolve()
@@ -202,6 +238,7 @@ def course_document(
         solutions=solutions,
         figdir=(figdir or course_dir / "_build" / "figures").resolve(),
         scope=scope,
+        doc=doc,
     )
 
 
