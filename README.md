@@ -43,7 +43,7 @@ your `PATH` (or use `.tools/bin/just`) to call `just` directly.
 | `just figures [course]` | Renders the figure scripts of a course |
 | `just test` | Python and Node unit tests, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
 | `just e2e` | Playwright tests of the built sample course in Chromium (build it first, see below) |
-| `just ci` | What CI runs: `doctor`, `test`, a strict build of the sample course and its release validation |
+| `just ci` | The checks CI runs before the browser tests: `doctor`, `test`, a strict build of the sample course and its release validation |
 | `just lint-code` | ruff lint and format check of the Python code |
 
 The website always runs on port 4321: progress lives in the browser's storage for that
@@ -70,6 +70,12 @@ pnpm -C site run test:elements   # the custom elements in their own harness, no 
 arguments to `playwright test`, for example `just e2e --repeat-each 3`. `SK_E2E_PORT` moves
 the suite off port 4321 while a dev server holds it. Reports and traces are written to
 `site/node_modules/.cache/sk-e2e/`.
+
+CI runs `just ci` and then both browser suites, so the full local equivalent is:
+
+```bash
+just ci && pnpm -C site run test:elements && just e2e
+```
 
 ## Your course data stays local
 

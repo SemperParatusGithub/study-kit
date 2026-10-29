@@ -75,8 +75,9 @@ e2e *args:
     pnpm -C site exec playwright install chromium
     pnpm -C site run e2e "$@"
 
-# `test` includes `schema export --check`; the sample course comes from examples/.
-# what CI runs: doctor, tests, strict build and release validation of the sample course
+# `test` includes `schema export --check`; the sample course comes from examples/. CI then
+# runs the browser suites too: `pnpm -C site run test:elements` and `just e2e`.
+# CI checks before the browser tests: doctor, tests, sample-course build and validation
 ci:
     {{just}} doctor
     {{just}} test
