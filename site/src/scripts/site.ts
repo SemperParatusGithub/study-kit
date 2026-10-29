@@ -93,6 +93,26 @@ function filters(): void {
   }
 }
 
+/**
+ * A link to a closed <details> (the MC hub's quiz modes: /mc/#due) opens it, also on
+ * ?mode=<id> (a quiz link with parameters for that mode).
+ */
+function openTargets(): void {
+  const open = () => {
+    const ids = [decodeURIComponent(location.hash.slice(1)), new URLSearchParams(location.search).get('mode') ?? ''];
+    for (const id of ids) {
+      const el = id ? document.getElementById(id) : null;
+      if (el instanceof HTMLDetailsElement && !el.open) {
+        el.open = true;
+        if (location.hash.slice(1) === id) el.scrollIntoView({ block: 'start' });
+        return;
+      }
+    }
+  };
+  open();
+  addEventListener('hashchange', open);
+}
+
 /** Highlight the table-of-contents entry of the section being read. */
 function tocSpy(): void {
   const links = [...document.querySelectorAll<HTMLAnchorElement>('.toc a[href^="#"]')];
@@ -135,5 +155,6 @@ countdowns();
 planDays();
 todayFill();
 filters();
+openTargets();
 tocSpy();
 printDetails();
