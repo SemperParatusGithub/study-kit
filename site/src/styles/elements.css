@@ -1397,7 +1397,7 @@ sk-progress {
 .sk-topic,
 .sk-calib-row {
   display: grid;
-  grid-template-columns: minmax(8rem, 14rem) minmax(5rem, 1fr) 3.5rem;
+  grid-template-columns: minmax(8rem, 18rem) minmax(5rem, 1fr) 3.5rem;
   gap: 0.2rem 0.85rem;
   align-items: center;
 }
