@@ -215,6 +215,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_blind.add_argument("--stdout", action="store_true", help="also print the view")
     p_blind.set_defaults(func=cmd_blind)
 
+    p_hook = sub.add_parser(
+        "hook",
+        help="Claude Code PreToolUse hooks: read the event on stdin, print a decision",
+    )
+    p_hook.add_argument(
+        "name",
+        choices=["verifier-guard", "pre-git"],
+        help="verifier-guard: keep the verifier blind; pre-git: keep course files out of git",
+    )
+    p_hook.set_defaults(func=cmd_hook)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -560,6 +571,13 @@ def cmd_blind(args: argparse.Namespace) -> int:
         print(text, end="")
     else:
         print(f"wrote {content.display_path(path)}")
+    return 0
+
+
+def cmd_hook(args: argparse.Namespace) -> int:
+    from studykit import hook
+
+    sys.stdout.write(hook.run(args.name, sys.stdin.read()))
     return 0
 
 
