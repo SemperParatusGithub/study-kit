@@ -115,6 +115,44 @@ export function readText(path) {
 }
 
 /**
+ * File contents as bytes, or null when the file cannot be read.
+ * @param {string} path
+ * @returns {Uint8Array<ArrayBuffer> | null}
+ */
+export function readBytes(path) {
+  try {
+    return readFileSync(path); // a Buffer, which is a Uint8Array
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Size of a regular file in bytes, or null when it is not one.
+ * @param {string} path
+ * @returns {number | null}
+ */
+export function fileSize(path) {
+  try {
+    const st = statSync(path);
+    return st.isFile() ? st.size : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when `path` lies strictly inside the directory `root` (both resolved).
+ * @param {string} root
+ * @param {string} path
+ * @returns {boolean}
+ */
+export function isInside(root, path) {
+  const rel = relative(resolve(root), resolve(path));
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
+
+/**
  * Parsed JSON file, or null when it is missing or invalid.
  * @param {string} path
  * @returns {unknown}

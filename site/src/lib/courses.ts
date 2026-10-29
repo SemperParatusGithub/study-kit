@@ -3,6 +3,7 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
 import type { DocData, ExamFm } from './types';
 import { renderLabel } from './katex';
+import { pdfHref, readPdfs, readSources, sourceHref, type PdfDoc, type SourceDoc } from './pdf';
 import type { CourseInfo } from './stats.ts';
 import { coursesDir, joinPath, readJson } from './sys.mjs';
 
@@ -27,6 +28,8 @@ export const route = {
   exams: (c: string) => `/c/${c}/exams/`,
   exam: (c: string, id: string) => `/c/${c}/exams/${id}/`,
   progress: (c: string) => `/c/${c}/progress/`,
+  pdf: pdfHref,
+  source: sourceHref,
 };
 
 export interface Topic {
@@ -66,6 +69,10 @@ export interface Course {
   exams: Exam[];
   plan: PlanData | null;
   mastery: Record<string, unknown> | null;
+  /** Built PDFs from _build/pdf/manifest.json (lib/pdf.ts); empty until they are built. */
+  pdfs: PdfDoc[];
+  /** Source documents (sources/raw) the site serves. */
+  sources: SourceDoc[];
 }
 
 const cache = new Map<string, Promise<Course>>();
@@ -162,6 +169,8 @@ async function build(id: string): Promise<Course> {
     exams,
     plan,
     mastery,
+    pdfs: readPdfs(id),
+    sources: readSources(id),
   };
 }
 
