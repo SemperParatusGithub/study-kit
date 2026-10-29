@@ -138,12 +138,12 @@ const mcCount = exam.mc?.data.questions.length ?? 0;
         exam.mc && (
           <section class="sk-exam-mc" id="mc-part" data-points={exam.mcPoints} data-points-each={fm.mc?.points_each}>
             <h2 class="task-title">
-              <span lang={en}>Multiple choice</span>
+              <span lang={en} data-pagefind-ignore>Multiple choice</span>
               <span class="badge" lang={en} data-pagefind-ignore>
                 {plural(exam.mcPoints, 'point')}
               </span>
             </h2>
-            <p class="small muted" lang={en}>
+            <p class="small muted" lang={en} data-pagefind-ignore>
               {plural(fm.mc?.points_each ?? 0, 'point')} per question; multi-select scored{' '}
               {scoring === 'partial' ? 'with partial credit' : scoring === 'kprim' ? 'like Kprim' : 'all-or-nothing'}
               {negative ? ', wrong answers cost points' : ''}.

@@ -46,7 +46,7 @@ const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
   <section aria-labelledby="questions-title" data-pagefind-body>
     <SearchTags course={course} type="mc" topic={topicId} />
     <span data-pagefind-meta="title[data-value]" data-value={`MC: ${bank.data.title}`}></span>
-    <h2 id="questions-title" lang={en}>All questions</h2>
+    <h2 id="questions-title" lang={en} data-pagefind-ignore>All questions</h2>
     {errors.length > 0 && <Fragment set:html={errorCard(errors)} />}
     <ol class="questions" role="list">
       {
