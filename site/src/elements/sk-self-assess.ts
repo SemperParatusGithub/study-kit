@@ -1,12 +1,13 @@
 // <sk-self-assess data-item="ex:<id>">: Solved / Partly / Not yet (docs/architecture.md §3.2).
 //
 // The rating is stored as `rating` and schedules the exercise for review (Leitner: solved
-// moves up a box, partly and not yet go to box 1). Using more than one hint caps the
-// rating at "Partly", also a "Solved" given before the hints (the store applies the cap;
-// this element listens to `sk:hint` and shows it at once).
+// moves up a box, partly and not yet go to box 1). Using more than one hint in this attempt
+// caps the rating at "Partly", also a "Solved" given before the hints (the store applies the
+// cap; this element listens to `sk:hint` and shows it at once). A review is a new attempt:
+// the hints of the rating before it no longer count (store.exHints).
 
-import type { ExEntry, Rating } from '../lib/store.ts';
-import { contentChanged, examDate, h, hashOf, relativeDay, storeOf, uid } from './util.ts';
+import { HINT_CAP, type ExEntry, type Rating } from '../lib/store.ts';
+import { contentChanged, examDate, h, hashOf, langs, relativeDay, storeOf, uid } from './util.ts';
 
 const CHOICES: ReadonlyArray<readonly [Rating, string]> = [
   ['solved', 'Solved'],
@@ -50,7 +51,7 @@ export class SkSelfAssess extends HTMLElement {
     this.status = h('p', { class: 'sk-assess-status', role: 'status' });
     this.changed = h('p', { class: 'sk-assess-changed', hidden: true }, 'Content changed since your attempt.');
     this.append(
-      h('div', { class: 'sk-assess' },
+      h('div', { class: 'sk-assess', lang: langs(this).ui },
         h('p', { class: 'sk-assess-title', id: titleId }, 'How did it go?'),
         group, this.note, this.changed, this.status),
     );
@@ -65,8 +66,13 @@ export class SkSelfAssess extends HTMLElement {
     return this.exId ? storeOf(this).get<ExEntry>(this.item) : undefined;
   }
 
+  /** Hints used in the current attempt. */
+  private hints(): number {
+    return this.exId ? storeOf(this).exHints(this.exId, { examDate: examDate() }) : 0;
+  }
+
   private capped(): boolean {
-    return (this.entry()?.hints ?? 0) > 1;
+    return this.hints() > HINT_CAP;
   }
 
   private rate(rating: Rating): void {
@@ -92,7 +98,7 @@ export class SkSelfAssess extends HTMLElement {
     }
     if (this.note) {
       this.note.hidden = !capped;
-      this.note.textContent = capped ? `You used ${entry?.hints ?? 0} hints, so the best rating is “Partly”.` : '';
+      this.note.textContent = capped ? `You used ${this.hints()} hints, so the best rating is “Partly”.` : '';
     }
     if (this.changed) this.changed.hidden = !contentChanged(entry?.h, hashOf(this));
     if (this.status) {

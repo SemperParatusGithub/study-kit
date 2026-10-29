@@ -13,7 +13,7 @@
 // - Next session: the first plan session today or later that is not done; behind: past
 //   sessions that are not done.
 
-import { dayOf, isDue } from './leitner.ts';
+import { dayOf, isDue, reviewDayOf } from './leitner.ts';
 import { isCorrect } from './scoring.ts';
 import type { Entry, ExamAttempt, ExamEntry, ExEntry, McAttempt, McEntry, PlanEntry } from './store.ts';
 
@@ -163,11 +163,16 @@ export function dueCount(
   return n;
 }
 
+/** An exercise whose self-assessment is due for review today (exam clamp included). */
+export function exIsDue(e: ExEntry, today: string, examDate: string | null): boolean {
+  return isDue(e.due, reviewDayOf(e.due, e.box), today, examDate);
+}
+
 /** Exercises whose self-assessment is due for review today. */
 export function exercisesDue(items: Items, today: string, examDate: string | null): number {
   let n = 0;
   for (const [key, e] of Object.entries(items)) {
-    if (key.startsWith('ex:') && isDue((e as ExEntry).due, null, today, examDate)) n++;
+    if (key.startsWith('ex:') && exIsDue(e as ExEntry, today, examDate)) n++;
   }
   return n;
 }

@@ -62,7 +62,7 @@ const extra = [
     </nav>
 
     <div class="reading-main">
-      <details class="toc-mobile">
+      <details class="toc-mobile no-print">
         <summary lang="en">On this page</summary>
         <div class="toc">
           <Toc headings={doc.data.headings} lang={course.lang} extra={extra} title="Sections" />
@@ -111,7 +111,7 @@ const extra = [
 
       {
         hasBank && (
-          <section class="chapter-extra" id="test-yourself" aria-labelledby="test-yourself-title" lang={en}>
+          <section class="chapter-extra no-print" id="test-yourself" aria-labelledby="test-yourself-title" lang={en}>
             <h2 id="test-yourself-title">Test yourself</h2>
             <p class="muted">
               Three questions from the {course.topicTitle(topicId)} bank, with feedback after each answer.

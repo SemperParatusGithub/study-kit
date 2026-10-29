@@ -37,7 +37,7 @@ import {
 import type { DocData, DocKind } from '../lib/types';
 
 // Bump when this file changes what it stores, so cached entries are rebuilt.
-const LOADER_VERSION = 3;
+const LOADER_VERSION = 4;
 const STAMP = `sk${LOADER_VERSION}-katex${katex.version}:`;
 const RENDER_SCHEMA = 1;
 const HASHED_KINDS: DocKind[] = ['exercise', 'exam-task'];

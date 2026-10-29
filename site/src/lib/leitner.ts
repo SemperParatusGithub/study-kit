@@ -111,7 +111,21 @@ export function inRestDays(today: string, examDate?: string | null): boolean {
   return today > addDays(examDate, -CLAMP_LIMIT_DAYS) && today <= examDate;
 }
 
-/** Stands in for an unknown review day (exercise entries keep none): long ago. */
+/**
+ * The day an entry was reviewed, worked out from its due day and box, for entries that keep
+ * no review day (exercises): the due day less the box's interval. It is exact unless the
+ * exam clamp moved the due day, and then it still lies on the same side of the clamp limit
+ * as the real review day (a review on or after the limit gives a due day after the exam; one
+ * before it, a due day no later than the limit), which is all clampDue looks at. Null
+ * without a valid due day and box.
+ */
+export function reviewDayOf(due: string | null | undefined, box: number | null | undefined): string | null {
+  const b = clampBox(box);
+  if (!isDay(due) || b === null) return null;
+  return addDays(due, -(INTERVALS[b] ?? 0));
+}
+
+/** Stands in for an unknown review day: long ago. */
 const LONG_AGO = '0001-01-01';
 
 /**

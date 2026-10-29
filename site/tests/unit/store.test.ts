@@ -222,9 +222,48 @@ test('more than one hint caps "solved" at "partial", also a rating given before 
   const two = s.useHints('ex-b', undefined, 2, { today: '2026-11-02' });
   assert.deepEqual(two, { h: '12345678', hints: 2, answer_ok: null, rating: 'partial', box: 1, due: '2026-11-03' });
   // the count never goes down, and other ratings are left alone
-  assert.equal(s.useHints('ex-b', undefined, 1).hints, 2);
+  assert.equal(s.useHints('ex-b', undefined, 1, { today: '2026-11-02' }).hints, 2);
   s.rateEx('ex-c', undefined, 'not-yet', { today: '2026-11-02' });
   assert.equal(s.useHints('ex-c', undefined, 3).rating, 'not-yet');
+});
+
+test('a review is a new attempt: the hints of the rating before it no longer count', () => {
+  const fake = new FakeStorage();
+  const s = new ProgressStore('c', fake);
+  const d1 = { today: '2026-11-23' };
+  s.useHints('ex-a', '12345678', 2, d1);
+  assert.deepEqual(s.rateEx('ex-a', undefined, 'solved', d1), {
+    h: '12345678', hints: 2, answer_ok: null, rating: 'partial', box: 1, due: '2026-11-24',
+  });
+  // the same day the rating's hints still count
+  assert.equal(s.exHints('ex-a', d1), 2);
+  // due the next day: a new attempt without hints, rated "solved" without the cap
+  const d2 = { today: '2026-11-24' };
+  assert.equal(s.exHints('ex-a', d2), 0);
+  assert.deepEqual(s.rateEx('ex-a', undefined, 'solved', d2), {
+    h: '12345678', hints: 0, answer_ok: null, rating: 'solved', box: 2, due: '2026-11-27',
+  });
+  // a later review with one hint: kept in the session state until rated, then stored
+  const d3 = { today: '2026-11-28' };
+  assert.equal(s.useHints('ex-a', undefined, 1, d3).hints, 0);
+  assert.equal(s.exHints('ex-a', d3), 1);
+  assert.equal(s.get<ExEntry>('ex:ex-a')?.rating, 'solved');
+  // a reload keeps the count; it never goes down within the attempt
+  const again = new ProgressStore('c', fake);
+  assert.equal(again.useHints('ex-a', undefined, 0, d3).hints, 0);
+  assert.equal(again.exHints('ex-a', d3), 1);
+  // two hints in the review cap it, and rating closes the review
+  again.useHints('ex-a', undefined, 2, d3);
+  assert.deepEqual(again.rateEx('ex-a', undefined, 'solved', d3), {
+    h: '12345678', hints: 2, answer_ok: null, rating: 'partial', box: 1, due: '2026-11-29',
+  });
+  assert.equal(again.session('ex:ex-a'), undefined);
+  assert.equal(again.exHints('ex-a', d3), 2);
+  // a review left from an older due day does not count
+  again.setSession('ex:ex-a', { due: '2026-11-24', hints: 3 });
+  assert.equal(again.exHints('ex-a', { today: '2026-11-29' }), 0);
+  // the rest days before the exam: nothing is due, but the due day has come
+  assert.equal(again.exHints('ex-a', { today: '2026-11-29', examDate: '2026-11-30' }), 0);
 });
 
 test('merge caps a "solved" that meets the other side\'s hints', () => {
@@ -268,10 +307,56 @@ test('import merges a file of the same course and rejects others', () => {
   const other = s.importText(JSON.stringify({ ...SPEC_EXAMPLE, course: 'other' }));
   assert.equal(other.ok, false);
   assert.match(other.message, /other/);
+  for (const course of [undefined, 42, '']) {
+    const none = s.importText(JSON.stringify({ ...SPEC_EXAMPLE, course }));
+    assert.equal(none.ok, false);
+    assert.equal(none.message, 'This progress file names no course, so it cannot be imported.');
+  }
   // round trip: export → import into an empty store gives the same items
   const t = new ProgressStore('get2', new FakeStorage());
   t.importText(s.exportFile().text);
   assert.deepEqual(t.read().items, s.read().items);
+});
+
+test('import keeps only what studykit.model.Progress accepts: ISO timestamps, safe integers', () => {
+  const s = new ProgressStore('get2', new FakeStorage());
+  const attempt = { chosen: ['A'], score: 1, conf: 'sure', ms: 5 };
+  const file = {
+    schema: 'studykit-progress/1',
+    course: 'get2',
+    exported_at: 'Nov 20 2026',
+    items: {
+      'mc:mc-a-001': {
+        h: 'abcdef12', box: 2, due: '2026-11-24',
+        attempts: [
+          { ...attempt, t: 'Oct 3 2026' },
+          { ...attempt, t: '1' },
+          { ...attempt, t: '2026-02-30T10:00:00Z' },
+          { ...attempt, t: '2026-11-20T17:00:00Z', ms: 1e21 },
+          { ...attempt, t: '2026-11-21 08:15:00+01:00' },
+          { ...attempt, t: '2026-11-22' },
+        ],
+      },
+      'ex:ex-a': { h: 'abcdef12', hints: 1e21, answer_ok: null, rating: null, box: null, due: null },
+      'exam:pk-1': {
+        attempts: [
+          { started: '1', duration_s: 60, points: { mc: 1 }, total: 1 },
+          { started: '2026-11-19T09:00:00Z', duration_s: 1e21, points: { mc: 2 }, total: 2 },
+        ],
+      },
+    },
+  };
+  assert.equal(s.importText(JSON.stringify(file)).ok, true);
+  const out = JSON.parse(s.exportFile().text);
+  assert.deepEqual(
+    out.items['mc:mc-a-001'].attempts.map((a: { t: string; ms: number }) => [a.t, a.ms]),
+    [['2026-11-20T17:00:00Z', 0], ['2026-11-21 08:15:00+01:00', 5], ['2026-11-22', 5]],
+  );
+  assert.equal(out.items['ex:ex-a'].hints, 0);
+  assert.deepEqual(out.items['exam:pk-1'].attempts, [
+    { started: '2026-11-19T09:00:00Z', duration_s: 0, points: { mc: 2 }, total: 2 },
+  ]);
+  assert.ok(!/e\+/.test(s.exportFile().text), 'no number in exponent notation');
 });
 
 test('storage failures fall back to memory without throwing', () => {

@@ -191,10 +191,6 @@ const examDate = plan?.exam_date ?? course.examDate;
     background: transparent;
   }
 
-  .session.past .session-body {
-    opacity: 0.8;
-  }
-
   .session:not(.today) .today-badge,
   .session.past .start {
     display: none;
@@ -219,8 +215,10 @@ const examDate = plan?.exam_date ?? course.examDate;
     display: none;
   }
 
-  .session.is-done .session-body {
-    opacity: 0.65;
+  /* done: ticked, a filled dot and the goal struck through; the text keeps its contrast */
+  .session.is-done::before {
+    border-color: var(--ok);
+    background: var(--ok);
   }
 
   .session.is-done .session-goal {

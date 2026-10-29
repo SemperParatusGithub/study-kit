@@ -66,7 +66,8 @@
 
   h1,
   h2,
-  h3 {
+  h3,
+  .question-meta {
     break-after: avoid;
   }
 
@@ -75,8 +76,20 @@
     box-shadow: none;
   }
 
-  .cheatsheet {
+  /* The cheat sheet's columns start at the top of the page, with the title spanning them:
+     a multicol box below the title moves to the next page whole whenever it fits there. */
+  main:has(> .cheatsheet) {
     columns: 2;
+    column-gap: 6mm;
+    column-rule: 1px solid var(--border);
+  }
+
+  main:has(> .cheatsheet) > :not(.cheatsheet) {
+    column-span: all;
+  }
+
+  .cheatsheet {
+    display: contents;
     font-size: 8.5pt;
   }
 }

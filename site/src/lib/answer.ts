@@ -200,9 +200,12 @@ const UNITS = new Set([
 ]);
 
 // Lookup tables are Maps: a plain object would also "contain" names such as constructor.
+// 1/s and rad/s are the same unit for an angular frequency (ω in 1/s is usually written
+// rad/s); a frequency in Hz stays apart from both.
 const ALIASES = new Map(Object.entries({
   Ohm: 'Ω', ohm: 'Ω', Ohms: 'Ω', ohms: 'Ω', deg: '°', Grad: '°', sec: 's', hz: 'Hz', HZ: 'Hz',
   db: 'dB', DB: 'dB', '1/s': 's^-1',
+  'rad/s': 's^-1', 'rad·s^-1': 's^-1', 'rad⋅s^-1': 's^-1', 'rad*s^-1': 's^-1', 'rads^-1': 's^-1',
 }));
 
 function canon(unit: string): string {

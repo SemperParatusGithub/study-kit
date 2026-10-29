@@ -64,3 +64,15 @@ test('an export round-trips through import into a fresh browser', async ({ page,
     await other.close();
   }
 });
+
+test('the progress page outline skips no heading level', async ({ page }) => {
+  await page.goto(`${C}/progress/`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Topics' })).toBeVisible();
+  const levels = await page
+    .locator('main :is(h1, h2, h3, h4, h5, h6)')
+    .evaluateAll((hs) => hs.map((h) => Number(h.tagName[1])));
+  expect(levels[0]).toBe(1);
+  for (let i = 1; i < levels.length; i++) {
+    expect(levels[i], `heading levels ${levels.join(' ')}`).toBeLessThanOrEqual((levels[i - 1] ?? 1) + 1);
+  }
+});

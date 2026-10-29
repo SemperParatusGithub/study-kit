@@ -365,6 +365,8 @@ sk-mc:not(:defined) .sk-opt-text {
 
 /* --- cheat sheet ---------------------------------------------------------------------- */
 
+/* Topic sections flow on through the columns, so every column is used; only boxes,
+   figures, tables and formulas stay whole. */
 .cheatsheet {
   columns: 21rem auto;
   column-gap: var(--space-6);
@@ -374,8 +376,25 @@ sk-mc:not(:defined) .sk-opt-text {
 }
 
 .cs-section {
-  break-inside: avoid;
   margin: 0 0 var(--space-5);
+}
+
+.cheatsheet :is(.sk-block, .sk-fig, figure, table, .katex-display, p:has(> .katex-display)) {
+  break-inside: avoid;
+}
+
+/* A line of formulas set apart with \qquad wraps between them (lib/katex.ts groups each
+   formula), a single long one after = or +, instead of being cut at the column edge. The
+   row gap keeps the fractions of wrapped lines apart. */
+.cheatsheet .katex-display > .katex > .katex-html {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  row-gap: 0.35em;
+}
+
+.cheatsheet .katex-display > .katex > .katex-html > .newline {
+  flex-basis: 100%;
 }
 
 .cs-section > :last-child {

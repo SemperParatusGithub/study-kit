@@ -291,6 +291,11 @@ sk-theme {
   border-bottom-color: var(--accent);
 }
 
+/* the tab list scrolls sideways (overflow), which would clip a ring drawn outside the tab */
+.course-nav a:focus-visible {
+  outline-offset: -2px;
+}
+
 @media (max-width: 40rem) {
   .search-box input {
     width: 2.3rem;
@@ -484,8 +489,9 @@ sk-theme {
   color: var(--accent);
 }
 
+/* hollow and at 3:1 or more, so the level reads at a glance (the text is for screen readers) */
 .dots .off {
-  color: var(--border-strong);
+  color: var(--text-muted);
 }
 
 .notice {
@@ -766,6 +772,13 @@ a.item-title:hover {
 .pager a span {
   color: var(--text-muted);
   font-size: var(--text-xs);
+}
+
+/* a long compound in a narrow half ("Wechselstromrechnung" at 320 px) breaks, hyphenated
+   where the browser knows the language, instead of running past the page edge */
+.pager a strong {
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .pager .next {

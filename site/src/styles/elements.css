@@ -24,13 +24,13 @@
   --ske-accent: var(--accent, light-dark(#1f5fbf, #8ab4f8));
   --ske-accent-fg: var(--accent-contrast, light-dark(#ffffff, #0d1117));
   --ske-accent-soft: var(--accent-soft, light-dark(#e7eefb, #1d2a40));
-  --ske-ok: var(--ok, light-dark(#1a7f37, #56d364));
+  --ske-ok: var(--ok, light-dark(#197c35, #56d364));
   --ske-ok-soft: var(--ok-soft, light-dark(#e6f4ea, #1a2e22));
   --ske-bad: var(--bad, light-dark(#cf222e, #ff7b72));
   --ske-bad-soft: var(--bad-soft, light-dark(#ffebe9, #3a1d1f));
-  --ske-warn: var(--warn, light-dark(#9a6700, #e3b341));
+  --ske-warn: var(--warn, light-dark(#966400, #e3b341));
   --ske-warn-soft: var(--warn-soft, light-dark(#fff4d6, #2e2714));
-  --ske-partial: var(--warn, light-dark(#9a6700, #e3b341));
+  --ske-partial: var(--warn, light-dark(#966400, #e3b341));
   --ske-radius: var(--radius, 0.6rem);
   --ske-radius-small: var(--radius-sm, 0.375rem);
   --ske-focus: var(--focus, light-dark(#1f5fbf, #8ab4f8));
@@ -1194,10 +1194,11 @@ sk-exam.is-low .sk-exam-clock {
   font-weight: 600;
 }
 
-/* Jumps to a part (the task links, N in the MC part) end below the sticky head, whose
- * height sk-exam keeps in --sk-exam-head while the exam runs. */
+/* Jumps to a part (the task links, N in the MC part) and focus end below the sticky head:
+ * while the exam runs, sk-exam sets the page's scroll-padding-top to the head's height
+ * (kept in --sk-exam-head) plus 0.5rem, so the parts need no margin of their own. */
 sk-exam :is(.sk-exam-task, .sk-exam-mc, sk-mc) {
-  scroll-margin-top: calc(var(--sk-exam-head, 0px) + 0.5rem);
+  scroll-margin-top: 0;
 }
 
 .sk-exam-total {
@@ -1376,6 +1377,12 @@ sk-progress {
   color: var(--ske-muted);
 }
 
+/* section headings: h2 under the page's h1, sized like the page's subsections */
+.sk-progress-title {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
 .sk-progress-note {
   max-width: 44rem;
   margin: 0.75rem 0 0;
@@ -1476,6 +1483,8 @@ sk-theme {
 
 .sk-theme-opt:has(input:checked) {
   background: var(--ske-surface-2);
+  /* the ring marks the choice at 3:1 or more against the bar; the fill alone is too faint */
+  box-shadow: inset 0 0 0 1.5px var(--ske-muted);
   color: var(--ske-fg);
 }
 
@@ -1637,6 +1646,9 @@ sk-theme {
   .sk-reveal-confirm,
   .sk-assess,
   .sk-exam-bar,
+  .sk-exam-alert,
+  .sk-exam-cover > .sk-btn,
+  .sk-exam-actions,
   .sk-quiz-nav,
   .sk-quiz-status,
   sk-theme,
@@ -1647,5 +1659,13 @@ sk-theme {
   sk-mc,
   .sk-rubric {
     break-inside: avoid;
+  }
+
+  /* the running exam's head is only its (hidden) bar: no empty strip on paper */
+  .sk-exam-head.is-sticky {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: none;
   }
 }

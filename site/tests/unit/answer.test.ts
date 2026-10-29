@@ -175,6 +175,15 @@ test('numeric answers: labels, trailing punctuation, resistor codes and plain ar
   assert.equal(checkNumeric('1/(2π·1000·0,0000001) Hz', FG).ok, false);
   const unit = checkNumeric('1590 1/s', FG);
   assert.equal(unit.ok ? '' : unit.reason, 'unit');
+  assert.equal(checkNumeric('1590 rad/s', FG).ok, false); // ω is not f
+  // an angular frequency asked in 1/s may be given in rad/s, and the other way round
+  const OMEGA = { key: 'w', label: 'ω', value: 2513.3, unit: '1/s', rtol: 0.005 };
+  for (const ok of ['2513 1/s', '2513 s^-1', '2513 s⁻¹', '2513 rad/s', '2513 rad·s⁻¹', '2513 rad s^-1', '2513']) {
+    assert.equal(checkNumeric(ok, OMEGA).ok, true, ok);
+  }
+  assert.equal(checkNumeric('2513 rad/s', { ...OMEGA, unit: 'rad/s' }).ok, true);
+  assert.equal(checkNumeric('2513 1/s', { ...OMEGA, unit: 'rad/s' }).ok, true);
+  assert.equal(checkNumeric('2513 Hz', OMEGA).ok, false);
   // thousands separators are not guessed inside arithmetic
   assert.equal(constantValue('1.591,5/2'), null);
   assert.equal(constantValue('1,59 kHz'), null);

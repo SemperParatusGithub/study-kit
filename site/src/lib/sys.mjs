@@ -4,7 +4,6 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { availableParallelism } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,15 +36,6 @@ export function strict() {
  */
 export function coursesDir() {
   return resolve(siteRoot, process.env.STUDYKIT_COURSES_DIR ?? '../courses');
-}
-
-/**
- * A directory path relative to the site (or absolute), resolved.
- * @param {string} path
- * @returns {string}
- */
-export function sitePath(path) {
-  return resolve(siteRoot, path);
 }
 
 /**
@@ -107,18 +97,6 @@ export function isFile(path) {
  * @param {string} path
  * @returns {boolean}
  */
-export function isDir(path) {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-/**
- * @param {string} path
- * @returns {boolean}
- */
 export function exists(path) {
   return existsSync(path);
 }
@@ -171,11 +149,6 @@ export function listDir(path) {
  */
 export function sha256(...parts) {
   return createHash('sha256').update(parts.join('\0')).digest('hex');
-}
-
-/** @returns {number} */
-export function cpuCount() {
-  return availableParallelism();
 }
 
 /**

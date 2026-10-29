@@ -93,18 +93,28 @@ function filters(): void {
   }
 }
 
+/** Percent-decoded text; a malformed escape (a typed URL "#%") stays as it is. */
+function decoded(text: string): string {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
+}
+
 /**
  * A link to a closed <details> (the MC hub's quiz modes: /mc/#due) opens it, also on
  * ?mode=<id> (a quiz link with parameters for that mode).
  */
 function openTargets(): void {
   const open = () => {
-    const ids = [decodeURIComponent(location.hash.slice(1)), new URLSearchParams(location.search).get('mode') ?? ''];
+    const hash = decoded(location.hash.slice(1));
+    const ids = [hash, new URLSearchParams(location.search).get('mode') ?? ''];
     for (const id of ids) {
       const el = id ? document.getElementById(id) : null;
       if (el instanceof HTMLDetailsElement && !el.open) {
         el.open = true;
-        if (location.hash.slice(1) === id) el.scrollIntoView({ block: 'start' });
+        if (hash === id) el.scrollIntoView({ block: 'start' });
         return;
       }
     }
@@ -117,7 +127,7 @@ function openTargets(): void {
 function tocSpy(): void {
   const links = [...document.querySelectorAll<HTMLAnchorElement>('.toc a[href^="#"]')];
   if (!links.length || !('IntersectionObserver' in window)) return;
-  const byId = new Map(links.map((a) => [decodeURIComponent(a.hash.slice(1)), a]));
+  const byId = new Map(links.map((a) => [decoded(a.hash.slice(1)), a]));
   const visible = new Set<string>();
   const observer = new IntersectionObserver(
     (entries) => {
@@ -137,6 +147,20 @@ function tocSpy(): void {
   }
 }
 
+/**
+ * On a narrow screen the course tabs scroll sideways (without a scrollbar): bring the tab
+ * of this page into view, so it shows which section the page is in.
+ */
+function currentTab(): void {
+  const list = document.querySelector<HTMLElement>('.course-nav ul');
+  const tab = list?.querySelector<HTMLElement>('a[aria-current="page"]');
+  if (!list || !tab || list.scrollWidth <= list.clientWidth) return;
+  const box = list.getBoundingClientRect();
+  const r = tab.getBoundingClientRect();
+  if (r.left >= box.left && r.right <= box.right) return;
+  list.scrollLeft += r.left - box.left - (box.width - r.width) / 2;
+}
+
 /** Print with every <details> open (hints, solutions), then restore. */
 function printDetails(): void {
   let opened: HTMLDetailsElement[] = [];
@@ -150,6 +174,7 @@ function printDetails(): void {
   });
 }
 
+currentTab();
 searchShortcut();
 countdowns();
 planDays();

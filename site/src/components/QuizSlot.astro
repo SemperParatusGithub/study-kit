@@ -31,6 +31,7 @@ const titles = Object.fromEntries(course.topics.map((t) => [t.id, t.title]));
   data-mode={mode}
   data-pools={JSON.stringify(pools)}
   data-topic-titles={JSON.stringify(titles)}
+  data-lang={course.lang}
   data-summary-base={route.summaries(course.id)}
   data-n={count}
   data-intro={intro ? undefined : 'false'}

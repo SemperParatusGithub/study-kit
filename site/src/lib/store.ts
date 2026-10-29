@@ -7,7 +7,8 @@
 // Keys
 //   studykit:v1:<course>          the progress document (schema studykit-progress/1)
 //   studykit:v1:<course>:session  runtime state that is never exported (a running exam's
-//                                 start time, its MC answers and rubric ticks)
+//                                 start time, its MC answers and rubric ticks; the hints
+//                                 of an exercise review that is not rated yet)
 //   studykit:theme                light | dark | system
 //
 // The document is exactly the export format that `studykit.model.Progress` validates:
@@ -19,12 +20,20 @@
 // Misconceptions are not stored: an MC item whose last attempt was sure and not fully
 // right is one (scoring.isMisconception), and Leitner has put it in box 0.
 //
+// Exercise attempts: `hints` counts the hints of one attempt, the one the rating belongs to
+// (or, before the first rating, the one under way), and more than HINT_CAP of them cap that
+// rating at "partial". Once a rated exercise has come up for review (its due day has come),
+// working on it again is a new attempt that starts without hints: until it is rated, its
+// hints are kept in the session state (exHints), and rating it stores them with the rating.
+//
 // Migrations run on every read: a document without `schema` (written before the schema
 // was versioned) is version 0; its attempts carried `sure: boolean` instead of `conf`.
-// Entries that do not validate are dropped, so an export always validates. A document
-// with a newer schema is read as far as possible but never written (read-only).
+// Entries that do not validate are dropped, so an export always validates: timestamps are
+// ISO 8601 (as datetime.fromisoformat reads them, not whatever Date.parse takes), counts
+// are safe integers. A document with a newer schema is read as far as possible but never
+// written (read-only).
 
-import { dayOf, ENTRY_BOX, isDay, review, type Conf, type Review } from './leitner.ts';
+import { dayOf, ENTRY_BOX, isDay, isDue, review, reviewDayOf, type Conf, type Review } from './leitner.ts';
 
 export const SCHEMA = 'studykit-progress/1';
 export const THEME_KEY = 'studykit:theme';
@@ -95,7 +104,20 @@ const RATINGS: readonly Rating[] = ['solved', 'partial', 'not-yet'];
 type Raw = Record<string, unknown>;
 const isObj = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-const isTime = (v: unknown): v is string => typeof v === 'string' && !Number.isNaN(Date.parse(v));
+const ISO_TIME_RE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
+
+/** `v` when it is an ISO 8601 date or date-time that both JS and Python read, else null. */
+function time(v: unknown): string | null {
+  if (typeof v !== 'string' || !ISO_TIME_RE.test(v) || !isDay(v.slice(0, 10))) return null;
+  return Number.isNaN(Date.parse(v.replace(' ', 'T'))) ? null : v;
+}
+
+/** A count or duration: a non-negative number rounded to a safe integer, or null. */
+function count(v: unknown, round: (x: number) => number = Math.round): number | null {
+  if (!isNum(v) || v < 0) return null;
+  const n = round(v);
+  return Number.isSafeInteger(n) ? n : null;
+}
 
 export function kindOf(key: string): 'mc' | 'ex' | 'exam' | 'plan' | null {
   const m = KEY_RE.exec(key);
@@ -115,29 +137,31 @@ function day(v: unknown): string | null {
 }
 
 function mcAttempt(v: unknown, version: number): McAttempt | null {
-  if (!isObj(v) || !isTime(v.t) || !Array.isArray(v.chosen)) return null;
+  const t = isObj(v) ? time(v.t) : null;
+  if (!isObj(v) || !t || !Array.isArray(v.chosen)) return null;
   const conf = version === 0 && typeof v.sure === 'boolean' ? (v.sure ? 'sure' : 'unsure') : v.conf;
   if (conf !== 'sure' && conf !== 'unsure') return null;
   if (!isNum(v.score) || v.score < 0 || v.score > 1) return null;
   const chosen = v.chosen.filter((c): c is string => typeof c === 'string' && CHOICE_RE.test(c));
   return {
-    t: v.t,
+    t,
     chosen,
     score: v.score,
     conf,
-    ms: isNum(v.ms) && v.ms >= 0 ? Math.round(v.ms) : 0,
+    ms: count(v.ms) ?? 0,
   };
 }
 
 function examAttempt(v: unknown): ExamAttempt | null {
-  if (!isObj(v) || !isTime(v.started) || !isObj(v.points) || !isNum(v.total) || v.total < 0) {
+  const started = isObj(v) ? time(v.started) : null;
+  if (!isObj(v) || !started || !isObj(v.points) || !isNum(v.total) || v.total < 0) {
     return null;
   }
   const points: Record<string, number> = {};
   for (const [k, p] of Object.entries(v.points)) if (isNum(p)) points[k] = p;
   return {
-    started: v.started,
-    duration_s: isNum(v.duration_s) && v.duration_s >= 0 ? Math.round(v.duration_s) : 0,
+    started,
+    duration_s: count(v.duration_s) ?? 0,
     points,
     total: v.total,
   };
@@ -157,7 +181,7 @@ export function sanitizeEntry(key: string, v: unknown, version = 1): Entry | nul
     case 'ex':
       return {
         h: hash(v.h),
-        hints: isNum(v.hints) && v.hints >= 0 ? Math.trunc(v.hints) : 0,
+        hints: count(v.hints, Math.trunc) ?? 0,
         answer_ok: typeof v.answer_ok === 'boolean' ? v.answer_ok : null,
         rating: RATINGS.includes(v.rating as Rating) ? (v.rating as Rating) : null,
         box: box(v.box),
@@ -200,7 +224,7 @@ export function migrate(raw: unknown, course: string): Migrated {
   const version = versionOf(raw.schema);
   if (version === null) return { doc: emptyDoc(course), from: 1, newer: false };
   const doc = emptyDoc(course);
-  if (isTime(raw.exported_at)) doc.exported_at = raw.exported_at;
+  doc.exported_at = time(raw.exported_at) ?? doc.exported_at;
   const items = isObj(raw.items) ? raw.items : {};
   for (const [key, value] of Object.entries(items)) {
     const entry = sanitizeEntry(key, value, version);
@@ -229,6 +253,22 @@ export function cappedRating(rating: Rating, hints: number): Rating {
 }
 
 const RATING_SCORE: Record<Rating, number> = { solved: 1, partial: 0.5, 'not-yet': 0 };
+
+/**
+ * A rated exercise has come up for review: its due day has come (also during the rest days
+ * before the exam, when nothing counts as due), or the exam clamp has made it due. Working on
+ * it now is a new attempt.
+ */
+export function reviewStarted(entry: ExEntry | undefined, today: string, examDate?: string | null): boolean {
+  if (!entry?.rating || !entry.due) return false;
+  return entry.due <= today || isDue(entry.due, reviewDayOf(entry.due, entry.box), today, examDate);
+}
+
+/** Session state of an exercise review that is not rated yet: the due day it answers. */
+interface ExReview {
+  due: string;
+  hints: number;
+}
 
 // Exercise entries have no time stamp, so the side whose review is due later stands for the
 // later self-assessment; its rating, box and due day are taken together (only rateEx sets
@@ -529,24 +569,50 @@ export class ProgressStore {
     })) as ExEntry;
   }
 
-  /**
-   * Self-assessment of an exercise; it also schedules the exercise for review. With more
-   * than HINT_CAP hints used, "solved" is stored as "partial".
-   */
-  rateEx(id: string, h: string | undefined, rating: Rating, when: When = {}): ExEntry {
-    const prev = this.get<ExEntry>(`ex:${id}`);
-    const capped = cappedRating(rating, prev?.hints ?? 0);
-    const r = review(prev?.box, RATING_SCORE[capped], 'unsure', when.today ?? dayOf(), when.examDate);
-    return this.updateEx(id, h, { rating: capped, box: r.box, due: r.due });
+  /** The open review of a rated exercise that has come up for review, else null. */
+  private openReview(id: string, entry: ExEntry | undefined, when: When): ExReview | null {
+    if (!entry?.due || !reviewStarted(entry, when.today ?? dayOf(), when.examDate)) return null;
+    const rec = this.session<Partial<ExReview>>(`ex:${id}`);
+    const hints = rec?.due === entry.due && isNum(rec.hints) && rec.hints >= 0 ? Math.trunc(rec.hints) : 0;
+    return { due: entry.due, hints };
   }
 
   /**
-   * `used` hints of an exercise are open; the stored count is the maximum ever used. When
-   * that passes HINT_CAP after the exercise was rated "solved", the rating becomes "partial"
-   * and the exercise is rescheduled as if it had been rated so.
+   * Hints used in the exercise's current attempt: those of its rating, or of the review under
+   * way once a rated exercise has come up for review (none until one is opened).
+   */
+  exHints(id: string, when: When = {}): number {
+    const entry = this.get<ExEntry>(`ex:${id}`);
+    return this.openReview(id, entry, when)?.hints ?? entry?.hints ?? 0;
+  }
+
+  /**
+   * Self-assessment of an exercise; it also schedules the exercise for review. With more
+   * than HINT_CAP hints used in this attempt, "solved" is stored as "partial".
+   */
+  rateEx(id: string, h: string | undefined, rating: Rating, when: When = {}): ExEntry {
+    const prev = this.get<ExEntry>(`ex:${id}`);
+    const open = this.openReview(id, prev, when);
+    const hints = open?.hints ?? prev?.hints ?? 0;
+    const capped = cappedRating(rating, hints);
+    const r = review(prev?.box, RATING_SCORE[capped], 'unsure', when.today ?? dayOf(), when.examDate);
+    if (open) this.setSession(`ex:${id}`, null);
+    return this.updateEx(id, h, { hints, rating: capped, box: r.box, due: r.due });
+  }
+
+  /**
+   * `used` hints of an exercise are open in this attempt; the count never goes down within
+   * it. In a review under way the count is kept in the session state until the rating.
+   * Otherwise, when it passes HINT_CAP after the exercise was rated "solved", the rating
+   * becomes "partial" and the exercise is rescheduled as if it had been rated so.
    */
   useHints(id: string, h: string | undefined, used: number, when: When = {}): ExEntry {
     const prev = this.get<ExEntry>(`ex:${id}`);
+    const open = this.openReview(id, prev, when);
+    if (prev && open) {
+      this.setSession(`ex:${id}`, { due: open.due, hints: Math.max(open.hints, used) } satisfies ExReview);
+      return prev;
+    }
     const hints = Math.max(prev?.hints ?? 0, used);
     const rating = prev?.rating ?? null;
     if (rating && cappedRating(rating, hints) !== rating) {
@@ -591,6 +657,9 @@ export class ProgressStore {
     const raw = parse(text);
     if (!isObj(raw) || versionOf(raw.schema) === null || !isObj(raw.items)) {
       return { ok: false, added: 0, merged: 0, message: 'This is not a study-kit progress file.' };
+    }
+    if (typeof raw.course !== 'string' || raw.course === '') {
+      return { ok: false, added: 0, merged: 0, message: 'This progress file names no course, so it cannot be imported.' };
     }
     if (raw.course !== this.course) {
       return {

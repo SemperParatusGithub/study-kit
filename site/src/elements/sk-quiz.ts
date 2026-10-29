@@ -1,9 +1,11 @@
 // <sk-quiz data-course data-mode="practice|test|mistakes|due|mixed" data-pools='["…json"]'
 //          data-topic-titles='{"id":"Title"}' data-summary-base="/c/<c>/summary/"
-//          [data-n="3"] [data-intro="false"] [data-frame="none"]>
+//          [data-lang="de"] [data-n="3"] [data-intro="false"] [data-frame="none"]>
 // (docs/architecture.md §3.2). data-n is the default number of questions; data-intro="false"
 // leaves out the mode title and description (the page already shows them); data-frame="none"
 // drops the start and result screens' own frame inside a box that is framed already.
+// data-lang is the language of the questions and topic titles (the course's); the quiz's
+// own text is English, also where the quiz sits in course content.
 //
 // Each pool URL returns {topic, questions:[{id, type, difficulty, topic, h, html}]}, html
 // being an <sk-mc> outerHTML. Modes:
@@ -35,6 +37,7 @@ import {
   examDate,
   excerpt,
   h,
+  langs,
   parseJson,
   percent,
   pts,
@@ -126,6 +129,8 @@ export class SkQuiz extends HTMLElement {
   /** Recounts the start screen (null while a quiz runs or shows its result). */
   private refreshStart: (() => void) | null = null;
   private unsubscribe: (() => void) | null = null;
+  /** lang for the questions and topic titles, when they are not in English. */
+  private content: string | undefined;
 
   private get course(): string {
     return this.dataset.course || courseOf(this);
@@ -161,6 +166,9 @@ export class SkQuiz extends HTMLElement {
       topics: topics.length ? topics : null,
       difficulty: difficulties(q.get('difficulty')),
     };
+    const lang = langs(this, this.dataset.lang);
+    this.content = lang.content;
+    if (lang.ui) this.screen.lang = lang.ui;
     this.replaceChildren(this.live, this.screen); // drop the no-JS fallback
     this.classList.add('sk-quiz-ready');
     this.addEventListener('sk:next', (e) => {
@@ -298,7 +306,8 @@ export class SkQuiz extends HTMLElement {
       ));
       if (topicBoxes.length > 1) {
         controls.push(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Topics'),
-          ...topicBoxes.map((b) => h('label', { class: 'sk-check-chip' }, b, h('span', {}, this.titles[b.value] ?? b.value)))));
+          ...topicBoxes.map((b) => h('label', { class: 'sk-check-chip' }, b,
+            h('span', { lang: this.content }, this.titles[b.value] ?? b.value)))));
       }
       if (levelBoxes.length > 1) {
         controls.push(h('fieldset', { class: 'sk-quiz-filter' }, h('legend', {}, 'Difficulty'),
@@ -327,6 +336,18 @@ export class SkQuiz extends HTMLElement {
           : null,
         form),
     );
+  }
+
+  /** Focus the start screen (its first usable control) after the result screen is gone. */
+  private focusStart(): void {
+    const start = this.screen.querySelector<HTMLElement>('.sk-quiz-start');
+    const control = [...this.screen.querySelectorAll<HTMLElement>('input, button')].find(
+      (el) => !el.closest('[hidden]') && !(el as HTMLInputElement | HTMLButtonElement).disabled,
+    );
+    const target = control ?? start;
+    if (!target) return;
+    if (target === start) start.tabIndex = -1;
+    target.focus();
   }
 
   private emptyText(available: number): string | null {
@@ -395,6 +416,8 @@ export class SkQuiz extends HTMLElement {
     el.setAttribute('data-retry', 'false'); // one answer per question; "Retry mistakes" comes at the end
     if (this.practiceRound) el.setAttribute('data-record', 'false');
     el.id ||= `q-${q.id}`;
+    // the question keeps its language when the result screen moves it into its review
+    if (this.content) el.setAttribute('lang', this.content);
     this.stage.replaceChildren(el);
     const mc = el as SkMc;
     this.items[this.index] = mc;
@@ -479,7 +502,7 @@ export class SkQuiz extends HTMLElement {
     const link = (topic: string) =>
       base
         ? h('a', { href: `${base.replace(/\/?$/, '/')}${topic}/` },
-            'Read', h('span', { class: 'sk-quiz-link-topic' }, ` “${titles[topic] ?? topic}”`))
+            'Read', h('span', { class: 'sk-quiz-link-topic' }, ' “', h('span', { lang: this.content }, titles[topic] ?? topic), '”'))
         : null;
     let total = 0;
     const byTopic = new Map<string, { score: number; n: number }>();
@@ -498,7 +521,7 @@ export class SkQuiz extends HTMLElement {
 
     const rows = [...byTopic].map(([topic, t]) =>
       h('tr', {},
-        h('th', { scope: 'row' }, titles[topic] ?? topic),
+        h('th', { scope: 'row', lang: this.content }, titles[topic] ?? topic),
         h('td', { class: 'sk-num' }, `${pts(t.score)} / ${t.n}`),
         h('td', { class: 'sk-quiz-bar-cell' },
           h('span', { class: 'sk-meter', role: 'img', 'aria-label': percent(t.score / t.n) },
@@ -518,7 +541,7 @@ export class SkQuiz extends HTMLElement {
         h('summary', {},
           h('span', { class: 'sk-quiz-item-icon', 'aria-hidden': 'true' }, icon),
           h('span', { class: 'sk-vh' }, `${verdict}: `),
-          h('span', { class: 'sk-quiz-item-text' }, excerpt(mc.querySelector('.sk-stem'), 90))),
+          h('span', { class: 'sk-quiz-item-text', lang: this.content }, excerpt(mc.querySelector('.sk-stem'), 90))),
         mc);
       if (!r?.correct) details.open = this.mode === 'test';
       review.append(h('li', { id: `review-${q.id}` }, details));
@@ -534,6 +557,7 @@ export class SkQuiz extends HTMLElement {
     again.addEventListener('click', () => {
       this.seed = randomSeed();
       this.renderStart();
+      this.focusStart();
     });
 
     const heading = h('h2', { class: 'sk-quiz-title', tabindex: '-1' }, 'Result');
@@ -554,7 +578,8 @@ export class SkQuiz extends HTMLElement {
         misconceptions.length
           ? h('ul', { class: 'sk-quiz-misconceptions' }, ...misconceptions.map((q) =>
               h('li', {},
-                h('a', { href: `#review-${q.id}` }, excerpt(this.items[this.list.indexOf(q)]?.querySelector('.sk-stem') ?? null, 100)),
+                h('a', { href: `#review-${q.id}`, lang: this.content },
+                  excerpt(this.items[this.list.indexOf(q)]?.querySelector('.sk-stem') ?? null, 100)),
                 base ? h('span', { class: 'sk-quiz-mis-topic' }, link(q.topic)) : null)))
           : h('p', { class: 'sk-quiz-none' }, 'None: no answer was both sure and wrong.'),
         h('div', { class: 'sk-quiz-actions' }, again, retry),

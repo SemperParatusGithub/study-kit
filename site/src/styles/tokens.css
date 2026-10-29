@@ -46,9 +46,9 @@
     0 2px 8px light-dark(rgb(31 35 40 / 0.04), rgb(0 0 0 / 0.25));
 
   /* feedback (always paired with text or an icon, never colour alone) */
-  --ok: light-dark(#1a7f37, #56d364);
+  --ok: light-dark(#197c35, #56d364);
   --ok-soft: light-dark(#e6f4ea, #1a2e22);
-  --warn: light-dark(#9a6700, #e3b341);
+  --warn: light-dark(#966400, #e3b341);
   --warn-soft: light-dark(#fff4d6, #2e2714);
   --bad: light-dark(#cf222e, #ff7b72);
   --bad-soft: light-dark(#ffebe9, #3a1d1f);
@@ -62,7 +62,7 @@
   --box-example-bg: light-dark(#eaf6f3, #15292a);
   --box-note: light-dark(#57606a, #a1aab4);
   --box-note-bg: light-dark(#f2f3f1, #20252c);
-  --box-warning: light-dark(#b35900, #f0a457);
+  --box-warning: light-dark(#ad5600, #f0a457);
   --box-warning-bg: light-dark(#fff3e6, #2f2216);
   --box-takeaways: light-dark(#1a7f37, #56d364);
   --box-takeaways-bg: light-dark(#ebf6ee, #182a1f);

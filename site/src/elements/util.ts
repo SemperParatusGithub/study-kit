@@ -43,6 +43,30 @@ export function storeOf(el: Element): ProgressStore {
   return storeFor(courseOf(el));
 }
 
+const ENGLISH = /^en(?:-|$)/i;
+
+/** The language `el` is in: its nearest lang attribute, else the page's. */
+export function langOf(el: Element): string {
+  return el.closest('[lang]')?.getAttribute('lang') || document.documentElement.lang || '';
+}
+
+/**
+ * Languages for what an element generates (§3.2: the UI is English, content follows the
+ * course), as values for h() attributes, where undefined adds nothing:
+ *   ui       "en" when the element sits in another language, for its English UI text;
+ *   content  that language, for course text placed inside the UI (titles, labels).
+ * `lang` overrides the language of the content (a quiz in an English box shows course
+ * questions).
+ */
+export function langs(el: Element, lang?: string): { ui: string | undefined; content: string | undefined } {
+  const here = langOf(el);
+  const course = lang || here;
+  return {
+    ui: here && !ENGLISH.test(here) ? 'en' : undefined,
+    content: course && !ENGLISH.test(course) ? course : undefined,
+  };
+}
+
 /** <body data-exam-date="YYYY-MM-DD"> or null when empty or invalid. */
 export function examDate(): string | null {
   const v = document.body?.dataset.examDate ?? '';

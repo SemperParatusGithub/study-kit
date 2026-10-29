@@ -23,7 +23,7 @@ const en = course.lang === 'en' ? undefined : 'en';
     <span class="badge">{SESSION_KIND[session.kind] ?? session.kind}</span>
     <span class="muted">{formatMinutes(session.minutes)}</span>
   </p>
-  {session.goal && <p class="session-goal">{session.goal}</p>}
+  {session.goal && <p class="session-goal" lang={course.lang}>{session.goal}</p>}
   {
     tasks.length > 0 && (
       <ul class="session-tasks" lang={en}>

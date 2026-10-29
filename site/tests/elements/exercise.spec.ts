@@ -79,6 +79,35 @@ test('self-assessment: hints opened after "Solved" cap it at Partly', async ({ p
   await expect(partly).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('a review on a later day is a new attempt: hints closed, Solved allowed again', async ({ page }) => {
+  const assess = page.locator('sk-self-assess');
+  const solved = assess.getByRole('button', { name: 'Solved' });
+  const details = page.locator('sk-hints details.sk-hint');
+  await page.clock.setFixedTime(new Date('2026-11-23T10:00:00+01:00'));
+  await page.reload();
+  await page.getByRole('button', { name: 'Show hint 1 of 2' }).click();
+  await page.getByRole('button', { name: 'Show hint 2 of 2' }).click();
+  await assess.getByRole('button', { name: 'Partly' }).click();
+  expect((await progress(page)).items[ITEM]).toMatchObject({ hints: 2, rating: 'partial', box: 1, due: '2026-11-24' });
+
+  // the next day the exercise is due: a new attempt without the hints of the last one
+  await page.clock.setFixedTime(new Date('2026-11-24T10:00:00+01:00'));
+  await page.reload();
+  await expect(details.nth(0)).toBeHidden();
+  await expect(details.nth(1)).toBeHidden();
+  await expect(solved).toHaveAttribute('aria-disabled', 'false');
+  await expect(assess.locator('.sk-assess-note')).toBeHidden();
+  await page.getByRole('button', { name: 'Show hint 1 of 2' }).click();
+  // the hint of this attempt stays open after a reload and still allows Solved
+  await page.reload();
+  await expect(details.nth(0)).toBeVisible();
+  await expect(details.nth(1)).toBeHidden();
+  await expect(page.locator('sk-hints .sk-hints-status')).toHaveText('1 of 2 hints used.');
+  await solved.click();
+  await expect(assess.locator('.sk-assess-status')).toHaveText('Saved: Solved, review again in 3 days.');
+  expect((await progress(page)).items[ITEM]).toMatchObject({ hints: 1, rating: 'solved', box: 2, due: '2026-11-27' });
+});
+
 test('self-assessment without hints: Solved schedules a later review', async ({ page }) => {
   const assess = page.locator('sk-self-assess');
   await assess.getByRole('button', { name: 'Solved' }).click();

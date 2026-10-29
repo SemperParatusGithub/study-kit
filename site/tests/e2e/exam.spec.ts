@@ -15,6 +15,9 @@ async function clockSeconds(page: Page): Promise<number> {
 test('the timer survives a reload; submitting shows solutions, rubrics and the scored MC part', async ({ page }) => {
   page.on('dialog', (d) => void d.accept()); // leaving a running exam asks first (beforeunload)
   await freezeDay(page);
+  // Page time stands still: it moves only with fastForward, so the clock checks below do
+  // not depend on how fast this machine answers the MC part.
+  await page.clock.pauseAt(new Date(NOW.getTime() + 1000));
   await page.goto(`${C}/exams/${EXAM}/`);
   await elementsReady(page);
   const exam = page.locator('sk-exam');
@@ -144,4 +147,74 @@ test('the timer survives a reload; submitting shows solutions, rubrics and the s
   await page.reload();
   await expect(exam.locator('.sk-exam-result').getByRole('heading', { name: 'Result' })).toBeVisible();
   await expect(rubrics.first().getByRole('checkbox').first()).toBeChecked();
+});
+
+test('keyboard: focus moves to the first task on Start and back to Submit after Escape', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept());
+  await freezeDay(page);
+  await page.goto(`${C}/exams/${EXAM}/`);
+  await elementsReady(page);
+  const exam = page.locator('sk-exam');
+  await exam.getByRole('button', { name: 'Start exam' }).focus();
+  await page.keyboard.press('Enter');
+  const firstHeading = exam.locator('section.sk-exam-task').first().getByRole('heading').first();
+  await expect(firstHeading).toBeFocused();
+
+  // while the exam runs, a control that gets focus is scrolled below the sticky head
+  const head = await exam.locator('.sk-exam-head').evaluate((el) => el.getBoundingClientRect().height);
+  const padding = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop));
+  expect(padding).toBeGreaterThanOrEqual(head);
+
+  const submit = exam.getByRole('button', { name: 'Submit', exact: true });
+  await submit.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Submit the exam?' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(submit).toBeFocused();
+
+  // submitted: the page's own scroll padding is back
+  await submit.click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(exam.locator('.sk-exam-result').getByRole('heading', { name: 'Result' })).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.style.scrollPaddingTop)).toBe('');
+});
+
+test('two tabs: a submission in one is never undone by the other, rubric ticks reach both', async ({ page, context }) => {
+  page.on('dialog', (d) => void d.accept());
+  await freezeDay(page);
+  await page.goto(`${C}/exams/${EXAM}/`);
+  await elementsReady(page);
+  await page.getByRole('button', { name: 'Start exam' }).click();
+  await expect(page.locator('.sk-exam-clock')).not.toBeEmpty();
+
+  // the same exam in a second tab resumes the running session
+  const other = await context.newPage();
+  other.on('dialog', (d) => void d.accept());
+  await freezeDay(other);
+  await other.goto(`${C}/exams/${EXAM}/`);
+  await expect(other.locator('.sk-exam-clock')).not.toBeEmpty();
+
+  const stored = (p: typeof page) =>
+    p.evaluate(([key, id]) => JSON.parse(localStorage.getItem(key) ?? '{}')[`exam:${id}`], [SESSION_KEY, EXAM] as const);
+  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  const submitted = (await stored(page)).submitted as string;
+  expect(submitted).toBeTruthy();
+
+  // the other tab follows at once and its later saves keep the submission
+  await expect(other.locator('.sk-exam-result').getByRole('heading', { name: 'Result' })).toBeVisible();
+  await other.clock.runFor(12_000);
+  expect((await stored(page)).submitted).toBe(submitted);
+
+  // a rubric tick in one tab shows in the other and survives its ticks
+  await page.locator('fieldset.sk-rubric').first().getByRole('checkbox').first().check();
+  await expect(other.locator('fieldset.sk-rubric').first().getByRole('checkbox').first()).toBeChecked();
+  await other.locator('fieldset.sk-rubric').nth(1).getByRole('checkbox').first().check();
+  const ticks = (await stored(page)).rubric as Record<string, number[]>;
+  expect(Object.values(ticks).filter((t) => t.length > 0)).toHaveLength(2);
+
+  await page.reload();
+  await expect(page.locator('.sk-exam-result').getByRole('heading', { name: 'Result' })).toBeVisible();
+  await other.close();
 });
