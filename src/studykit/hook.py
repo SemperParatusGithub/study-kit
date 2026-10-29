@@ -429,7 +429,12 @@ def repo_root(where: Path) -> Path:
 def course_path(arg: str, where: Path) -> bool:
     """True if a git path argument points into courses/ (README.md excepted)."""
     root = repo_root(where)
-    text = arg.split(")", 1)[-1] if arg.startswith(":(") else arg.lstrip(":/")
+    if arg.startswith(":("):
+        text = arg.split(")", 1)[-1]
+    elif arg.startswith(":"):  # short magic: ":/x" is x from the top
+        text = arg.lstrip(":/")
+    else:  # a plain path, absolute ones included
+        text = arg
     path = _resolve(text, where) if not arg.startswith((":/", ":(top)")) else root / text
     try:
         rel = path.relative_to(root).as_posix()

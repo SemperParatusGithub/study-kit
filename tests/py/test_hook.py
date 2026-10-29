@@ -296,6 +296,18 @@ def test_pre_git_allows(repo: Path, command: str):
     assert decide("pre-git", event("Bash", repo, command=command)) is None, command
 
 
+def test_pre_git_sees_absolute_course_paths(repo: Path):
+    path = repo / C / "course.yaml"
+    for command in (
+        f"git add {path}",
+        f"git commit -m 'feat: x' {path}",
+        f"git add {repo}/courses",
+    ):
+        assert decide("pre-git", event("Bash", repo, command=command)), command
+    readme = f"git add {repo}/courses/README.md"
+    assert decide("pre-git", event("Bash", repo, command=readme)) is None
+
+
 def test_pre_git_sees_course_files_already_staged(repo: Path):
     subprocess.run(["git", "-C", str(repo), "add", "-f", f"{C}/course.yaml"], check=True)
     reason = decide("pre-git", event("Bash", repo, command="git commit -m 'chore: x'"))
