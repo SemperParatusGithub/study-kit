@@ -421,6 +421,8 @@ def test_check_problems_leave_the_item_unverified(course: Path):
         "import time; time.sleep(5)": "did not finish within 0.5 s",
         "from studykit.check import answers\nanswers(tau=103.4)": "computes no value for 'fg'",
         "from studykit.check import mc_answer\nmc_answer(['A'])": "needs answers(...) or",
+        # agreeing is no check of an item with keys: every key needs a computed value
+        "from studykit.check import review\nreview(True, 'looks fine')": "has answer keys",
     }
     for code, message in cases.items():
         write_check(course, "ex-rc-tp-grenzfrequenz.py", code + "\n")

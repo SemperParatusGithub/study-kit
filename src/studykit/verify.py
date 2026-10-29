@@ -482,6 +482,12 @@ def _compare_answers(item: VItem, data: Mapping[str, Any], out: Outcome) -> None
     if data.get("kind") not in (None, "answers", "review"):
         out.errors.append(f"an exercise needs answers(...) or review(...), not {data['kind']}")
         return
+    if data.get("kind") == "review" and keys:
+        # review(...) is for an item without keys; agreeing must not stand in for computing
+        out.errors.append(
+            "the item has answer keys; end the check with answers(...), one value per key"
+        )
+        return
     if isinstance(data.get("agree"), bool):
         reason = str(data.get("reason") or "")
         out.results.append(
@@ -502,8 +508,7 @@ def _compare_answers(item: VItem, data: Mapping[str, Any], out: Outcome) -> None
     computed = _computed_values(data)
     for answer in keys:
         if answer.key not in computed:
-            if data.get("kind") != "review":
-                out.errors.append(f"the check computes no value for '{answer.key}'")
+            out.errors.append(f"the check computes no value for '{answer.key}'")
             continue
         value = computed[answer.key]
         if answer.expr is not None:

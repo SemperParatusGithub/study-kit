@@ -725,7 +725,8 @@ studykit verify <course> [target] [--status | --confirm FILE [--method …] | --
   line the runner reads from the end of its output: `answers(**values)` (numbers in the
   key's unit, `quantity(x, "kHz")` in another unit of the same kind, SymPy expressions for
   symbolic keys), `mc_answer(letters)`, `mc_numeric(…)` (§2.6) or `review(agree, reason)`
-  for an item without keys. `verify-protocol/recipes.md` (§5.2) has worked recipes.
+  for an item without keys (on an item with keys, `review` is a check error).
+  `verify-protocol/recipes.md` (§5.2) has worked recipes.
 - Exercises and exam tasks compare every `answers` key: numbers within `atol + rtol·|value|`
   (SI prefixes convert; `rad/s` and `1/s` count as the same unit), expressions by SymPy
   simplification, then at sample points. MC questions compare the set of correct letters
