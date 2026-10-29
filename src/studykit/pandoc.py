@@ -25,6 +25,7 @@ READER = "commonmark_x-smart-raw_html-raw_attribute-yaml_metadata_block-alerts-e
 
 Target = Literal["html", "typst", "json"]
 Solutions = Literal["inline", "appendix", "none"]
+Scope = Literal["course", "file"]
 
 # Target name -> defaults file in pandoc/defaults/ (combined with common.yaml).
 DEFAULTS: dict[str, str] = {"html": "web", "typst": "typst", "json": "json"}
@@ -114,6 +115,7 @@ class Document:
     index: Path  # absolute path of courses/<c>/_build/index.json
     solutions: Solutions = "appendix"  # Typst only
     figdir: Path | None = None  # Typst only: absolute directory of the built figures
+    scope: Scope = "course"  # "file": do not report link or figure targets the index lacks
 
 
 def defaults_dir(root: Path | None = None) -> Path:
@@ -139,6 +141,8 @@ def argv(doc: Document, target: Target, *, root: Path | None = None) -> list[str
         "-M",
         f"sk-file={doc.file}",
     ]
+    if doc.scope != "course":
+        args += ["-M", f"sk-scope={doc.scope}"]
     if target == "typst":
         args += ["-M", f"sk-solutions={doc.solutions}"]
         if doc.figdir is not None:
@@ -182,6 +186,7 @@ def course_document(
     index: Path | None = None,
     solutions: Solutions = "appendix",
     figdir: Path | None = None,
+    scope: Scope = "course",
 ) -> Document:
     """The Document for a file of a course tree, with course id and language from the index."""
     index = (index or course_dir / "_build" / "index.json").resolve()
@@ -193,6 +198,7 @@ def course_document(
         index=index,
         solutions=solutions,
         figdir=(figdir or course_dir / "_build" / "figures").resolve(),
+        scope=scope,
     )
 
 
@@ -204,9 +210,12 @@ def run_filtered(
     index: Path | None = None,
     solutions: Solutions = "appendix",
     figdir: Path | None = None,
+    scope: Scope = "course",
     root: Path | None = None,
 ) -> str:
     """Convert `course_dir/relpath` for `target` (html fragment, typst source or json AST)."""
-    doc = course_document(course_dir, relpath, index=index, solutions=solutions, figdir=figdir)
+    doc = course_document(
+        course_dir, relpath, index=index, solutions=solutions, figdir=figdir, scope=scope
+    )
     body = blank_frontmatter((course_dir / relpath).read_text(encoding="utf-8"))
     return convert(body, doc, target, root=root)

@@ -54,7 +54,7 @@ function M.block(img, ctx, W)
   if not slug:match(SLUG) then
     ctx:fail('SK-FIG', 'figure slug `' .. slug .. '` is not kebab-case ASCII', 'rename the figure script')
   elseif ctx:require_index() and not ctx.index.figure_set[slug] then
-    ctx:fail('SK-FIG', 'unknown figure `' .. slug .. '`', 'add figures/' .. slug .. '.py or fix the slug')
+    ctx:fail_target('SK-FIG', 'unknown figure `' .. slug .. '`', 'add figures/' .. slug .. '.py or fix the slug')
   end
   if #W.flatten(img.caption) == 0 then
     ctx:fail('SK-FIG', 'figure `' .. slug .. '` has no caption', 'write ![Caption, doubles as alt text](fig:' .. slug .. ')')

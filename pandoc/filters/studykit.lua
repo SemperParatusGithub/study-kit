@@ -12,6 +12,8 @@
 --   sk-file       course-relative path of the source file; decides the file kind
 --   sk-solutions  typst only: inline | appendix | none (default appendix)
 --   sk-figdir     typst only: absolute directory of the built figures
+--   sk-scope      course (default) | file: with file, link and figure targets missing
+--                 from the index are not reported (the quick lint of one edited file)
 --
 -- Findings are collected over the whole document and printed to stderr, one per line,
 --   <sk-file>:<line>:<col> SK-CODE message (fix: …)
@@ -92,6 +94,7 @@ function Ctx.new(doc)
   self.index_path = meta_string(m, 'sk-index')
   self.figdir = meta_string(m, 'sk-figdir')
   self.solutions = meta_string(m, 'sk-solutions') or 'appendix'
+  self.scope = meta_string(m, 'sk-scope') or 'course'
   self.pos = nil
   self.errors = {}
   self.seen_errors = {}
@@ -123,6 +126,10 @@ function Ctx.new(doc)
   if not i18n.languages[self.lang] then
     self:fail('SK-STRUCT', 'unsupported language ' .. self.lang, 'set course.lang to de or en')
     self.lang = 'en'
+  end
+  if self.scope ~= 'course' and self.scope ~= 'file' then
+    self:fail('SK-STRUCT', 'sk-scope must be course or file', 'fix the pandoc argv')
+    self.scope = 'course'
   end
   if not ({ inline = true, appendix = true, none = true })[self.solutions] then
     self:fail('SK-STRUCT', 'sk-solutions must be inline, appendix or none', 'fix the pandoc argv')
@@ -187,6 +194,14 @@ end
 
 function Ctx:t(key)
   return i18n.t(self.lang, key)
+end
+
+--- Record a finding about a target that depends on other files (an id the index lacks).
+--- With sk-scope=file the target may simply not be written yet, so it is not reported.
+function Ctx:fail_target(code, message, fix)
+  if self.scope == 'course' then
+    self:fail(code, message, fix)
+  end
 end
 
 --- Record a finding. `pos` defaults to the innermost source position seen so far.

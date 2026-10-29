@@ -553,6 +553,23 @@ def test_source_link_without_a_page_opens_the_pdf(workdir):
     assert 'href="/c/rc-netzwerke/src/vl-05.pdf"' in html
 
 
+def test_file_scope_skips_targets_the_index_lacks(workdir):
+    """The quick lint of one edited file: links to parts not written yet are not errors."""
+    body = (
+        "Siehe [später](ex:ex-noch-nicht-da), [Thema](topic:kommt-noch) und"
+        " [Folie](src:vl-99#p=3).\n\n![Bild](fig:kommt-noch)\n\nKaputt: [x](ex:Nicht_Kebab).\n"
+    )
+    doc = dataclasses.replace(document("summary/02-rc-filter.md", workdir), scope="file")
+    assert pandoc.argv(doc, "json")[-2:] == ["-M", "sk-scope=file"]
+    with pytest.raises(pandoc.FilterError) as info:
+        pandoc.convert(body, doc, "json")
+    assert len(info.value.findings) == 1
+    assert "malformed link target `ex:Nicht_Kebab`" in info.value.findings[0]
+    with pytest.raises(pandoc.FilterError) as info:
+        pandoc.convert(body, dataclasses.replace(doc, scope="course"), "json")
+    assert len(info.value.findings) == 5
+
+
 def test_typst_figure_paths_are_relative_to_the_typst_root(workdir, tmp_path):
     body = "Text.\n\n![Bode-Diagramm](fig:rc-bode)\n"
     typ = pandoc.convert(body, document("summary/02-rc-filter.md", workdir), "typst")

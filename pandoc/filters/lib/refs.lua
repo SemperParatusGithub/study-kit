@@ -25,6 +25,10 @@ function M.resolve(scheme, rest, ctx)
     ctx:fail('SK-REF', message, fix)
     return nil
   end
+  local function missing(message, fix)
+    ctx:fail_target('SK-REF', message, fix)
+    return nil
+  end
   local idx = ctx:require_index()
   if not idx then
     return nil
@@ -35,7 +39,7 @@ function M.resolve(scheme, rest, ctx)
     local doc, frag = rest:match('^([^#]*)#?(.*)$')
     local source = idx.sources[doc]
     if type(source) ~= 'table' then
-      return fail('unknown source document `' .. doc .. '`', 'use a document id from sources/manifest.yaml')
+      return missing('unknown source document `' .. doc .. '`', 'use a document id from sources/manifest.yaml')
     end
     local page
     if frag ~= '' then
@@ -46,7 +50,7 @@ function M.resolve(scheme, rest, ctx)
       local pages = tonumber(source.pages)
       pages = pages and (math.tointeger(pages) or pages)
       if page < 1 or (pages and page > pages) then
-        return fail(
+        return missing(
           string.format('page %d of `%s` does not exist (%s pages)', page, doc, tostring(pages)),
           'fix the page number'
         )
@@ -65,13 +69,13 @@ function M.resolve(scheme, rest, ctx)
   if scheme == 'topic' then
     local topic = idx.topics[rest]
     if type(topic) ~= 'table' then
-      return fail('unknown topic `' .. rest .. '`', 'use a topic id from course.yaml')
+      return missing('unknown topic `' .. rest .. '`', 'use a topic id from course.yaml')
     end
     return { route = base .. 'summary/' .. rest .. '/', title = topic.title or rest }
   elseif scheme == 'exam' then
     local exam = idx.exams[rest]
     if type(exam) ~= 'table' then
-      return fail('unknown exam `' .. rest .. '`', 'use an exam id from exams/<id>/exam.yaml')
+      return missing('unknown exam `' .. rest .. '`', 'use an exam id from exams/<id>/exam.yaml')
     end
     return { route = base .. 'exams/' .. rest .. '/', title = exam.title or rest, anchor = rest }
   end
@@ -79,9 +83,9 @@ function M.resolve(scheme, rest, ctx)
   local item = idx.items[rest]
   local want = scheme == 'ex' and 'exercise' or 'mc'
   if type(item) ~= 'table' then
-    return fail('unknown ' .. (scheme == 'ex' and 'exercise' or 'question') .. ' `' .. rest .. '`', 'check the id')
+    return missing('unknown ' .. (scheme == 'ex' and 'exercise' or 'question') .. ' `' .. rest .. '`', 'check the id')
   elseif item.kind ~= want then
-    return fail(
+    return missing(
       string.format(
         '`%s:%s` has kind %s, but %s: links need %s',
         scheme,
@@ -101,7 +105,7 @@ function M.resolve(scheme, rest, ctx)
   if exam then
     local info = idx.exams[exam]
     local exam_title = type(info) == 'table' and type(info.title) == 'string' and info.title or exam
-    return fail(
+    return missing(
       'question `' .. rest .. '` belongs to exam `' .. exam .. '`, not to a practice bank',
       'link the exam instead: [' .. exam_title .. '](exam:' .. exam .. ')'
     )
