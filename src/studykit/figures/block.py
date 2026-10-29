@@ -4,9 +4,11 @@
     block.chain(['G_1(s)', 'G_2(s)'], signals=['U(s)', None, 'Y(s)'])
     block.parallel(['G_1(s)', 'G_2(s)'], signals=['U(s)', 'Y(s)'], signs='+-')
 
-Labels are TeX math without dollars (`'G_R(s)'`); text that already contains `$` is used
-as is. The overall transfer function is computed with SymPy from the drawn structure
-and recorded in the facts, so a figure and its caption cannot disagree.
+Labels follow one rule in every diagram template (`label()`): TeX math without dollars
+(`'G_R(s)'`, `'1 + sT_V'`), plain words (`'Regler'`, set upright), or text with inline
+`$…$`. The overall transfer function is computed with SymPy from the drawn structure and
+recorded in the facts (TeX and plain text, sums in parentheses), so a figure and its
+caption cannot disagree.
 
 This module also holds the small diagram toolkit that `graph.py` builds on: text
 measurement in drawing units and `Sheet`, which renders a schemdraw `Drawing` at a fixed
@@ -29,6 +31,7 @@ from matplotlib.figure import Figure as MplFigure
 from matplotlib.transforms import Bbox
 from schemdraw import dsp
 from schemdraw.segments import SegmentText
+from sympy.printing.str import StrPrinter
 
 from studykit.figures import core
 from studykit.figures.palette import FG
@@ -76,17 +79,49 @@ def text_size(
     return bb.width / UNIT_PT, bb.height / UNIT_PT
 
 
-def tex(label: str) -> str:
-    """A TeX label as Matplotlib mathtext: wrap in dollars unless it already has some."""
-    label = label.strip()
-    if not label or "$" in label:
-        return label
-    return f"${core.localize_tex(label)}$"
+WORD = re.compile(r"[^\W\d_]{3,}[?!.,:;]*")  # a run of 3+ letters standing alone
 
 
-def plain(label: str) -> str:
-    """Label text for alt text: TeX without dollars."""
-    return label.replace("$", "").strip()
+def localize_text(text: str) -> str:
+    """Decimal comma in plain German text: 0.5 -> 0,5 (math uses `core.localize_tex`)."""
+    return re.sub(r"(\d)\.(\d)", r"\1,\2", text) if core.locale() == "de" else text
+
+
+def _localize_mixed(text: str) -> str:
+    parts = text.split("$")
+    return "$".join(
+        core.localize_tex(p) if i % 2 else localize_text(p) for i, p in enumerate(parts)
+    )
+
+
+def label(text: str, math: bool = True) -> tuple[str, bool]:
+    """How a diagram label is set: (Matplotlib text, parse_math). One rule for all diagrams.
+
+    - with `$`: text with inline math, as written ('Ausgabe $s$');
+    - with a word, i.e. three or more letters standing alone ('Regler', 'n gerade?'):
+      plain upright text;
+    - with `_`, `^` or a backslash: TeX math ('G_R(s)', 'x_k > 0.5?');
+    - anything else ('K', 'G(s)', '1 + sT', 'S0', '1/0'): math when `math` is true (block
+      diagrams), plain text otherwise (states, transitions, flowchart boxes).
+
+    German figures get a decimal comma everywhere: 0,5 in text and 0{,}5 in math.
+    """
+    text = str(text).strip()
+    if not text:
+        return "", False
+    if "$" in text:
+        return _localize_mixed(text), True
+    if any(WORD.fullmatch(token) for token in text.split()):
+        return localize_text(text), False
+    if math or any(ch in text for ch in "_^\\"):
+        return f"${core.localize_tex(text)}$", True
+    return localize_text(text), False
+
+
+def plain(text: str, math: bool = True) -> str:
+    """Label text for alt text: as shown, without dollars, with the locale's decimal sign."""
+    shown, _ = label(text, math)
+    return localize_text(shown.replace("$", "").replace("{,}", ",")).strip()
 
 
 @dataclass
@@ -225,30 +260,38 @@ JUNCTIONS = ("circle", "plus", "sigma")
 SIGNS = ("+", "-")
 
 
-def _display(label: str) -> str:
-    """Block text as mathtext; fractions at full size (\\frac -> \\dfrac)."""
-    return re.sub(r"\\frac(?![a-z])", r"\\dfrac", tex(label))
+def _display(text: str) -> tuple[str, bool]:
+    """Block text; fractions in math at full size (\\frac -> \\dfrac)."""
+    shown, math = label(text)
+    return (re.sub(r"\\frac(?![a-z])", r"\\dfrac", shown) if math else shown), math
 
 
-def _block_size(label: str) -> tuple[float, float]:
-    w, h = text_size(_display(label), FONT_PT)
+def _block_size(text: str) -> tuple[float, float]:
+    shown, math = _display(text)
+    w, h = text_size(shown, FONT_PT, math=math)
     return max(w + 2 * PAD_X, BLOCK_MIN_W), max(h + 2 * PAD_Y, BLOCK_MIN_H)
 
 
 SIGN_ROOM = 0.45  # extra length of a link that touches a junction, for the input sign
 
 
-def _link_len(label: str | None, junction_end: bool = False) -> float:
+def _link_len(name: str | None, junction_end: bool = False) -> float:
     extra = SIGN_ROOM if junction_end else 0.0
-    if not label:
+    if not name:
         return GAP_MIN + extra
-    return max(GAP_MIN, text_size(tex(label), LABEL_PT)[0] + 0.6) + extra
+    shown, math = label(name)
+    return max(GAP_MIN, text_size(shown, LABEL_PT, math=math)[0] + 0.6) + extra
 
 
-def _block(sheet: Sheet, center: tuple[float, float], w: float, h: float, label: str):
-    return sheet.add(
-        dsp.Box(w=w, h=h).at(center).anchor("center").label(_display(label), fontsize=FONT_PT)
-    )
+def _block(sheet: Sheet, center: tuple[float, float], w: float, h: float, text: str):
+    sheet.add(dsp.Box(w=w, h=h).at(center).anchor("center"))
+    shown, math = _display(text)
+    sheet.text(center, shown, size=FONT_PT, math=math)
+
+
+def _name(sheet: Sheet, xy: tuple[float, float], name: str, va: str) -> None:
+    shown, math = label(name)
+    sheet.text(xy, shown, va=va, math=math)
 
 
 def _junction(sheet: Sheet, center: tuple[float, float], style: str):
@@ -287,7 +330,7 @@ def _signal(
     if label:
         x1 -= SIGN_ROOM if into_junction else 0.0
         x0 += SIGN_ROOM if from_junction else 0.0
-        sheet.text(((x0 + x1) / 2, y + LABEL_LIFT), tex(label), va="bottom")
+        _name(sheet, ((x0 + x1) / 2, y + LABEL_LIFT), label, va="bottom")
 
 
 def _check_sign(sign: str) -> str:
@@ -297,15 +340,76 @@ def _check_sign(sign: str) -> str:
     return sign
 
 
+@dataclass(frozen=True)
+class _Term:
+    """A block label as a factor of a formula: TeX for facts, plain text for alt text."""
+
+    tex: str  # words in \\text{}, German decimal comma as {,}; sums in \\left(...\\right)
+    text: str  # the same for alt text: (1 + sT_V)
+    shown: str  # as in the drawing, without dollars (facts["symbols"])
+    words: bool  # has text outside math, so products get an explicit \\cdot
+
+
+def _text_tex(text: str) -> str:
+    return r"\text{" + re.sub(r"([_%&#])", r"\\\1", text) + "}" if text else ""
+
+
+def _needs_parens(tex_: str) -> bool:
+    """True for a sum, difference, quotient or equation outside any bracket ('1 + sT')."""
+    depth = 0
+    for ch in tex_:
+        if ch in "({[":
+            depth += 1
+        elif ch in ")}]":
+            depth -= 1
+        elif depth == 0 and ch in "+-/=<>":
+            return True
+    return False
+
+
+def _term(text: str) -> _Term:
+    shown, math = label(text)
+    parts = shown.split("$") if math else [shown]
+    math_parts = parts[1::2]
+    tex_ = "".join(p if i % 2 else _text_tex(p) for i, p in enumerate(parts))
+    alt = plain(text)
+    if any(_needs_parens(p) for p in math_parts):
+        tex_, alt = rf"\left({tex_}\right)", f"({alt})"
+    words = any(p.strip() for p in parts[0::2])
+    return _Term(tex_, alt, shown.replace("$", ""), words)
+
+
+class _TextPrinter(StrPrinter):
+    """sstr with each block symbol printed as its label: one pass, nothing replaced in text."""
+
+    def __init__(self, terms: Mapping[sp.Symbol, _Term]) -> None:
+        super().__init__()
+        self._terms = terms
+
+    def _print_Symbol(self, expr: sp.Symbol) -> str:
+        term = self._terms.get(expr)
+        return term.text if term else expr.name
+
+
 def _symbols(prefix: str, labels: Sequence[str]) -> tuple[list[sp.Symbol], dict]:
     syms = [sp.Symbol(f"{prefix}{i + 1}") for i in range(len(labels))]
-    names = {s: core.localize_tex(plain(lbl)) for s, lbl in zip(syms, labels, strict=True)}
-    return syms, names
+    return syms, {s: _term(lbl) for s, lbl in zip(syms, labels, strict=True)}
 
 
-def _expr_facts(expr: sp.Expr, names: dict) -> dict:
+def _expr_facts(expr: sp.Expr, terms: Mapping[sp.Symbol, _Term]) -> dict:
+    """The expression in block symbols, as TeX and as text in the block labels."""
     expr = sp.factor(sp.cancel(expr))
-    return {"expr": str(expr), "latex": sp.latex(expr, symbol_names=names)}
+    names = {s: t.tex for s, t in terms.items()}
+    dot = "dot" if any(t.words for s, t in terms.items() if s in expr.free_symbols) else None
+    return {
+        "expr": str(expr),
+        "latex": sp.latex(expr, symbol_names=names, mul_symbol=dot),
+        "text": _TextPrinter(terms).doprint(expr),
+    }
+
+
+def _symbol_facts(terms: Mapping[sp.Symbol, _Term]) -> dict[str, str]:
+    return {str(s): t.shown for s, t in terms.items()}
 
 
 # ---------------------------------------------------------------------------------------
@@ -360,6 +464,8 @@ def feedback_loop(
     a list of n-1 names), 'y' output, 'm' fed-back signal (optional).
     feedback=None draws unity feedback. disturbance: name of a signal added at the input
     of the last forward block (disturbance_at='input') or at the output ('output').
+    Block and signal labels follow `label()`: TeX math ('G_R(s)', '1 + sT_V'), words set
+    upright ('Regler', 'Störgröße'), or text with inline math ('Regler $G_R(s)$').
     """
     forward = list(forward)
     if not forward:
@@ -425,7 +531,7 @@ def feedback_loop(
     if d_center is not None:
         top = max(main_h / 2, R_SUM) + 0.9
         sheet.add(dsp.Arrow().at((d_center[0], top)).to((d_center[0], R_SUM)))
-        sheet.text((d_center[0], top + LABEL_LIFT), tex(disturbance), va="bottom")
+        _name(sheet, (d_center[0], top + LABEL_LIFT), disturbance, va="bottom")
         _sign(sheet, d_center, "W", "+")
         _sign(sheet, d_center, "N", "+")
         junctions.append({"at": f"disturbance-{dist_at}", "inputs": {"W": "+", "N": "+"}})
@@ -445,12 +551,12 @@ def feedback_loop(
         sheet.add(elm.Wire("n", k=y_fb, arrow="->").at((x_branch, 0)).to((s1[0], -R_SUM)))
         x_m0, x_m1 = s1[0], (s1[0] + x_branch) / 2
     if m_label:
-        sheet.text(((x_m0 + x_m1) / 2, y_fb - LABEL_LIFT), tex(m_label), va="top")
+        _name(sheet, ((x_m0 + x_m1) / 2, y_fb - LABEL_LIFT), m_label, va="top")
 
     g, h, t_ref, t_err, t_dist = _loop_algebra(n, bool(feedback), sign, dist_at)
-    names = {s: core.localize_tex(plain(lbl)) for s, lbl in zip(g, forward, strict=True)}
+    names = {s: _term(lbl) for s, lbl in zip(g, forward, strict=True)}
     if feedback:
-        names[h] = core.localize_tex(plain(feedback))
+        names[h] = _term(feedback)
     loop_gain = sp.prod(g) * h
     facts = {
         "template": "block.feedback_loop",
@@ -462,7 +568,7 @@ def feedback_loop(
         "disturbance_at": dist_at,
         "junction": junction,
         "junctions": junctions,
-        "symbols": {str(s): lbl for s, lbl in names.items()},
+        "symbols": _symbol_facts(names),
         "loop_gain": _expr_facts(loop_gain, names),
         "reference_tf": _expr_facts(t_ref, names),
         "error_tf": _expr_facts(t_err, names),
@@ -475,9 +581,7 @@ def feedback_loop(
 
 def _feedback_alt(forward, feedback, sign, sig, disturbance, dist_at, facts) -> str:
     chain_txt = " → ".join(plain(b) for b in forward)
-    tf = facts["reference_tf"]["expr"]
-    for sym, lbl in facts["symbols"].items():
-        tf = tf.replace(sym, lbl)
+    tf = facts["reference_tf"]["text"]
     r, y = plain(sig.get("r") or "r"), plain(sig.get("y") or "y")
     if core.locale() == "de":
         fb = f"über {plain(feedback)}" if feedback else "direkt (Einheitsrückführung)"
@@ -509,7 +613,10 @@ def chain(
     size: str = "col",
     alt: str | None = None,
 ) -> core.Figure:
-    """Series connection; signals: len(blocks)+1 names (input, links, output), None to omit."""
+    """Series connection; signals: len(blocks)+1 names (input, links, output), None to omit.
+
+    Labels follow `label()`: TeX math, upright words, or text with inline `$…$`.
+    """
     blocks = list(blocks)
     if not blocks:
         raise ValueError("chain needs at least one block")
@@ -537,12 +644,12 @@ def chain(
         "template": "block.chain",
         "blocks": blocks,
         "signals": sig,
-        "symbols": {str(s): lbl for s, lbl in names.items()},
+        "symbols": _symbol_facts(names),
         "transfer": _expr_facts(sp.prod(syms), names),
     }
     if alt is None:
         path = " → ".join(plain(b) for b in blocks)
-        tf = " · ".join(plain(b) for b in blocks)
+        tf = facts["transfer"]["text"]
         if core.locale() == "de":
             alt = f"Reihenschaltung der Blöcke {path}; Gesamtübertragungsfunktion {tf}."
         else:
@@ -562,6 +669,7 @@ def parallel(
     """Parallel connection of 2 or 3 blocks whose outputs are summed.
 
     signals: [input, output] names (None to omit); signs: one '+'/'-' per block.
+    Labels follow `label()`: TeX math, upright words, or text with inline `$…$`.
     """
     blocks = list(blocks)
     n = len(blocks)
@@ -615,11 +723,11 @@ def parallel(
         "signals": sig,
         "signs": sgn,
         "junction": junction,
-        "symbols": {str(s): lbl for s, lbl in names.items()},
+        "symbols": _symbol_facts(names),
         "transfer": _expr_facts(total, names),
     }
     if alt is None:
-        terms = " ".join(f"{s} {plain(b)}" for s, b in zip(sgn, blocks, strict=True)).lstrip("+ ")
+        terms = facts["transfer"]["text"]
         listed = ", ".join(plain(b) for b in blocks)
         if core.locale() == "de":
             alt = f"Parallelschaltung der Blöcke {listed}, Ausgänge summiert: {terms}."
@@ -635,8 +743,9 @@ __all__ = [
     "Sheet",
     "chain",
     "feedback_loop",
+    "label",
+    "localize_text",
     "parallel",
     "plain",
-    "tex",
     "text_size",
 ]

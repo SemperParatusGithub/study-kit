@@ -80,6 +80,58 @@ def test_german_decimal_comma_in_labels(monkeypatch):
     monkeypatch.setenv("STUDYKIT_LOCALE", "de")
     f = block.feedback_loop(forward=["K", r"\frac{1}{s+0.5}"], feedback=None).facts
     assert "0{,}5" in f["symbols"]["G2"]
+    f = block.chain([r"$K = 0.5$", "T = 0.5"]).facts
+    assert f["symbols"] == {"G1": "K = 0{,}5", "G2": "T = 0{,}5"}
+    # The drawing goes through the same rule: math, text and mixed labels.
+    assert block.label(r"$K = 0.5$") == (r"$K = 0{,}5$", True)
+    assert block.label("T = 0.5") == (r"$T = 0{,}5$", True)
+    assert block.label("Warte 0.5 s", math=False) == ("Warte 0,5 s", False)
+    assert block.label("x > 0.5", math=False) == ("x > 0,5", False)
+    assert block.label("x_k > 0.5?", math=False) == (r"$x_k > 0{,}5?$", True)
+    assert block.label("Ausgabe 1.5 $s_{0.5}$") == (r"Ausgabe 1,5 $s_{0{,}5}$", True)
+
+
+def test_english_labels_keep_the_decimal_point(monkeypatch):
+    monkeypatch.setenv("STUDYKIT_LOCALE", "en")
+    assert block.label("x > 0.5", math=False) == ("x > 0.5", False)
+    assert block.label("T = 0.5") == ("$T = 0.5$", True)
+
+
+def test_sum_labels_keep_their_parentheses(locale):
+    fig = block.feedback_loop(forward=["K_P", "1 + sT_V", r"\frac{1}{s}"], feedback=None)
+    assert validate_svg(fig.svg) == []
+    ref = fig.facts["reference_tf"]
+    product = r"K_P \left(1 + sT_V\right) \frac{1}{s}"
+    assert ref["latex"] == rf"\frac{{{product}}}{{{product} + 1}}"
+    assert ref["text"] == r"K_P*(1 + sT_V)*\frac{1}{s}/(K_P*(1 + sT_V)*\frac{1}{s} + 1)"
+    assert ref["text"] in fig.alt
+    ch = block.chain(["K", "1+sT"])
+    assert ch.facts["transfer"]["latex"] == r"K \left(1+sT\right)"
+    assert "K*(1+sT)" in ch.alt
+    par = block.parallel(["K", "a + b"], signs="+-")
+    assert par.facts["transfer"]["text"] == "K - (a + b)"
+    assert par.facts["transfer"]["latex"] == r"K - \left(a + b\right)"
+    assert "K - (a + b)" in par.alt
+
+
+def test_word_labels_are_upright_text_and_never_corrupt_the_formula(locale):
+    fig = block.feedback_loop(forward=["Regler", "Heizung"], feedback="Thermometer")
+    assert validate_svg(fig.svg) == []
+    ref = fig.facts["reference_tf"]
+    assert ref["text"] == "Regler*Heizung/(Regler*Heizung*Thermometer + 1)"
+    assert ref["latex"] == (
+        r"\frac{\text{Regler} \cdot \text{Heizung}}"
+        r"{\text{Regler} \cdot \text{Heizung} \cdot \text{Thermometer} + 1}"
+    )
+    assert ref["text"] in fig.alt
+    assert block.label("Regelstrecke") == ("Regelstrecke", False)
+    assert block.label("Störgröße") == ("Störgröße", False)
+    assert block.label("K_P") == ("$K_P$", True)
+    assert block.label("1 + sT") == ("$1 + sT$", True)
+    # A label that contains another symbol's name or a capital H stays intact.
+    fig = block.feedback_loop(forward=["K_H", "G_H(s)"], feedback="H_M(s)")
+    assert fig.facts["reference_tf"]["text"] == "K_H*G_H(s)/(K_H*G_H(s)*H_M(s) + 1)"
+    assert fig.facts["reference_tf"]["text"] in fig.alt
 
 
 def test_chain_product(locale):
