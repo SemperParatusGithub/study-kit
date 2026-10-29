@@ -14,8 +14,9 @@ allowed-tools:
 
 Bring new lecture material into a course that `/register-new-subject` built
 (docs/architecture.md §5.4). Arguments: the course `$0` and a PDF or a folder `$1` (quote a
-path with spaces). The file or folder is only read, and only by `studykit ingest scan|init|add` (Bash);
-agents read the copies in `<course>/sources/raw/`. Never Read, Write or list it yourself.
+path with spaces). The file or folder is only read, and only by `studykit ingest add`
+(Bash); agents read the copies in `<course>/sources/raw/`. Never Read, Write or list it
+yourself.
 This command changes the sources, the notes and the topic map; it regenerates no content
 itself but says which `/regenerate` runs bring the course up to date.
 

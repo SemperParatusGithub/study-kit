@@ -12,9 +12,9 @@ allowed-tools:
 
 Build a course from the lecture material in a folder (docs/architecture.md §5.4).
 Arguments: the folder (`$0`; quote a path with spaces) and optionally the course id as the
-second argument. The user's folder is only read, and only by `studykit ingest scan|init|add` (Bash); every
-agent reads the copies in `<course>/sources/raw/`. Never Read, Write or list the user's
-folder yourself.
+second argument. The user's folder is only read, and only by
+`studykit ingest scan|init|add` (Bash); every agent reads the copies in
+`<course>/sources/raw/`. Never Read, Write or list the user's folder yourself.
 
 You are the orchestrator in the main thread: you ask the user, start the agents and judge
 every step. `<c>` below is the course id and `<dir>` its absolute directory (the `dir` of
@@ -190,10 +190,11 @@ error (the References stage now checks the profile's topics).
    `exam <minutes> min <points> pts`, `ok`. Apply them to `course.yaml`, the outline and
    the profile mapping (validate as in step 5), show the table again, and repeat until the
    line is `ok`.
-3. Estimate with `studykit calc`: authors = 1 (overview) + topics × 3 (topics × 2 with
-   scope core) + mock exams + 1 cheat sheet when allowed; items ≈ topics × (4 exercises +
-   the MC target, 10 to 25 by weight) + mock exams × 8; opus agent runs ≈ authors + items
-   + 20 % for fix rounds; time ≈ (authors / 6 × 15 min) + (items / 6 × 5 min). Give a range
+3. Estimate with `studykit calc`, for both scopes: authors = 1 (overview) + topics × 3,
+   plus the mock exams and 1 cheat sheet when allowed (core: topics × 2, no mock exams, no
+   cheat sheet); items ≈ topics × (4 exercises and the MC target of 10 to 25 by weight),
+   plus 8 per mock exam (core: no exercises); opus agent runs ≈ (authors and items) × 1.2
+   for fix rounds; time ≈ authors / 6 × 15 min and items / 6 × 5 min. Give each as a range
    (× 0.7 to × 1.5) and say it is an estimate.
 4. One AskUserQuestion call with three questions: "How many mock exams?" (1, 2, 3; default
    the profile's evidence, else 2), "Which scope?" (Full: everything now; Core first:
@@ -213,7 +214,9 @@ error (the References stage now checks the profile's topics).
 `todo` of step 7 names what is missing (`overview`, `summary`, `exercises`, `mc`,
 `overview_links`, `schema_errors`). Authors (`author` agent, at most 6 at a time), each
 prompt: "Course: `<dir>`. Part: `<part>`. Topic: `<t>`. Mode: new. Follow `notation.yaml`;
-the notes of this topic are the chunks `sources/outline.md` lists for it."
+the notes of this topic are the chunks `sources/outline.md` lists for it." When the part
+exists but falls short of its target (a resumed run; the Coverage message names the
+counts), the mode is `add <n>` instead.
 1. First one author for `overview` (it writes the topic map section and "exam at a glance"
    from the profile); wait for it.
 2. Then one author per topic for `summary` (topics in teaching order).
@@ -236,7 +239,7 @@ most 2 rounds.
 ## 9. Verify wave
 
 Follow `.claude/skills/verify/SKILL.md` from its step 1 for each topic not skipped, in
-teaching order (target: the topic id): verifier agents one item each, at most 6 at a time,
+teaching order (its `$0` is `<c>`, the target the topic id): verifier agents one item each, at most 6 at a time,
 the dispute loop with at most 2 author fix rounds, quarantine of what stays disputed.
 
 **Gate:** pipeline step 9 (`verify`) is `done`: every exercise and MC question of the
@@ -300,5 +303,5 @@ tell the user, briefly:
 - next steps: `just dev` → `http://localhost:4321/c/<c>/`, `/examine <c> diagnostic` (15
   MC questions seed the Leitner boxes and the plan), `/tutor <c> <topic>`.
 
-**Gate:** pipeline step 14 (`report`) is `done`, and `complete` is true (or only deferred
-steps remain).
+**Gate:** pipeline step 14 (`report`) is `done`, and `complete` is true; with scope core,
+`resume` stays at step 13 (`status: draft`) until the deferred steps are done.
