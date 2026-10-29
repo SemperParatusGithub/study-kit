@@ -396,7 +396,9 @@ def test_index_contract(mini: Path, capsys):
         "exams",
         "figures",
         "sources",
+        "quarantined",
     ]
+    assert written["quarantined"] == []
     assert (written["schema"], written["course"], written["lang"]) == (1, "mini", "de")
     assert written["topics"]["rc-tiefpass"] == {"title": "RC-Tiefpass", "order": 2}
     for item in written["items"].values():

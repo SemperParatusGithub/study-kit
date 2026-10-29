@@ -446,6 +446,9 @@ end
 function M.render(el, ctx, W)
   local q = M.parse(el, ctx, W)
   walk_parts(q, ctx, W)
+  if ctx:quarantined(q.id) then
+    return {} -- checked above, but hidden from the site and the PDFs (§2.10)
+  end
   table.insert(ctx.items, {
     id = q.id,
     kind = 'mc',

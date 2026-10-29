@@ -208,6 +208,49 @@ def quarantined_ids(root: Path) -> list[str]:
     return sorted(set(out))
 
 
+def hidden_file(doc: Doc, hidden: Iterable[str]) -> bool:
+    """True for an exercise or exam-task file whose item is quarantined."""
+    return doc.kind in ("exercise", "exam-task") and doc.get("id") in set(hidden)
+
+
+def exam_without(
+    tree: CourseTree, exam_doc: Doc, data: Mapping[str, Any], hidden: Iterable[str]
+) -> dict[str, Any]:
+    """exam.yaml data without its quarantined tasks and MC questions: the task list and
+    the points shrink, and the pass mark keeps its share (rounded to half points). The
+    website and the PDFs both show an exam this way."""
+    hidden = set(hidden)
+    out = dict(data)
+    exam_id = exam_doc.parts.get("exam")
+    tasks = data.get("tasks")
+    points = data.get("points")
+    if not hidden or not isinstance(tasks, list) or not isinstance(points, (int, float)):
+        return out
+    removed = 0.0
+    kept = []
+    for name in tasks:
+        doc = tree.get(f"exams/{exam_id}/{name}")
+        if doc is not None and hidden_file(doc, hidden):
+            task_points = doc.get("points")
+            removed += float(task_points) if isinstance(task_points, (int, float)) else 0.0
+        else:
+            kept.append(name)
+    mc = data.get("mc")
+    if isinstance(mc, Mapping) and isinstance(mc.get("points_each"), (int, float)):
+        mc_doc = tree.get(f"exams/{exam_id}/{mc.get('file') or 'mc.md'}")
+        questions = mc_doc.body.questions if mc_doc is not None and mc_doc.body else []
+        removed += mc["points_each"] * sum(1 for q in questions if q.id in hidden)
+    if not removed and len(kept) == len(tasks):
+        return out
+    total = max(0.0, float(points) - removed)
+    out["tasks"] = kept
+    out["points"] = total
+    pass_points = data.get("pass_points")
+    if isinstance(pass_points, (int, float)) and points:
+        out["pass_points"] = round(float(pass_points) * total / float(points) * 2) / 2
+    return out
+
+
 def is_stale(entry: model.VerifyEntry, item: VItem) -> bool:
     return entry.content_sha256 != item.content_sha256
 
