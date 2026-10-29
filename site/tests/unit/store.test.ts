@@ -170,6 +170,20 @@ test('merge is a union: attempts combined without duplicates, newest schedule wi
   assert.equal((a.items['mc:q-001'] as McEntry).attempts.length, 2);
 });
 
+test('merge takes an exercise rating together with its own box and due day', () => {
+  const local = doc({ 'ex:y': { h: 'aaaaaaaa', hints: 0, answer_ok: true, rating: 'solved', box: 3, due: '2026-11-05' } });
+  const other = doc({ 'ex:y': { h: 'aaaaaaaa', hints: 0, answer_ok: false, rating: 'not-yet', box: 1, due: '2026-11-06' } });
+  const pick = (d: ProgressDoc) => {
+    const e = d.items['ex:y'] as ExEntry;
+    return [e.rating, e.box, e.due];
+  };
+  assert.deepEqual(pick(merge(local, other).doc), ['not-yet', 1, '2026-11-06']);
+  assert.deepEqual(pick(merge(other, local).doc), ['not-yet', 1, '2026-11-06']);
+  const unrated = doc({ 'ex:y': { h: 'aaaaaaaa', hints: 1, answer_ok: null, rating: null, box: null, due: null } });
+  assert.deepEqual(pick(merge(unrated, local).doc), ['solved', 3, '2026-11-05']);
+  assert.deepEqual(pick(merge(local, unrated).doc), ['solved', 3, '2026-11-05']);
+});
+
 test('recordMc appends the attempt and applies Leitner', () => {
   const s = new ProgressStore('c', new FakeStorage());
   const r1 = s.recordMc('mc-a-001', { h: 'abcdef12', chosen: ['B', 'A'], score: 1, conf: 'sure', ms: 900 }, { today: '2026-11-02' });

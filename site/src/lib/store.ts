@@ -221,13 +221,16 @@ function mergeMc(a: McEntry, b: McEntry): McEntry {
   return { h: newer.h, box: newer.box, due: newer.due, attempts: attempts.slice(-MAX_ATTEMPTS) };
 }
 
+// Exercise entries have no time stamp, so the side whose review is due later stands for the
+// later self-assessment; its rating, box and due day are taken together (only rateEx sets
+// them, so a side without a rating has no due day either).
 function mergeEx(a: ExEntry, b: ExEntry): ExEntry {
   const later = (b.due ?? '') > (a.due ?? '') ? b : a;
   return {
     h: a.h !== UNKNOWN_HASH ? a.h : b.h,
     hints: Math.max(a.hints, b.hints),
     answer_ok: a.answer_ok === true || b.answer_ok === true ? true : (a.answer_ok ?? b.answer_ok),
-    rating: a.rating ?? b.rating,
+    rating: later.rating,
     box: later.box,
     due: later.due,
   };
