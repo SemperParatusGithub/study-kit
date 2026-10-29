@@ -4,6 +4,7 @@ import {
   check,
   checkExpr,
   checkNumeric,
+  constantValue,
   decomposeUnit,
   evaluate,
   formatExpr,
@@ -150,6 +151,36 @@ test('numeric answers: read-back and typical-mistake hints', () => {
   assert.equal(toleranceHint(HDB), '±0.01 dB');
 });
 
+test('numeric answers: labels, trailing punctuation, resistor codes and plain arithmetic', () => {
+  for (const ok of ['1,59 kHz.', '1,59 kHz;', 'f = 1,59 kHz', 'f_g=1,59kHz', '≈ 1,59 kHz', '~1591,5 Hz.']) {
+    assert.equal(checkNumeric(ok, FG).ok, true, ok);
+  }
+  assert.deepEqual(parseNumber('1,59 kHz.'), { value: 1.59, unit: 'kHz', decimalComma: true });
+  const R = { key: 'R', label: 'R', value: 2200, unit: 'Ω', rtol: 1e-3 };
+  for (const ok of ['2k2', '2k2 Ω', '2k2Ohm', '2,2k']) assert.equal(checkNumeric(ok, R).ok, true, ok);
+  assert.deepEqual(parseNumber('4R7'), { value: 4.7, unit: '', decimalComma: false });
+  assert.deepEqual(parseNumber('4u7F'), { value: 4.7, unit: 'uF', decimalComma: false });
+  assert.deepEqual(parseNumber('-1M5'), { value: -1.5, unit: 'M', decimalComma: false });
+  assert.equal(parseNumber('1m5')?.unit, 'm5'); // not a code: "m" would be metres
+  // arithmetic without symbols, in the answer's unit
+  const K = { key: 'k', label: 'k', value: 0.70711, rtol: 1e-3 };
+  for (const ok of ['1/√2', '√2/2', '1/sqrt(2)', '√(0,5)', '0,5·√2']) {
+    const v = checkNumeric(ok, K);
+    assert.equal(v.ok, true, ok);
+  }
+  const v = checkNumeric('1/√2', K);
+  assert.equal(v.ok && v.read, '1/sqrt(2) = 0.707107');
+  assert.equal(checkNumeric('1/(2π·1k·100n)', FG).ok, false); // prefixes are units, not names
+  assert.equal(checkNumeric('1/(2π·1000·100e-9)', FG).ok, true);
+  assert.equal(checkNumeric('1/(2π·1000·0,0000001) Hz', FG).ok, false);
+  const unit = checkNumeric('1590 1/s', FG);
+  assert.equal(unit.ok ? '' : unit.reason, 'unit');
+  // thousands separators are not guessed inside arithmetic
+  assert.equal(constantValue('1.591,5/2'), null);
+  assert.equal(constantValue('1,59 kHz'), null);
+  assert.equal(constantValue('1,59·10^3'), null); // a number, not arithmetic
+});
+
 test('expression parser: precedence, implicit multiplication and read-back', () => {
   const sym = ['s', 'R', 'C'];
   assert.equal(formatExpr(parseExpr('1/(1+s*R*C)', sym)), '1/(1 + s·R·C)');
@@ -198,6 +229,10 @@ test('expression answers: equivalent forms pass, different ones fail', () => {
   const Z = { key: 'Z', label: 'Z', expr: 'R + 1/(I*w*C)', symbols: ['R', 'w', 'C'] };
   assert.equal(checkExpr('R - j/(ωC)', Z).ok, true);
   assert.equal(checkExpr('R + j/(w C)', Z).ok, false);
+  const Zabs = { key: 'Z', label: 'Z', expr: 'sqrt(R**2 + (w*L)**2)', symbols: ['R', 'w', 'L'] };
+  for (const ok of ['√(R²+(ωL)²)', '√(R^2 + w^2 L^2)', 'sqrt(R^2+(wL)^2)']) assert.equal(checkExpr(ok, Zabs).ok, true, ok);
+  assert.equal(checkExpr('√R²+(ωL)²', Zabs).ok, false); // √ takes the next factor only
+  assert.equal(formatExpr(parseExpr('2√2', [])), '2·sqrt(2)');
   const decay = { key: 'u', label: 'u', expr: 'U*exp(-t/(R*C))', symbols: ['U', 't', 'R', 'C'] };
   assert.equal(checkExpr('U e^(-t/(RC))', decay).ok, true);
   assert.equal(checkExpr('U (1 - e^(-t/(RC)))', decay).ok, false);

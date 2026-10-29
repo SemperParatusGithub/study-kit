@@ -7,12 +7,14 @@
 // A number without a unit is read in the answer's unit.
 // Separators: with both "." and "," the last one is the decimal separator; a single "." or
 // "," is always decimal; repeated ones (and spaces or ' between groups of three digits) are
-// thousands separators.
+// thousands separators. Also read: a leading "f =" or "≈", a trailing "." or ";", resistor
+// codes ("2k2" = 2,2 k, "4R7" = 4,7) and plain arithmetic without symbols ("1/√2", "2π·50").
 //
 // Symbolic answers `{key, label, expr, symbols}`: the input and the reference (SymPy syntax:
 // ** or ^, I for the imaginary unit, E, pi, sqrt, exp, log …) are parsed by a small
 // recursive-descent parser (no eval) and evaluated with complex arithmetic at random
-// positive values of the symbols; they must agree at every sample point.
+// positive values of the symbols; they must agree at every sample point. "√x" and "√(…)"
+// are sqrt.
 
 import { fnv1a, mulberry32 } from './shuffle.ts';
 
@@ -58,6 +60,8 @@ export interface ParsedNumber {
   value: number;
   unit: string;
   decimalComma: boolean;
+  /** How arithmetic input was read ("1/sqrt(2)"); absent for plain numbers. */
+  read?: string;
 }
 
 function count(text: string, ch: string): number {
@@ -111,19 +115,42 @@ function mantissa(raw: string): { value: number; decimalComma: boolean } | null 
   return Number.isFinite(value) ? { value, decimalComma: decimal === ',' } : null;
 }
 
+/** "f =", "U_2 =", "≈", "~" before the value. */
+const LEAD = /^(?:[A-Za-z\u0370-\u03ff][\w\u0370-\u03ff]*\s?)?(?:=|≈|~)\s?/;
+/**
+ * Resistor and capacitor codes (IEC 60062): a multiplier letter in place of the decimal
+ * point ("2k2" = 2,2 k, "4R7" = 4,7, "4u7" = 4,7 μ). Not "m": "1m5" would read as metres.
+ */
+const R_CODE = /^(\d+)([RkMGTpnuμ])(\d+)(?![\d.,'])/;
+
+/** The input without a leading "name =" / "≈" and trailing sentence punctuation. */
+function trimmed(text: string): string {
+  return normalize(text).replace(LEAD, '').replace(/\s?[.;,]+$/, '');
+}
+
 const EXPONENT_E = /^[eE]([+-]?\d+)/;
 const EXPONENT_TEN = /^\s?[*·⋅×xX]\s?10\s?\^\s?[({]?\s?([+-]?\d+)\s?[)}]?/;
 const POWER_OF_TEN = /^\s?\^\s?[({]?\s?([+-]?\d+)\s?[)}]?/;
 
 /** Read "<sign><number><exponent> <unit>"; null when the text does not start with a number. */
 export function parseNumber(text: string): ParsedNumber | null {
-  const s = normalize(text);
+  const s = trimmed(text);
   let i = 0;
   let sign = 1;
   if (s[i] === '+' || s[i] === '-') {
     sign = s[i] === '-' ? -1 : 1;
     i++;
     if (s[i] === ' ') i++;
+  }
+  const code = R_CODE.exec(s.slice(i));
+  if (code) {
+    const [whole, int, letter, frac] = code as unknown as [string, string, string, string];
+    const rest = s.slice(i + whole.length).trim().replace(/\s/g, '');
+    return {
+      value: sign * Number(`${int}.${frac}`),
+      unit: `${letter === 'R' ? '' : letter}${rest}`,
+      decimalComma: false,
+    };
   }
   let raw = '';
   while (i < s.length) {
@@ -283,9 +310,28 @@ export function mistakeHint(got: number, want: number, unit: UnitParts): string 
   return undefined;
 }
 
+/** Arithmetic in the input: an operator, a root, a power, π or parentheses. */
+const ARITHMETIC = /[/*·×÷√^()π]|\bpi\b|\bsqrt\b/;
+
+/** The value of a constant expression such as "1/√2" or "2π·50", or null. */
+export function constantValue(text: string): { value: number; read: string } | null {
+  const s = trimmed(text);
+  // "1.591,5/2": the expression reader knows no thousands separators, so do not guess.
+  if (/\d[.,]\d+[.,]\d/.test(s)) return null;
+  if (!ARITHMETIC.test(s.replace(/^[+-]?[\d.,' ]+\s?[*·×xX]\s?10\s?\^/, ''))) return null;
+  try {
+    const e = parseExpr(s, []);
+    const v = evaluate(e, {});
+    if (!Number.isFinite(v.re) || Math.abs(v.im) > 1e-12 * Math.max(1, Math.abs(v.re))) return null;
+    return { value: v.re, read: formatExpr(e) };
+  } catch {
+    return null;
+  }
+}
+
 export function checkNumeric(input: string, spec: AnswerSpec): Verdict {
   if (normalize(input) === '') return { ok: false, reason: 'empty', message: 'Enter a value.' };
-  const parsed = parseNumber(input);
+  const parsed = numberOrArithmetic(input, spec);
   if (!parsed) {
     return {
       ok: false,
@@ -295,7 +341,9 @@ export function checkNumeric(input: string, spec: AnswerSpec): Verdict {
   }
   const expected = decomposeUnit(spec.unit ?? '');
   const factor = unitFactor(parsed.unit, expected);
-  const read = `${formatNumber(parsed.value, parsed.decimalComma)}${parsed.unit ? ` ${parsed.unit}` : ''}`;
+  const read = parsed.read !== undefined
+    ? `${parsed.read} = ${formatNumber(parsed.value, parsed.decimalComma)}`
+    : `${formatNumber(parsed.value, parsed.decimalComma)}${parsed.unit ? ` ${parsed.unit}` : ''}`;
   if (factor === null) {
     return {
       ok: false,
@@ -323,6 +371,18 @@ export function checkNumeric(input: string, spec: AnswerSpec): Verdict {
     message: `Not correct${tolerance ? ` within ${tolerance}` : ''}.`,
     ...(hint ? { hint } : {}),
   };
+}
+
+/**
+ * The input as a number with unit; when that fails or leaves a unit that does not fit,
+ * the input as plain arithmetic without symbols, in the answer's unit ("1/√2").
+ */
+function numberOrArithmetic(input: string, spec: AnswerSpec): ParsedNumber | null {
+  const parsed = parseNumber(input);
+  if (parsed && unitFactor(parsed.unit, decomposeUnit(spec.unit ?? '')) !== null) return parsed;
+  const c = constantValue(input);
+  if (c) return { value: c.value, unit: '', decimalComma: /\d,\d/.test(input), read: c.read };
+  return parsed;
 }
 
 // --- expressions ------------------------------------------------------------------------
@@ -430,6 +490,7 @@ function tokenize(source: string): Tok[] {
   const s = normalize(source)
     .replace(/\*\*/g, '^')
     .replace(/[·⋅×]/g, '*')
+    .replace(/√/g, ' √ ')
     .replace(/÷/g, '/')
     .replace(/[[{]/g, '(')
     .replace(/[\]}]/g, ')')
@@ -438,7 +499,7 @@ function tokenize(source: string): Tok[] {
       return name ? ` ${name} ` : c;
     });
   const out: Tok[] = [];
-  const re = /\s*(?:(\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?|[.,]\d+)|([A-Za-z_][A-Za-z0-9_]*)|([-+*/^()]))/y;
+  const re = /\s*(?:(\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?|[.,]\d+)|([A-Za-z_][A-Za-z0-9_]*)|([-+*/^()√]))/y;
   let i = 0;
   while (i < s.length) {
     if (/^\s*$/.test(s.slice(i))) break;
@@ -518,7 +579,7 @@ class Parser {
 
   private startsFactor(): boolean {
     const t = this.peek();
-    return t !== undefined && (t.t === 'num' || t.t === 'id' || (t.t === 'op' && t.s === '('));
+    return t !== undefined && (t.t === 'num' || t.t === 'id' || (t.t === 'op' && (t.s === '(' || t.s === '√')));
   }
 
   private term(): Expr {
@@ -560,6 +621,7 @@ class Parser {
     const t = this.toks[this.pos++];
     if (!t) throw new ExprError('syntax', 'The expression ends too early.');
     if (t.t === 'num') return { k: 'num', v: t.v };
+    if (t.t === 'op' && t.s === '√') return { k: 'call', fn: 'sqrt', a: this.atom() }; // √2, √(…)
     if (t.t === 'op') {
       if (t.s !== '(') throw new ExprError('syntax', `Unexpected “${t.s}”.`);
       const e = this.sum();
