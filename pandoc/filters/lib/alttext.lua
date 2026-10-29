@@ -5,6 +5,7 @@
 --
 --   \underline{U}_C → U_C            \mathrm{k\Omega} → kΩ        3{,}3\,\mathrm{V} → 3,3 V
 --   \frac{1}{2\pi R C} → 1/(2πRC)    10^{-3} → 10⁻³               \varphi = 30^\circ → φ = 30°
+--   R_\mathrm{ges} → R_ges           \frac{\hat{u}}{\sqrt{2}} → û/√2
 --
 -- Plain Lua apart from the pandoc.Inlines walk in M.inlines, so the TeX part is testable
 -- with `pandoc lua`.
@@ -110,6 +111,41 @@ local function chars(s)
   return out
 end
 
+--- A combining mark: the accents of ACCENTS (\hat U+0302 … , \vec U+20D7).
+local function is_mark(cp)
+  return (cp >= 0x300 and cp <= 0x36F) or (cp >= 0x20D0 and cp <= 0x20FF)
+end
+
+--- True for a letter: ASCII, Latin-1 and Latin Extended-A/B (not × ÷), Greek.
+local function is_letter(cp)
+  return (cp < 0x80 and utf8.char(cp):match('^%a$') ~= nil)
+    or (cp >= 0xC0 and cp <= 0x24F and cp ~= 0xD7 and cp ~= 0xF7)
+    or (cp >= 0x370 and cp <= 0x3FF)
+end
+
+--- `t` without the combining marks at its start (the accents of a removed base letter).
+local function drop_marks(t)
+  for pos, cp in utf8.codes(t) do
+    if not is_mark(cp) then
+      return t:sub(pos)
+    end
+  end
+  return ''
+end
+
+--- True for a run of letters, each with its accents: R_ges, U_eff, I_max read as one label.
+local function is_word(t)
+  if t == '' or not is_letter(utf8.codepoint(t)) then
+    return false
+  end
+  for _, cp in utf8.codes(t) do
+    if not (is_letter(cp) or is_mark(cp)) then
+      return false
+    end
+  end
+  return true
+end
+
 ---------------------------------------------------------------------------------------
 -- Reading TeX
 ---------------------------------------------------------------------------------------
@@ -166,9 +202,9 @@ local function optional(p)
   return raw
 end
 
---- True for text that reads as one unit after / or √: a number, one symbol (with
---- sub- or superscripts), a √ or differential of such a unit, or something already in
---- parentheses.
+--- True for text that reads as one unit after / or √: a number, one symbol (with its
+--- accents, sub- or superscripts), a √ or differential of such a unit, or something
+--- already in parentheses. Several letters are a product here (1/(ωC)), not a unit.
 local function is_unit(t)
   if t == '' or t:match('^%b()$') or t:match('^[%d.,]+$') then
     return true
@@ -183,7 +219,7 @@ local function is_unit(t)
   if differential and is_unit(differential) then
     return true -- dU/dt, ∂f/∂x
   end
-  local rest = t:match('^[%d.,]+(.*)$') or t:gsub(UTF8_CHAR, '', 1)
+  local rest = t:match('^[%d.,]+(.*)$') or drop_marks((t:gsub(UTF8_CHAR, '', 1)))
   if rest == '' or rest:match('^_') then
     return true
   end
@@ -220,8 +256,9 @@ local function superscript(t)
   return table.concat(out)
 end
 
+--- A subscript is a label, so a run of letters needs no parentheses: R_ges, not R_(ges).
 local function subscript(t)
-  return is_unit(t) and '_' .. t or '_(' .. t .. ')'
+  return (is_unit(t) or is_word(t)) and '_' .. t or '_(' .. t .. ')'
 end
 
 --- Text-mode content of \text{…}: literal, apart from escapes and spacing commands.

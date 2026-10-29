@@ -601,6 +601,14 @@ ALT_TEXT = [
     (r"u(t) = \hat{u}\sin(\omega t + \varphi_u)", "u(t) = u\u0302 sin(ωt + φ_u)"),
     (r"\text{für } t > 0", "für t > 0"),
     (r"A^\mathrm{T},\ x \in \mathbb{R}", "Aᵀ, x ∈ \u211d"),
+    # a subscript of several letters is one label; several letters after / are a product
+    (r"R_\mathrm{ges} = 5{,}5\,\mathrm{k\Omega}", "R_ges = 5,5 kΩ"),
+    (r"U_\mathrm{eff} = I_\mathrm{max} \cdot R", "U_eff = I_max · R"),
+    (r"x_{i,j} + U_{\mathrm{C},0}", "x_(i, j) + U_(C, 0)"),
+    (r"\frac{1}{\omega C} = \frac{1}{RC}", "1/(ωC) = 1/(RC)"),
+    # an accented letter is one symbol
+    (r"\frac{\hat{u}}{\sqrt{2}}", "u\u0302/√2"),
+    (r"\frac{\vec{F}}{m}", "F\u20d7/m"),
 ]
 
 
