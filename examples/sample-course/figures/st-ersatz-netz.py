@@ -24,7 +24,5 @@ def build():
         c.text((5.5, h + 0.35), "$A$")
         c.text((5.5, -0.4), "$B$")
         circuit.zaehlpfeil_u(src, r"U_0 = 10\,\mathrm{V}", side="left")
-        circuit.zaehlpfeil_u(
-            ((5.5, h), (5.5, 0)), r"U_\mathrm{AB}", side="right", nodes=("A", "0")
-        )
+        circuit.zaehlpfeil_u(((5.5, h), (5.5, 0)), r"U_\mathrm{AB}", side="right", nodes=("A", "0"))
     return c.figure

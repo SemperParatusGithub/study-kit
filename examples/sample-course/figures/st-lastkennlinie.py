@@ -25,7 +25,7 @@ def build():
         ax = c.ax
         ax.axhline(U0 / 2, color=color("muted"), lw=1.0, ls=(0, (4, 2)), zorder=2)
         for i, r in enumerate((1e3, 10e3)):
-            label = r"$R_1 = R_2 = {}\,\mathrm{{k\Omega}}$".format(int(r / 1e3))
+            label = rf"$R_1 = R_2 = {int(r / 1e3)}\,\mathrm{{k\Omega}}$"
             ax.semilogx(r_l, u2(r, r_l), color=color(i), label=label, zorder=4)
         ax.annotate(
             "Leerlauf",

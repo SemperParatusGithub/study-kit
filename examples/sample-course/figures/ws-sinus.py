@@ -39,8 +39,14 @@ def build():
             "",
             (1.0, U_HAT),
             xytext=(1.0, 0),
-            arrowprops={"arrowstyle": "<|-|>", "color": color("fg"), "lw": 0.8, "shrinkA": 0,
-                        "shrinkB": 0, "mutation_scale": 7},
+            arrowprops={
+                "arrowstyle": "<|-|>",
+                "color": color("fg"),
+                "lw": 0.8,
+                "shrinkA": 0,
+                "shrinkB": 0,
+                "mutation_scale": 7,
+            },
         )
         ax.annotate(
             r"$\hat{u}$",
@@ -57,18 +63,27 @@ def build():
             "",
             (1.5, y_t),
             xytext=(0.5, y_t),
-            arrowprops={"arrowstyle": "<|-|>", "color": color("fg"), "lw": 0.8, "shrinkA": 0,
-                        "shrinkB": 0, "mutation_scale": 7},
+            arrowprops={
+                "arrowstyle": "<|-|>",
+                "color": color("fg"),
+                "lw": 0.8,
+                "shrinkA": 0,
+                "shrinkB": 0,
+                "mutation_scale": 7,
+            },
         )
         ax.annotate(
-            "$T$", (1.0, y_t), xytext=(0, 2), textcoords="offset points", ha="center",
-            va="bottom", fontsize=9,
+            "$T$",
+            (1.0, y_t),
+            xytext=(0, 2),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=9,
         )
         ax.set_xlim(0, 2)
         ax.set_ylim(-U_HAT * 1.3, U_HAT * 1.2)
         ax.set_xlabel(axis_label("t", "ms"))
         ax.set_ylabel(axis_label("u", "V"))
-        c.facts.update(
-            {"u_hat_V": U_HAT, "f_Hz": F, "T_ms": 1e3 / F, "U_eff_V": u_eff}
-        )
+        c.facts.update({"u_hat_V": U_HAT, "f_Hz": F, "T_ms": 1e3 / F, "U_eff_V": u_eff})
     return c.figure
