@@ -88,6 +88,8 @@ export class SkExam extends HTMLElement {
   private ticks = 0;
   private visible = new Map<string, number>();
   private observer: IntersectionObserver | null = null;
+  /** Keeps --sk-exam-head at the sticky head's height (scroll-margin of the parts). */
+  private headSize: ResizeObserver | null = null;
   private session: ExamSession | null = null;
   private announceTimeUp = false;
   private onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -282,6 +284,10 @@ export class SkExam extends HTMLElement {
     window.addEventListener('pagehide', this.onPageHide);
     document.addEventListener('visibilitychange', this.onVisibility);
     this.observe();
+    if (typeof ResizeObserver !== 'undefined') {
+      this.headSize = new ResizeObserver(() => this.style.setProperty('--sk-exam-head', `${this.head.offsetHeight}px`));
+      this.headSize.observe(this.head);
+    }
     this.resumeClock(Date.now());
     this.timer = window.setInterval(() => this.tick(), 1000);
     this.tick();
@@ -387,6 +393,9 @@ export class SkExam extends HTMLElement {
     this.timer = null;
     this.observer?.disconnect();
     this.observer = null;
+    this.headSize?.disconnect();
+    this.headSize = null;
+    this.style.removeProperty('--sk-exam-head');
     this.lastTick = 0;
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     window.removeEventListener('pagehide', this.onPageHide);

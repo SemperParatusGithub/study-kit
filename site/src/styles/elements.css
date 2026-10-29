@@ -1190,9 +1190,10 @@ sk-exam.is-low .sk-exam-clock {
   font-weight: 600;
 }
 
-.sk-exam-task,
-.sk-exam-mc {
-  scroll-margin-top: 4.5rem;
+/* Jumps to a part (the task links, N in the MC part) end below the sticky head, whose
+ * height sk-exam keeps in --sk-exam-head while the exam runs. */
+sk-exam :is(.sk-exam-task, .sk-exam-mc, sk-mc) {
+  scroll-margin-top: calc(var(--sk-exam-head, 0px) + 0.5rem);
 }
 
 .sk-exam-total {

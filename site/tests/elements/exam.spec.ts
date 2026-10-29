@@ -187,6 +187,23 @@ test('submit: solutions open, rubric grading, MC auto-scored, result saved', asy
   expect((await progress(page)).items['exam:probeklausur-1'].attempts).toHaveLength(1);
 });
 
+test('the task links end with the part heading below the sticky bar', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 500 });
+  await start(page);
+  const head = exam(page).locator('.sk-exam-head');
+  for (const [link, heading] of [['MC', 'section.sk-exam-mc h2'], ['1', 'section.sk-exam-task h2']] as const) {
+    await exam(page).locator('.sk-exam-nav a', { hasText: link }).click();
+    await expect.poll(async () => {
+      const bar = await head.boundingBox();
+      const h = await exam(page).locator(heading).boundingBox();
+      const below = bar ? bar.y + bar.height : 0;
+      return Boolean(h && h.y >= below - 1 && h.y < below + 80);
+    }).toBe(true);
+  }
+  const height = await head.evaluate((el) => (el as HTMLElement).offsetHeight);
+  await expect(exam(page)).toHaveCSS('--sk-exam-head', `${height}px`);
+});
+
 /** Serve /exam.html with some attributes of the shell's markup changed. */
 async function examVariant(page: Page, edits: Array<[string, string]>): Promise<void> {
   await page.route('**/exam.html', async (route) => {
