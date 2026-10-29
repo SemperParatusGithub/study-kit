@@ -4,7 +4,8 @@ Bode and Nyquist diagrams, pole-zero maps, step responses, root loci, phasor dia
 time-domain signals. python-control, NumPy and SciPy only compute; house code draws every
 line. Every number a figure shows is computed and recorded in `facts`. Gain and phase
 margins and their crossover frequencies are computed twice, by python-control's polynomial
-method and by an independent SciPy frequency scan refined with brentq, and must agree.
+method and by an independent SciPy frequency scan refined with brentq; facts record whether
+they agree, and a disagreement also raises a RuntimeWarning.
 
 A transfer function `G` can be given as a python-control `TransferFunction`, as
 `(num, den)` coefficient lists (highest power first) or as a SymPy string in `s`
