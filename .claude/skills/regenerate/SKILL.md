@@ -51,7 +51,12 @@ discovery and validation never read it.
 | all | overview first, then summary, exercises and mc per topic, then exams, cheatsheet, plan | everything |
 
 Each author prompt names the course directory, the part, the topic, the mode with `n`,
-the ids to keep (from the index) and the user's note. Authors return JSON with `added`,
+the ids to keep (from the index) and the user's note. When the course has
+`sources/outline.md` (it was registered from lecture material), the prompt also names the
+chunk notes the outline lists for the topic (`sources/notes/<chunk>.md`) and says to
+follow `analysis/notation.yaml`: the regenerated part must stay faithful to the lecture.
+After `/add-material`, a topic whose chunks were added or replanned is regenerated from
+its new notes. Authors return JSON with `added`,
 `changed`, `removed`; judge the result by the files and validate, not by the report. Look
 at the figures an author built when the part has new ones.
 
