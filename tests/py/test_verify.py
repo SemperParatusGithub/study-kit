@@ -207,12 +207,26 @@ def test_seeded_wrong_mc_key_is_caught(course: Path):
     row = run_one(course, "mc-rc-filter-001", show_key=True)
     assert row["status"] == "disputed"
     assert any("matches option(s) C" in p and "key: A" in p for p in row["problems"])
-    # the same slip found by a blind answer
-    (course / "checks" / "mc-rc-filter-001.py").unlink()
-    write_check(course, "mc-rc-filter-001.json", '{"answer": ["C"], "reason": "1/(2 pi RC)"}')
-    row = run_one(course, "mc-rc-filter-001", show_key=True)
+    # a blind answer to a conceptual question that does not match the key
+    write_check(course, "mc-rc-filter-002.json", '{"answer": ["A"], "reason": "-6 dB"}')
+    row = run_one(course, "mc-rc-filter-002", show_key=True)
     assert row["status"] == "disputed"
-    assert row["problems"] == ["the verifier's answer C does not match the key | key: A"]
+    assert row["problems"] == ["the verifier's answer A does not match the key | key: D"]
+
+
+@pytest.mark.parametrize(
+    "check",
+    [
+        ("mc-rc-filter-001.json", '{"answer": ["C"], "reason": "1/(2 pi RC)"}'),
+        ("mc-rc-filter-001.py", "from studykit.check import mc_answer\nmc_answer(['C'])\n"),
+    ],
+)
+def test_a_numeric_question_needs_mc_numeric(course: Path, check: tuple[str, str]):
+    # a letter alone would skip the distractor, separation and option-value checks
+    write_check(course, *check)
+    row = run_one(course, "mc-rc-filter-001")
+    assert (row["outcome"], row["status"]) == ("error", "unverified")
+    assert any("mc_numeric(...)" in p for p in row["problems"]), row["problems"]
 
 
 def test_mc_numeric_catches_bad_distractors_and_misread_options(course: Path):
@@ -421,6 +435,8 @@ def test_check_problems_leave_the_item_unverified(course: Path):
         "import time; time.sleep(5)": "did not finish within 0.5 s",
         "from studykit.check import answers\nanswers(tau=103.4)": "computes no value for 'fg'",
         "from studykit.check import mc_answer\nmc_answer(['A'])": "needs answers(...) or",
+        # agreeing is no check of an item with keys: every key needs a computed value
+        "from studykit.check import review\nreview(True, 'looks fine')": "has answer keys",
     }
     for code, message in cases.items():
         write_check(course, "ex-rc-tp-grenzfrequenz.py", code + "\n")

@@ -14,9 +14,16 @@ if printf '%s\n' "$msg" | grep -Eiq '^co-authored-by:'; then
   exit 1
 fi
 
-# Subjects git writes itself are exempt from the Conventional Commit format only.
+# Subjects git writes itself are exempt from the Conventional Commit format only. A
+# "Merge …" subject only on a merge git is making (MERGE_HEAD exists while the hook runs);
+# on any other commit it is hand-written and gets checked.
 case "$subject" in
-  "Merge "*|"Revert \""*|"fixup! "*|"squash! "*|"amend! "*) exit 0 ;;
+  "Merge "*)
+    if [ -f "$(git rev-parse --git-path MERGE_HEAD 2>/dev/null)" ]; then
+      exit 0
+    fi
+    ;;
+  "Revert \""*|"fixup! "*|"squash! "*|"amend! "*) exit 0 ;;
 esac
 
 types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'

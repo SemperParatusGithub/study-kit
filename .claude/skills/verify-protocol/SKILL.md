@@ -16,7 +16,8 @@ and §5.3 (verifier); the check API is `src/studykit/check.py`; recipes are in
 A guard hook (`studykit hook verifier-guard`) denies the verifier every path that holds a
 key: the course's `exercises/`, `mc/`, `exams/`, `state/`, `_history/`, `_build/` (except
 `_build/blind/` and the figure images), figure facts, the built site and `.cache/`; Grep
-and Glob over a tree with a course; Bash that names those paths unless it is `studykit`
+and Glob over a tree with a course; Bash that names those paths or searches a course
+(globs, `grep -r`, `find` and links included) unless it is `studykit`
 (`blind`, `calc`, `verify` without `--json`/`--show-key`, `ls`, `lint`, `validate`, `fig`,
 `index`, `doctor`) or `python checks/…`; writes outside the course's `checks/`. A denial
 is the protocol working: never look for another way to the file. Everything you need is in

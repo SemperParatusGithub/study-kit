@@ -152,6 +152,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_verify = sub.add_parser(
         "verify",
+        # no prefixes: `--show` or `--js` must not reach the key past the verifier's guard
+        allow_abbrev=False,
         help="run the verifier's checks and update the ledger state/verify/<id>.json",
         description="Run checks/<id>.py or .json for the selected items, compare them with "
         "the answer key and write the ledger. Other actions record the steps of the dispute "

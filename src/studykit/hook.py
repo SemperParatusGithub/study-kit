@@ -14,23 +14,28 @@ reasons say what to do instead.
   Read, Grep and Glob on a course's `exercises/`, `mc/` and `exams/` and on everything
   else that holds keys or solutions (`state/`, `_history/`, `_build/` except `blind/` and
   the figure images, the built site), Grep and Glob over a tree that contains a course,
-  writes outside a course's `checks/`, and Bash commands that mention those paths unless
-  they are `studykit` (blind, calc, verify, ls, lint, validate, fig, index, doctor) or
-  `python checks/…`. `studykit render`, `pdf` and the key-revealing `verify --json` and
-  `--show-key` are denied even without a path.
+  writes outside a course's `checks/`, and Bash commands that mention those paths (also
+  through `cd`, globs, braces or symlinks), name or recursively search a tree holding a
+  course, or make links, unless they are `studykit` (blind, calc, verify, ls, lint,
+  validate, fig, index, doctor) or `python checks/…`. `studykit render`, `pdf` and the
+  key-revealing `verify --json` and `--show-key` (or a prefix of either) are denied even
+  without a path.
 - `pre-git` (project-wide, on `Bash(git *)`): denies `git add` with `-f`/`--force` or a
   path under `courses/` (except `courses/README.md`), and `git commit` with a course path,
-  `--no-verify`, or course files already staged.
+  `--no-verify`, or course files already staged, and any git command that sets
+  `core.hooksPath` for itself.
 """
 
 from __future__ import annotations
 
+import glob
 import json
 import os
 import re
 import shlex
 import subprocess
 from collections.abc import Callable, Iterator
+from itertools import islice
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +51,15 @@ MENTION = re.compile(
     r"(?:^|[\s'\"=/:])(?:exercises|mc|exams|_history|state)(?=/|\s|$|['\"])"
     r"|_build/(?!blind\b|figures/[^\s'\"]*\.(?:png|svg)\b)"
     r"|\.facts\.json|site/dist|site/\.astro|(?:^|[\s'\"=/])\.cache/"
+)
+# the same in check code, where only a path counts: a blocked name between '/' or quotes, or
+# before a '/' ("../exercises/x.md", / "mc"), not a word of a comment ("steady state")
+CODE_MENTION = re.compile(
+    r"(?<=[/'\"])(?:exercises|mc|exams|_history|state)(?=[/'\"]|$)"
+    r"|(?<![\w.-])(?:exercises|mc|exams|_history|state)/"
+    r"|_build/(?!blind\b|figures/[^\s'\"]*\.(?:png|svg)\b)"
+    r"|\.facts\.json|site/dist|site/\.astro|(?:^|[\s'\"=/])\.cache/",
+    re.MULTILINE,
 )
 
 
@@ -76,7 +90,16 @@ def course_root(path: Path) -> Path | None:
 
 
 def blocked_path(path: Path) -> str | None:
-    """Why the verifier may not look at `path`, or None."""
+    """Why the verifier may not look at `path`, or None. A symlink is judged by its own
+    path and by the path it resolves to (`checks/up -> ..` must not open the items)."""
+    why = _blocked_lexically(path)
+    real = Path(os.path.realpath(path))
+    if why is None and real != path:
+        why = _blocked_lexically(real)
+    return why
+
+
+def _blocked_lexically(path: Path) -> str | None:
     parts = path.parts
     for a, b in SITE_PARTS:
         if any(parts[i : i + 2] == (a, b) for i in range(len(parts) - 1)):
@@ -163,6 +186,12 @@ def _program(words: list[str]) -> list[str]:
     return words
 
 
+def _key_flag(word: str) -> bool:
+    """`--json`, `--show-key` or a prefix of one (`--show`, `--js=1`), as argparse reads it."""
+    name = word.split("=", 1)[0]
+    return len(name) >= 3 and name.startswith("--") and any(f.startswith(name) for f in KEY_FLAGS)
+
+
 def _verifier_allowed(words: list[str]) -> str | None:
     """None if the verifier may run this command whatever paths it names; else why not."""
     prog = _program(words)
@@ -173,7 +202,7 @@ def _verifier_allowed(words: list[str]) -> str | None:
         sub = prog[1] if len(prog) > 1 else ""
         if sub not in VERIFIER_STUDYKIT:
             return f"`studykit {sub}` is not for the verifier"
-        if sub == "verify" and KEY_FLAGS & set(prog):
+        if sub == "verify" and any(_key_flag(w) for w in prog[2:]):
             return "`studykit verify --json`/`--show-key` print the key"
         return None
     if re.fullmatch(r"python3?(\.\d+)?", name) and len(prog) > 1:
@@ -184,23 +213,103 @@ def _verifier_allowed(words: list[str]) -> str | None:
     return "only studykit and python checks/… may name course item paths"
 
 
-def verifier_bash(command: str) -> str | None:
+GLOB_CHARS = re.compile(r"[*?\[]")
+BRACES = re.compile(r"\{([^{}]*,[^{}]*)\}")
+REDIRECT = re.compile(r"^\d*(?:<|>{1,2})&?")
+
+
+def _expand_braces(word: str, limit: int = 64) -> list[str]:
+    """The words a shell brace expansion makes of `word` (`{exercises,mc}/x`)."""
+    match = BRACES.search(word)
+    if match is None:
+        return [word]
+    out: list[str] = []
+    for alt in match[1].split(","):
+        out.extend(_expand_braces(word[: match.start()] + alt + word[match.end() :], limit))
+        if len(out) >= limit:
+            break
+    return out[:limit]
+
+
+def _word_paths(word: str, cwd: Path) -> Iterator[Path]:
+    """The paths a shell word can stand for: itself, its brace expansions and glob matches."""
+    word = REDIRECT.sub("", word)
+    if word.startswith("-"):
+        if "=" not in word:
+            return
+        word = word.split("=", 1)[1]  # --file=<path>
+    for text in _expand_braces(word) if word else []:
+        path = _resolve(text, cwd)
+        yield path
+        if GLOB_CHARS.search(text):
+            try:
+                yield from (Path(p) for p in islice(glob.iglob(str(path)), 500))
+            except OSError, ValueError, re.error:
+                continue
+
+
+def _word_blocked(path: Path) -> str | None:
+    why = blocked_path(path)
+    if why is None and (contains_course(path) or contains_course(Path(os.path.realpath(path)))):
+        why = "it holds a course; read single files of checks/ or the blind view"
+    return why
+
+
+def verifier_bash(command: str, cwd: Path) -> str | None:
     if SUBSTITUTION.search(command):
         if MENTION.search(command):
             return "command substitution around course item paths"
         return None
+    where = cwd
     for words in segments(command):
         prog = _program(words)
-        if prog and os.path.basename(prog[0]) == "studykit":
+        if not prog:
+            continue
+        name = os.path.basename(prog[0])
+        if name == "studykit":
             why = _verifier_allowed(words)
             if why:
                 return why
             continue
+        if name in ("cd", "pushd"):  # reads nothing; later commands run there
+            args = [w for w in prog[1:] if not w.startswith("-")]
+            where = _resolve(args[0], where) if args else Path.home()
+            continue
+        if _verifier_allowed(words) is None:  # python checks/…
+            continue
+        if name == "ln":
+            return "the verifier makes no links"
         if MENTION.search(" ".join(words)):
-            why = _verifier_allowed(words)
+            return _verifier_allowed(words)
+        # globs, braces, recursive reads and symlinks name no blocked segment: judge the
+        # paths each word stands for (`grep -r key <course>`, `cat ex*/*.md`)
+        for word in prog:
+            for path in _word_paths(word, where):
+                why = _word_blocked(path)
+                if why:
+                    return f"`{word}`: {why}"
+        if _recursive(name, prog[1:]) and not any(
+            _resolve(w, where).exists() for w in prog[1:] if not w.startswith("-")
+        ):  # no path given: it searches the working directory
+            why = _word_blocked(where)
             if why:
-                return why
+                return f"`{name}` in {where}: {why}"
     return None
+
+
+RECURSIVE_TOOLS = {"rg", "ag", "ack", "find", "tree", "fd", "fdfind", "du"}
+
+
+def _recursive(name: str, args: list[str]) -> bool:
+    """True if the command walks a directory tree (the working directory without a path)."""
+    if name in RECURSIVE_TOOLS:
+        return True
+    flags = [a for a in args if a.startswith("-") and not a.startswith("--")]
+    if name in ("grep", "egrep", "fgrep"):
+        return any(a in ("--recursive", "--dereference-recursive") for a in args) or any(
+            "r" in f or "R" in f for f in flags
+        )
+    return name == "ls" and any("R" in f for f in flags)
 
 
 # --- the hooks -----------------------------------------------------------------------------
@@ -240,15 +349,15 @@ def verifier_guard(payload: dict[str, Any]) -> dict[str, Any] | None:
         raw = data.get("file_path") or data.get("notebook_path")
         if not isinstance(raw, str) or not raw:
             return None
-        path = _resolve(raw, cwd)
+        path = Path(os.path.realpath(_resolve(raw, cwd)))  # where the write would land
         root = course_root(path.parent)
         if root is None or path.relative_to(root).parts[0] != "checks":
             return deny(
                 f"verifier-guard: {raw}: the verifier writes only into a course's checks/."
                 + GUARD_HINT
             )
-        text = " ".join(str(data.get(k) or "") for k in ("content", "new_string", "new_source"))
-        if MENTION.search(text):
+        text = "\n".join(str(data.get(k) or "") for k in ("content", "new_string", "new_source"))
+        if CODE_MENTION.search(text):
             return deny(
                 f"verifier-guard: {raw}: a check must not read course item files; compute "
                 "from the blind view." + GUARD_HINT
@@ -257,13 +366,42 @@ def verifier_guard(payload: dict[str, Any]) -> dict[str, Any] | None:
     if tool == "Bash":
         command = data.get("command")
         if isinstance(command, str):
-            why = verifier_bash(command)
+            why = verifier_bash(command, cwd)
             if why:
                 return deny(f"verifier-guard: {why}." + GUARD_HINT)
     return None
 
 
-GIT_OPTS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
+GIT_OPTS_WITH_VALUE = {
+    "-C",
+    "-c",
+    "--config-env",
+    "--git-dir",
+    "--work-tree",
+    "--namespace",
+    "--exec-path",
+}
+
+
+def _overrides_hooks(words: list[str]) -> bool:
+    """True if a git command line sets core.hooksPath for this run (`-c`, `--config-env`,
+    GIT_CONFIG_* in the environment), which would skip .githooks."""
+    if any(re.match(r"GIT_CONFIG_\w*=", w) and "hookspath" in w.lower() for w in words):
+        return True
+    words = _strip_env(words)
+    i = 1
+    while i < len(words) and words[i].startswith("-"):
+        word, value = words[i], None
+        if word in ("-c", "--config-env") and i + 1 < len(words):
+            value = words[i + 1]
+        elif word.startswith("--config-env="):
+            value = word.split("=", 1)[1]
+        elif word.startswith("-c") and len(word) > 2:
+            value = word[2:]
+        if value is not None and value.split("=", 1)[0].strip().lower() == "core.hookspath":
+            return True
+        i += 2 if word in GIT_OPTS_WITH_VALUE else 1
+    return False
 
 
 def _git(words: list[str], cwd: Path) -> tuple[str, list[str], Path] | None:
@@ -291,7 +429,12 @@ def repo_root(where: Path) -> Path:
 def course_path(arg: str, where: Path) -> bool:
     """True if a git path argument points into courses/ (README.md excepted)."""
     root = repo_root(where)
-    text = arg.split(")", 1)[-1] if arg.startswith(":(") else arg.lstrip(":/")
+    if arg.startswith(":("):
+        text = arg.split(")", 1)[-1]
+    elif arg.startswith(":"):  # short magic: ":/x" is x from the top
+        text = arg.lstrip(":/")
+    else:  # a plain path, absolute ones included
+        text = arg
     path = _resolve(text, where) if not arg.startswith((":/", ":(top)")) else root / text
     try:
         rel = path.relative_to(root).as_posix()
@@ -347,6 +490,12 @@ GIT_HINT = (
 )
 
 
+def _long_option(arg: str, option: str, shortest: int) -> bool:
+    """`option` or a prefix of it at least `shortest` long: git takes `--forc`, `--no-verif`."""
+    name = arg.split("=", 1)[0]
+    return len(name) >= shortest and option.startswith(name)
+
+
 def pre_git(payload: dict[str, Any]) -> dict[str, Any] | None:
     if payload.get("tool_name") != "Bash":
         return None
@@ -360,9 +509,16 @@ def pre_git(payload: dict[str, Any]) -> dict[str, Any] | None:
         if parsed is None:
             continue
         sub, args, where = parsed
+        if _overrides_hooks(words):
+            return deny(
+                "pre-git: setting core.hooksPath for one git command would skip the course "
+                "and commit-message hooks of .githooks." + GIT_HINT
+            )
         if sub in ("add", "stage"):
             for arg in args:
-                if arg == "--force" or (re.fullmatch(r"-[A-Za-z]+", arg) and "f" in arg[1:]):
+                if _long_option(arg, "--force", 3) or (
+                    re.fullmatch(r"-[A-Za-z]+", arg) and "f" in arg[1:]
+                ):
                     return deny("pre-git: `git add -f` is never allowed." + GIT_HINT)
             paths = [a for a in args if not a.startswith("-") or a.startswith(":")]
             bad = [a for a in paths if course_path(a, where)]
@@ -375,7 +531,7 @@ def pre_git(payload: dict[str, Any]) -> dict[str, Any] | None:
                 if arg == "--":
                     paths.extend(args[i + 1 :])
                     break
-                if arg == "--no-verify":
+                if _long_option(arg, "--no-verify", 6):
                     return deny(NO_VERIFY)
                 if arg in COMMIT_OPTS_WITH_VALUE:
                     i += 2

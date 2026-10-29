@@ -71,6 +71,18 @@ commit_msg() {
   sh "$hooks/commit-msg" "$tmp/msg"
 }
 
+# merge_with <message>: merge a side branch in a new repository through the hooks, with
+# <message> as the merge commit's message
+merge_with() {
+  local repo
+  repo=$(new_repo)
+  git -C "$repo" checkout -q -b side
+  git -C "$repo" commit -q --allow-empty -m "feat: side"
+  git -C "$repo" checkout -q main
+  git -C "$repo" commit -q --allow-empty -m "feat: main"
+  git -C "$repo" merge -q --no-ff -m "$1" side
+}
+
 # guard_in <checkout> <check> [NAME=value...]: run a guard check in <checkout> with the
 # given environment, as the guard workflow runs it
 guard_in() {
@@ -149,7 +161,12 @@ $trailer"
 expect fail "lower-case co-author trailer" commit_msg "feat: add a tab
 
 co-authored-by: someone <someone@example.invalid>"
-for subject in 'Merge branch '\''main'\'' into topic' 'Revert "feat: add a tab"' \
+expect pass "merge with git's subject" merge_with "Merge branch 'side'"
+expect fail "merge with a co-author trailer" merge_with "Merge branch 'side'
+
+$trailer"
+expect fail "merge subject on a commit that is no merge" commit_msg "Merge whatever I like"
+for subject in 'Revert "feat: add a tab"' \
   'fixup! feat: add a tab' 'squash! feat: add a tab' 'amend! feat: add a tab'; do
   expect pass "git-generated subject: $subject" commit_msg "$subject"
   expect fail "git-generated subject with a co-author trailer: $subject" commit_msg "$subject
@@ -221,6 +238,13 @@ git -C "$remote/work" push -q origin main
 expect fail "first push of the default branch with a co-author trailer" \
   guard_in "$(checkout "$remote" main)" commits \
   EVENT=push PUSH_BEFORE="$zero" PUSH_REF=refs/heads/main DEFAULT_BRANCH=main
+# guard.sh skips real merges (--no-merges), so a plain commit with a merge subject is checked
+remote=$(new_remote)
+commit_in "$remote/work" "feat: start" >/dev/null
+commit_in "$remote/work" "Merge whatever I like" >/dev/null
+git -C "$remote/work" push -q origin main
+expect fail "a plain commit with a merge subject" guard_in "$(checkout "$remote" main)" \
+  commits EVENT=push PUSH_BEFORE="$zero" PUSH_REF=refs/heads/main DEFAULT_BRANCH=main
 
 echo "guard: courses"
 rejected_by="::error::"

@@ -562,7 +562,9 @@ The runner asserts four things:
 4. Each option's text parses to its stated value. If the text can't be parsed, this is a warning.
 
 A failure of 1–3 disputes the question; a failure of 4 means the check misread an option,
-so the item stays unverified until the check is fixed.
+so the item stays unverified until the check is fixed. A question whose every option states
+a number needs this check: a letter answer to it (`mc_answer` or a JSON answer) is a check
+error.
 
 **Conceptual questions**: the verifier answers blind into `checks/<id>.json` (or a script ending with `mc_answer(...)`; Kprim takes `{"A": true, …}` or the list of true statements):
 
@@ -725,7 +727,8 @@ studykit verify <course> [target] [--status | --confirm FILE [--method …] | --
   line the runner reads from the end of its output: `answers(**values)` (numbers in the
   key's unit, `quantity(x, "kHz")` in another unit of the same kind, SymPy expressions for
   symbolic keys), `mc_answer(letters)`, `mc_numeric(…)` (§2.6) or `review(agree, reason)`
-  for an item without keys. `verify-protocol/recipes.md` (§5.2) has worked recipes.
+  for an item without keys (on an item with keys, `review` is a check error).
+  `verify-protocol/recipes.md` (§5.2) has worked recipes.
 - Exercises and exam tasks compare every `answers` key: numbers within `atol + rtol·|value|`
   (SI prefixes convert; `rad/s` and `1/s` count as the same unit), expressions by SymPy
   simplification, then at sample points. MC questions compare the set of correct letters
@@ -1087,7 +1090,8 @@ and `data-rubric` `[{criterion, criterion_html, points}]`; the MC part is
     when the answer was "sure". The misconception is not stored; it follows from the last
     attempt (§2.11).
   - Exercises are scheduled from the self-assessment as "unsure" answers: solved = 1,
-    partly = 0.5, not yet = 0.
+    partly = 0.5, not yet = 0. Rating an exercise again before its review comes up replaces
+    the rating of the same attempt: a second "Solved" moves the box no further.
   - Exam clamp, with limit = `exam_date − 2 days` and window = `[exam_date − 10, limit]`:
     nothing is due during the two rest days; a due day past the limit moves to the window
     start (reviewed before the window) or to the limit (reviewed inside it), so every
@@ -1574,7 +1578,8 @@ Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
 
 `commit-msg` rejects a `Co-Authored-By` trailer on every commit; subjects git writes itself
 (`Merge …`, `Revert "…"`, `fixup!`, `squash!`, `amend!`) are exempt only from the Conventional
-Commit format. `pre-commit` matches the staged paths by pathspec, so file names with non-ASCII
+Commit format, `Merge …` only on a merge git is making (`MERGE_HEAD` exists), so a
+hand-written commit with that subject is checked, locally and by the guard. `pre-commit` matches the staged paths by pathspec, so file names with non-ASCII
 characters or quotes are caught too.
 
 ## 5. Claude Code layer
@@ -1633,10 +1638,12 @@ call the CLI as `uv run --frozen studykit …`.
     else exits 0 without output.
   - `PreToolUse`, matcher `Bash`, with `"if": "Bash(git *)"`: `studykit hook pre-git`
     checks every simple command of the line (`&&`, `;`, `|`, following `git -C <dir>`). It
-    denies `git add` or `git stage` with `-f`/`--force` (also inside a flag cluster) or a
-    path under `courses/` (pathspecs such as `:/courses` too; `courses/README.md` is
-    allowed), and `git commit` with a course path, `--no-verify` or `-n`, or course files
-    already staged. It prints the documented deny JSON
+    denies `git add` or `git stage` with `-f`/`--force` (also inside a flag cluster, or a
+    prefix such as `--forc`, which git accepts) or a path under `courses/` (pathspecs such
+    as `:/courses` too; `courses/README.md` is allowed), and `git commit` with a course
+    path, `--no-verify` (or a prefix down to `--no-v`) or `-n`, or course files already
+    staged, and any git command that sets `core.hooksPath` for itself (`-c`,
+    `--config-env`, `GIT_CONFIG_*`), which would skip `.githooks`. It prints the documented deny JSON
     (`hookSpecificOutput.permissionDecision: "deny"` with a reason) and exits 0; input it
     cannot read never blocks.
   - The verifier's guard is a hook of that agent only (§5.3).
@@ -1750,13 +1757,18 @@ the `just` recipes start them. No agent has memory, and only the verifier has a 
 - It denies Read, Grep and Glob on `exercises/`, `mc/` and `exams/`, and on what else holds
   keys or solutions: `state/`, `_history/`, `_build/` except `blind/` and the figure images,
   figure facts, the built site and `.cache/`; Grep and Glob over a tree that contains a
-  course, and Glob patterns or Grep globs that name those paths.
-- It denies Bash commands that mention those paths (command substitution included), except
-  `studykit` and `python checks/…`; of `studykit` only `blind`, `calc`, `verify` (without
-  `--json` and `--show-key`), `ls`, `lint`, `validate`, `fig`, `index` and `doctor` are
-  allowed, with or without a path.
+  course, and Glob patterns or Grep globs that name those paths. A path is judged as written
+  and as it resolves, so a symlink into those directories is denied too.
+- It denies Bash commands that mention those paths (command substitution included), or
+  whose words stand for them once `cd`, globs, brace expansion and symlinks are applied, or
+  that name a tree holding a course or search one recursively (`grep -r`, `find`, `rg`
+  without a path), and `ln`; except `studykit` and `python checks/…`; of `studykit` only
+  `blind`, `calc`, `verify` (without `--json` and `--show-key`, or a prefix of either;
+  `verify` takes no abbreviated options), `ls`, `lint`, `validate`, `fig`, `index` and
+  `doctor` are allowed, with or without a path.
 - It denies Write, Edit, MultiEdit and NotebookEdit outside a course's `checks/`, and check
-  code that names those paths.
+  code that names those paths (a name between `/` or quotes, or before a `/`; the words of a
+  comment such as "steady state" do not count).
 - The verifier works only from `studykit blind <c> <id>`, which writes `_build/blind/<id>.md`:
   the statement with no solution, hints, rubric, answer values or `[x]` marks, the answer
   keys to compute (key, label, unit or symbols), and MC options in source order labelled A–F

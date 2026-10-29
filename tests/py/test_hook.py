@@ -99,6 +99,22 @@ def test_guard_allows_the_blind_view_and_checks(repo: Path, path: str):
     assert decide("verifier-guard", event("Read", repo, file_path=path)) is None
 
 
+def test_guard_follows_symlinks(repo: Path):
+    checks = repo / C / "checks"
+    (checks / "up").symlink_to("..")
+    (checks / "key.md").symlink_to("../mc/rc.md")
+    for path in (f"{C}/checks/up/exercises/rc/ex-a.md", f"{C}/checks/key.md"):
+        assert decide("verifier-guard", event("Read", repo, file_path=path)), path
+    write = event("Write", repo, file_path=f"{C}/checks/up/mc/rc.md", content="x")
+    assert "writes only into a course's checks/" in decide("verifier-guard", write)
+    grep = event("Grep", repo, pattern="fg", path=f"{C}/checks/up/exams")
+    assert decide("verifier-guard", grep)
+    assert (
+        decide("verifier-guard", event("Read", repo, file_path=f"{C}/checks/up/course.yaml"))
+        is None
+    )
+
+
 def test_guard_on_grep_and_glob(repo: Path):
     course = repo / C
     assert decide("verifier-guard", event("Grep", repo, pattern="fg"))  # the repo has courses
@@ -135,6 +151,35 @@ def test_guard_on_writes(repo: Path):
 
 
 @pytest.mark.parametrize(
+    "code",
+    [
+        "# capacitor voltage in steady state\nanswers(uc=5.0)\n",
+        'answers(uc=5.0, method="steady state analysis")\n',
+        "u0 = 0.0  # initial state\n",
+        'review(True, "exams use the same values; mc and state are words here")\n',
+    ],
+)
+def test_guard_allows_words_that_are_dir_names_in_check_code(repo: Path, code: str):
+    write = event("Write", repo, file_path=f"{C}/checks/ex-a.py", content=code)
+    assert decide("verifier-guard", write) is None, code
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        'Path(__file__).parent.parent / "exercises" / "rc"',
+        "glob.glob('../exams/*/*.md')",
+        "open(root + '/state/verify/ex-a.json')",
+        'x = "mc"\nopen(f"../{x}/rc.md")',
+        "p = 'exercises'\n",
+    ],
+)
+def test_guard_denies_paths_in_check_code(repo: Path, code: str):
+    write = event("Write", repo, file_path=f"{C}/checks/ex-a.py", content=code)
+    assert decide("verifier-guard", write), code
+
+
+@pytest.mark.parametrize(
     "command",
     [
         f"cat {C}/exercises/rc/ex-a.md",
@@ -148,8 +193,24 @@ def test_guard_on_writes(repo: Path):
         "uv run --frozen studykit render get2 --json",
         "studykit verify get2 ex-a --json",
         "uv run --frozen studykit verify get2 ex-a --show-key",
+        "uv run --frozen studykit verify get2 ex-a --show",  # argparse-style prefixes
+        "studykit verify get2 ex-a --js",
+        "studykit verify get2 ex-a --json=1",
         "studykit pdf get2",
         f"python ../checks/../mc/rc.md {C}/mc",
+        # no blocked name in the text: globs, braces, recursion and links
+        f"cat {C}/exer*/rc/*.md",
+        f"cat {C}/{{exercises,summary}}/rc/ex-a.md",
+        f"cat < {C}/checks/../e?ercises/rc/ex-a.md",
+        f"grep -r key {C}",
+        "grep -rn . courses",
+        "grep -r key .",
+        f"find {C} -exec cat {{}} +",
+        f"cd {C} && cat ex*/rc/*.md",
+        f"cd {C} && grep -r key",
+        f"cd {C}/checks && rg key ..",
+        f"cd {C} && find -name '*.md'",
+        f"ln -s .. {C}/checks/up",
     ],
 )
 def test_guard_denies_bash_that_reads_items(repo: Path, command: str):
@@ -169,6 +230,12 @@ def test_guard_denies_bash_that_reads_items(repo: Path, command: str):
         "python -c 'import sympy; print(sympy.sqrt(2))'",
         "python -c 'from studykit.check import mc_numeric'",
         "ls",
+        f"cat {C}/checks/*.py",
+        f"cd {C} && uv run --frozen python checks/ex-a.py",
+        f"cd {C} && ls checks",
+        f"cd {C}/checks && grep -rn fg .",
+        f"grep -n fg {C}/checks/ex-a.py",
+        "python -c 'print(2*3, [1, 2][0], {1, 2})'",
     ],
 )
 def test_guard_allows_the_protocol(repo: Path, command: str):
@@ -190,6 +257,17 @@ def test_guard_allows_the_protocol(repo: Path, command: str):
         "git commit --no-verify -m 'feat: x'",
         "git commit -nm 'feat: x'",
         "git stage courses/get2/mc",
+        # git takes a unique prefix of a long option
+        "git add --forc .",
+        "git add --f notes.txt",
+        "git commit --no-verif -m 'feat: x'",
+        "git commit --no-veri -m 'feat: x'",
+        "git add --forc . && git commit --no-verif -m x",
+        # the hooks switched off for one command
+        "git -c core.hooksPath=/dev/null commit -m 'feat: x'",
+        "git -c core.hookspath= commit -m 'feat: x'",
+        "git --config-env=core.hooksPath=EMPTY commit -m 'feat: x'",
+        "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=x git commit",
     ],
 )
 def test_pre_git_blocks(repo: Path, command: str):
@@ -209,10 +287,25 @@ def test_pre_git_blocks(repo: Path, command: str):
         "git status",
         "git log --oneline -- courses",
         "echo git add -f",
+        "git commit --amend --no-edit",
+        "git add --dry-run src",
+        "git -c core.quotePath=false status",
     ],
 )
 def test_pre_git_allows(repo: Path, command: str):
     assert decide("pre-git", event("Bash", repo, command=command)) is None, command
+
+
+def test_pre_git_sees_absolute_course_paths(repo: Path):
+    path = repo / C / "course.yaml"
+    for command in (
+        f"git add {path}",
+        f"git commit -m 'feat: x' {path}",
+        f"git add {repo}/courses",
+    ):
+        assert decide("pre-git", event("Bash", repo, command=command)), command
+    readme = f"git add {repo}/courses/README.md"
+    assert decide("pre-git", event("Bash", repo, command=readme)) is None
 
 
 def test_pre_git_sees_course_files_already_staged(repo: Path):
@@ -237,3 +330,10 @@ def test_cli(repo: Path, monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event("Bash", repo, command="ls"))))
     assert cli.main(["hook", "pre-git"]) == 0
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("flag", ["--show", "--js"])
+def test_verify_takes_no_flag_prefixes(flag: str):
+    # a prefix would print the key past the guard's flag check
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["verify", "get2", "ex-a", flag])

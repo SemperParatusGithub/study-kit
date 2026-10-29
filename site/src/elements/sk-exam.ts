@@ -202,6 +202,7 @@ export class SkExam extends HTMLElement {
     else if (this.session.submitted) this.renderGraded();
     else if (this.left() <= 0) {
       this.resumeClock(Date.now());
+      this.restoreMc(); // submit() saves the selections on screen: put the stored ones there first
       this.submit('time');
     } else this.run();
   }
