@@ -93,6 +93,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_links.add_argument("--json", action="store_true", help="machine-readable output")
     p_links.set_defaults(func=cmd_check_links)
 
+    p_pdf = sub.add_parser("pdf", help="build the course's PDF documents into _build/pdf")
+    p_pdf.add_argument("course", help="course id or directory")
+    p_pdf.add_argument(
+        "docs",
+        nargs="*",
+        metavar="doc",
+        help="only these documents: overview, summary, exercises, exercises-blank, mc, "
+        "<exam>, <exam>-solutions, cheatsheet, plan (default: all)",
+    )
+    p_pdf.add_argument("--force", action="store_true", help="rebuild even if up to date")
+    p_pdf.add_argument(
+        "--no-figures", action="store_true", help="do not build the figures (cached) first"
+    )
+    p_pdf.add_argument("--jobs", type=int, help="documents built in parallel (default: CPUs)")
+    p_pdf.add_argument("--json", action="store_true", help="machine-readable output")
+    p_pdf.set_defaults(func=cmd_pdf)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -292,6 +309,30 @@ def cmd_check_links(args: argparse.Namespace) -> int:
             f"{len(found) - len(errors)} warning(s)"
         )
     return 1 if errors else 0
+
+
+def cmd_pdf(args: argparse.Namespace) -> int:
+    from studykit import pdf
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        result = pdf.build(
+            tree.root,
+            args.docs or None,
+            force=args.force,
+            figures=not args.no_figures,
+            jobs=args.jobs,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(pdf.format_text(result))
+    return 1 if any(d["status"] == "failed" for d in result["docs"]) else 0
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:
