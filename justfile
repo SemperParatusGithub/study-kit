@@ -70,9 +70,10 @@ test:
 #   STUDYKIT_COURSES_DIR=examples just build sample-course
 # Playwright fetches its Chromium on first use; args go to `playwright test`.
 # browser tests of the built sample course (site/tests/e2e)
+[positional-arguments]
 e2e *args:
     pnpm -C site exec playwright install chromium
-    pnpm -C site run e2e {{args}}
+    pnpm -C site run e2e "$@"
 
 # `test` includes `schema export --check`; the sample course comes from examples/.
 # what CI runs: doctor, tests, strict build and release validation of the sample course
