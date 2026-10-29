@@ -288,6 +288,17 @@ def test_index_survives_broken_files(mini: Path):
     assert "ex-kaputt" not in data["items"] and "ex-rc-tp-grenzfrequenz" in data["items"]
 
 
+@pytest.mark.parametrize(("lang", "expected"), [("de", "de"), ("fr", "en"), ("[de]", "en")])
+def test_index_language_of_a_broken_course_is_de_or_en(mini: Path, lang: str, expected: str):
+    course = mini / "course.yaml"
+    text = course.read_text().replace("lang: de", f"lang: {lang}").replace("schema: 1", "x: 1")
+    course.write_text(text)
+    tree = content.CourseTree(mini)
+    assert tree.model is None
+    data = index.build(tree)
+    assert data["lang"] == expected and data["title"] == "Mini-Kurs Elektrotechnik"
+
+
 def test_ls_json(mini: Path, capsys, monkeypatch):
     monkeypatch.setenv("STUDYKIT_COURSES_DIR", str(mini.parent))
     assert cli.main(["ls", "--json"]) == 0

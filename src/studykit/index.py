@@ -12,7 +12,10 @@ The shape is a contract with `pandoc/filters` (refs.lua, mcq.lua, meta.lua):
      "sources": {"<doc-id>": {"title": "…", "pages": 40}}}
 
 The index is built best effort: files that do not parse are left out, so pandoc can still
-render the rest while `studykit validate` reports the problems.
+render the rest while `studykit validate` reports the problems. In particular, `pages` is
+null when sources/manifest.yaml gives no page count (refs.lua then skips the page range
+check), and when course.yaml does not validate, `lang` falls back to "en" unless the raw
+value is "de" or "en", and `title` falls back to the course id.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from studykit.content import CourseTree
 
 INDEX_SCHEMA = 1
 ITEM_KINDS = ("exercise", "mc", "exam-task", "summary", "overview", "cheatsheet")
+LANGS = ("de", "en")
 
 
 def build(tree: CourseTree) -> dict[str, Any]:
@@ -63,7 +67,7 @@ def build(tree: CourseTree) -> dict[str, Any]:
     return {
         "schema": INDEX_SCHEMA,
         "course": course.id if course else str(raw.get("id") or tree.id),
-        "lang": course.lang if course else str(raw.get("lang") or "en"),
+        "lang": course.lang if course else _lang(raw.get("lang")),
         "title": course.title if course else str(raw.get("title") or tree.id),
         "topics": topics,
         "items": items,
@@ -71,6 +75,11 @@ def build(tree: CourseTree) -> dict[str, Any]:
         "figures": tree.figure_slugs,
         "sources": tree.sources,
     }
+
+
+def _lang(value: Any) -> str:
+    """A language the filters know (contract: de or en), even from a broken course.yaml."""
+    return value if value in LANGS else "en"
 
 
 def index_path(tree: CourseTree) -> Path:
