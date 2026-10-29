@@ -225,8 +225,11 @@ prompt: "Course: `<dir>`. Part: `<part>`. Topic: `<t>`. Mode: new. Follow `notat
 the notes of this topic are the chunks `sources/outline.md` lists for it." When the part
 exists but falls short of its target (a resumed run; the Coverage message names the
 counts), the mode is `add <n>` instead.
-1. First one author for `overview` (it writes the topic map section and "exam at a glance"
-   from the profile); wait for it.
+1. First one author for `overview`, prompt: "Course: `<dir>`. Part: `overview`. Mode: new.
+   Follow `notation.yaml`; the notes are all chunks of `sources/outline.md`." (no topic; it
+   writes the topic map section and "exam at a glance" from the profile); wait for it.
+   `overview_links` (topics the overview does not link) and `schema_errors` in
+   `overview.md` go to this author with mode `fix` and the finding lines.
 2. Then one author per topic for `summary` (topics in teaching order).
 3. Then one author per (topic, part) for `mc`, and for `exercises` unless the scope is
    core, each after its topic's summary exists.
