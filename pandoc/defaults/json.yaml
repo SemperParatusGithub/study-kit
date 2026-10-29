@@ -1,0 +1,4 @@
+# Validation run used by lint, blind views and verification. The filter only checks here
+# and returns the AST unchanged. +sourcepos gives every finding its file:line:col.
+from: commonmark_x-smart-raw_html-raw_attribute-yaml_metadata_block-alerts-emoji+sourcepos
+to: json
