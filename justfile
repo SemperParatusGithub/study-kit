@@ -53,6 +53,30 @@ pdf course="":
 cheatsheet course:
     {{sk}} cheatsheet fit {{course}}
 
+# Verification ledger (docs/architecture.md §2.10): runs the checks of an item, topic,
+# exam or all; the flags go to `studykit verify` (--status, --report, --clear, …).
+# run the blind checks of an item, topic, exam or all and update the ledger
+[positional-arguments]
+verify course target="all" *flags:
+    {{sk}} verify "$@"
+
+# study status: days left, plan adherence, weak topics, reviews due (--today, --json)
+[positional-arguments]
+status course *flags:
+    {{sk}} status "$@"
+
+# The tutor and the examiner run as Claude Code's main thread (`claude --agent`), opened
+# with their command; they need the `claude` CLI.
+# Socratic tutor in the terminal: /tutor <course> [topic|ex-id]
+[positional-arguments]
+tutor course *args:
+    claude --agent tutor "/tutor $*"
+
+# examiner in the terminal: /examine <course> [diagnostic|topic <t>|mc|weak|misconceptions|exam <id>|oral]
+[positional-arguments]
+examine course *args:
+    claude --agent examiner "/examine $*"
+
 # every internal link and #anchor of the built site resolves
 check-links dist="site/dist":
     {{sk}} check-links {{dist}}
