@@ -6,7 +6,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 root := justfile_directory()
 export PATH := root / ".tools/bin" + ":" + env("PATH")
 export ASTRO_TELEMETRY_DISABLED := "1"
-export STUDYKIT_COURSES_DIR := env("STUDYKIT_COURSES_DIR", root / "courses")
+# absolute, so python (run from the repo root) and the site (run from site/) agree on a
+# relative value: it is relative to the repo root
+export STUDYKIT_COURSES_DIR := absolute_path(env("STUDYKIT_COURSES_DIR", root / "courses"))
 
 sk := "uv run --frozen studykit"
 
