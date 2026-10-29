@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=../../schemas/plan.schema.json
+# Written by `studykit plan`; by hand only the goal and note of a session.
+schema: 1
+generated: 2026-10-29
+exam_date: 2027-02-15
+sessions:
+  - id: s-2026-11-02-a
+    date: 2026-11-02
+    minutes: 120
+    kind: learn                 # learn | review | mixed | mock-exam | cheatsheet | buffer
+    topics: [spannungsteiler]
+    goal: 'Spannungs- und Stromteilerregel sicher anwenden'
+    tasks:
+      - {do: read, ref: 'topic:spannungsteiler'}
+      - {do: exercises, refs: ['ex:ex-st-unbelastet', 'ex:ex-st-stromteiler']}
+      - {do: mc, topic: spannungsteiler, count: 5}
+  - id: s-2026-11-07-a
+    date: 2026-11-07
+    minutes: 120
+    kind: review
+    topics: [spannungsteiler]
+    goal: 'Wiederholung: Spannungsteiler'
+    tasks:
+      - {do: review, topic: spannungsteiler}
+      - {do: mc, topic: spannungsteiler, count: 10}
+  - id: s-2027-02-06-a
+    date: 2027-02-06
+    minutes: 150
+    kind: mock-exam
+    goal: 'Probeklausur unter Prüfungsbedingungen schreiben'
+    tasks:
+      - {do: exam, ref: 'exam:probeklausur-1'}
+  - id: s-2027-02-14-a
+    date: 2027-02-14
+    minutes: 120
+    kind: cheatsheet
+    goal: 'Formelblatt fertigstellen'
+    note: 'Mit dem Formelblatt die Probeklausur noch einmal durchgehen'
+    tasks:
+      - {do: cheatsheet}
