@@ -206,6 +206,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify.add_argument("--json", action="store_true", help="machine-readable output")
     p_verify.set_defaults(func=cmd_verify)
 
+    p_blind = sub.add_parser(
+        "blind",
+        help="write the blind view _build/blind/<id>.md of an item for the verifier",
+    )
+    p_blind.add_argument("course", help="course id or directory")
+    p_blind.add_argument("id", help="exercise, exam task or MC question id")
+    p_blind.add_argument("--stdout", action="store_true", help="also print the view")
+    p_blind.set_defaults(func=cmd_blind)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -534,6 +543,24 @@ def cmd_verify(args: argparse.Namespace) -> int:
     if not args.json and result.get("report"):
         print(f"wrote {result['report']}")
     return 1 if failed else 0
+
+
+def cmd_blind(args: argparse.Namespace) -> int:
+    from studykit import blind, content, verify
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 2
+    try:
+        path, text = blind.write(tree, args.id)
+    except verify.VerifyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.stdout:
+        print(text, end="")
+    else:
+        print(f"wrote {content.display_path(path)}")
+    return 0
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:
