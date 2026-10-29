@@ -619,3 +619,28 @@ question id, `conf` and `chosen`; a task or exercise its id; `points` come with
 to.
 Fix: `studykit progress log <course> --json-line '{"mode": "mc", "kind": "mc", "topic":
 "rc-filter", "item": "mc-rc-filter-003", "chosen": ["A"], "conf": "sure", "score": 1}'`.
+
+## Plan (SK-PLAN, `studykit plan`)
+
+`studykit plan` reports these at `course.yaml`; errors write no plan. A plan it writes is
+read back and checked like validate checks it (schema, references), so the Structure and
+References codes never come from a fresh plan.
+
+### `SK-PLAN-STUDY`
+**error.** The plan has no time budget: `course.yaml` has no `study` settings, or
+`study.hours_per_week` is less than 15 minutes a week.
+Fix: `study: {start: YYYY-MM-DD, hours_per_week: 6, blocked: ['YYYY-MM-DD..YYYY-MM-DD']}`.
+
+### `SK-PLAN-DATE`
+**error** or **warning.** The first day to plan (`--from`, else today) is not before the
+exam, or there is no free study day left before it (error); or the exam date is unknown, so
+the plan runs 12 weeks and writes `exam_date: null` (warning).
+Fix: plan from an earlier day (`--from YYYY-MM-DD`), set `exam.date`, or shorten
+`study.blocked`.
+
+### `SK-PLAN-BUDGET`
+**warning.** The time does not cover the plan: too few sessions to learn every topic, a mock
+exam longer than the weekly budget, no session left for a mock exam, fewer mock exams than
+`targets.mock_exams`, or done sessions that already fill a week.
+Fix: start earlier, raise `study.hours_per_week`, skip topics, or write the missing mock
+exams; then plan again.

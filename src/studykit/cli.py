@@ -180,6 +180,15 @@ def _add_study_commands(sub) -> None:
     p_rep.add_argument("--json", action="store_true", help="print mastery.json")
     p_rep.set_defaults(func=cmd_progress_report)
 
+    p_plan = sub.add_parser("plan", help="schedule the study plan into plan.yaml (deterministic)")
+    p_plan.add_argument("course", help="course id or directory")
+    p_plan.add_argument(
+        "--from", dest="start", type=_day, help="first day to plan (default: today)"
+    )
+    p_plan.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
+    p_plan.add_argument("--json", action="store_true", help="machine-readable output")
+    p_plan.set_defaults(func=cmd_plan)
+
 
 def _print_findings(found, as_json: bool) -> None:
     if as_json:
@@ -261,6 +270,25 @@ def cmd_progress_report(args: argparse.Namespace) -> int:
             f"wrote {content.display_path(mastery_path)} and {content.display_path(report_path)}"
         )
     return 0
+
+
+def cmd_plan(args: argparse.Namespace) -> int:
+    from studykit import plan
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    result, found = plan.run(tree.root, start=args.start, write=not args.dry_run)
+    errors = [f for f in found if f.is_error]
+    if args.json:
+        out = {"ok": not errors, "findings": [f.to_dict() for f in found], **result}
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        for f in found:
+            print(f.format(), file=sys.stderr)
+        if result:
+            print(plan.format_text(result, dry_run=args.dry_run))
+    return 1 if errors else 0
 
 
 def _course_tree(arg: str):
