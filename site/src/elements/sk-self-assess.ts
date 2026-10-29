@@ -2,7 +2,8 @@
 //
 // The rating is stored as `rating` and schedules the exercise for review (Leitner: solved
 // moves up a box, partly and not yet go to box 1). Using more than one hint caps the
-// rating at "Partly". Listens to `sk:hint` so the cap applies as soon as a hint is opened.
+// rating at "Partly", also a "Solved" given before the hints (the store applies the cap;
+// this element listens to `sk:hint` and shows it at once).
 
 import type { ExEntry, Rating } from '../lib/store.ts';
 import { contentChanged, examDate, h, hashOf, relativeDay, storeOf, uid } from './util.ts';

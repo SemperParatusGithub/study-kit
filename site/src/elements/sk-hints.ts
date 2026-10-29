@@ -2,12 +2,13 @@
 //
 // Wraps the filter's <details class="sk-hint" data-index="n">. Unused hints are hidden and
 // revealed one at a time ("Show hint 2 of 3"); the number used is stored as `hints` of the
-// exercise entry (the maximum ever used) and announced as `sk:hint` {item, used, total}.
+// exercise entry (the maximum ever used; more than one caps a "Solved" rating at "Partly")
+// and announced as `sk:hint` {item, used, total}.
 // Hints used earlier stay visible after a reload. Without JS the hints are plain
 // collapsible <details>.
 
 import type { ExEntry } from '../lib/store.ts';
-import { emit, h, hashOf, isPrinting, storeOf } from './util.ts';
+import { emit, examDate, h, hashOf, isPrinting, storeOf } from './util.ts';
 
 export class SkHints extends HTMLElement {
   private ready = false;
@@ -66,11 +67,8 @@ export class SkHints extends HTMLElement {
       d.open = true;
     }
     this.used = n;
-    if (this.exId) {
-      const store = storeOf(this);
-      const prev = store.get<ExEntry>(this.item)?.hints ?? 0;
-      store.updateEx(this.exId, hashOf(this), { hints: Math.max(prev, n) });
-    }
+    // More than one hint also caps an earlier "Solved" at "Partly" (store.useHints).
+    if (this.exId) storeOf(this).useHints(this.exId, hashOf(this), n, { examDate: examDate() });
     this.render(true);
     emit(this, 'sk:hint', { item: this.item, used: this.used, total: this.hints.length });
   }

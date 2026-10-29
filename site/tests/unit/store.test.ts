@@ -203,8 +203,36 @@ test('exercise helpers keep hints, answer check and rating', () => {
   s.updateEx('ex-a', undefined, { answer_ok: true });
   const e = s.rateEx('ex-a', undefined, 'partial', { today: '2026-11-02' });
   assert.deepEqual(e, { h: '12345678', hints: 2, answer_ok: true, rating: 'partial', box: 1, due: '2026-11-03' });
-  const solved = s.rateEx('ex-a', undefined, 'solved', { today: '2026-11-03' });
-  assert.deepEqual([solved.box, solved.due], [2, '2026-11-06']);
+  s.rateEx('ex-b', '12345678', 'partial', { today: '2026-11-02' });
+  const solved = s.rateEx('ex-b', undefined, 'solved', { today: '2026-11-03' });
+  assert.deepEqual([solved.rating, solved.box, solved.due], ['solved', 2, '2026-11-06']);
+});
+
+test('more than one hint caps "solved" at "partial", also a rating given before the hints', () => {
+  const s = new ProgressStore('c', new FakeStorage());
+  // rated with two hints open: stored as partial
+  s.useHints('ex-a', '12345678', 2, { today: '2026-11-02' });
+  const a = s.rateEx('ex-a', undefined, 'solved', { today: '2026-11-02' });
+  assert.deepEqual([a.rating, a.box, a.due], ['partial', 1, '2026-11-03']);
+  // rated "solved" first, then hints: one hint keeps it, the second caps it
+  s.rateEx('ex-b', '12345678', 'solved', { today: '2026-11-02' });
+  assert.deepEqual(s.get<ExEntry>('ex:ex-b')?.box, 2);
+  const one = s.useHints('ex-b', undefined, 1, { today: '2026-11-02' });
+  assert.deepEqual([one.hints, one.rating, one.box], [1, 'solved', 2]);
+  const two = s.useHints('ex-b', undefined, 2, { today: '2026-11-02' });
+  assert.deepEqual(two, { h: '12345678', hints: 2, answer_ok: null, rating: 'partial', box: 1, due: '2026-11-03' });
+  // the count never goes down, and other ratings are left alone
+  assert.equal(s.useHints('ex-b', undefined, 1).hints, 2);
+  s.rateEx('ex-c', undefined, 'not-yet', { today: '2026-11-02' });
+  assert.equal(s.useHints('ex-c', undefined, 3).rating, 'not-yet');
+});
+
+test('merge caps a "solved" that meets the other side\'s hints', () => {
+  const solvedHere = doc({ 'ex:z': { h: 'aaaaaaaa', hints: 0, answer_ok: true, rating: 'solved', box: 2, due: '2026-11-08' } });
+  const hintsThere = doc({ 'ex:z': { h: 'aaaaaaaa', hints: 2, answer_ok: null, rating: 'partial', box: 1, due: '2026-11-03' } });
+  for (const m of [merge(solvedHere, hintsThere).doc, merge(hintsThere, solvedHere).doc]) {
+    assert.deepEqual(m.items['ex:z'], { h: 'aaaaaaaa', hints: 2, answer_ok: true, rating: 'partial', box: 1, due: '2026-11-03' });
+  }
 });
 
 test('export has the file name and shape studykit.model.Progress validates', () => {

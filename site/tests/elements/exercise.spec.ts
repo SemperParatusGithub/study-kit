@@ -59,6 +59,23 @@ test('self-assessment: more than one hint caps the rating at Partly', async ({ p
   expect((await progress(page)).items[ITEM]).toMatchObject({ rating: 'partial', box: 1, hints: 2 });
 });
 
+test('self-assessment: hints opened after "Solved" cap it at Partly', async ({ page }) => {
+  const assess = page.locator('sk-self-assess');
+  const solved = assess.getByRole('button', { name: 'Solved' });
+  const partly = assess.getByRole('button', { name: 'Partly' });
+  await solved.click();
+  await page.getByRole('button', { name: 'Show hint 1 of 2' }).click();
+  await expect(solved).toHaveAttribute('aria-pressed', 'true'); // one hint is fine
+  await page.getByRole('button', { name: 'Show hint 2 of 2' }).click();
+  await expect(solved).toHaveAttribute('aria-pressed', 'false');
+  await expect(solved).toHaveAttribute('aria-disabled', 'true');
+  await expect(partly).toHaveAttribute('aria-pressed', 'true');
+  await expect(assess.locator('.sk-assess-status')).toHaveText('Saved: Partly, review again tomorrow.');
+  expect((await progress(page)).items[ITEM]).toMatchObject({ rating: 'partial', box: 1, hints: 2 });
+  await page.reload();
+  await expect(partly).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('self-assessment without hints: Solved schedules a later review', async ({ page }) => {
   const assess = page.locator('sk-self-assess');
   await assess.getByRole('button', { name: 'Solved' }).click();

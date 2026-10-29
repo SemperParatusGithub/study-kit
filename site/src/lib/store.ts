@@ -24,13 +24,15 @@
 // Entries that do not validate are dropped, so an export always validates. A document
 // with a newer schema is read as far as possible but never written (read-only).
 
-import { dayOf, isDay, review, type Conf, type Review } from './leitner.ts';
+import { dayOf, ENTRY_BOX, isDay, review, type Conf, type Review } from './leitner.ts';
 
 export const SCHEMA = 'studykit-progress/1';
 export const THEME_KEY = 'studykit:theme';
 export const UNKNOWN_HASH = '00000000';
 export const MAX_ATTEMPTS = 100;
 export const CHANGE_EVENT = 'studykit:progress';
+/** Using more hints than this caps an exercise's rating at "partial" (§3.2). */
+export const HINT_CAP = 1;
 
 export type Rating = 'solved' | 'partial' | 'not-yet';
 export type Theme = 'light' | 'dark' | 'system';
@@ -221,19 +223,36 @@ function mergeMc(a: McEntry, b: McEntry): McEntry {
   return { h: newer.h, box: newer.box, due: newer.due, attempts: attempts.slice(-MAX_ATTEMPTS) };
 }
 
+/** The rating an exercise may keep after `hints` hints: "solved" becomes "partial". */
+export function cappedRating(rating: Rating, hints: number): Rating {
+  return rating === 'solved' && hints > HINT_CAP ? 'partial' : rating;
+}
+
+const RATING_SCORE: Record<Rating, number> = { solved: 1, partial: 0.5, 'not-yet': 0 };
+
 // Exercise entries have no time stamp, so the side whose review is due later stands for the
 // later self-assessment; its rating, box and due day are taken together (only rateEx sets
-// them, so a side without a rating has no due day either).
+// them, so a side without a rating has no due day either). The hint counts are combined, so
+// a "solved" from one side can meet the other side's hints: it is capped like rateEx caps
+// it, back in the entry box and due no later than either side planned.
 function mergeEx(a: ExEntry, b: ExEntry): ExEntry {
   const later = (b.due ?? '') > (a.due ?? '') ? b : a;
-  return {
+  const hints = Math.max(a.hints, b.hints);
+  const merged: ExEntry = {
     h: a.h !== UNKNOWN_HASH ? a.h : b.h,
-    hints: Math.max(a.hints, b.hints),
+    hints,
     answer_ok: a.answer_ok === true || b.answer_ok === true ? true : (a.answer_ok ?? b.answer_ok),
     rating: later.rating,
     box: later.box,
     due: later.due,
   };
+  if (merged.rating && cappedRating(merged.rating, hints) !== merged.rating) {
+    const dues = [a.due, b.due].filter((d): d is string => d !== null).sort();
+    merged.rating = cappedRating(merged.rating, hints);
+    merged.box = ENTRY_BOX;
+    merged.due = dues[0] ?? null;
+  }
+  return merged;
 }
 
 function mergeExam(a: ExamEntry, b: ExamEntry): ExamEntry {
@@ -510,12 +529,32 @@ export class ProgressStore {
     })) as ExEntry;
   }
 
-  /** Self-assessment of an exercise; it also schedules the exercise for review. */
+  /**
+   * Self-assessment of an exercise; it also schedules the exercise for review. With more
+   * than HINT_CAP hints used, "solved" is stored as "partial".
+   */
   rateEx(id: string, h: string | undefined, rating: Rating, when: When = {}): ExEntry {
     const prev = this.get<ExEntry>(`ex:${id}`);
-    const score = rating === 'solved' ? 1 : rating === 'partial' ? 0.5 : 0;
-    const r = review(prev?.box, score, 'unsure', when.today ?? dayOf(), when.examDate);
-    return this.updateEx(id, h, { rating, box: r.box, due: r.due });
+    const capped = cappedRating(rating, prev?.hints ?? 0);
+    const r = review(prev?.box, RATING_SCORE[capped], 'unsure', when.today ?? dayOf(), when.examDate);
+    return this.updateEx(id, h, { rating: capped, box: r.box, due: r.due });
+  }
+
+  /**
+   * `used` hints of an exercise are open; the stored count is the maximum ever used. When
+   * that passes HINT_CAP after the exercise was rated "solved", the rating becomes "partial"
+   * and the exercise is rescheduled as if it had been rated so.
+   */
+  useHints(id: string, h: string | undefined, used: number, when: When = {}): ExEntry {
+    const prev = this.get<ExEntry>(`ex:${id}`);
+    const hints = Math.max(prev?.hints ?? 0, used);
+    const rating = prev?.rating ?? null;
+    if (rating && cappedRating(rating, hints) !== rating) {
+      const capped = cappedRating(rating, hints);
+      const r = review(prev?.box, RATING_SCORE[capped], 'unsure', when.today ?? dayOf(), when.examDate);
+      return this.updateEx(id, h, { hints, rating: capped, box: r.box, due: r.due });
+    }
+    return this.updateEx(id, h, { hints });
   }
 
   addExamAttempt(id: string, attempt: ExamAttempt): ExamEntry {
