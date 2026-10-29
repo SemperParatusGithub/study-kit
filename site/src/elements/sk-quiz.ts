@@ -122,6 +122,9 @@ export class SkQuiz extends HTMLElement {
   private posEl: HTMLElement | null = null;
   private bar: HTMLElement | null = null;
   private timeEl: HTMLElement | null = null;
+  /** Recounts the start screen (null while a quiz runs or shows its result). */
+  private refreshStart: (() => void) | null = null;
+  private unsubscribe: (() => void) | null = null;
 
   private get course(): string {
     return this.dataset.course || courseOf(this);
@@ -136,6 +139,9 @@ export class SkQuiz extends HTMLElement {
   }
 
   connectedCallback(): void {
+    // Answers given elsewhere (another quiz on the MC hub, another tab) change what the
+    // mistakes and due modes offer: the start screen recounts.
+    this.unsubscribe ??= this.store.subscribe(() => this.refreshStart?.());
     if (this.ready) return;
     this.ready = true;
     const url = new URLSearchParams(location.search);
@@ -167,6 +173,8 @@ export class SkQuiz extends HTMLElement {
 
   disconnectedCallback(): void {
     this.stopTimer();
+    this.unsubscribe?.();
+    this.unsubscribe = null;
   }
 
   private async load(): Promise<void> {
@@ -261,10 +269,13 @@ export class SkQuiz extends HTMLElement {
       topics: topicBoxes.length > 1 ? topicBoxes.filter((b) => b.checked).map((b) => b.value) : null,
       difficulty: levelBoxes.length > 1 ? levelBoxes.filter((b) => b.checked).map((b) => Number(b.value)) : null,
     });
+    // The question count follows the mode's default until the student changes it.
+    let nChosen = false;
+    nInput.addEventListener('input', () => (nChosen = true));
     const update = () => {
       const available = this.filtered(current()).length;
       nInput.max = String(Math.max(1, available));
-      if (!nInput.value || Number(nInput.value) > available) {
+      if (!nChosen || !nInput.value || Number(nInput.value) > available) {
         const want = this.settings.n ?? info.n ?? available;
         nInput.value = String(Math.max(1, Math.min(want, available)));
       }
@@ -297,6 +308,7 @@ export class SkQuiz extends HTMLElement {
       this.begin(picked.slice(0, s.n ?? picked.length), this.mode === 'test' ? s.minutes : null, false);
     });
     update();
+    this.refreshStart = update;
     const intro = this.dataset.intro !== 'false';
     this.screen.replaceChildren(
       h('div', { class: 'sk-quiz-start' },
@@ -324,6 +336,7 @@ export class SkQuiz extends HTMLElement {
 
   private begin(list: PoolQuestion[], minutes: number | null, practiceRound: boolean): void {
     if (list.length === 0) return;
+    this.refreshStart = null;
     this.practiceRound = practiceRound;
     this.list = list;
     this.index = 0;

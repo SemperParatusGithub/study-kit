@@ -216,6 +216,24 @@ test('with several quizzes each keeps its mode; URL parameters go to the quiz of
   await expect(testQuiz.getByRole('spinbutton', { name: 'Time limit (minutes)' })).toHaveValue('5');
 });
 
+test('a start screen recounts when another quiz on the page records answers', async ({ page }) => {
+  await page.goto('/quiz-hub.html');
+  const mistakes = page.locator('#quiz-mistakes');
+  await expect(mistakes.locator('.sk-quiz-count')).toHaveText(
+    'No mistakes to review: every question you answered was right last time.',
+  );
+  const practice = page.locator('#quiz-practice');
+  await practice.getByRole('button', { name: 'Start' }).click();
+  for (let i = 0; i < 2; i++) {
+    const mc = practice.locator('.sk-quiz-stage sk-mc');
+    await answer(mc, false, 'Unsure');
+    await mc.getByRole('button', { name: 'Check' }).click();
+    await expect(mistakes.locator('.sk-quiz-count')).toHaveText(`${i + 1} question${i ? 's' : ''} available.`);
+    await expect(mistakes.getByRole('spinbutton', { name: 'Questions' })).toHaveValue(String(i + 1)); // all of them
+    await practice.getByRole('button', { name: i === 1 ? 'See result' : 'Next' }).click();
+  }
+});
+
 test('without JavaScript the fallback text stays', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
