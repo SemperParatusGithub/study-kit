@@ -1008,16 +1008,19 @@ German hyphenation comes from `set text(lang: "de")`.
 
 ### 3.5 Search: Pagefind 1.5.2
 
-- `just build` runs `pagefind --site site/dist` after `astro build`; `just dev` serves the
-  last built index (copied to `site/public/pagefind/`), so search works in dev after one build.
+- The site's `build` script runs `scripts/pagefind.mjs` after `astro build`: it runs
+  `pagefind --site dist --force-language <lang>` from `site/` (`pagefind.yml` holds the other
+  settings), then copies `dist/pagefind` to `site/public/pagefind/`, so `just dev` serves the
+  last built index and search works in dev after one build.
 - Only course content is indexed: layouts put `data-pagefind-body` on the content element.
 - Filters via `data-pagefind-filter`: `course`, `type` (overview, summary, exercise, mc,
   exam, cheatsheet), `topic`. Metadata: title, course, difficulty.
-- `exclude_selectors: [".katex", "sk-mc [data-correct]", ".sk-solution"]`, so search never
-  reveals solutions or MC keys.
-- Pagefind builds one index per `<html lang>`; `force_language` is set to one value so all
-  courses share one index.
-- UI: the Pagefind Component UI in a `/search` route and a header search box (keyboard `/`).
+- `exclude_selectors: [".katex", "sk-mc [data-correct]", "sk-mc .sk-why", "sk-mc .sk-explanation", ".sk-solution", ".sk-hint", ".sk-error-card"]`,
+  so search never reveals solutions, hints (a running mock exam keeps them locked) or MC keys.
+- Pagefind builds one index per `<html lang>`; `--force-language` is set to the most common
+  `<html lang>` of the course pages, so all courses share one index.
+- UI: the Pagefind Component UI in a `/search/` route (filter values are shown by name) and a
+  header search box (keyboard `/`).
 
 ## 4. Toolchain & reliability
 
