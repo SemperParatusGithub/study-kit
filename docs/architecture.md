@@ -1755,10 +1755,13 @@ the `just` recipes start them. No agent has memory, and only the verifier has a 
   figure facts, the built site and `.cache/`; Grep and Glob over a tree that contains a
   course, and Glob patterns or Grep globs that name those paths. A path is judged as written
   and as it resolves, so a symlink into those directories is denied too.
-- It denies Bash commands that mention those paths (command substitution included), except
-  `studykit` and `python checks/…`; of `studykit` only `blind`, `calc`, `verify` (without
-  `--json` and `--show-key`, or a prefix of either; `verify` takes no abbreviated options),
-  `ls`, `lint`, `validate`, `fig`, `index` and `doctor` are allowed, with or without a path.
+- It denies Bash commands that mention those paths (command substitution included), or
+  whose words stand for them once `cd`, globs, brace expansion and symlinks are applied, or
+  that name a tree holding a course or search one recursively (`grep -r`, `find`, `rg`
+  without a path), and `ln`; except `studykit` and `python checks/…`; of `studykit` only
+  `blind`, `calc`, `verify` (without `--json` and `--show-key`, or a prefix of either;
+  `verify` takes no abbreviated options), `ls`, `lint`, `validate`, `fig`, `index` and
+  `doctor` are allowed, with or without a path.
 - It denies Write, Edit, MultiEdit and NotebookEdit outside a course's `checks/`, and check
   code that names those paths (a name between `/` or quotes, or before a `/`; the words of a
   comment such as "steady state" do not count).

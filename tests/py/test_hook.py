@@ -198,6 +198,19 @@ def test_guard_denies_paths_in_check_code(repo: Path, code: str):
         "studykit verify get2 ex-a --json=1",
         "studykit pdf get2",
         f"python ../checks/../mc/rc.md {C}/mc",
+        # no blocked name in the text: globs, braces, recursion and links
+        f"cat {C}/exer*/rc/*.md",
+        f"cat {C}/{{exercises,summary}}/rc/ex-a.md",
+        f"cat < {C}/checks/../e?ercises/rc/ex-a.md",
+        f"grep -r key {C}",
+        "grep -rn . courses",
+        "grep -r key .",
+        f"find {C} -exec cat {{}} +",
+        f"cd {C} && cat ex*/rc/*.md",
+        f"cd {C} && grep -r key",
+        f"cd {C}/checks && rg key ..",
+        f"cd {C} && find -name '*.md'",
+        f"ln -s .. {C}/checks/up",
     ],
 )
 def test_guard_denies_bash_that_reads_items(repo: Path, command: str):
@@ -217,6 +230,12 @@ def test_guard_denies_bash_that_reads_items(repo: Path, command: str):
         "python -c 'import sympy; print(sympy.sqrt(2))'",
         "python -c 'from studykit.check import mc_numeric'",
         "ls",
+        f"cat {C}/checks/*.py",
+        f"cd {C} && uv run --frozen python checks/ex-a.py",
+        f"cd {C} && ls checks",
+        f"cd {C}/checks && grep -rn fg .",
+        f"grep -n fg {C}/checks/ex-a.py",
+        "python -c 'print(2*3, [1, 2][0], {1, 2})'",
     ],
 )
 def test_guard_allows_the_protocol(repo: Path, command: str):

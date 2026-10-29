@@ -14,10 +14,12 @@ reasons say what to do instead.
   Read, Grep and Glob on a course's `exercises/`, `mc/` and `exams/` and on everything
   else that holds keys or solutions (`state/`, `_history/`, `_build/` except `blind/` and
   the figure images, the built site), Grep and Glob over a tree that contains a course,
-  writes outside a course's `checks/`, and Bash commands that mention those paths unless
-  they are `studykit` (blind, calc, verify, ls, lint, validate, fig, index, doctor) or
-  `python checks/…`. `studykit render`, `pdf` and the key-revealing `verify --json` and
-  `--show-key` (or a prefix of either) are denied even without a path.
+  writes outside a course's `checks/`, and Bash commands that mention those paths (also
+  through `cd`, globs, braces or symlinks), name or recursively search a tree holding a
+  course, or make links, unless they are `studykit` (blind, calc, verify, ls, lint,
+  validate, fig, index, doctor) or `python checks/…`. `studykit render`, `pdf` and the
+  key-revealing `verify --json` and `--show-key` (or a prefix of either) are denied even
+  without a path.
 - `pre-git` (project-wide, on `Bash(git *)`): denies `git add` with `-f`/`--force` or a
   path under `courses/` (except `courses/README.md`), and `git commit` with a course path,
   `--no-verify`, or course files already staged.
@@ -25,12 +27,14 @@ reasons say what to do instead.
 
 from __future__ import annotations
 
+import glob
 import json
 import os
 import re
 import shlex
 import subprocess
 from collections.abc import Callable, Iterator
+from itertools import islice
 from pathlib import Path
 from typing import Any
 
@@ -208,23 +212,103 @@ def _verifier_allowed(words: list[str]) -> str | None:
     return "only studykit and python checks/… may name course item paths"
 
 
-def verifier_bash(command: str) -> str | None:
+GLOB_CHARS = re.compile(r"[*?\[]")
+BRACES = re.compile(r"\{([^{}]*,[^{}]*)\}")
+REDIRECT = re.compile(r"^\d*(?:<|>{1,2})&?")
+
+
+def _expand_braces(word: str, limit: int = 64) -> list[str]:
+    """The words a shell brace expansion makes of `word` (`{exercises,mc}/x`)."""
+    match = BRACES.search(word)
+    if match is None:
+        return [word]
+    out: list[str] = []
+    for alt in match[1].split(","):
+        out.extend(_expand_braces(word[: match.start()] + alt + word[match.end() :], limit))
+        if len(out) >= limit:
+            break
+    return out[:limit]
+
+
+def _word_paths(word: str, cwd: Path) -> Iterator[Path]:
+    """The paths a shell word can stand for: itself, its brace expansions and glob matches."""
+    word = REDIRECT.sub("", word)
+    if word.startswith("-"):
+        if "=" not in word:
+            return
+        word = word.split("=", 1)[1]  # --file=<path>
+    for text in _expand_braces(word) if word else []:
+        path = _resolve(text, cwd)
+        yield path
+        if GLOB_CHARS.search(text):
+            try:
+                yield from (Path(p) for p in islice(glob.iglob(str(path)), 500))
+            except OSError, ValueError, re.error:
+                continue
+
+
+def _word_blocked(path: Path) -> str | None:
+    why = blocked_path(path)
+    if why is None and (contains_course(path) or contains_course(Path(os.path.realpath(path)))):
+        why = "it holds a course; read single files of checks/ or the blind view"
+    return why
+
+
+def verifier_bash(command: str, cwd: Path) -> str | None:
     if SUBSTITUTION.search(command):
         if MENTION.search(command):
             return "command substitution around course item paths"
         return None
+    where = cwd
     for words in segments(command):
         prog = _program(words)
-        if prog and os.path.basename(prog[0]) == "studykit":
+        if not prog:
+            continue
+        name = os.path.basename(prog[0])
+        if name == "studykit":
             why = _verifier_allowed(words)
             if why:
                 return why
             continue
+        if name in ("cd", "pushd"):  # reads nothing; later commands run there
+            args = [w for w in prog[1:] if not w.startswith("-")]
+            where = _resolve(args[0], where) if args else Path.home()
+            continue
+        if _verifier_allowed(words) is None:  # python checks/…
+            continue
+        if name == "ln":
+            return "the verifier makes no links"
         if MENTION.search(" ".join(words)):
-            why = _verifier_allowed(words)
+            return _verifier_allowed(words)
+        # globs, braces, recursive reads and symlinks name no blocked segment: judge the
+        # paths each word stands for (`grep -r key <course>`, `cat ex*/*.md`)
+        for word in prog:
+            for path in _word_paths(word, where):
+                why = _word_blocked(path)
+                if why:
+                    return f"`{word}`: {why}"
+        if _recursive(name, prog[1:]) and not any(
+            _resolve(w, where).exists() for w in prog[1:] if not w.startswith("-")
+        ):  # no path given: it searches the working directory
+            why = _word_blocked(where)
             if why:
-                return why
+                return f"`{name}` in {where}: {why}"
     return None
+
+
+RECURSIVE_TOOLS = {"rg", "ag", "ack", "find", "tree", "fd", "fdfind", "du"}
+
+
+def _recursive(name: str, args: list[str]) -> bool:
+    """True if the command walks a directory tree (the working directory without a path)."""
+    if name in RECURSIVE_TOOLS:
+        return True
+    flags = [a for a in args if a.startswith("-") and not a.startswith("--")]
+    if name in ("grep", "egrep", "fgrep"):
+        return any(a in ("--recursive", "--dereference-recursive") for a in args) or any(
+            "r" in f or "R" in f for f in flags
+        )
+    return name == "ls" and any("R" in f for f in flags)
 
 
 # --- the hooks -----------------------------------------------------------------------------
@@ -281,7 +365,7 @@ def verifier_guard(payload: dict[str, Any]) -> dict[str, Any] | None:
     if tool == "Bash":
         command = data.get("command")
         if isinstance(command, str):
-            why = verifier_bash(command)
+            why = verifier_bash(command, cwd)
             if why:
                 return deny(f"verifier-guard: {why}." + GUARD_HINT)
     return None
