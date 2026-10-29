@@ -125,6 +125,26 @@ def build_parser() -> argparse.ArgumentParser:
     p_fit.add_argument("--json", action="store_true", help="machine-readable output")
     p_fit.set_defaults(func=cmd_cheatsheet_fit)
 
+    p_calc = sub.add_parser(
+        "calc",
+        help="evaluate a SymPy expression: exact, numeric, complex (j) and units",
+        description="Evaluate an expression safely with SymPy. ^ is a power, j the imaginary "
+        "unit; helpers: par(a, b, ...) parallel, pol(r, deg) phasor, mag, angd (angle in "
+        "degrees), db, lg, deg, rad, solve, diff, integrate.",
+    )
+    p_calc.add_argument("expr", help="the expression, e.g. '1/(2*pi*R*C)'")
+    p_calc.add_argument(
+        "--subs", nargs="+", default=[], metavar="NAME=VALUE", help="values for symbols"
+    )
+    p_calc.add_argument(
+        "--units",
+        action="store_true",
+        help="allow units (V, mA, kohm, kΩ, nF, µs, MHz, …) and give the result in SI units",
+    )
+    p_calc.add_argument("--digits", type=int, default=6, help="significant digits shown")
+    p_calc.add_argument("--json", action="store_true", help="machine-readable output")
+    p_calc.set_defaults(func=cmd_calc)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -378,6 +398,21 @@ def cmd_cheatsheet_fit(args: argparse.Namespace) -> int:
     else:
         print(cheatsheet.format_text(result))
     return code
+
+
+def cmd_calc(args: argparse.Namespace) -> int:
+    from studykit import calc
+
+    try:
+        result = calc.evaluate(args.expr, args.subs, units=args.units, digits=args.digits)
+    except calc.CalcError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(calc.format_text(result, args.digits))
+    return 0
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:
