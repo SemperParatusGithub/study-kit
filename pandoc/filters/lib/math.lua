@@ -21,6 +21,8 @@
 -- Typst: each node is converted on its own with pandoc.write, any conversion warning is a
 --        finding, then two fixes from Phase 1 apply: digit\,digit (the decimal comma {,})
 --        becomes digit","digit, and `quad` follows every column separator in cases(…).
+--        A display that sets formulas side by side with top-level \qquad becomes
+--        #sk-formulas(…), one equation per formula, wrapping between them.
 -- json:  the Typst conversion still runs, so the lint fails on what the PDF would fail on.
 
 local M = {}
@@ -417,6 +419,66 @@ function M.to_typst(el, ctx)
   return M.fix_cases(M.fix_decimal_comma(out))
 end
 
+--- Split display TeX at every top-level \qquad (outside braces, \left…\right and
+--- environments): the formulas a display sets side by side. One piece means no split.
+function M.split_qquad(tex)
+  local pieces, depth, start, i, n = {}, 0, 1, 1, #tex
+  while i <= n do
+    local c = tex:sub(i, i)
+    if c == '\\' then
+      local word = tex:match('^\\[A-Za-z]+', i)
+      if word then
+        if word == '\\left' or word == '\\begin' then
+          depth = depth + 1
+        elseif word == '\\right' or word == '\\end' then
+          depth = depth - 1
+        elseif word == '\\qquad' and depth == 0 then
+          table.insert(pieces, tex:sub(start, i - 1))
+          start = i + #word
+        end
+        i = i + #word
+      else
+        i = i + 2
+      end
+    else
+      if c == '{' then
+        depth = depth + 1
+      elseif c == '}' then
+        depth = depth - 1
+      end
+      i = i + 1
+    end
+  end
+  table.insert(pieces, tex:sub(start))
+  local out = {}
+  for _, piece in ipairs(pieces) do
+    piece = piece:gsub('^%s+', ''):gsub('%s+$', '')
+    if piece ~= '' then
+      table.insert(out, piece)
+    end
+  end
+  return out
+end
+
+--- Typst for a display formula. Formulas set apart with top-level \qquad become
+--- #sk-formulas($ a $, $ b $, …), which keeps each whole and wraps between them when the
+--- line is too narrow (a cheat-sheet column), as the website does (§3.2).
+local function display_typst(el, ctx)
+  local pieces = M.split_qquad(el.text)
+  if #pieces < 2 then
+    return M.to_typst(el, ctx)
+  end
+  local parts = {}
+  for _, piece in ipairs(pieces) do
+    local typ = M.to_typst(pandoc.Math('DisplayMath', piece), ctx)
+    if not typ then
+      return M.to_typst(el, ctx)
+    end
+    table.insert(parts, typ)
+  end
+  return '#sk-formulas(' .. table.concat(parts, ', ') .. ')'
+end
+
 ---------------------------------------------------------------------------------------
 -- HTML
 ---------------------------------------------------------------------------------------
@@ -458,7 +520,12 @@ function M.inline(el, ctx)
       ),
     }
   end
-  local typ = M.to_typst(el, ctx)
+  local typ
+  if ctx.target == 'typst' and display then
+    typ = display_typst(el, ctx)
+  else
+    typ = M.to_typst(el, ctx)
+  end
   if ctx.target == 'typst' and typ then
     return { pandoc.RawInline('typst', typ) }
   end
