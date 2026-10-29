@@ -1,0 +1,58 @@
+{
+ "alt": "Phasor diagram in the complex plane: U_R = 6 at 30 degrees, U_L = 8 at 120 degrees; drawn head to tail, their sum U has magnitude 10 at 83.13 degrees; the reference I = 2 at 30 degrees is drawn to its own scale, U is 53.13 degrees from it.",
+ "chain": true,
+ "reference": {
+  "angle_deg": 30.0,
+  "drawn_length": 2.7,
+  "drawn_start": [
+   0.3474871130596428,
+   -0.6018653347947323
+  ],
+  "im": 0.9999999999999999,
+  "magnitude": 2.0,
+  "name": "I",
+  "own_scale": true,
+  "re": 1.7320508075688774
+ },
+ "resultant": {
+  "angle_deg": 83.13010235415598,
+  "angle_to_reference_deg": 53.13010235415598,
+  "im": 9.928203230275509,
+  "magnitude": 10.0,
+  "name": "U",
+  "re": 1.1961524227066334
+ },
+ "template": "signals.phasor",
+ "vectors": [
+  {
+   "angle_deg": 30.0,
+   "drawn_offset": [
+    0.0,
+    0.0
+   ],
+   "im": 2.9999999999999996,
+   "magnitude": 6.0,
+   "name": "U_R",
+   "re": 5.196152422706632,
+   "start": [
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "angle_deg": 120.0,
+   "drawn_offset": [
+    0.0,
+    0.0
+   ],
+   "im": 6.92820323027551,
+   "magnitude": 8.0,
+   "name": "U_L",
+   "re": -3.9999999999999987,
+   "start": [
+    5.196152422706632,
+    2.9999999999999996
+   ]
+  }
+ ]
+}

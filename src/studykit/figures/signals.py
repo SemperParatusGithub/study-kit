@@ -15,10 +15,11 @@ A transfer function `G` can be given as a python-control `TransferFunction`, as
 from __future__ import annotations
 
 import cmath
+import itertools
 import math
 import warnings
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 
 import control as ct
@@ -1761,19 +1762,106 @@ def _free_stretch(length: float, taken: list[tuple[float, float]]) -> tuple[floa
     return max(gaps, key=lambda g: g[1] - g[0])
 
 
-def _clear_of(fig, label, start: complex, c: complex, other) -> None:
-    """Slide a phasor's name from 0.8 towards its tip until it clears `other` (the angle).
+def _inside(a, b, box) -> float:
+    """Length of the segment a -> b (display coordinates) that runs inside `box` (clipped)."""
+    (x0, y0), (x1, y1) = a, b
+    dx, dy = x1 - x0, y1 - y0
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, x0 - box.x0), (dx, box.x1 - x0), (-dy, y0 - box.y0), (dy, box.y1 - y0)):
+        if p == 0:
+            if q < 0:
+                return 0.0
+        elif p < 0:
+            t0 = max(t0, q / p)
+        else:
+            t1 = min(t1, q / p)
+        if t0 >= t1:
+            return 0.0
+    return (t1 - t0) * math.hypot(dx, dy)
 
-    A small phase angle puts its label low beside the phasor the name sits on.
+
+@dataclass
+class _Scene:
+    """What a phasor diagram's labels must stay clear of: lines (data coordinates) and texts.
+
+    The axes count half: a name across an axis reads better than one across a phasor.
     """
-    fig.draw_without_rendering()
-    renderer = fig.canvas.get_renderer()
-    taken = other.get_window_extent(renderer).padded(2.0)
-    for frac in (0.8, 0.84, 0.88, 0.92):
-        at = start + frac * c
-        label.xy = (at.real, at.imag)
-        if not label.get_window_extent(renderer).overlaps(taken):
-            return
+
+    fig: object
+    ax: object
+    lines: list[tuple[complex, complex]] = field(default_factory=list)
+    axes: list[tuple[complex, complex]] = field(default_factory=list)
+    texts: list = field(default_factory=list)
+
+    def clash(self, label, extra: Sequence[tuple[complex, complex]] = ()) -> float:
+        """How badly `label` collides: the length of lines through it plus overlapped text (px).
+
+        `extra`: lines of a layout being tried (an angle arc), counted like phasors.
+        """
+        renderer = self.fig.canvas.get_renderer()
+        box = label.get_window_extent(renderer).padded(2.0)
+        to_px = self.ax.transData.transform
+
+        def through(lines: list[tuple[complex, complex]]) -> float:
+            return sum(
+                _inside(to_px((a.real, a.imag)), to_px((b.real, b.imag)), box) for a, b in lines
+            )
+
+        score = through([*self.lines, *extra]) + 0.5 * through(self.axes)
+        for other in self.texts:
+            if other is label:
+                continue
+            o = other.get_window_extent(renderer)
+            w = min(box.x1, o.x1) - max(box.x0, o.x0)
+            h = min(box.y1, o.y1) - max(box.y0, o.y0)
+            if w > 0 and h > 0:
+                score += math.sqrt(w * h)
+        return score
+
+
+def _put(label, at: complex, direction: complex, dist: float = 7.0) -> None:
+    """Move an annotation to `at`, offset by `dist` points along `direction` (_label_offset)."""
+    offset = _label_offset(direction, dist)
+    label.xy = (at.real, at.imag)
+    label.xyann = offset["xytext"]
+    label.set_horizontalalignment(offset["ha"])
+    label.set_verticalalignment(offset["va"])
+
+
+@dataclass(frozen=True)
+class _Layout:
+    """Places for some labels, tried together: (label, at, direction, dist) for _put each."""
+
+    places: Sequence[tuple]
+    lines: Sequence[tuple[complex, complex]] = ()  # drawn only with this layout (an arc)
+    cost: float = 0.0  # px added to its clash score: a less natural place
+
+
+def _place(scene: _Scene, layouts: Sequence[_Layout]) -> int:
+    """Apply the first layout whose labels clash with nothing, else the least bad one.
+
+    Scores within half a pixel count as equal, so the earlier layout wins a tie; returns
+    the index of the layout applied.
+    """
+    scene.fig.draw_without_rendering()  # fixes the equal-aspect axes box and the renderer
+    best, best_score = 0, math.inf
+    for k, layout in enumerate(layouts):
+        for spot in layout.places:
+            _put(*spot)
+        score = layout.cost + sum(scene.clash(spot[0], layout.lines) for spot in layout.places)
+        if score == 0:
+            return k
+        if score < best_score - 0.5:
+            best, best_score = k, score
+    for spot in layouts[best].places:
+        _put(*spot)
+    return best
+
+
+def _arc_lines(radius: float, a0: float, a1: float, n: int = 16) -> list[tuple[complex, complex]]:
+    """An arc around the origin (degrees a0 to a1) as n straight pieces, for clash scores."""
+    pts = [radius * cmath.exp(1j * math.radians(a0 + (a1 - a0) * k / n)) for k in range(n + 1)]
+    return list(itertools.pairwise(pts))
 
 
 def _reference(reference: Mapping[str, tuple[float, float]]) -> tuple[str, float, float]:
@@ -1807,6 +1895,10 @@ def phasor(
     along its angle, shifted beside that axis to the side away from the diagram, so it
     hides nothing; the names of phasors on that axis move to the other side, and the phase
     angle is measured from the reference.
+
+    The reference's name and the angle's name are placed clear of the phasors, the axes
+    and the other names where the diagram leaves room (a long angle name in a narrow
+    angle goes beside the sum, outside the angle).
     """
     if not vectors:
         raise ValueError("phasor needs at least one vector")
@@ -1861,7 +1953,10 @@ def phasor(
     ax.add_patch(
         FancyArrowPatch((0, box[1][0]), (0, box[1][1]), shrinkA=0, shrinkB=0, **axis_style)
     )
-    ax.annotate(
+    scene = _Scene(fig, ax)
+    scene.axes += [(complex(box[0][0], 0), complex(box[0][1], 0))]
+    scene.axes += [(complex(0, box[1][0]), complex(0, box[1][1]))]
+    re_label = ax.annotate(
         r"$\mathrm{Re}$",
         (box[0][1], 0),
         xytext=(0, -4),
@@ -1871,7 +1966,7 @@ def phasor(
         fontsize=8,
         color=FG,
     )
-    ax.annotate(
+    im_label = ax.annotate(
         r"$\mathrm{Im}$",
         (0, box[1][1]),
         xytext=(-4, 0),
@@ -1882,7 +1977,8 @@ def phasor(
         color=FG,
     )
 
-    inner = None  # (label, start, phasor) of a name moved off the reference, from the origin
+    scene.texts += [re_label, im_label]
+    inner = None  # (label, start, phasor, side) of a name moved off the reference at the origin
     for i, (nm, s0, c) in enumerate(zip(names, starts, comps, strict=True)):
         col = color(i)
         s = s0 + offsets[i]  # drawn start: shifted sideways off a phasor it would cover
@@ -1901,6 +1997,7 @@ def phasor(
                     zorder=5,
                 )
             )
+            scene.lines.append((s, s + c))
         if chain:
             mid = s + c / 2
             normal = 1j * c / abs(c) if abs(c) else 1j
@@ -1938,8 +2035,10 @@ def phasor(
             zorder=7,
             **_label_offset(direction),
         )
+        scene.texts.append(label)
         if chain and moved and abs(s) <= 1e-9 * span:
-            inner = (label, s, c)
+            inner = (label, s, c, direction)
+    ref_label = None
     if ref:
         ax.add_patch(
             FancyArrowPatch(
@@ -1954,7 +2053,8 @@ def phasor(
                 zorder=5,
             )
         )
-        ax.annotate(
+        scene.lines.append((ref_start, ref_tip))
+        ref_label = ax.annotate(
             _phasor_tex(ref[0]),
             (ref_tip.real, ref_tip.imag),
             textcoords="offset points",
@@ -1963,6 +2063,7 @@ def phasor(
             zorder=7,
             **_label_offset(ref_dir, 3.0),
         )
+        scene.texts.append(ref_label)
     phi = math.degrees(cmath.phase(resultant)) if abs(resultant) > 0 else 0.0
     base, rel = 0.0, phi  # the phase angle is measured from Re, or from the reference
     if ref:
@@ -1982,40 +2083,75 @@ def phasor(
                 zorder=6,
             )
         )
+        scene.lines.append((0j, resultant))
         mid = resultant / 2
         normal = 1j * resultant / abs(resultant) if abs(resultant) else 1j
         tip_centre = complex(np.mean(tips))
         if (normal.conjugate() * (tip_centre - mid)).real > 0:
             normal = -normal
-        ax.annotate(
-            _phasor_tex(total),
-            (mid.real, mid.imag),
-            textcoords="offset points",
-            fontsize=9,
-            color=FG,
-            zorder=7,
-            **_label_offset(normal),
-        )
-        if show_angle and abs(rel) > 3 and abs(resultant) > 0:
-            radius = 0.3 * abs(resultant)
-            a0, a1 = sorted((base, base + rel))
-            ax.add_patch(
-                Arc(
-                    (0, 0), 2 * radius, 2 * radius, theta1=a0, theta2=a1, color=FG, lw=0.8, zorder=4
-                )
-            )
-            half = cmath.exp(1j * math.radians(base + rel / 2))
-            label_at = radius * 1.12 * half
-            angle_label = ax.annotate(
-                rf"${angle_name} = {_num_tex(rel)}^\circ$",
-                (label_at.real, label_at.imag),
+        scene.texts.append(
+            ax.annotate(
+                _phasor_tex(total),
+                (mid.real, mid.imag),
                 textcoords="offset points",
-                fontsize=7,
+                fontsize=9,
                 color=FG,
-                **_label_offset(half, 2.0),
+                zorder=7,
+                **_label_offset(normal),
             )
-            if inner is not None:
-                _clear_of(fig, *inner, angle_label)
+        )
+    if ref_label is not None:
+        # Beyond the tip; if a phasor runs there (a reference at an angle lies close beside
+        # one), turned to the side away from the diagram, or beside the reference's middle.
+        _place(
+            scene,
+            [
+                _Layout([(ref_label, ref_tip, ref_dir, 3.0)]),
+                _Layout([(ref_label, ref_tip, ref_dir + ref_side, 3.0)]),
+                _Layout([(ref_label, ref_start + ref_len / 2 * ref_dir, ref_side, 3.0)]),
+            ],
+        )
+    if chain and show_angle and abs(rel) > 3 and abs(resultant) > 0:
+        # The angle's name goes where it clashes with no phasor, axis or name, tried in this
+        # order: on the bisector just outside the arc, with the arc shrinking; beside the
+        # sum just outside the angle, at the arc's end (a long name such as \varphi_{u,i} in
+        # a narrow angle); on the bisector of a larger arc; centred above or below the
+        # bisector point. A name moved off the reference may slide towards its tip at each
+        # spot. Spots outside the angle or centred cost a few px, so a spot on the
+        # bisector wins a near tie; with no free spot the least bad one is taken.
+        half = cmath.exp(1j * math.radians(base + rel / 2))
+        end = resultant / abs(resultant)
+        outside = end * (1j if rel > 0 else -1j)  # normal of the sum, away from the angle
+        angle_label = ax.annotate(
+            rf"${angle_name} = {_num_tex(rel)}^\circ$",
+            (0, 0),
+            textcoords="offset points",
+            fontsize=7,
+            color=FG,
+            **_label_offset(half, 2.0),
+        )
+        scene.texts.append(angle_label)
+        spots = [(f, f * 1.12 * half, half, 2.0, 0.0) for f in (0.3, 0.25, 0.2)]
+        spots += [(f, f * end, outside, 4.0, 4.0) for f in (0.3, 0.25, 0.4, 0.5)]
+        spots += [(f, f * 1.12 * half, half, 2.0, 0.0) for f in (0.36, 0.42)]
+        vertical = 1j if half.imag > 0 else -1j  # centred above or below the bisector point
+        spots += [(f, f * 1.12 * half, vertical, 2.0, 2.0) for f in (0.36, 0.42, 0.5)]
+        fracs = (0.8, 0.84, 0.88, 0.92) if inner is not None else (None,)
+        a0, a1 = sorted((base, base + rel))
+        layouts, radii = [], []
+        for f, at, direction, dist, cost in spots:
+            radius = f * abs(resultant)
+            for frac in fracs:
+                places = [(angle_label, at * abs(resultant), direction, dist)]
+                if inner is not None:
+                    label, s, c, side = inner
+                    places.append((label, s + frac * c, side, 7.0))
+                layouts.append(_Layout(places, _arc_lines(radius, a0, a1), cost))
+                radii.append(radius)
+        radius = radii[_place(scene, layouts)]
+        ax.add_patch(
+            Arc((0, 0), 2 * radius, 2 * radius, theta1=a0, theta2=a1, color=FG, lw=0.8, zorder=4)
+        )
     facts = {
         "template": "signals.phasor",
         "chain": chain,

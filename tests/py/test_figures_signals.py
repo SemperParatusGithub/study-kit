@@ -430,6 +430,89 @@ def test_phasor_reference(locale):
         signals.phasor({"U": (1, 0)}, reference={"I": (0, 0)})
 
 
+def _scene_of(monkeypatch, **kwargs) -> signals._Scene:
+    """Draw a phasor diagram and return what its labels were placed against."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+    scenes: list[signals._Scene] = []
+    scene_class = signals._Scene
+
+    def record(*args, **kw):
+        scenes.append(scene_class(*args, **kw))
+        return scenes[-1]
+
+    monkeypatch.setattr(signals, "_Scene", record)
+    signals.phasor(**kwargs)
+    (scene,) = scenes
+    FigureCanvasAgg(scene.fig)  # the figure is closed once rendered; measure it again
+    scene.fig.draw_without_rendering()
+    return scene
+
+
+def _text(scene: signals._Scene, start: str):
+    (label,) = [t for t in scene.texts if t.get_text().startswith(start)]
+    return label
+
+
+def test_inside_measures_a_segment_through_a_box():
+    from matplotlib.transforms import Bbox
+
+    box = Bbox.from_extents(0, 0, 10, 10)
+    assert signals._inside((-5, 5), (15, 5), box) == pytest.approx(10)
+    assert signals._inside((0, 0), (20, 20), box) == pytest.approx(10 * math.sqrt(2))
+    assert signals._inside((-5, 12), (15, 12), box) == 0
+    assert signals._inside((5, 5), (5, 5), box) == 0  # a point has no length
+    assert signals._inside((12, -5), (12, 15), box) == 0
+
+
+SERIES = {"chain": True, "reference": {"I": (0.01, 0)}}
+
+
+@pytest.mark.parametrize(
+    "vectors",
+    [{"U_R": (2.2, 0), "U_C": (3.3, -90)}, {"U_R": (2.2, 0), "U_L": (3.3, 90)}],
+    ids=["rc", "rl"],
+)
+@pytest.mark.parametrize("angle_name", [r"\varphi", r"\varphi_u", r"\varphi_{u,i}"])
+def test_phasor_angle_name_clears_the_phasors(monkeypatch, vectors, angle_name):
+    """The angle's name never runs into a phasor, even a long one in a narrow triangle."""
+    scene = _scene_of(monkeypatch, vectors=vectors, angle_name=angle_name, **SERIES)
+    label = _text(scene, "$" + angle_name)
+    phasors_only = signals._Scene(scene.fig, scene.ax, scene.lines, [], scene.texts)
+    assert phasors_only.clash(label) == 0
+    if angle_name != r"\varphi_{u,i}":  # room inside the angle: clear of the axes too
+        assert scene.clash(label) == 0
+        # ... and on the bisector, inside the angle (between the reference and the sum)
+        at = complex(*label.xy)
+        assert 0 < abs(math.degrees(math.atan2(at.imag, at.real))) < 56.4
+
+
+def test_phasor_ws_zeiger_rc_labels_clash_with_nothing(monkeypatch):
+    """The sample course's RC diagram (ws-zeiger-rc): before, φ_u ran into U_C."""
+    scene = _scene_of(
+        monkeypatch,
+        vectors={"U_R": (2.2, 0), "U_C": (3.3, -90)},
+        angle_name=r"\varphi_u",
+        **SERIES,
+    )
+    assert {t.get_text(): scene.clash(t) for t in scene.texts} == {
+        t.get_text(): 0 for t in scene.texts
+    }
+
+
+def test_phasor_rotated_reference_labels_find_room(monkeypatch):
+    """A reference at 30 degrees lies close beside U_R: its name, U_R's and the angle's
+    stay clear of each other and of the phasors."""
+    scene = _scene_of(
+        monkeypatch,
+        vectors={"U_R": (6, 30), "U_L": (8, 120)},
+        chain=True,
+        reference={"I": (2, 30)},
+    )
+    for start in (r"$\underline{I}", r"$\underline{U}_{R}", r"$\varphi"):
+        assert scene.clash(_text(scene, start)) == 0, start
+
+
 def test_signals(locale):
     t = np.linspace(0, 2e-3, 2001)
     fig = signals.signals(t, {"u": lambda t: np.sin(2 * np.pi * 1e3 * t)}, y_unit="V")
