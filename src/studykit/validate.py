@@ -372,28 +372,33 @@ def _check_exams(ctx: Context) -> None:
                     "mc.md exists but exam.yaml has no mc part",
                     "add mc: {file: mc.md, points_each: …} to exam.yaml or delete mc.md",
                 )
-        task_points: list[float] = []
-        for name in exam.tasks:
-            task = tree.get(f"exams/{exam_id}/{name}")
-            if task is None or task.model is None:
-                return  # reported elsewhere; the sum would be meaningless
-            task_points.append(task.model.points)
-        mc_points = 0.0
-        if exam.mc is not None:
-            mc_doc = tree.get(f"exams/{exam_id}/{exam.mc.file}")
-            if mc_doc is None or mc_doc.body is None:
-                return
-            mc_points = len(mc_doc.body.questions) * exam.mc.points_each
-        total = sum(task_points) + mc_points
-        if abs(total - exam.points) > 1e-9:
-            ctx.at_yaml(
-                exam_doc,
-                ["points"],
-                "SK-STRUCT-POINTS",
-                f"tasks ({sum(task_points):g}) and MC ({mc_points:g}) add up to {total:g}, "
-                f"but the exam has {exam.points:g} points",
-                "adjust task points, the number of MC questions, points_each or points",
-            )
+        _check_exam_points(ctx, exam_doc, exam)
+
+
+def _check_exam_points(ctx: Context, exam_doc: Doc, exam: model.Exam) -> None:
+    folder = exam_doc.rel.rsplit("/", 1)[0]
+    task_points: list[float] = []
+    for name in exam.tasks:
+        task = ctx.tree.get(f"{folder}/{name}")
+        if task is None or task.model is None:
+            return  # reported elsewhere; the sum would be meaningless
+        task_points.append(task.model.points)
+    mc_points = 0.0
+    if exam.mc is not None:
+        mc_doc = ctx.tree.get(f"{folder}/{exam.mc.file}")
+        if mc_doc is None or mc_doc.body is None or mc_doc.split.error:
+            return
+        mc_points = len(mc_doc.body.questions) * exam.mc.points_each
+    total = sum(task_points) + mc_points
+    if abs(total - exam.points) > 1e-9:
+        ctx.at_yaml(
+            exam_doc,
+            ["points"],
+            "SK-STRUCT-POINTS",
+            f"tasks ({sum(task_points):g}) and MC ({mc_points:g}) add up to {total:g}, "
+            f"but the exam has {exam.points:g} points",
+            "adjust task points, the number of MC questions, points_each or points",
+        )
 
 
 # --- Schema (SK-SCHEMA, SK-YAML) --------------------------------------------------------
@@ -807,7 +812,7 @@ def katex_errors(root: Path, formulas: list[tuple[str, bool]]) -> list[str | Non
 def frontmatter_formulas(doc: Doc) -> list[Formula]:
     """Inline math in answer labels, rubric criteria and objectives."""
     data = doc.data
-    if not isinstance(data, dict) or doc.yaml is None:
+    if not isinstance(data, dict) or doc.yaml is None or not doc.yaml.ok:
         return []
     paths: list[tuple[list, Any]] = []
     for i, a in enumerate(data.get("answers") or []):
@@ -1502,9 +1507,14 @@ def validate(
             selected = set()
             for p in paths:
                 try:
-                    selected.add(p.resolve().relative_to(tree.root).as_posix())
+                    rel = p.resolve().relative_to(tree.root).as_posix()
                 except ValueError:
                     continue
+                if p.is_dir():  # a directory selects every course file below it
+                    prefix = "" if rel == "." else rel + "/"
+                    selected.update(r for r in tree.docs if r.startswith(prefix))
+                else:
+                    selected.add(rel)
         report.courses.append(
             run_course(tree, config, selected=selected, quick=quick, release=release)
         )

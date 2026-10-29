@@ -193,3 +193,23 @@ def test_real_denylist_entries_are_matchable():
         assert entry.kind in {"silent", "fails"}, entry.token
         sample = f"\\begin{{{entry.env}}} a \\end{{{entry.env}}}" if entry.env else entry.token
         assert entry in validate.denied(sample, entries), entry.token
+
+
+def test_points_of_every_exam_are_checked(mini: Path, denylist: Path):
+    """A broken task in one exam must not hide the points check of the next exam."""
+    overlay(mini, BAD / "SK-STRUCT-MISSING")  # exams/probeklausur-2/01-pk2-t1.md, 10 points
+    (mini / "exams" / "probeklausur-2" / "exam.yaml").write_text(
+        "schema: 1\nid: probeklausur-2\ntitle: Probeklausur 2\nduration_min: 30\n"
+        "points: 11\npass_points: 5\ntasks: [01-pk2-t1.md]\n"
+    )
+    task = mini / "exams" / "probeklausur-1" / "01-pk1-t1.md"
+    task.write_text(task.read_text().replace("points: 10", "points: '10'"))
+    found = {(f.code, Path(f.path).parent.name) for f in run(mini, denylist).findings}
+    assert found == {("SK-SCHEMA-VALUE", "probeklausur-1"), ("SK-STRUCT-POINTS", "probeklausur-2")}
+
+
+def test_paths_accept_directories(mini: Path, denylist: Path):
+    overlay(mini, BAD / "SK-MCQ-KEY")
+    overlay(mini, BAD / "SK-BLOCK-UNKNOWN")
+    assert codes(run(mini, denylist, paths=[mini / "mc"])) == {"SK-MCQ-KEY"}
+    assert codes(run(mini, denylist, paths=[mini])) == {"SK-MCQ-KEY", "SK-BLOCK-UNKNOWN"}
