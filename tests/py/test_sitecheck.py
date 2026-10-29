@@ -46,6 +46,17 @@ def test_a_failed_strict_build_reports_the_content_findings_it_printed():
     assert sitecheck.build_findings(Run(0, STRICT_OUTPUT), "c.yaml") == []
 
 
+def test_build_findings_name_the_course_files_behind_the_temporary_link(tmp_path: Path):
+    course = REPO / "examples" / "sample-course"
+    link = tmp_path / "courses" / "sample-course"
+    output = f"  {link}/summary/x.md:3:1 SK-MATH-KATEX KaTeX: bad (fix: fix it)\n"
+    (f,) = sitecheck.build_findings(
+        Run(1, output), "c.yaml", lambda p: sitecheck.course_path(p, link, course)
+    )
+    assert f.path == "examples/sample-course/summary/x.md"
+    assert sitecheck.course_path("site/src/x.ts", link, course) == "site/src/x.ts"
+
+
 def test_a_failed_build_without_content_findings_is_sk_site_build():
     out = (
         "08:00:00 [build] Building\n[vite] error: Cannot find module 'x'\n    at foo (bar.js:1:1)\n"
@@ -86,11 +97,15 @@ def test_check_builds_into_a_temporary_directory_and_checks_it(tmp_path: Path):
     """The order, arguments and environment of the three steps, with a fake runner."""
     course = tmp_path / "courses" / "mini"
     course.mkdir(parents=True)
+    (tmp_path / "courses" / "other").mkdir()  # a neighbour: never part of the build
     calls: list[tuple[list[str], dict[str, str], Path]] = []
     outs: list[Path] = []
+    seen: list[dict[str, Path]] = []
 
     def fake(argv: list[str], env: dict[str, str], cwd: Path) -> Run:
         calls.append((argv, env, cwd))
+        courses = Path(env["STUDYKIT_COURSES_DIR"])
+        seen.append({p.name: p.resolve() for p in courses.iterdir()})
         if "build" in argv:
             out = Path(argv[argv.index("--outDir") + 1])
             outs.append(out)
@@ -120,9 +135,11 @@ def test_check_builds_into_a_temporary_directory_and_checks_it(tmp_path: Path):
     assert outs[0] != REPO / "site" / "dist" and not outs[0].exists()  # removed afterwards
     assert pagefind[1:] == ["--site", str(outs[0]), "--force-language", "de"]
     assert check[1:] == ["-C", str(REPO / "site"), "check"]
-    for _, env, _ in calls:
-        assert env["STUDYKIT_STRICT"] == "1"
-        assert env["STUDYKIT_COURSES_DIR"] == str(course.parent.resolve())
+    # each step sees a temporary courses directory with a link to this course alone
+    assert seen == [{"mini": course.resolve()}] * 3
+    assert len({env["STUDYKIT_COURSES_DIR"] for _, env, _ in calls}) == 1
+    assert not Path(calls[0][1]["STUDYKIT_COURSES_DIR"]).exists()  # removed afterwards
+    assert [env.get("STUDYKIT_STRICT") for _, env, _ in calls] == ["1", "1", "1"]
     assert sorted((f.path, f.code, f.message.split(":")[0]) for f in found) == [
         ("dist/c/mini/index.html", "SK-SITE-LINK", "href='#oben'"),
         ("dist/c/mini/index.html", "SK-SITE-LINK", "href='/c/mini/fehlt/'"),
@@ -189,7 +206,8 @@ def test_the_mini_course_builds_strictly_and_a_missing_figure_fails(mini: Path):
     assert {f.code for f in found} <= {"SK-SITE-LINK"}
     assert notes[0].startswith("built ") and notes[0].endswith("links checked")
 
-    (mini / "_build" / "figures" / "rc-bode.web.svg").unlink()
+    svg = mini / "_build" / "figures" / "rc-bode.web.svg"
+    svg.unlink()
 
     def without_astro_check(argv, env, cwd):
         return Run(0, "") if argv[-1] == "check" else sitecheck._run(argv, env, cwd)
@@ -197,4 +215,5 @@ def test_the_mini_course_builds_strictly_and_a_missing_figure_fails(mini: Path):
     found = sitecheck.check(
         REPO, mini, "mini", "de", course_doc="mini/course.yaml", run=without_astro_check
     )
-    assert [(f.code, Path(f.path).name) for f in found] == [("SK-FIG-BUILD", "rc-bode.web.svg")]
+    # reported at the course's own file, not at the temporary link
+    assert [(f.code, f.path) for f in found] == [("SK-FIG-BUILD", str(svg.resolve()))]

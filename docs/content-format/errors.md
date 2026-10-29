@@ -398,13 +398,15 @@ Fix: embed it with `![Caption](fig:<slug>)` or delete the script.
 
 ## Site (SK-SITE, `--release` only)
 
-With `--release`, validate builds the website as `just build` does, for the course's
-directory (`STUDYKIT_COURSES_DIR` is the course's parent, `STUDYKIT_STRICT=1`), into a
-temporary `--outDir` (so `site/dist` and `site/public` stay untouched), runs Pagefind over
-it, `pnpm -C site check`, and the link check. Content problems that only the build finds
-keep their own codes (`SK-FIG-BUILD`, `SK-MATH-KATEX`, …). The stage is skipped with a
-note when `pnpm`, `node` or `site/node_modules` is missing, for `--paths`, and while
-earlier stages report errors (the strict build would stop on them).
+With `--release`, validate builds the website as `just build` does (`STUDYKIT_STRICT=1`)
+for this course alone: `STUDYKIT_COURSES_DIR` is a temporary directory with a link to the
+course, so other courses next to it never fail its run. The build goes into a temporary
+`--outDir` (so `site/dist` and `site/public` stay untouched); then Pagefind runs over it,
+`pnpm -C site check`, and the link check. Content problems that
+only the build finds keep their own codes (`SK-FIG-BUILD`, `SK-MATH-KATEX`, …) at the
+course's files. The stage is skipped with a note when `pnpm`, `node` or `site/node_modules`
+is missing, for `--paths`, and while earlier stages report errors (the strict build would
+stop on them).
 
 ### `SK-SITE-BUILD`
 **error.** The strict `astro build` (or Pagefind after it) failed without printing a
@@ -422,8 +424,8 @@ Fix: `pnpm -C site check` shows the context.
 **error** (warning for a lecture PDF under `/c/<course>/src/` or `/pdf/` that the site
 serves from course files). A link or `#anchor` in a built page points nowhere. The path
 names the page in the built site: `dist/c/<course>/summary/<topic>/index.html` is the page
-`/c/<course>/summary/<topic>/`; pages of other courses in the same directory are left to
-their own run. `studykit check-links site/dist` reports the same after `just build`.
+`/c/<course>/summary/<topic>/`. `studykit check-links site/dist` reports the same after
+`just build`.
 Fix: fix the link in the source file of that page (`ex:`, `mc:`, `topic:`, `exam:`,
 heading anchors), or build the page it points to.
 

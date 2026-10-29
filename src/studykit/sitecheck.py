@@ -2,17 +2,19 @@
 
 Three checks over the website as `just build` makes it, for one course:
 
-1. a strict `astro build` (STUDYKIT_STRICT=1, STUDYKIT_COURSES_DIR = the course's parent
-   directory, so the site holds the course and its neighbours) into a temporary directory
-   given with `--outDir`, so `site/dist` and `site/public` stay as the last `just build`
-   left them, followed by Pagefind over that directory (the search page loads its bundle);
+1. a strict `astro build` (STUDYKIT_STRICT=1) into a temporary directory given with
+   `--outDir`, so `site/dist` and `site/public` stay as the last `just build` left them,
+   followed by Pagefind over that directory (the search page loads its bundle).
+   STUDYKIT_COURSES_DIR is a temporary directory that holds only a link to the course, so
+   the site contains this course alone and a neighbouring course can never fail its run;
 2. `pnpm -C site check` (`astro check`: types of the site code against the content);
 3. `studykit check-links` over the built pages.
 
 A strict build that fails on a content problem prints the findings in the study-kit
-format; they are reported under their own codes (SK-FIG-BUILD, SK-MATH-KATEX, …). Anything
-else that breaks the build is SK-SITE-BUILD, an `astro check` error is SK-SITE-CHECK, and a
-broken link is SK-SITE-LINK at `dist/<page>`, the page's path in the built site.
+format; they are reported under their own codes (SK-FIG-BUILD, SK-MATH-KATEX, …) at the
+course's own files. Anything else that breaks the build is SK-SITE-BUILD, an `astro check`
+error is SK-SITE-CHECK, and a broken link is SK-SITE-LINK at `dist/<page>`, the page's path
+in the built site.
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from studykit import checklinks, tools
+from studykit import checklinks, content, tools
 from studykit import findings as findings_mod
 from studykit.findings import Finding
 
@@ -97,11 +99,33 @@ def _last_lines(output: str, n: int = 3) -> str:
     return " | ".join(lines[-n:]) or "no output"
 
 
-def build_findings(run: Run, course_doc: str) -> list[Finding]:
-    """Findings of a failed strict build: the content findings it printed, or one SK-SITE-BUILD."""
+def course_path(path: str, link: Path, course: Path) -> str:
+    """`path` as findings name it, with the temporary course link replaced by the course.
+
+    The site names files under STUDYKIT_COURSES_DIR as it was given (the link); the course's
+    own files are what the author edits, and the temporary directory is gone afterwards.
+    """
+    try:
+        rel = Path(path).relative_to(link)
+    except ValueError:
+        return path
+    return content.display_path(course / rel)
+
+
+def build_findings(
+    run: Run, course_doc: str, rename: Callable[[str], str] = lambda path: path
+) -> list[Finding]:
+    """Findings of a failed strict build: the content findings it printed, or one SK-SITE-BUILD.
+
+    `rename` maps the paths the build printed to the files they stand for (course_path).
+    """
     if run.code == 0:
         return []
-    found = [f for ln in run.output.splitlines() for f in findings_mod.parse(ln.strip())]
+    found = [
+        Finding(rename(f.path), f.line, f.col, f.code, f.message, f.fix, f.severity)
+        for ln in run.output.splitlines()
+        for f in findings_mod.parse(ln.strip())
+    ]
     if found:
         return sorted(set(found))
     return [
@@ -152,8 +176,8 @@ def link_findings(found: list[Finding], out: Path, course_id: str) -> list[Findi
     """check-links findings on this course's pages and the shared ones, named `dist/<page>`.
 
     The temporary build is deleted afterwards, so the path names the page in the site
-    (`dist/c/<course>/summary/x/index.html` is /c/<course>/summary/x/). Pages of the other
-    courses in the same directory are left to their own validate run.
+    (`dist/c/<course>/summary/x/index.html` is /c/<course>/summary/x/). The site is built
+    for this course alone; pages of any other course are dropped all the same.
     """
     out = out.resolve()
     kept = []
@@ -181,18 +205,23 @@ def check(
     run: Runner = _run,
     notes: list[str] | None = None,
 ) -> list[Finding]:
-    """The Site stage's findings for `course`, a directory in a courses directory."""
+    """The Site stage's findings for `course`, a course directory (its name is the site's id)."""
     notes = notes if notes is not None else []
     site = root / "site"
-    env = environment(root, course.parent)
-    pnpm = shutil.which("pnpm", path=env["PATH"]) or "pnpm"
+    course = course.resolve()
     out_findings: list[Finding] = []
     with tempfile.TemporaryDirectory(prefix="studykit-site-") as tmp:
-        out = Path(tmp) / "dist"
+        courses = Path(tmp).resolve() / "courses"
+        courses.mkdir()
+        link = courses / course.name
+        link.symlink_to(course, target_is_directory=True)
+        env = environment(root, courses)
+        pnpm = shutil.which("pnpm", path=env["PATH"]) or "pnpm"
+        out = Path(tmp).resolve() / "dist"
         built = run(
             [pnpm, "-C", str(site), "exec", "astro", "build", "--outDir", str(out)], env, root
         )
-        out_findings += build_findings(built, course_doc)
+        out_findings += build_findings(built, course_doc, lambda p: course_path(p, link, course))
         if built.code == 0:
             shutil.rmtree(out / "pagefind", ignore_errors=True)  # a copy of public/pagefind
             pagefind = site / "node_modules" / ".bin" / "pagefind"
