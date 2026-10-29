@@ -34,7 +34,8 @@ study-kit/
 ├── .github/scripts/guard.sh        # the guard workflow's checks: `commits`, `courses`, `pdfs`
 ├── .github/scripts/test-hooks.sh   # tests of the git hooks and guard.sh in throwaway repositories (`just test`)
 ├── src/studykit/
-│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links, pdf, cheatsheet fit, calc, verify
+│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links, pdf, cheatsheet fit,
+│   │                               # calc, verify, plan, status and progress import|log|report
 │   ├── tools.py                    # `tools install`: pandoc, typst and just → .tools/bin, sha256-checked
 │   ├── doctor.py                   # `doctor`: tool versions, site packages, Typst fonts, git hooks, courses/ ignored, port 4321
 │   ├── model.py                    # pydantic models: the single schema source
@@ -43,7 +44,7 @@ study-kit/
 │   ├── index.py                    # `index`: _build/index.json (ids, topics, exams, sources, figures)
 │   ├── findings.py                 # Finding (path:line:col SK-CODE message (fix: …)) and its parser
 │   ├── pandoc.py                   # run pandoc with the shared defaults and filter metadata (targets: html | typst | json)
-│   ├── lint.py  validate.py        # per-file lint (hook) / full validation, findings as SK-codes
+│   ├── lint.py  validate.py        # per-file lint, also the PostToolUse hook `lint --hook` (§5.1) / full validation, findings as SK-codes
 │   ├── render.py                   # `render`: the site loader's bridge to pandoc (§3.2)
 │   ├── sitecheck.py                # the Site stage of `validate --release` (§4.3)
 │   ├── checklinks.py               # `check-links`: internal links and anchors of the built site
@@ -51,7 +52,7 @@ study-kit/
 │   ├── figures/                    # house.mplstyle palette.py core.py keypoints.py plot.py signals.py
 │   │                               # circuit.py block.py graph.py labels.py builtins.py
 │   │                               # finalize.py validate.py child.py runner.py
-│   ├── check.py  verify.py  blind.py   # check-script API; `verify`: runner, ledger, quarantine; `blind`: blind views
+│   ├── check.py  verify.py  blind.py   # check-script API; `verify`: runner, ledger, quarantine (§2.10); `blind`: blind views (§5.3)
 │   ├── hook.py                     # `hook verifier-guard|pre-git`: Claude Code PreToolUse hooks (§5.1, §5.3)
 │   ├── pdf.py                      # `pdf`: assemble → pandoc → typst per document, digest cache, _build/pdf/manifest.json (§3.3)
 │   ├── cheatsheet.py               # `cheatsheet fit`: density loop 0–4, overflow measured with `typst eval` (§3.3)
@@ -59,7 +60,7 @@ study-kit/
 │   ├── plan.py                     # `plan`: deterministic study-plan scheduler (§2.9)
 │   ├── progress.py                 # `progress import|log|report`: browser export, examiner log, mastery (§2.11)
 │   ├── status.py                   # `status`: the study status of /study-status (§2.11)
-│   └── calc.py                     # `studykit calc "<sympy>"` for verifier, tutor and examiner (§5.3)
+│   └── calc.py                     # `calc "<expr>"`: safe SymPy calculator with j, phasor helpers and units, for authors, verifier, tutor and examiner (§5.3)
 ├── pandoc/
 │   ├── defaults/common.yaml web.yaml typst.yaml json.yaml
 │   ├── filters/studykit.lua + lib/{guard,blocks,mcq,math,figures,alttext,refs,meta,i18n,solutions,document}.lua
@@ -85,12 +86,18 @@ study-kit/
 ├── examples/
 │   ├── sample-course/              # self-written German mini course `sample-course` using every feature (CI fixture)
 │   └── sample-materials/           # (Phase 6) self-written Typst sources for fake slides, exercise sheet, exam + one rasterised "scan"
-├── tests/py/  tests/golden/{math.md,math-denied.md,math.typ.snap,blocks.md,mcq.md,figures/}
-├── tests/fixtures/{bad/<SK-CODE>/,courses/mini/,pandoc/{ok,bad}/,figures/gallery/}
+├── tests/py/                       # pytest (§4.4); test_claude.py checks the .claude/ layer
+├── tests/golden/{math.md,math-denied.md,math.typ.snap,blocks.md,mcq.md,figures/}
+├── tests/fixtures/{bad/<SK-CODE>/,courses/mini/,pandoc/{ok,bad}/,figures/gallery/,progress/}
 ├── .claude/
-│   ├── settings.json
-│   ├── agents/                     # (Phase 5/6) ingester.md exam-analyst.md author.md verifier.md tutor.md examiner.md
-│   └── skills/                     # (Phase 5) §5.2
+│   ├── settings.json               # attribution, permissions, the lint and pre-git hooks (§5.1)
+│   ├── agents/                     # author.md verifier.md tutor.md examiner.md (§5.3); (Phase 6) ingester.md exam-analyst.md
+│   └── skills/                     # §5.2: <name>/SKILL.md per skill
+│       ├── regenerate/  verify/  tutor/  examine/  import-progress/  study-status/   # user commands
+│       ├── content-format/         # SKILL.md, templates/ (course.yaml, overview, summary, exercises, MC bank, exam/, cheat sheet, plan, exam profile, figure)
+│       ├── authoring/              # SKILL.md, parts/{overview,summary,exercises,mc,exam,cheatsheet,plan}.md
+│       ├── figures/                # SKILL.md, reference.md (the studykit.figures API)
+│       └── verify-protocol/        # SKILL.md, recipes.md (check scripts: MNA, phasors, Laplace, margins, MC)
 └── courses/README.md               # the only tracked file under courses/
 ```
 
@@ -121,14 +128,14 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── mc/<topic>.md                   # one MC bank per topic  ← MC section
 ├── exams/<exam-id>/exam.yaml  NN-<task-id>.md  mc.md?
 ├── cheatsheet.md
-├── plan.yaml                       # written by `studykit plan` (Phase 5), never by an LLM; until then by hand
+├── plan.yaml                       # written by `studykit plan` (§2.9); Claude writes only each session's goal and note
 ├── figures/<slug>.py
-├── checks/<item-id>.py | <item-id>.json    # verifier output; <item-id>.<tag>.py a second method
+├── checks/<item-id>.py | <item-id>.json    # verifier output; <item-id>.<tag>.py|json a second method
 ├── sources/raw/*.pdf  manifest.yaml  text/<doc>/p0001.txt  notes/<chunk>.md  outline.md
 ├── analysis/exam-profile.yaml  notation.yaml
 ├── state/verify/<item-id>.json     # ledger, one file per item (no locking); report.md
-├── progress/state.json  browser/*.json  examiner.jsonl  mastery.json  report.md
-├── _history/<timestamp>/…          # (Phase 5) copies saved by /regenerate before overwriting
+├── progress/state.json  browser/*.json  examiner.jsonl  mastery.json  report.md   # §2.11, written by `studykit progress`
+├── _history/<timestamp>/…          # copies saved by /regenerate before overwriting (UTC timestamp, same relative paths)
 └── _build/{index.json,figures,typ,pdf,blind,logs}   # typ: assembled .md/.typ and digests; pdf: PDFs and manifest.json; logs: pandoc logs
 ```
 
