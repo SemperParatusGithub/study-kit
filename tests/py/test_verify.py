@@ -462,6 +462,8 @@ def test_targets_and_cli_usage(course: Path, capsys):
         ("$10\\,\\mathrm{\\mu F}$", 10e-6),
         ("$2{,}2 \\cdot 10^{3}\\,\\Omega$", 2200.0),
         ("$63\\,\\%$", 0.63),
+        ("$-425{,}5\\,\\mathrm{V/s}$", -425.5),
+        ("$2\\,\\mathrm{V/\\mu s}$", 2e6),
         ("$0{,}5$", 0.5),
         ("$1/\\sqrt{2}$", None),
         ("Der Strom eilt vor", None),
@@ -478,5 +480,7 @@ def test_units():
     assert verify.convert(100, "rad/s", "1/s") == 100
     assert verify.convert(-45, "°", "rad") == pytest.approx(-0.7853981634)
     assert verify.convert(103.4, "µs", "s") == pytest.approx(103.4e-6)
+    assert verify.convert(0.5, "V/ms", "V/s") == pytest.approx(500)
+    assert verify.convert(3, "mA/V", "A/V") == pytest.approx(3e-3)
     with pytest.raises(ValueError):
         verify.convert(1, "V", "A")

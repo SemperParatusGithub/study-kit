@@ -333,12 +333,18 @@ ANGLES = {"°": math.pi / 180, "deg": math.pi / 180, "rad": 1.0}
 
 
 def parse_unit(unit: str) -> tuple[float, str] | None:
-    """(scale to the base unit, base unit) for 'kΩ', 'µs', 'mA', 'Hz', '°'; None if unknown."""
+    """(scale to the base unit, base unit) for 'kΩ', 'µs', 'mA', 'Hz', '°' and a quotient
+    of two such units ('V/s', 'mV/µs' -> 1e3, 'V/s'); None if unknown."""
     unit = unit.strip()
     if unit in ANGLES:
         return ANGLES[unit], "rad"
     if unit in UNIT_ALIASES:
         return 1.0, UNIT_ALIASES[unit]
+    if unit.count("/") == 1:
+        num, den = (parse_unit(part) for part in unit.split("/"))
+        if num is None or den is None or "rad" in (num[1], den[1]) or "/" in num[1] + den[1]:
+            return None
+        return num[0] / den[0], f"{num[1]}/{den[1]}"
     if unit in PREFIXED:
         return 1.0, unit
     if unit == "Hz":
