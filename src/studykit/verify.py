@@ -973,12 +973,14 @@ def confirm(
     *,
     method: str | None = None,
     timeout: float = DEFAULT_TIMEOUT,
+    show_key: bool = False,
 ) -> dict[str, Any]:
     """Run a second method (`checks/<id>.<tag>.py|json`) and record it.
 
     A dispute that the second method reproduces becomes confirmed. When the second method
     agrees with the key instead (or, on a verified item, disagrees with it), the two
     methods disagree and the item goes back to unverified until the checks are fixed.
+    The problems name the key only with `show_key` (the verifier runs this).
     """
     item = find(tree, item_id)
     entry = _fresh_entry(tree, item)
@@ -1041,7 +1043,7 @@ def confirm(
         "id": item.id,
         "confirmation": outcome.result,
         "status": new.status,
-        "problems": outcome.problems,
+        "problems": outcome.problems if show_key else [hide_key(p) for p in outcome.problems],
         "warnings": outcome.warnings,
     }
 
@@ -1171,6 +1173,24 @@ def format_text(result: Mapping[str, Any]) -> str:
         )
     for q in result.get("quarantined", []):
         lines.append(f"quarantined: {q['id']} ({q['path']}): {q['note'] or 'no reason given'}")
+    return "\n".join(lines)
+
+
+def format_action(result: Mapping[str, Any]) -> str:
+    """Text for --confirm, --dispute, --quarantine and --clear: one item (or the removed ids)."""
+    if "removed" in result:
+        removed = result["removed"]
+        return f"cleared {len(removed)} ledger entr{'y' if len(removed) == 1 else 'ies'}" + (
+            f": {', '.join(removed)}" if removed else ""
+        )
+    head = f"{result['id']:<28} {result['status']}"
+    if "confirmation" in result:
+        head += f"  (second method: {result['confirmation']})"
+    if result.get("rounds"):
+        head += f"  [round {result['rounds']}]"
+    lines = [head]
+    lines += [f"    {p}" for p in result.get("problems") or []]
+    lines += [f"    warning: {w}" for w in result.get("warnings") or []]
     return "\n".join(lines)
 
 

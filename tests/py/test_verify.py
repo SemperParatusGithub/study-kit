@@ -351,6 +351,32 @@ def test_second_method_confirms_or_contradicts(course: Path, capsys):
         verify.confirm(tree(course), "ex-rc-tp-grenzfrequenz", course / "checks" / "other.py")
 
 
+def test_confirm_text_never_shows_the_key(course: Path, capsys):
+    # the verifier runs --confirm without --json; its output must not name the key
+    write_check(course, "ex-rc-tp-grenzfrequenz.py", CHECK_GRENZ)
+    edit(course, GRENZ, "value: 1539.2, unit: Hz", "value: 1608.0, unit: Hz")
+    run_one(course, "ex-rc-tp-grenzfrequenz")
+    alt = write_check(
+        course,
+        "ex-rc-tp-grenzfrequenz.sympy.py",
+        """\
+        import sympy as sp
+        from studykit.check import answers
+        R, C = sp.Integer(2200), sp.Rational(47, 10**9)
+        answers(tau=sp.N(R * C * 10**6), fg=sp.N(1 / (2 * sp.pi * R * C)), Hdb=-3.0103, phi=-45)
+        """,
+    )
+    capsys.readouterr()
+    args = ["verify", str(course), "ex-rc-tp-grenzfrequenz", "--confirm", str(alt)]
+    assert cli.main(args) == 0
+    out = capsys.readouterr().out
+    assert "ex-rc-tp-grenzfrequenz" in out and "disputed" in out
+    assert "second method: mismatch" in out
+    assert "1608" not in out and "key:" not in out
+    assert cli.main([*args, "--show-key"]) == 0
+    assert "1608" in capsys.readouterr().out
+
+
 def test_manual_dispute_quarantine_and_clear(course: Path, capsys):
     c = str(course)
     assert cli.main(["verify", c, "ex-rc-tp-bode", "--dispute"]) == 2  # needs --note

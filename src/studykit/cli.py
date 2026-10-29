@@ -699,7 +699,12 @@ def cmd_verify(args: argparse.Namespace) -> int:
             raise verify.VerifyError("give the reason with --note")
         if args.confirm:
             result = verify.confirm(
-                tree, args.target, args.confirm, method=args.method, timeout=args.timeout
+                tree,
+                args.target,
+                args.confirm,
+                method=args.method,
+                timeout=args.timeout,
+                show_key=args.show_key or args.json,
             )
             failed = result["confirmation"] == "error"
         elif args.dispute:
@@ -734,7 +739,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     elif "items" in result:
         print(verify.format_text(result))
     else:
-        print(" ".join(f"{k}: {v}" for k, v in result.items() if k != "course"))
+        print(verify.format_action(result))
     if not args.json and result.get("report"):
         print(f"wrote {result['report']}")
     return 1 if failed else 0
