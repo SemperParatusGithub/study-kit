@@ -70,3 +70,14 @@ test('search finds a German term of the sample course', async ({ page }) => {
   expect(hrefs.every((h) => h?.startsWith(`${C}/`))).toBe(true);
   expect(hrefs).toContain(`${C}/summary/spannungsteiler/`);
 });
+
+test('a malformed #fragment breaks none of the shell scripts', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(`${C}/summary/rc-filter/#%E0%A4%A`);
+  await elementsReady(page);
+  // the scripts after the hash handling still run: printing opens every <details>
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+  expect(await page.locator('details:not([open])').count()).toBe(0);
+  expect(errors).toEqual([]);
+});
