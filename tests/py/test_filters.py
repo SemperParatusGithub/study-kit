@@ -457,6 +457,18 @@ def test_html_blocks_hints_and_solutions(workdir):
     ]
 
 
+def test_sk_meta_takes_the_difficulty_from_the_index_when_it_has_one(workdir):
+    data = json.loads(INDEX.read_text(encoding="utf-8"))
+    data["items"]["ex-rc-tp-grenzfrequenz"]["difficulty"] = 3
+    index = workdir / "index-difficulty.json"
+    index.write_text(json.dumps(data), encoding="utf-8")
+    rel = "exercises/rc-filter/ex-rc-tp-grenzfrequenz.md"
+    doc = dataclasses.replace(document(rel, workdir), index=index)
+    body = pandoc.blank_frontmatter((OK / rel).read_text(encoding="utf-8"))
+    (item,) = sk_meta(parse_html(pandoc.convert(body, doc, "html")))["items"]
+    assert item["difficulty"] == 3
+
+
 def test_html_box_titles_and_defaults(workdir):
     body = "::: definition\n**Grenzfrequenz $f_g$**\n\nText.\n:::\n\n::: note\nOhne.\n:::\n"
     tree = parse_html(pandoc.convert(body, document("summary/02-rc-filter.md", workdir), "html"))

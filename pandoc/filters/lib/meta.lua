@@ -5,7 +5,10 @@
 --   </script>
 -- headings: every heading from level 2 down, text as plain text (math as its TeX).
 -- items: the file's own index entry (exercise, exam task, summary, …) followed by each MC
--- question in source order; difficulty is null where only the frontmatter knows it.
+-- question in source order. MC difficulty comes from the mcq attribute; for the file's
+-- own entry it comes from the index item when the index carries one, otherwise null
+-- (the frontmatter, where it lives, is stripped before pandoc runs). MC items also carry
+-- their type (single | multi | kprim).
 
 local M = {}
 
@@ -34,7 +37,7 @@ function M.script(ctx)
       id = id,
       kind = nullable(item.kind),
       topic = nullable(item.topic),
-      difficulty = pandoc.json.null,
+      difficulty = nullable(math.tointeger(item.difficulty)),
     })
   end
   for _, q in ipairs(ctx.items) do
