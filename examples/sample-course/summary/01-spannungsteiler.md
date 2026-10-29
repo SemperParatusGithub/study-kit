@@ -158,5 +158,5 @@ $18\,\mathrm{mW}$. Der Wirkungsgrad beträgt dort also rund $17\,\%$.
 - Eine Last parallel zu $R_2$ senkt $U_2$; man rechnet mit $R_2 \parallel R_\mathrm{L}$
   oder mit der Ersatzspannungsquelle.
 - $U_\mathrm{q}$ ist die Leerlaufspannung, $R_\mathrm{i}$ der Widerstand an den Klemmen bei
-  kurzgeschlossenen Spannungsquellen.
+  kurzgeschlossenen Spannungsquellen und offenen Stromquellen.
 :::
