@@ -52,3 +52,11 @@ test('on a phone the course tabs show the tab of the page', async ({ page }) => 
     expect(inView, tab).toBe(true);
   }
 });
+
+test('at 320 px no page scrolls sideways, also with long German titles in the pager', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  for (const path of [`${C}/summary/spannungsteiler/`, `${C}/exercises/ex-st-belastet-allgemein/`]) {
+    await page.goto(path);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(320);
+  }
+});

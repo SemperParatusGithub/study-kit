@@ -773,6 +773,13 @@ a.item-title:hover {
   font-size: var(--text-xs);
 }
 
+/* a long compound in a narrow half ("Wechselstromrechnung" at 320 px) breaks, hyphenated
+   where the browser knows the language, instead of running past the page edge */
+.pager a strong {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
 .pager .next {
   margin-left: auto;
   text-align: right;
