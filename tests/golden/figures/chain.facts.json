@@ -1,0 +1,27 @@
+{
+ "alt": "Reihenschaltung der Blöcke G_1(s) → G_2(s) → G_3(s); Gesamtübertragungsfunktion G_1(s)*G_2(s)*G_3(s).",
+ "blocks": [
+  "G_1(s)",
+  "G_2(s)",
+  "G_3(s)"
+ ],
+ "scale": 1.0,
+ "signals": [
+  null,
+  null,
+  null,
+  null
+ ],
+ "symbols": {
+  "G1": "G_1(s)",
+  "G2": "G_2(s)",
+  "G3": "G_3(s)"
+ },
+ "template": "block.chain",
+ "transfer": {
+  "expr": "G1*G2*G3",
+  "latex": "G_1(s) G_2(s) G_3(s)",
+  "text": "G_1(s)*G_2(s)*G_3(s)"
+ },
+ "width_in": 2.952
+}

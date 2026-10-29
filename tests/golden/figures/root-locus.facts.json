@@ -1,0 +1,62 @@
+{
+ "G": {
+  "den": [
+   1.0,
+   6.0,
+   8.0,
+   0.0
+  ],
+  "latex": "\\frac{1}{s \\left(s + 2\\right) \\left(s + 4\\right)}",
+  "num": [
+   1.0
+  ],
+  "variable": "s"
+ },
+ "alt": "Root locus of 1 + K G(s) = 0 with G(s) = 1/(s^3 + 6*s^2 + 8*s): 3 branches start at the open-loop poles (x) and 0 end at the zeros (o), 3 run to infinity along asymptotes from -2; branches cross the imaginary axis at K = 48.",
+ "asymptotes": {
+  "angles_deg": [
+   60.0,
+   180.0,
+   300.0
+  ],
+  "centroid": -2.0
+ },
+ "breakaway": [
+  {
+   "k": 3.0792014356780038,
+   "s": -0.8452994616207485
+  }
+ ],
+ "discrete": false,
+ "gain_range": [
+  0.0,
+  528726.7725394657
+ ],
+ "imag_axis_crossing_residuals": [
+  8.105602392357342e-14
+ ],
+ "imag_axis_crossings": [
+  {
+   "k": 47.999999999993555,
+   "omega": 2.828427124746
+  }
+ ],
+ "k_crit": 47.999999999993555,
+ "k_crit_check_gm": 48.000000000000014,
+ "open_loop_poles": [
+  [
+   -4.0,
+   0.0
+  ],
+  [
+   -2.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0
+  ]
+ ],
+ "open_loop_zeros": [],
+ "template": "signals.root_locus"
+}

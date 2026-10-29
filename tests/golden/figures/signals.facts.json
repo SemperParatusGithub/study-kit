@@ -1,0 +1,28 @@
+{
+ "alt": "Time-domain plot of u_1 (from -1 to 1), u_2 (from -0.5 to 0.5) for t from 0 to 0.002 s.",
+ "samples": 500,
+ "series": {
+  "u_1": {
+   "max": 0.9999950454033061,
+   "mean": 0.0,
+   "min": -0.9999950454033061,
+   "rms": 0.7071067811865476
+  },
+  "u_2": {
+   "max": 0.5,
+   "mean": -3.6422416731934915e-17,
+   "min": -0.49999009083116014,
+   "rms": 0.3535533905932738
+  }
+ },
+ "stem": false,
+ "t_range": [
+  0.0,
+  0.002
+ ],
+ "template": "signals.signals",
+ "time_axis": {
+  "scale": 1000.0,
+  "unit": "ms"
+ }
+}

@@ -1,0 +1,61 @@
+{
+ "alt": "Schaltbild eines RC-Tiefpasses als Vierpol: R = 1 kΩ liegt im Längszweig, C = 100 nF im Querzweig parallel zu den Ausgangsklemmen. Zählpfeile: Eingangsspannung Ue und Ausgangsspannung Ua, jeweils von der oberen zur unteren Klemme.",
+ "arrows": [
+  {
+   "from": "in",
+   "kind": "voltage",
+   "name": "Ue",
+   "symbol": "U_{\\mathrm{e}}",
+   "to": "0"
+  },
+  {
+   "from": "out",
+   "kind": "voltage",
+   "name": "Ua",
+   "symbol": "U_{\\mathrm{a}}",
+   "to": "0"
+  }
+ ],
+ "components": [
+  {
+   "kind": "resistor",
+   "label": "$R = 1\\,\\mathrm{k\\Omega}$",
+   "name": "R",
+   "nodes": [
+    "in",
+    "out"
+   ],
+   "si": 1000.0,
+   "symbol": "R",
+   "unit": "Ω",
+   "value": "1 kΩ"
+  },
+  {
+   "kind": "capacitor",
+   "label": "$C = 100\\,\\mathrm{nF}$",
+   "name": "C",
+   "nodes": [
+    "out",
+    "0"
+   ],
+   "si": 1.0000000000000001e-07,
+   "symbol": "C",
+   "unit": "F",
+   "value": "100 nF"
+  }
+ ],
+ "derived": {
+  "f_c": 1591.55,
+  "omega_c": 10000.0,
+  "tau": 0.0001
+ },
+ "kind": "lowpass",
+ "nodes": [
+  "0",
+  "in",
+  "out"
+ ],
+ "scale_in_per_unit": 0.34,
+ "template": "circuit.rc",
+ "transfer": "1/(1 + j*w*tau)"
+}

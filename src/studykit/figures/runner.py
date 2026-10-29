@@ -27,7 +27,7 @@ TIMEOUT_S = 60
 SLUG_OK = set("abcdefghijklmnopqrstuvwxyz0123456789-")
 
 # Figures every course gets without a script: slug -> builder(course_dir) -> Figure.
-# Templates register themselves here (e.g. the topic map).
+# studykit.figures.builtins fills it (the topic map).
 BUILTINS: dict[str, Callable[[Path], core.Figure]] = {}
 
 
@@ -119,6 +119,9 @@ def _run_builtin(name: str, course: Path, out_dir: Path, locale: str) -> Outcome
 
 
 def build_course(course: Path, only: set[str] | None = None, force: bool = False) -> list[Outcome]:
+    # Registers the builtins; imported here because builtins imports this module.
+    from studykit.figures import builtins  # noqa: F401
+
     root = tools.repo_root()
     out_dir = course / "_build" / "figures"
     manifest_path = out_dir / "manifest.json"

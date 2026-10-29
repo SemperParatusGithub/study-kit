@@ -1,0 +1,44 @@
+{
+ "alt": "Phasor diagram in the complex plane: U_R = 5 at 0 degrees, U_L = 3 at 90 degrees; drawn head to tail, their sum U has magnitude 5.831 at 30.96 degrees.",
+ "chain": true,
+ "resultant": {
+  "angle_deg": 30.96375653207352,
+  "im": 3.0,
+  "magnitude": 5.830951894845301,
+  "name": "U",
+  "re": 5.0
+ },
+ "template": "signals.phasor",
+ "vectors": [
+  {
+   "angle_deg": 0.0,
+   "drawn_offset": [
+    0.0,
+    0.0
+   ],
+   "im": 0.0,
+   "magnitude": 5.0,
+   "name": "U_R",
+   "re": 5.0,
+   "start": [
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "angle_deg": 90.0,
+   "drawn_offset": [
+    0.0,
+    0.0
+   ],
+   "im": 3.0,
+   "magnitude": 3.0,
+   "name": "U_L",
+   "re": 1.8369701987210297e-16,
+   "start": [
+    5.0,
+    0.0
+   ]
+  }
+ ]
+}

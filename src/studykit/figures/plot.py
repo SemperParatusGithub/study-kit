@@ -5,12 +5,24 @@ from __future__ import annotations
 from collections.abc import Sequence
 from itertools import combinations
 
+import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sp
 
-from studykit.figures import core, keypoints
+from studykit.figures import core, keypoints, labels
 from studykit.figures.keypoints import Point
 from studykit.figures.palette import BG, FG, MUTED, color
+
+# The control and signal templates live in signals.py; scripts call them as plot.bode etc.
+from studykit.figures.signals import (
+    bode,
+    nyquist,
+    phasor,
+    pole_zero,
+    root_locus,
+    signals,
+    step_response,
+)
 
 MARKS = ("roots", "intersections", "extrema", "inflections")
 MARK_PREFIX = {"root": "N", "intersection": "S", "maximum": "H", "minimum": "T", "inflection": "W"}
@@ -54,16 +66,121 @@ def _auto_ylim(curves: list[np.ndarray], points: list[Point]) -> tuple[float, fl
     return (float(lo - pad), float(hi + pad))
 
 
-def _cross_axes(ax, x_rng, y_rng) -> None:
-    """Engineering style: axes through the origin when it is in view."""
+def _cross_axes(ax, x_rng, y_rng) -> str:
+    """Engineering style: axes through the origin when it is in view.
+
+    Returns the axes ('x', 'y') whose 0 tick label would sit on the other axis.
+    """
+    blank = ""
     if x_rng[0] < 0 < x_rng[1]:
         ax.spines["left"].set_position(("data", 0))
+        blank += "x"
     if y_rng[0] < 0 < y_rng[1]:
         ax.spines["bottom"].set_position(("data", 0))
+        blank += "y"
+    return blank
+
+
+# Label positions around a marked point, best first: (dx, dy) in points, ha, va.
+POINT_LABEL_SPOTS = [
+    (5, 4, "left", "bottom"),
+    (-5, 4, "right", "bottom"),
+    (5, -4, "left", "top"),
+    (-5, -4, "right", "top"),
+    (0, 7, "center", "bottom"),
+    (0, -7, "center", "top"),
+    (7, 0, "left", "center"),
+    (-7, 0, "right", "center"),
+]
+
+
+# Legend corners inside the axes, best first; above the axes when none is free.
+LEGEND_SPOTS = (
+    "upper left",
+    "upper right",
+    "lower right",
+    "lower left",
+    "upper center",
+    "lower center",
+    "center left",
+    "center right",
+)
+
+
+def _scene(ax, marks: list[tuple[float, float, str]], curves: list):
+    """What labels must not hide, in display coordinates: drawn points and text boxes."""
+    fig = ax.figure
+    fig.draw_without_rendering()
+    renderer = fig.canvas.get_renderer()
+    drawn = [labels.marker_points(ax, [complex(x, y) for x, y, _ in marks], radius_pt=3.5)]
+    for xs, ys in curves:  # each run between poles separately, so no jump is sampled
+        finite = np.isfinite(ys)
+        edges = np.flatnonzero(np.diff(np.r_[0, finite.astype(int), 0]))
+        for a, b in zip(edges[::2], edges[1::2], strict=True):
+            drawn.append(labels.polyline_points(ax, xs[a:b] + 1j * ys[a:b]))
+    (x0, x1), (y0, y1) = ax.get_xlim(), ax.get_ylim()
+    if x0 < 0 < x1:
+        drawn.append(labels.segment_points(ax, (0, y0), (0, y1), 200))
+    if y0 < 0 < y1:
+        drawn.append(labels.segment_points(ax, (x0, 0), (x1, 0), 200))
+    texts = [*ax.get_xticklabels(), *ax.get_yticklabels(), *ax.texts]
+    placed = [t.get_window_extent(renderer) for t in texts if t.get_text()]
+    placed += [a.get_window_extent(renderer) for a in (ax.xaxis.label, ax.yaxis.label)]
+    return np.concatenate(drawn), placed
+
+
+def _place_legend(ax, avoid: np.ndarray, placed: list) -> bool:
+    """Put the legend in the first corner it hides nothing in; True if it went outside."""
+    renderer = ax.figure.canvas.get_renderer()
+    best = None
+    for loc in LEGEND_SPOTS:
+        box = ax.legend(loc=loc, labelcolor=FG).get_window_extent(renderer)
+        score = box.count_contains(avoid) + 100 * sum(box.overlaps(b) for b in placed)
+        if best is None or score < best[0]:
+            best = (score, loc)
+        if score == 0:
+            break
+    if best[0] == 0:
+        ax.legend(loc=best[1], labelcolor=FG)
+        return False
+    n = len(ax.get_legend_handles_labels()[0])
+    ax.legend(loc="lower right", bbox_to_anchor=(1, 1.02), ncols=n, labelcolor=FG, borderaxespad=0)
+    return True
+
+
+def _annotate(ax, marks: list[tuple[float, float, str]], curves: list, legend: bool) -> None:
+    """Legend and point labels, each where it hides no curve, axis, tick label or label."""
+    avoid, placed = _scene(ax, marks, curves)
+    if legend and _place_legend(ax, avoid, placed):
+        avoid, placed = _scene(ax, marks, curves)  # the axes shrank for the legend above
+    if ax.get_legend() is not None:
+        placed.append(ax.get_legend().get_window_extent(ax.figure.canvas.get_renderer()))
+    for x, y, text in marks:
+        spots = [
+            {"xy": (x, y), "xytext": (dx, dy), "ha": ha, "va": va}
+            for dx, dy, ha, va in POINT_LABEL_SPOTS
+        ]
+        labels.place(ax, text, spots, avoid, placed, [(x, y), (x, y)], color=FG, fontsize=7)
+
+
+def _merge(points: list[Point], names: list[str], span: float) -> list[tuple[Point, list[str]]]:
+    """One mark per location: a root of f and g that is also their intersection is one."""
+    tol = 1e-9 * max(span, 1.0)
+    out: list[tuple[Point, list[str]]] = []
+    for p, name in zip(points, names, strict=True):
+        for q, group in out:
+            if abs(p.x - q.x) <= tol and abs(p.y - q.y) <= tol:
+                group.append(name)
+                break
+        else:
+            out.append((p, [name]))
+    return out
 
 
 def _point_label(p: Point, index: int) -> str:
     prefix = (MARK_PREFIX if core.locale() == "de" else MARK_PREFIX_EN)[p.kind]
+    if len(prefix) > 1:  # a word such as Max is upright, not a product of italic letters
+        prefix = rf"\mathrm{{{prefix}}}"
     return f"${prefix}_{{{index}}}$"
 
 
@@ -122,34 +239,41 @@ def functions(
     y_rng = y or _auto_ylim(raw, points)
 
     fig, ax = core.new_figure(size)
+    curves = []
     for i, ((name, e), ys) in enumerate(zip(exprs, raw, strict=True)):
         label = f"${name}(x) = {core.localize_tex(sp.latex(e))}$"
-        ax.plot(xs, _break_at_poles(xs, ys, y_rng), color=color(i), label=label)
+        curves.append((xs, _break_at_poles(xs, ys, y_rng)))
+        ax.plot(*curves[-1], color=color(i), label=label)
 
     counters: dict[str, int] = {}
+    names = []
     for p in points:
         counters[p.kind] = counters.get(p.kind, 0) + 1
-        ax.plot([p.x], [p.y], "o", ms=4.5, mfc=BG, mec=FG, mew=1.1, zorder=5)
-        text = _point_label(p, counters[p.kind])
-        if coords:
-            text += " " + _coord_text(p)
-        ax.annotate(
-            text,
-            (p.x, p.y),
-            xytext=(4, 6 if counters[p.kind] % 2 else -12),
-            textcoords="offset points",
-            fontsize=7,
-            color=FG,
-        )
+        names.append(_point_label(p, counters[p.kind]))
+    marks = []
+    for p, group in _merge(points, names, hi - lo):
+        ax.plot([p.x], [p.y], "o", ms=4.5, mfc=BG, mec=FG, mew=1.1, zorder=9)
+        text = ", ".join(group)
+        marks.append((p.x, p.y, text + " " + _coord_text(p) if coords else text))
 
     ax.set_xlim(lo, hi)
     ax.set_ylim(*y_rng)
-    _cross_axes(ax, (lo, hi), y_rng)
+    blank = _cross_axes(ax, (lo, hi), y_rng)
     ax.set_xlabel(f"${x_label}$", loc="right")
     ax.set_ylabel(f"${y_label}$", loc="top", rotation=0)
-    core.apply_locale(ax)
-    if legend and exprs:
-        ax.legend(loc="best", labelcolor=FG)
+    core.apply_locale(ax, blank_zero=blank)
+    if blank == "xy":  # one 0 for both axes, below left of the origin
+        ax.annotate(
+            "0",
+            (0, 0),
+            xytext=(-3, -3),
+            textcoords="offset points",
+            ha="right",
+            va="top",
+            fontsize=plt.rcParams["xtick.labelsize"],
+            color=FG,
+        )
+    _annotate(ax, marks, curves, legend and bool(exprs))
 
     facts = {
         "template": "plot.functions",
@@ -191,4 +315,16 @@ class custom:
             self.figure = core.finish(self.fig, self.alt, self.facts)
 
 
-__all__ = ["MARKS", "MUTED", "custom", "functions"]
+__all__ = [
+    "MARKS",
+    "MUTED",
+    "bode",
+    "custom",
+    "functions",
+    "nyquist",
+    "phasor",
+    "pole_zero",
+    "root_locus",
+    "signals",
+    "step_response",
+]

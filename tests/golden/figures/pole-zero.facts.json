@@ -1,0 +1,61 @@
+{
+ "G": {
+  "den": [
+   1.0,
+   3.0,
+   7.0,
+   5.0
+  ],
+  "latex": "\\frac{s + 2}{\\left(s + 1\\right) \\left(s^{2} + 2 s + 5\\right)}",
+  "num": [
+   1.0,
+   2.0
+  ],
+  "variable": "s"
+ },
+ "alt": "Pole-zero map of G(s) = (s + 2)/(s^3 + 3*s^2 + 7*s + 5) in the s-plane: poles (x) at -1 - 2j, -1, -1 + 2j; zeros (o) at -2; the system is stable (all poles in the left half-plane required).",
+ "dc_gain": 0.4,
+ "discrete": false,
+ "poles": [
+  {
+   "magnitude": 2.23606797749979,
+   "multiplicity": 1,
+   "omega_n": 2.23606797749979,
+   "value": [
+    -1.0,
+    -2.0
+   ],
+   "zeta": 0.4472135954999579
+  },
+  {
+   "magnitude": 1.0,
+   "multiplicity": 1,
+   "value": [
+    -1.0,
+    0.0
+   ]
+  },
+  {
+   "magnitude": 2.23606797749979,
+   "multiplicity": 1,
+   "omega_n": 2.23606797749979,
+   "value": [
+    -1.0,
+    2.0
+   ],
+   "zeta": 0.4472135954999579
+  }
+ ],
+ "stable": true,
+ "template": "signals.pole_zero",
+ "zeros": [
+  {
+   "magnitude": 2.0,
+   "multiplicity": 1,
+   "value": [
+    -2.0,
+    0.0
+   ]
+  }
+ ]
+}

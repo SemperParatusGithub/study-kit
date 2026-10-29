@@ -1,0 +1,122 @@
+{
+ "alt": "Schaltbild eines belasteten Spannungsteilers: Die Spannungsquelle U0 = 12 V speist die Reihenschaltung aus R1 = 4,7 kΩ und R2 = 2,2 kΩ; parallel zu R2 liegt der Lastwiderstand RL = 10 kΩ. Zählpfeile: Strom I durch R1, Spannungen U1 an R1 und U2 an R2, jeweils vom oberen zum unteren Knoten.",
+ "arrows": [
+  {
+   "element": "U0",
+   "from": "1",
+   "kind": "voltage",
+   "name": "U0",
+   "symbol": "U_0",
+   "to": "0"
+  },
+  {
+   "element": "R1",
+   "from": "1",
+   "kind": "current",
+   "name": "I",
+   "symbol": "I",
+   "to": "2"
+  },
+  {
+   "element": "R1",
+   "from": "1",
+   "kind": "voltage",
+   "name": "U1",
+   "symbol": "U_1",
+   "to": "2"
+  },
+  {
+   "element": "R2",
+   "from": "2",
+   "kind": "voltage",
+   "name": "U2",
+   "symbol": "U_2",
+   "to": "0"
+  },
+  {
+   "element": "R2",
+   "from": "2",
+   "kind": "current",
+   "name": "I2",
+   "symbol": "I_2",
+   "to": "0"
+  },
+  {
+   "element": "RL",
+   "from": "2",
+   "kind": "current",
+   "name": "IL",
+   "symbol": "I_\\mathrm{L}",
+   "to": "0"
+  }
+ ],
+ "components": [
+  {
+   "kind": "voltage_source",
+   "label": null,
+   "name": "U0",
+   "nodes": [
+    "1",
+    "0"
+   ],
+   "si": 12.0,
+   "symbol": "U_0",
+   "unit": "V",
+   "value": "12 V"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_1 = 4{,}7\\,\\mathrm{k\\Omega}$",
+   "name": "R1",
+   "nodes": [
+    "1",
+    "2"
+   ],
+   "si": 4700.0,
+   "symbol": "R_1",
+   "unit": "Ω",
+   "value": "4.7 kΩ"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_2 = 2{,}2\\,\\mathrm{k\\Omega}$",
+   "name": "R2",
+   "nodes": [
+    "2",
+    "0"
+   ],
+   "si": 2200.0,
+   "symbol": "R_2",
+   "unit": "Ω",
+   "value": "2.2 kΩ"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_\\mathrm{L} = 10\\,\\mathrm{k\\Omega}$",
+   "name": "RL",
+   "nodes": [
+    "2",
+    "0"
+   ],
+   "si": 10000.0,
+   "symbol": "R_\\mathrm{L}",
+   "unit": "Ω",
+   "value": "10 kΩ"
+  }
+ ],
+ "derived": {
+  "I": 0.00184522,
+  "R2_parallel_RL": 1803.28,
+  "U1": 8.67255,
+  "U2": 3.32745,
+  "ratio_U2_U0": 0.277288
+ },
+ "loaded": true,
+ "nodes": [
+  "0",
+  "1",
+  "2"
+ ],
+ "scale_in_per_unit": 0.2989,
+ "template": "circuit.voltage_divider"
+}
