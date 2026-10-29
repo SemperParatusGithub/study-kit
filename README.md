@@ -6,11 +6,11 @@ plan, a summary, exercises with hints and verified solutions, a multiple-choice 
 cheat sheet of at most three pages and mock exams modelled on past exams, all readable in
 the browser and exportable as PDF.
 
-> Status: the website, the PDFs and the Claude Code commands, agents and skills for
-> verifying, regenerating, tutoring and examining work (Phases 0–5). Building a course
-> from a folder of lecture material (`/register-new-subject`, Phase 6) comes next; until
-> then a course is written in the content format by hand or with `/regenerate`. The full
-> design is in [docs/architecture.md](docs/architecture.md).
+> Status: everything in the design works (Phases 0–6): building a course from a folder of
+> lecture PDFs (`/register-new-subject`), the website, the PDFs, and the Claude Code
+> commands for verifying, regenerating, tutoring and examining. The full design is in
+> [docs/architecture.md](docs/architecture.md); [docs/walkthrough.md](docs/walkthrough.md)
+> follows one subject from its PDFs to studying it.
 
 ## Requirements
 
@@ -37,6 +37,32 @@ uv run --frozen studykit tools install
 the site dependencies, activates the git hooks and runs `just doctor`. Add `.tools/bin` to
 your `PATH` (or use `.tools/bin/just`) to call `just` directly.
 
+## Quick start: register a subject
+
+Put the subject's PDFs in one folder (slides, script, exercise sheets, solutions and, most
+important, past exams; export office files as PDF first), open Claude Code in the
+repository and run:
+
+```
+/register-new-subject ~/Studium/Elektronik1
+```
+
+It shows an inventory of the folder and asks four questions (exam date, format, cheat
+sheet, hours per week), reads the material with agents, proposes the topics, and asks
+once more (focus and skip topics, number of mock exams, full or core scope, go). Then it
+writes and verifies the course and builds its PDFs and website pages; finally:
+
+```bash
+just dev        # http://localhost:4321/c/<course>/
+```
+
+The command copies your PDFs into `courses/<course>/sources/raw/` and never changes your
+folder. Run it again to resume an interrupted run (`just pipeline <course>` shows where
+it stands); `/add-material <course> <file|folder>` adds material later. To try it without
+your own material, `just sample-materials` builds a set of German lecture PDFs on op-amp
+circuits into `examples/sample-materials/_build/materials`. The
+[walkthrough](docs/walkthrough.md) explains every step.
+
 ## Everyday commands
 
 | Command | What it does |
@@ -53,6 +79,9 @@ your `PATH` (or use `.tools/bin/just`) to call `just` directly.
 | `just tutor <course> [topic]` | Starts Claude Code as the Socratic tutor (`/tutor`; an exercise id works too) |
 | `just examine <course> [mode]` | Starts Claude Code as the examiner (`/examine`) |
 | `just figures [course]` | Renders the figure scripts of a course |
+| `just pipeline <course>` | Where `/register-new-subject` stands: each step's status and the step a new run resumes at (`--json`) |
+| `just ingest <action> …` | `studykit ingest scan\|init\|extract\|add\|round2`, the Python side of registering a subject |
+| `just sample-materials` | Builds the sample lecture PDFs (`examples/sample-materials`) into its gitignored `_build/materials` |
 | `just test` | Python and Node unit tests, the git hooks, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
 | `just e2e` | Playwright tests of the built sample course in Chromium (build it first, see below) |
 | `just ci` | `doctor`, `test`, a strict build of the sample course with its PDFs and its release validation (CI also runs `lint-code` and the browser tests) |
@@ -109,8 +138,8 @@ just lint-code && just ci && pnpm -C site run test:elements && just e2e
 ## Studying with Claude Code
 
 Open Claude Code in the repository (`claude`). The commands take a course id from
-`courses/` (or a course directory). To try them, copy the sample course into `courses/`,
-which stays local:
+`courses/` (or a course directory): one you registered, or the sample course copied into
+`courses/`, which stays local:
 
 ```bash
 cp -R examples/sample-course courses/
@@ -118,6 +147,8 @@ cp -R examples/sample-course courses/
 
 | Command | What it does |
 |---|---|
+| `/register-new-subject <folder> [course-id]` | Builds a course from a folder of lecture PDFs (see the quick start above); resumes where it stopped. |
+| `/add-material <course> <file\|folder>` | Copies and reads new or changed PDFs, proposes how the topics change (applied after you confirm) and lists the `/regenerate` runs that bring the content up to date. |
 | `/study-status <course>` | Where you stand: days to the exam, plan adherence, weakest topics, reviews due, the last mock exam, and one recommended next step. Read-only. |
 | `/tutor <course> [topic\|ex-id]` | Socratic tutoring: works through a topic or one exercise by asking rather than lecturing, checks every number with `studykit calc` and writes nothing. |
 | `/examine <course> [mode]` | Strict examiner. Modes: `diagnostic` (15 questions over all topics), `topic <t>`, `mc` (the default: due reviews, then weak topics), `weak`, `misconceptions`, `exam <id>` (a mock exam under time) and `oral`. It asks for your confidence before revealing anything and logs every graded item to `progress/examiner.jsonl`. |
