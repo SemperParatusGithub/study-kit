@@ -1376,6 +1376,13 @@ sk-progress {
   color: var(--ske-muted);
 }
 
+.sk-progress-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ske-muted);
+}
+
 .sk-stats {
   display: flex;
   flex-wrap: wrap;

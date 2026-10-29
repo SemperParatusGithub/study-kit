@@ -30,8 +30,11 @@ test.describe('sk-progress', () => {
 
   test('topic bars, calibration and exam history', async ({ page }) => {
     const p = page.locator('sk-progress');
-    // rc-tiefpass: last attempts 0, 1, 0 → 33%; rc-filter: 1 → 100%; overall 2 of 4 → 50%
-    await expect(p.locator('.sk-ring')).toHaveAttribute('aria-label', '50% right in the last 10 answers per topic');
+    // rc-tiefpass: last attempts 0, 1, 0 → 33%; rc-filter: 1 → 100%; mastery as on the course
+    // cards: 0.25 · 0 + 0.35 · 1/3 + 0.4 · 1 = 0.517 → 52%
+    await expect(p.locator('.sk-ring')).toHaveAttribute('aria-label', 'Mastery 52%');
+    await expect(p.locator('.sk-ring')).toContainText('52%mastery');
+    await expect(p.locator('.sk-progress-note')).toContainText("each topic's last 10 answers");
     await expect(p.locator('.sk-stats')).toContainText('5 answers');
     await expect(p.locator('.sk-stats')).toContainText('2 reviews due'); // 002, filter-003
     await expect(p.locator('.sk-stats')).toContainText('1 exercise to review');

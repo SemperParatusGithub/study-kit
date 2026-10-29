@@ -2,7 +2,8 @@
 //   [data-exams='[{id, title, points}]' (or {"id": {title, points}})] [data-exam-date]>
 // (docs/architecture.md §2.11, §3.2).
 //
-// Reads the progress document and shows: an overall ring, per-topic bars (accuracy over the
+// Reads the progress document and shows: a mastery ring (the same figure as the course
+// cards, lib/stats.ts mastery()), per-topic bars (accuracy over the
 // last 10 attempts of the topic, as progress.py computes it), MC reviews due, exercises to
 // review, misconceptions (last answer sure but not fully right), sure/unsure calibration and
 // the mock exam history. A question belongs to the topic whose `mc` list has it (else the
@@ -11,7 +12,17 @@
 // when progress changes on this page or in another tab.
 
 import { isDay } from '../lib/leitner.ts';
-import { dueCount, exercisesDue, isMisconceived, mean, RECENT, topicStats, type TopicInfo, type TopicStat } from '../lib/stats.ts';
+import {
+  dueCount,
+  exercisesDue,
+  isMisconceived,
+  mastery,
+  mean,
+  RECENT,
+  topicStats,
+  type TopicInfo,
+  type TopicStat,
+} from '../lib/stats.ts';
 import type { ExamEntry, ExEntry, McEntry } from '../lib/store.ts';
 import { courseOf, duration, examDate, h, parseJson, percent, pts, storeFor, today } from './util.ts';
 
@@ -95,7 +106,8 @@ export class SkProgress extends HTMLElement {
     }
     const due = dueCount(items, topics, day, exam);
     const exDue = exercisesDue(items, day, exam);
-    const overall = mean(stats.flatMap((s) => s.recent.map((r) => r.score)));
+    // one overall figure across the site: mastery, as on the course cards and the course page
+    const overall = mastery(stats, topics);
     const sure = all.filter((a) => a.conf === 'sure').map((a) => a.score);
     const unsure = all.filter((a) => a.conf === 'unsure').map((a) => a.score);
 
@@ -108,6 +120,8 @@ export class SkProgress extends HTMLElement {
           stat(misTotal, misTotal === 1 ? 'misconception' : 'misconceptions'),
           stat(solved, solved === 1 ? 'exercise solved' : 'exercises solved'),
           exDue ? stat(exDue, exDue === 1 ? 'exercise to review' : 'exercises to review') : null)),
+      h('p', { class: 'sk-progress-note' },
+        `Mastery averages how many of each topic's last ${RECENT} answers were right, weighted by the topic's share of the exam; topics not started count as 0.`),
       h('h3', {}, 'Topics'),
       topics.length
         ? h('ul', { class: 'sk-topic-list' }, ...stats.map((s) => topicRow(s)))
@@ -128,7 +142,7 @@ function ring(value: number | null): HTMLElement {
   const r = 36;
   const c = 2 * Math.PI * r;
   const frac = value ?? 0;
-  const label = value === null ? 'No answers yet' : `${percent(value)} right in the last ${RECENT} answers per topic`;
+  const label = value === null ? 'Mastery: no answers yet' : `Mastery ${percent(value)}`;
   const wrap = h('div', { class: 'sk-ring', role: 'img', 'aria-label': label });
   wrap.innerHTML =
     `<svg viewBox="0 0 88 88" width="88" height="88" aria-hidden="true">` +
@@ -140,7 +154,7 @@ function ring(value: number | null): HTMLElement {
     `</svg>`;
   wrap.append(
     h('span', { class: 'sk-ring-value', 'aria-hidden': 'true' }, value === null ? '–' : percent(value)),
-    h('span', { class: 'sk-ring-label', 'aria-hidden': 'true' }, 'right'),
+    h('span', { class: 'sk-ring-label', 'aria-hidden': 'true' }, 'mastery'),
   );
   return wrap;
 }
