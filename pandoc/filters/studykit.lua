@@ -406,6 +406,7 @@ function W.inline(el, ctx)
     el.content = W.inlines(el.content, ctx)
     return { W.clean(el) }
   elseif t == 'Code' then
+    guard.inline_code(el, ctx)
     return { W.clean(el) }
   elseif t == 'RawInline' then
     guard.raw(el, ctx)
@@ -490,6 +491,8 @@ function W.block(el, ctx, parent)
     return {}
   elseif t == 'HorizontalRule' then
     return { el }
+  elseif t == 'Table' then
+    guard.table(el, ctx)
   end
   return { W.clean(W.generic(el, ctx)) }
 end

@@ -57,6 +57,54 @@ def test_lint_is_quick(mini: Path, denylist: Path):
     assert report.findings == []
 
 
+PANDOC_MISSING = not tools.bin_path(tools.repo_root(), "pandoc").exists()
+
+
+@pytest.mark.skipif(PANDOC_MISSING, reason="pandoc is not installed in .tools/bin")
+@pytest.mark.parametrize(
+    ("rel", "replaced", "snippet", "message"),
+    [
+        (
+            "summary/01-spannungsteiler.md",
+            None,
+            'Der Widerstand `R1`{onmouseover="alert(1)"} teilt die Spannung.',
+            "inline code takes no attributes",
+        ),
+        (
+            "summary/01-spannungsteiler.md",
+            None,
+            '| Größe | Wert |\n|---|---|\n| `x`{onfocus="x()" autofocus=""} | 1 |',
+            "inline code takes no attributes",
+        ),
+        (
+            "summary/01-spannungsteiler.md",
+            None,
+            '{onclick="alert(1)"}\n| Größe | Wert |\n|---|---|\n| R | 1 |',
+            "tables take no attributes",
+        ),
+        (
+            "mc/rc-tiefpass.md",
+            "  $f_\\mathrm{g} = 1/(2\\pi RC)$.",
+            '  $f_\\mathrm{g} = 1/(2\\pi RC)$ mit `RC`{onclick="alert(1)"}.',
+            "inline code takes no attributes",
+        ),
+    ],
+)
+def test_lint_rejects_attributes_that_would_reach_the_page(
+    rel: str, replaced: str | None, snippet: str, message: str, mini: Path, denylist: Path
+):
+    """An attribute the filter does not reject is copied onto the page (an onclick runs)."""
+    path = mini / rel
+    text = path.read_text()
+    if replaced is None:
+        path.write_text(text + "\n" + snippet + "\n")
+    else:
+        assert replaced in text
+        path.write_text(text.replace(replaced, snippet, 1))
+    report = lint.lint_files([path], config(denylist))
+    assert [(f.code, f.message) for f in report.findings] == [("SK-BLOCK", message)]
+
+
 def test_lint_outside_a_course(tmp_path: Path, denylist: Path):
     stray = tmp_path / "notiz.md"
     stray.write_text("---\ntitle: x\n---\n")

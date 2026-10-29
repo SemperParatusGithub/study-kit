@@ -3,7 +3,8 @@
 -- paragraphs that start with ::: (a fence pandoc did not read as one) and, when the
 -- source text is available, on fence lines that are not exactly `::: name`,
 -- `:::: {.mcq …}`, `:::` or `::::`. Also rejects raw HTML, which the reader still
--- produces although the dialect turns it off.
+-- produces although the dialect turns it off, and `{…}` attributes on anything but an
+-- mcq: the HTML writer copies them onto the element, so `onclick` would reach the page.
 
 local M = {}
 
@@ -181,9 +182,28 @@ function M.raw(el, ctx)
   ctx:fail('SK-BLOCK', what .. ' `' .. excerpt .. '` is not allowed', 'use Markdown, math or a container block')
 end
 
+--- True if an author wrote an id, a class or an attribute on `el`.
+local function has_attributes(el)
+  return el.identifier ~= '' or #el.classes > 0 or #M.user_attributes(el) > 0
+end
+
 function M.span(el, ctx)
-  if el.identifier ~= '' or #el.classes > 0 or #M.user_attributes(el) > 0 then
+  if has_attributes(el) then
     ctx:fail('SK-BLOCK', 'spans with attributes are not allowed', 'remove the {…} after the bracketed text')
+  end
+end
+
+--- Inline code is written as is: an attribute such as `onclick` would reach the page.
+function M.inline_code(el, ctx)
+  if has_attributes(el) then
+    ctx:fail('SK-BLOCK', 'inline code takes no attributes', 'remove the {…} after the code span')
+  end
+end
+
+--- A `{…}` line above a pipe table puts its attributes on the <table>.
+function M.table(el, ctx)
+  if has_attributes(el) then
+    ctx:fail('SK-BLOCK', 'tables take no attributes', 'remove the {…} line above the table')
   end
 end
 
