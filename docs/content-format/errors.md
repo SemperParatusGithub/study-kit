@@ -572,3 +572,44 @@ Fix: `/regenerate <course> mc --topic <topic> --add <n>`.
 `duration_min` is more than 10 % away from the real exam in `course.yaml: exam`.
 Fix: `/regenerate <course> exams`, or lower the target; scale the mock exam's tasks to the
 real exam's points and time.
+
+## Progress (SK-PROGRESS, `studykit progress`)
+
+These codes are not validate stages: `studykit progress import` reports them for a browser
+export (and for `progress/state.json`, the merged state it keeps), `progress log` for an
+examiner result, and `progress report` and `studykit status` when the files under
+`progress/` do not read. Nothing is written while any is reported. For an import the
+position is the line of the entry's key in the file; for `progress log` it is the
+`--json-line` argument or the stdin line.
+
+### `SK-PROGRESS-FILE`
+**error.** The file cannot be read, is not JSON, or has no `items` object, so it is not a
+study-kit progress export.
+Fix: use the file the site's Export button downloads (progress page),
+`studykit-progress-<course>-<date>.json`.
+
+### `SK-PROGRESS-SCHEMA`
+**error.** The export's `schema` is not `studykit-progress/1`: a newer site wrote it (update
+study-kit), or it is an unversioned document from before the schema (import it on the site
+once and export it again; the site migrates it).
+Fix: `git pull && uv sync`, or re-export from the site.
+
+### `SK-PROGRESS-COURSE`
+**error.** The export names no course, or another course than the one it is imported into.
+Fix: import it into the course it names, or export the right course's progress page.
+
+### `SK-PROGRESS-ENTRY`
+**error.** An entry does not validate against `schemas/progress.schema.json`
+(`studykit.model.Progress`), or a timestamp is not ISO 8601 in the form the site writes
+(`Date.toISOString()`). The site drops such entries when it reads or imports a document, so
+an export it wrote never has one.
+Fix: export the progress again on the site instead of editing the file by hand.
+
+### `SK-PROGRESS-EXAMINER`
+**error.** An examiner result is not one JSON object per line, does not validate against
+`schemas/examiner.schema.json` (`studykit.model.ExaminerResult`: an MC result needs the
+question id, `conf` and `chosen`; a task or exercise its id; `points` come with
+`max_points`), names an item the course does not have, or a topic the item does not belong
+to.
+Fix: `studykit progress log <course> --json-line '{"mode": "mc", "kind": "mc", "topic":
+"rc-filter", "item": "mc-rc-filter-003", "chosen": ["A"], "conf": "sure", "score": 1}'`.
