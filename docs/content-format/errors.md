@@ -19,9 +19,12 @@ that owns the file:
 |---|---|
 | `course.yaml` | `/register-new-subject` scaffold and synthesis (main thread) |
 | `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part) |
-| `plan.yaml` | `studykit plan` (Phase 5; only `goal` and `note` are hand-written); until then written by hand |
+| `plan.yaml` | `studykit plan` (only `goal` and `note` are hand-written) |
 | `analysis/exam-profile.yaml` | `exam-analyst` |
 | `sources/manifest.yaml` | `studykit ingest` |
+
+The agents and commands in this table come with Phases 5 and 6; until then these files are
+written by hand.
 
 Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
 `validate --quick`; References and Figures run in `validate`; Site and Coverage only with
@@ -248,8 +251,7 @@ the next line as a whole.
 **error.** Raw HTML (`<br>`, `<span …>`, an `<!-- … -->` comment) or another raw block or
 inline in the body. pandoc 3.13 still reads raw HTML although the dialect turns it off, so
 the filter rejects it on every target (§2.3); it is reported by the Pandoc stage.
-Fix: use Markdown, math or a container block; a remark for authors goes into the
-explanation or is deleted.
+Fix: use Markdown, math or a container block; delete HTML comments.
 
 ### `SK-BLOCK-MARKDOWN`
 **error.** Markdown the dialect does not allow (§2.3): an H1 heading in the body, a heading
