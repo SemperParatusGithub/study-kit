@@ -197,14 +197,17 @@ error (the References stage now checks the profile's topics).
    line is `ok`.
 3. Estimate with `studykit calc`, for both scopes: authors = 1 (overview) + topics × 3,
    plus the mock exams and 1 cheat sheet when allowed (core: topics × 2, no mock exams, no
-   cheat sheet); items ≈ topics × (4 exercises and the MC target of 10 to 25 by weight),
-   plus 8 per mock exam (core: no exercises); opus agent runs ≈ (authors and items) × 1.2
-   for fix rounds; time ≈ authors / 6 × 15 min and items / 6 × 5 min. Give each as a range
-   (× 0.7 to × 1.5) and say it is an estimate.
-4. One AskUserQuestion call with three questions: "How many mock exams?" (1, 2, 3; default
-   the profile's evidence, else 2), "Which scope?" (Full: everything now; Core first:
-   summary, MC and plan, the exercises, mock exams and cheat sheet later), "Start the
-   generation?" (Go, with the estimate in the option's description; Not now).
+   cheat sheet); items ≈ topics × 4 exercises plus the MC targets (per topic
+   `min(25, max(10, ceil(25 * weight)))`, the Coverage stage's rule), plus 8 per mock exam
+   (core: no exercises); opus agent runs ≈ (authors and items) × 1.2 for fix rounds;
+   time ≈ authors / 6 × 15 min and items / 6 × 5 min. The estimate comes before the
+   mock-exam answer, so count the default number of mock exams (next item) and say so.
+   Give each as a range (× 0.7 to × 1.5) and say it is an estimate.
+4. One AskUserQuestion call with three questions: "How many mock exams?" (1, 2, 3; the
+   default, marked in its description: the number of past exams in the profile, at most
+   3, else 2), "Which scope?" (Full: everything now; Core first: summary, MC and plan,
+   the exercises, mock exams and cheat sheet later), "Start the generation?" (Go, with the
+   estimate in the option's description; Not now).
 5. Record the answers (`--no-go` for Not now); with no-go, stop: running the command
    again resumes here.
 
