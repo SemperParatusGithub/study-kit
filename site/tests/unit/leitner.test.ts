@@ -12,6 +12,7 @@ import {
   isDue,
   nextBox,
   review,
+  reviewDayOf,
   schedule,
 } from '../../src/lib/leitner.ts';
 
@@ -128,7 +129,7 @@ test('isDue re-applies the clamp, so a moved exam date takes effect at once', ()
   // Reviewed before the window: due from the window start.
   assert.equal(isDue('2027-03-10', '2027-01-08', '2027-02-05', EXAM), true);
   assert.equal(isDue('2027-03-10', '2027-01-08', '2027-02-04', EXAM), false);
-  // Unknown review day (exercise entries): treated as reviewed before the window.
+  // Unknown review day: treated as reviewed before the window.
   assert.equal(effectiveDue('2027-03-10', null, EXAM), WINDOW);
   assert.equal(isDue('2027-03-10', null, '2027-02-13', EXAM), true);
   assert.equal(isDue('2027-03-10', null, '2027-02-04', EXAM), false);
@@ -138,4 +139,21 @@ test('isDue re-applies the clamp, so a moved exam date takes effect at once', ()
   assert.equal(isDue('2026-11-02', null, '2026-11-02', null), true);
   assert.equal(isDue('2026-11-03', null, '2026-11-02', null), false);
   assert.equal(clampDue('2027-03-10', '2027-03-01', EXAM), '2027-03-10');
+});
+
+test('reviewDayOf: the review day of an entry that keeps none, on the right side of the clamp', () => {
+  // unclamped: exact
+  assert.equal(reviewDayOf('2026-11-13', 2), '2026-11-10');
+  assert.equal(reviewDayOf('2027-03-10', 5), '2027-02-08');
+  assert.equal(reviewDayOf(null, 2), null);
+  assert.equal(reviewDayOf('2026-11-13', null), null);
+  // every review day the clamp can have moved keeps its side of the limit
+  for (let d = '2027-01-01'; d <= '2027-02-25'; d = addDays(d, 1)) {
+    for (let box = 1; box <= 5; box++) {
+      const due = schedule(box, d, EXAM);
+      const est = reviewDayOf(due, box);
+      assert.ok(est !== null && (est >= LIMIT) === (d >= LIMIT), `${d} box ${box}: ${est}`);
+      assert.equal(effectiveDue(due, est, EXAM), effectiveDue(due, d, EXAM), `${d} box ${box}`);
+    }
+  }
 });

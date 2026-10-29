@@ -94,6 +94,24 @@ test('due count: all topics or one, retired and exam questions left out', () => 
   assert.equal(exercisesDue(ITEMS, TODAY, EXAM), 1);
 });
 
+test('an exercise rated on or after the clamp limit is not due before its review day', () => {
+  const ex = (box: number, due: string): Items => ({
+    'ex:ex-a': { h: 'aaaaaaaa', hints: 0, answer_ok: true, rating: 'solved', box, due },
+  });
+  // rated "solved" on the limit day 2027-02-13: box 2, due the day after the exam
+  assert.equal(exercisesDue(ex(2, '2027-02-16'), '2027-02-13', EXAM), 0);
+  assert.equal(exercisesDue(ex(2, '2027-02-16'), '2027-02-16', EXAM), 1);
+  // rated after the exam: the clamp no longer applies
+  assert.equal(exercisesDue(ex(2, '2027-02-23'), '2027-02-20', EXAM), 0);
+  assert.equal(exercisesDue(ex(2, '2027-02-23'), '2027-02-23', EXAM), 1);
+  // scheduled before the exam date was known (box 5 on 2027-02-08): due at the limit
+  assert.equal(exercisesDue(ex(5, '2027-03-10'), '2027-02-12', EXAM), 0);
+  assert.equal(exercisesDue(ex(5, '2027-03-10'), '2027-02-13', EXAM), 1);
+  // ... and from the window start when that review was before the window (2027-01-20)
+  assert.equal(exercisesDue(ex(5, '2027-02-19'), '2027-02-04', EXAM), 0);
+  assert.equal(exercisesDue(ex(5, '2027-02-19'), '2027-02-05', EXAM), 1);
+});
+
 test('weakest topics and mastery', () => {
   const stats = topicStats(ITEMS, TOPICS, TODAY, EXAM);
   assert.deepEqual(weakestTopics(stats, TOPICS, 3).map((s) => s.id), ['rc-filter', 'spannungsteiler']);
