@@ -34,7 +34,7 @@ study-kit/
 ├── .github/scripts/guard.sh        # the guard workflow's checks: `commits`, `courses`, `pdfs`
 ├── .github/scripts/test-hooks.sh   # tests of the git hooks and guard.sh in throwaway repositories (`just test`)
 ├── src/studykit/
-│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links
+│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links, pdf, cheatsheet fit
 │   ├── tools.py                    # `tools install`: pandoc, typst and just → .tools/bin, sha256-checked
 │   ├── doctor.py                   # `doctor`: tool versions, site packages, Typst fonts, git hooks, courses/ ignored, port 4321
 │   ├── model.py                    # pydantic models: the single schema source
@@ -52,7 +52,8 @@ study-kit/
 │   │                               # circuit.py block.py graph.py labels.py builtins.py
 │   │                               # finalize.py validate.py child.py runner.py
 │   ├── check.py  verify.py  blind.py   # (Phase 5) check-script API, runner + ledger, blind views
-│   ├── pdf.py  cheatsheet.py       # assemble → pandoc → typst, manifest.json; cheat-sheet page fit
+│   ├── pdf.py                      # `pdf`: assemble → pandoc → typst per document, digest cache, _build/pdf/manifest.json (§3.3)
+│   ├── cheatsheet.py               # `cheatsheet fit`: density loop 0–4, overflow measured with `typst eval` (§3.3)
 │   ├── ingest.py                   # (Phase 6) scan, copy, page text, chunk plan
 │   ├── plan.py                     # (Phase 5) deterministic scheduler
 │   ├── progress.py                 # (Phase 5) import browser export, examiner log, report and mastery
@@ -60,20 +61,21 @@ study-kit/
 │   └── calc.py                     # (Phase 5) `studykit calc "<sympy>"` for tutor and examiner
 ├── pandoc/
 │   ├── defaults/common.yaml web.yaml typst.yaml json.yaml
-│   ├── filters/studykit.lua + lib/{guard,blocks,mcq,math,figures,alttext,refs,meta,i18n,solutions}.lua
+│   ├── filters/studykit.lua + lib/{guard,blocks,mcq,math,figures,alttext,refs,meta,i18n,solutions,document}.lua
 │   └── math-denylist.json          # denied math constructs and their replacements (§2.3), read by math.lua and lint
 ├── typst/
-│   ├── studykit.typ                # house library: the functions the filter calls, exam cover, cheat-sheet densities
-│   └── pandoc-template.typ         # ~15 lines; imports the house library
+│   ├── studykit.typ                # house library: page setup, boxes, MC, appendix and key, exam cover, plan, cheat-sheet densities
+│   └── pandoc-template.typ         # ~15 lines; imports the house library and calls sk-doc
 ├── site/                           # Astro (kept out of the repo root so Vite never watches .venv)
 │   ├── package.json  pnpm-workspace.yaml  pnpm-lock.yaml  astro.config.mjs  tsconfig.json
 │   ├── pagefind.yml  playwright.config.ts
 │   ├── src/content.config.ts
 │   ├── src/loaders/pandoc.ts       # custom content loader over `studykit render`
-│   ├── src/lib/{katex,figures,courses,store,scoring,shuffle,leitner,answer,stats,plan,format,html,findings,types}.ts
+│   ├── src/lib/{katex,figures,courses,pdf,store,scoring,shuffle,leitner,answer,stats,plan,format,html,findings,types}.ts
 │   ├── src/lib/sys.mjs             # the only module with node: imports (the site has no @types/node)
 │   ├── src/elements/*.ts           # custom elements (§3.2), dashboard.ts (fills the shell's placeholders), util.ts, index.ts
 │   ├── src/layouts/  src/pages/  src/components/  src/scripts/site.ts
+│   ├── src/pages/c/[course]/{pdf/[name],src/[doc]}.pdf.ts   # built PDFs and lecture sources (§3.2)
 │   ├── src/styles/{tokens,base,content,elements,code,print}.css
 │   ├── scripts/check-math.mjs      # KaTeX strict check, called by the Math stage (lint, validate) and `golden`
 │   ├── scripts/pagefind.mjs        # search index after `astro build` (§3.5)
@@ -126,7 +128,7 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── state/verify/<item-id>.json     # (Phase 5) ledger, one file per item (no locking)
 ├── progress/browser/*.json  examiner.jsonl  mastery.json  report.md    # (Phase 5)
 ├── _history/<timestamp>/…          # (Phase 5) copies saved by /regenerate before overwriting
-└── _build/{index.json,figures,typ,pdf,blind,logs}
+└── _build/{index.json,figures,typ,pdf,blind,logs}   # typ: assembled .md/.typ and digests; pdf: PDFs and manifest.json; logs: pandoc logs
 ```
 
 Discovery (`content.py`) knows the content kinds above (course, overview, summary, exercise,
@@ -168,7 +170,7 @@ exam:
     types: [single, multi, kprim]
     scoring: all-or-nothing     # all-or-nothing | partial | kprim
     negative_marking: false
-cheatsheet: {allowed: true, max_pages: 2}   # validator caps at 3
+cheatsheet: {allowed: true, max_pages: 2}   # validator caps at 3; the PDF's page limit (§3.3); allowed: false → no cheatsheet.pdf
 study: {start: 2026-11-02, hours_per_week: 8, blocked: ['2026-12-21..2027-01-06']}
 topics:                         # the only allowed topic ids; order = teaching order; prerequisites acyclic
   - {id: gleichstrom,  title: Gleichstromnetzwerke,          weight: 0.15, prereq: []}
