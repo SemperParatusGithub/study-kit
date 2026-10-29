@@ -17,15 +17,18 @@ that owns the file:
 
 | File | Owner |
 |---|---|
-| `course.yaml` | `/register-new-subject` scaffold and synthesis (main thread) |
-| `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part) |
-| `plan.yaml` | `studykit plan` (only `goal` and `note` are hand-written) |
+| `course.yaml` | `/register-new-subject` scaffold and synthesis (main thread); `retired_ids` also by `/regenerate` |
+| `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part, started by `/regenerate` and `/verify`) |
+| `plan.yaml` | `studykit plan` (only `goal` and `note` are written by Claude afterwards) |
 | `analysis/exam-profile.yaml` | `exam-analyst` |
 | `sources/manifest.yaml` | `studykit ingest` |
 | `checks/`, `state/verify/` | `verifier` (blind) and `studykit verify` |
+| `progress/` | `studykit progress import`, `log` and `report` |
 
-The agents and commands in this table come with Phases 5 and 6; until then these files are
-written by hand.
+The `author` and `verifier` agents and the `studykit plan`, `verify` and `progress` commands
+exist (Phase 5). `/register-new-subject`, `exam-analyst` and `studykit ingest` come with
+Phase 6; until then `course.yaml`, `analysis/exam-profile.yaml` and `sources/manifest.yaml`
+are written by hand.
 
 Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
 `validate --quick`; References, Figures, Verification and PDF run in `validate`; Site and
@@ -515,8 +518,8 @@ Fix: delete it with `studykit verify <course> <id> --clear` and run verify again
 
 ### `SK-VER-ORPHAN`
 **warning.** A ledger entry or a check file names an id the course does not have (an item
-was renamed or deleted). Second methods `checks/<id>.<tag>.py` and formula audits
-`checks/sum-<topic>.py` are not orphans.
+was renamed or deleted). Second methods `checks/<id>.<tag>.py` and the planned formula
+audits `checks/sum-<topic>.py` are not orphans.
 Fix: `studykit verify <course> orphans --clear` removes the ledger entries; rename or
 delete the check file.
 
