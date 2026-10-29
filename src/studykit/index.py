@@ -9,7 +9,14 @@ The shape is a contract with `pandoc/filters` (refs.lua, mcq.lua, meta.lua):
                         "title": "…", "topic": "<topic-id>|null", "path": "<course-relative>"}},
      "exams": {"<exam-id>": {"title": "…"}},
      "figures": ["<slug>", "topic-map"],
-     "sources": {"<doc-id>": {"title": "…", "pages": 40}}}
+     "sources": {"<doc-id>": {"title": "…", "pages": 40}},
+     "quarantined": ["<item id>"]}
+
+`quarantined` lists the items whose verification ledger (state/verify/<id>.json) says
+quarantined. They stay in `items`, so links to them still resolve, but the filters drop
+quarantined MC questions from HTML and Typst and render links to quarantined items as
+plain text, and the render bridge and the PDF assembler leave out quarantined exercises
+and exam tasks (docs/architecture.md §2.10).
 
 The index is built best effort: files that do not parse are left out, so pandoc can still
 render the rest while `studykit validate` reports the problems. In particular, `pages` is
@@ -24,6 +31,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from studykit import verify
 from studykit.content import CourseTree
 
 INDEX_SCHEMA = 1
@@ -74,6 +82,7 @@ def build(tree: CourseTree) -> dict[str, Any]:
         "exams": exams,
         "figures": tree.figure_slugs,
         "sources": tree.sources,
+        "quarantined": verify.quarantined_ids(tree.root),
     }
 
 

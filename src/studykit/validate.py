@@ -1534,25 +1534,163 @@ def _build_figures(ctx: Context) -> None:
         )
 
 
-# --- later phases: pluggable stages that skip until their tools exist ------------------------
+# --- Verification (SK-VER) -------------------------------------------------------------------
 
 
-def _module_missing(name: str, phase: str) -> Callable[[Context], str | None]:
-    def check(ctx: Context) -> str | None:
-        import importlib.util
+@stage("Verification", "SK-VER", 80)
+def check_verification(ctx: Context) -> None:
+    """The verification ledger (§2.10): broken, disputed, quarantined and stale entries,
+    ledgers and checks of items that do not exist, and with --release every item without a
+    fresh verified entry and every numeric MC question without a check script."""
+    from studykit import verify
 
-        if importlib.util.find_spec(f"studykit.{name}") is None:
-            return f"studykit.{name} is not available yet ({phase})"
-        return None
+    tree = ctx.tree
+    items = verify.items(tree)
+    known = {i.id for i in items}
+    counts: Counter[str] = Counter()
+    for item in items:
+        doc = item.doc
+        if ctx.selected is not None and doc.rel not in ctx.selected:
+            continue
+        cmd = f"studykit verify {tree.id} {item.id}"
+        try:
+            entry = verify.read_ledger(tree.root, item.id)
+        except ValueError as exc:
+            ledger = verify.ledger_path(tree.root, item.id)
+            ctx.add(
+                Finding(
+                    display_path(ledger),
+                    1,
+                    1,
+                    "SK-VER-LEDGER",
+                    str(exc).split(": ", 1)[-1][:200],
+                    f"delete it with `studykit verify {tree.id} {item.id} --clear` and run "
+                    "verify again",
+                )
+            )
+            continue
+        status = entry.status if entry else "unverified"
+        stale = entry is not None and verify.is_stale(entry, item)
+        counts[status] += 1
+        counts["stale"] += stale
+        if status == "quarantined":
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-QUARANTINED",
+                f"{item.id} is quarantined and hidden from the site and the PDFs: "
+                f"{entry.note if entry and entry.note else 'see its ledger'}",
+                "rewrite the item, then run `" + cmd + "` until it verifies (the report "
+                "lists it until then)",
+                severity="warning",
+            )
+        elif status == "disputed":
+            assert entry is not None
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-DISPUTED",
+                f"{item.id} is disputed (fix round {entry.rounds}): "
+                + "; ".join(verify.hide_key(p) for p in entry.problems[:3]),
+                "fix the item with the verifier's numbers from state/verify/"
+                f"{item.id}.json, then run `{cmd}`",
+                severity="error" if ctx.release else "warning",
+            )
+        elif stale:
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-STALE",
+                f"{item.id} changed since it was checked ({status})",
+                f"run `{cmd}` again",
+                severity="warning",
+            )
+        elif ctx.release and status == "unverified":
+            why = "; ".join(entry.problems[:2]) if entry else "no check has run"
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-UNVERIFIED",
+                f"{item.id} is not verified: {why}",
+                f"run the verifier on it: `studykit blind {tree.id} {item.id}`, write "
+                f"checks/{item.id}.py, then `{cmd}`",
+                severity="warning",
+            )
+        if (
+            ctx.release
+            and _numeric_question(item)
+            and not (tree.root / verify.CHECKS_DIR / f"{item.id}.py").is_file()
+        ):
+            ctx.at(
+                doc,
+                item.line,
+                1,
+                "SK-VER-CHECK",
+                f"numeric question {item.id} has no check script",
+                f"the verifier writes checks/{item.id}.py with mc_numeric(correct=…, "
+                "options=…, mistakes=…)",
+                severity="warning",
+            )
+    if ctx.selected is None:
+        _check_orphans(ctx, known)
+    total = sum(counts[s] for s in model.VERIFY_STATUSES)
+    ctx.note(
+        f"{counts['verified']} of {total} items verified, {counts['disputed']} disputed, "
+        f"{counts['quarantined']} quarantined, {counts['stale']} stale"
+    )
 
-    return check
+
+def _numeric_question(item) -> bool:
+    """A single or multi question whose every option states a number (§2.6)."""
+    from studykit import verify
+
+    q = item.question
+    if q is None or q.type not in ("single", "multi") or not q.options:
+        return False
+    return all(verify.option_value(o.text) is not None for o in q.options)
 
 
-@stage("Verification", "SK-VER", 80, requires=_module_missing("verify", "Phase 5"))
-def check_verification(ctx: Context) -> None:  # pragma: no cover - replaced in Phase 5
-    # Phase 5 also enforces §2.6 "numeric questions require a check script": the verifier
-    # writes checks/<id>.py blind, after authoring, so lint cannot demand it earlier.
-    ctx.note("verification ledger checks are not implemented yet")
+def _check_orphans(ctx: Context, known: set[str]) -> None:
+    from studykit import verify
+
+    root = ctx.tree.root
+    for item_id in verify.ledger_ids(root):
+        if item_id not in known:
+            ctx.add(
+                Finding(
+                    display_path(verify.ledger_path(root, item_id)),
+                    1,
+                    1,
+                    "SK-VER-ORPHAN",
+                    f"a ledger entry for {item_id}, which the course does not have",
+                    f"remove it with `studykit verify {ctx.tree.id} orphans --clear`",
+                    "warning",
+                )
+            )
+    checks = root / verify.CHECKS_DIR
+    if not checks.is_dir():
+        return
+    for path in sorted(checks.iterdir()):
+        if path.suffix not in (".py", ".json") or path.name.startswith((".", "_")):
+            continue
+        stem = path.stem
+        if stem in known or stem.split(".")[0] in known or stem.startswith("sum-"):
+            continue
+        ctx.add(
+            Finding(
+                display_path(path),
+                1,
+                1,
+                "SK-VER-ORPHAN",
+                f"a check for {stem}, which the course does not have",
+                f"rename it to checks/<item-id>{path.suffix} or delete it",
+                "warning",
+            )
+        )
 
 
 # --- PDF (SK-PDF) -----------------------------------------------------------------------------

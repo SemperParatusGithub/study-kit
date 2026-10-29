@@ -102,15 +102,32 @@ def test_every_mini_file_validates():
 
 def test_spec_examples_validate():
     ledger = {
+        "schema": 1,
         "item": "ex-rc-tp-grenzfrequenz",
+        "kind": "exercise",
+        "path": "exercises/rc-filter/ex-rc-tp-grenzfrequenz.md",
         "content_sha256": "a" * 64,
-        "check_sha256": "b" * 64,
+        "status": "verified",
         "method": "script",
-        "result": "pass",
-        "answers": {"fg": {"claimed": 1591.55, "computed": 1591.549, "rel_err": 3e-7}},
+        "check": "checks/ex-rc-tp-grenzfrequenz.py",
+        "check_sha256": "b" * 64,
+        "rounds": 0,
+        "results": [
+            {
+                "key": "fg",
+                "expected": 1591.55,
+                "computed": 1591.549,
+                "unit": "Hz",
+                "abs_err": 0.001,
+                "rel_err": 6.3e-7,
+                "tol": 1.59,
+                "ok": True,
+            }
+        ],
+        "checked_at": "2026-10-30T10:12:00Z",
         "verified_at": "2026-10-30T10:12:00Z",
     }
-    assert model.VerifyEntry.model_validate(ledger).result == "pass"
+    assert model.VerifyEntry.model_validate(ledger).status == "verified"
     progress = {
         "schema": "studykit-progress/1",
         "course": "get2",

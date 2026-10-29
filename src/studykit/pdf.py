@@ -60,7 +60,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from studykit import content, index, model, pandoc, tools
+from studykit import content, index, model, pandoc, tools, verify
 
 SCHEMA = "studykit-pdf/1"
 FORMAT_TAG = b"studykit-pdf/1"
@@ -497,6 +497,13 @@ class Assembler:
         self.tx = Text(course.lang)
         self.order = {t.id: i for i, t in enumerate(course.topics)}
         self.topic_titles = {t.id: t.title for t in course.topics}
+        # quarantined items (§2.10) are left out; the filter drops quarantined questions
+        self.hidden = set(verify.quarantined_ids(tree.root))
+
+    def questions(self, doc: content.Doc) -> int:
+        """The number of questions of an MC file that the document shows."""
+        qs = doc.body.questions if doc.body else []
+        return sum(1 for q in qs if q.id not in self.hidden)
 
     # -- shared pieces --
 
@@ -619,7 +626,7 @@ class Assembler:
         return self.plan_of("summary", "summary", title, md, extra=extra)
 
     def exercises(self, blank: bool) -> Plan | None:
-        docs = self.tree.of_kind("exercise")
+        docs = [d for d in self.tree.of_kind("exercise") if not verify.hidden_file(d, self.hidden)]
         if not docs:
             return None
         kind = "exercises-blank" if blank else "exercises"
@@ -673,14 +680,14 @@ class Assembler:
         self.info(md, "mc", title, subtitle=self.tx["mc-sub"])
         for topic, group in self.by_topic(banks):
             for doc in group:
-                n = len(doc.body.questions) if doc.body else 0
+                n = self.questions(doc)
                 md.heading(1, _data(doc).get("title") or self.topic_title(topic))
                 md.div("sk-meta", [esc(self.tx.count("questions", n))])
                 md.part(doc, solution="appendix")
         return self.plan_of("mc", "mc", title, md, solutions="appendix")
 
     def _exam_parts(self, exam_doc: content.Doc) -> tuple[dict[str, Any], list, Any]:
-        data = _data(exam_doc)
+        data = verify.exam_without(self.tree, exam_doc, _data(exam_doc), self.hidden)
         exam_id = exam_doc.parts["exam"]
         tasks = []
         for name in data.get("tasks") or []:
@@ -697,7 +704,7 @@ class Assembler:
         return data, tasks, mc
 
     def _mc_meta(self, data: dict[str, Any], mc: content.Doc) -> tuple[int, float, str]:
-        n = len(mc.body.questions) if mc.body else 0
+        n = self.questions(mc)
         each = float(data["mc"].get("points_each") or 0)
         meta = self.tx["mc-part-meta"].format(
             questions=self.tx.count("questions", n), points=self.tx.count("points-dative", each)

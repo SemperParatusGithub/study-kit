@@ -22,14 +22,15 @@ that owns the file:
 | `plan.yaml` | `studykit plan` (only `goal` and `note` are hand-written) |
 | `analysis/exam-profile.yaml` | `exam-analyst` |
 | `sources/manifest.yaml` | `studykit ingest` |
+| `checks/`, `state/verify/` | `verifier` (blind) and `studykit verify` |
 
 The agents and commands in this table come with Phases 5 and 6; until then these files are
 written by hand.
 
 Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
-`validate --quick`; References, Figures and PDF run in `validate`; Site and Coverage only
-with `validate --release`. Verification (Phase 5) is reported as skipped, and so is a stage
-whose tools are missing (pandoc or typst in `.tools/bin`, `site/node_modules`).
+`validate --quick`; References, Figures, Verification and PDF run in `validate`; Site and
+Coverage only with `validate --release`. A stage is reported as skipped when its tools are
+missing (pandoc or typst in `.tools/bin`, `site/node_modules`).
 
 The Pandoc stage runs the Lua filter set that builds the site and the PDFs on every file
 the earlier stages left without errors (at file scope in `lint` and `--quick`, where targets
@@ -457,6 +458,61 @@ Fix: run `studykit fig build <course> --only <slug>`, fix the script and look at
 ### `SK-FIG-UNUSED`
 **warning.** A figure script is never embedded.
 Fix: embed it with `![Caption](fig:<slug>)` or delete the script.
+
+## Verification (SK-VER)
+
+The stage reads the verification ledger `state/verify/<id>.json` of every exercise, exam
+task and MC question (`docs/architecture.md` §2.10); it runs no checks itself
+(`studykit verify` does). Findings point at the item's file and line. Without
+`--release` it reports only what needs attention (disputed, quarantined, stale, broken or
+orphaned entries) and notes how many items are verified; `--release` adds every item that
+is not verified and every numeric question without a check script.
+
+### `SK-VER-DISPUTED`
+**warning; error with `--release`.** The verifier's check disagrees with the item's key
+(a number outside its tolerance, a different MC key, a Kprim statement judged the other
+way, a distractor that does not follow from its mistake, an ambiguous question).
+Fix: the author fixes the item with the verifier's numbers from the ledger
+(`studykit verify <course> <id> --status --show-key` shows them), then
+`studykit verify <course> <id>` runs the check again. A dispute on the second fix quarantines
+the item.
+
+### `SK-VER-QUARANTINED`
+**warning.** The item stayed disputed after two author fix rounds (or was quarantined by
+hand with `--quarantine`). It is hidden from the website and the PDFs and listed in
+`state/verify/report.md`.
+Fix: rewrite the item and run `studykit verify <course> <id>`; it shows again once its
+check passes.
+
+### `SK-VER-STALE`
+**warning.** The item changed since it was checked: the content hash in its ledger entry
+no longer matches the file (an exercise or exam task) or the question's lines.
+Fix: run `studykit verify <course> <id>` again (the check is reused).
+
+### `SK-VER-UNVERIFIED`
+**warning, `--release` only.** The item has no ledger entry, or its last check did not run
+to a result (the script failed, a key is missing) or two methods disagree.
+Fix: `studykit blind <course> <id>`, let the verifier write `checks/<id>.py` or `.json`,
+then `studykit verify <course> <id>`.
+
+### `SK-VER-CHECK`
+**warning, `--release` only.** A numeric MC question (single or multi, every option a
+number with an optional unit) has no `checks/<id>.py`. Numeric questions are checked with
+`mc_numeric` (§2.6), which also proves that every distractor follows from its mistake.
+Fix: the verifier writes `checks/<id>.py` ending with `mc_numeric(correct=…, options=…,
+mistakes=…)`.
+
+### `SK-VER-LEDGER`
+**error.** A ledger file under `state/verify/` is not valid JSON or does not match
+`schemas/verify.schema.json`. Ledger files are written by `studykit verify` only.
+Fix: delete it with `studykit verify <course> <id> --clear` and run verify again.
+
+### `SK-VER-ORPHAN`
+**warning.** A ledger entry or a check file names an id the course does not have (an item
+was renamed or deleted). Second methods `checks/<id>.<tag>.py` and formula audits
+`checks/sum-<topic>.py` are not orphans.
+Fix: `studykit verify <course> orphans --clear` removes the ledger entries; rename or
+delete the check file.
 
 ## PDF (SK-PDF)
 

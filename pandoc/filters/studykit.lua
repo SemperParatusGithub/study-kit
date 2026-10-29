@@ -162,7 +162,7 @@ function Ctx:load_index()
     self:fail('SK-PANDOC-FAIL', 'course index is not schema 1 JSON: ' .. self.index_path, 'rebuild it with `studykit index`')
     return
   end
-  for _, key in ipairs({ 'topics', 'items', 'exams', 'sources', 'figures' }) do
+  for _, key in ipairs({ 'topics', 'items', 'exams', 'sources', 'figures', 'quarantined' }) do
     if type(data[key]) ~= 'table' then
       data[key] = {}
     end
@@ -170,6 +170,13 @@ function Ctx:load_index()
   data.figure_set = {}
   for _, slug in ipairs(data.figures) do
     data.figure_set[slug] = true
+  end
+  -- items the verification ledger quarantined: hidden from the site and the PDFs (§2.10)
+  data.quarantine_set = {}
+  for _, id in ipairs(data.quarantined) do
+    if type(id) == 'string' then
+      data.quarantine_set[id] = true
+    end
   end
   data.by_path = {} -- one item per file; MC banks hold many questions and have none
   for id, item in pairs(data.items) do
@@ -190,6 +197,12 @@ function Ctx:require_index()
     self:fail('SK-PANDOC-FAIL', 'references need the course index (-M sk-index)', 'run pandoc through studykit.pandoc')
   end
   return nil
+end
+
+--- True if the verification ledger quarantined item `id`. Validation runs (the json
+--- target) still check quarantined items; only html and typst output leaves them out.
+function Ctx:quarantined(id)
+  return self.target ~= 'check' and self.index ~= nil and id ~= nil and self.index.quarantine_set[id] == true
 end
 
 --- The index entry for this file (exercise, exam task, summary, …), if any.
