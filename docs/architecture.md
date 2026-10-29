@@ -385,6 +385,19 @@ Beurteilen Sie für den RC-Tiefpass:
   | `source` | optional, `doc:page` |
   | `pin-last` | optional; keeps the last option last after shuffling, only for a "none of these" option |
 
+**How pandoc reads it** (verified in Phase 3 with pandoc 3.13, pinned by `tests/py/test_filters.py`):
+- Loose task lists keep their checkboxes. Each option arrives as
+  `[Para [Str "☒" | "☐", Space, …option…], Para […why…]]`, so the format above works as
+  written and the tight-list fallback from §7 risk 4 is not needed.
+- An item without a checkbox ends the task list and pandoc starts a new list after it;
+  `mcq.lua` joins consecutive lists and reports "option N is not a task item".
+- `:::` and `::::` look the same in the AST. The guard checks fence lengths on the source
+  lines whenever pandoc reads a file (always through `studykit.pandoc`); `lint.py` checks
+  them too.
+- The PDF shuffle is deterministic: the FNV-1a 32-bit hash of the question id seeds
+  mulberry32, then Fisher-Yates runs from the last option down (a `pin-last` option is left
+  out), and the keys (A)–(F) are assigned after shuffling.
+
 **Lint rules** (`mcq.lua` plus `lint.py`):
 - `single` has 3–5 options with exactly one `[x]`.
 - `multi` has 4–6 options with at least one `[x]` and at least one `[ ]`.
