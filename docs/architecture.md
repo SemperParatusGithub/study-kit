@@ -591,10 +591,15 @@ mc: {file: mc.md, points_each: 2}        # present only if course.exam.mc.presen
 
 `studykit plan <course> [--from YYYY-MM-DD] [--dry-run] [--json]` (`plan.py`) is
 deterministic: the same course, content, progress, old plan and first day give the same
-`plan.yaml` byte for byte. Claude writes only the `goal` and `note` text afterwards; the
-output lists the sessions without a goal. The written plan is read back and checked like
-validate checks it (schema, references) before it replaces the old one. The sample course's
-`plan.yaml` is still the hand-written one from Phase 3. Validate checks plan refs
+`plan.yaml` byte for byte. Claude writes only the `goal` and `note` text afterwards
+(`authoring/parts/plan.md`, run by `/regenerate <c> plan` and `/import-progress`); the
+output lists the sessions without a goal (`goals_missing` in `--json`, which also has the
+weekly split, the learning sessions per topic, the mock exam dates, `kept` and the whole
+plan). The written plan is read back and checked like validate checks it (schema,
+references) before it replaces the old one; `--dry-run` writes nothing. Its findings are
+SK-PLAN codes at `course.yaml` (`content-format/errors.md`), or the codes of an old
+`plan.yaml` or `progress/` file that does not read; an error (exit code 1) writes no plan. Quarantined items (§2.10) are left out, as on the site. The sample
+course's `plan.yaml` is still the hand-written one from Phase 3. Validate checks plan refs
 (SK-REF-SCHEME, SK-REF-MISSING) and that no session lies on or after the exam
 (SK-STRUCT-PLAN, a warning when `exam_date` differs from `course.yaml`).
 
@@ -619,24 +624,38 @@ sessions:
 How the scheduler places sessions:
 - Days run from `--from` (default today, never before `study.start`) to the day before the
   exam, outside `study.blocked`. `study.hours_per_week` is the weekly budget, split into
-  round(budget / 120 min) sessions (1–6) on fixed weekdays (3: Mon, Wed, Sat), each budget / n
-  minutes rounded down to 15; the day before the exam always has a session. No calendar week
-  exceeds the budget: in a week with a mock exam, a done session or the extra last day the
-  other sessions get shorter, down to 45 minutes, and below that the least important one is
-  dropped.
+  n = round(budget / 120 min) sessions (1–6) on fixed weekdays, each budget / n minutes
+  rounded down to 15; the day before the exam always has a session:
+
+  | n | Weekdays |
+  |---|---|
+  | 1 | Sat |
+  | 2 | Mon, Thu |
+  | 3 | Mon, Wed, Sat |
+  | 4 | Mon, Tue, Thu, Sat |
+  | 5 | Mon to Fri |
+  | 6 | Mon to Sat |
+
+- No calendar week (Monday to Sunday) exceeds the budget: in a week with a mock exam, a done
+  session or the extra last day the other sessions get shorter, down to 45 minutes, and
+  below that one is dropped, the latest of the first kind present in this order: buffer,
+  practice, final MC round, mock-exam review. Mock exams are never dropped.
 - The last day is for the cheat sheet (a review of every topic when none is allowed). Mock
   exams (`targets.mock_exams`, at most those the course has and that were not taken) take
   the exam's duration + 30 minutes and are spread over the last 14 days, the last at least
   4 days before the exam; the next session reviews each. The session before the last day
   is a final MC round over every topic; the last session before the final 14 days is a
-  buffer.
+  buffer when at least four sessions lie before them.
 - Learning takes 60 % of the sessions before the final 14 days, at least one per topic and
   never more than a topic has exercises: topics in prerequisite order (teaching order among
   free ones), shared in proportion to weight × mean exercise difficulty, × 1.5 for focus
   topics, skipped topics left out. A topic's first session reads its summary; its exercises
-  follow from easy to hard, each session with MC practice.
+  follow from easy to hard, each session with MC practice of the topic (10 questions, 5 in
+  the session that reads the summary, at most the bank's size). The final MC round has 10
+  of every topic.
 - Reviews follow at +1, +3 and +7 days after a topic's last learning session (in the first
-  session on or after that day).
+  session on or after that day): the review joins a learning session, or a free session
+  becomes a review session.
 - The remaining sessions practise learned topics (two exercises, unsolved and harder first,
   MC practice, a review of a second topic) in a smooth weighted round robin by the same
   shares × (1 + 3 · (1 − accuracy)), with the accuracy of `lib/stats.ts` over the progress
