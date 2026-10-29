@@ -18,7 +18,7 @@ $R_2 = 3{,}3\,\mathrm{k\Omega}$ wird nun mit dem Lastwiderstand
 $R_\mathrm{L} = 3{,}3\,\mathrm{k\Omega}$ belastet. Im Leerlauf lieferte er
 $U_2 = 8{,}25\,\mathrm{V}$.
 
-![Belasteter Spannungsteiler mit U0 = 12 V, R1 = 1,5 kΩ, R2 = 3,3 kΩ und RL = 3,3 kΩ](fig:st-teiler-12v-last)
+![Belasteter Spannungsteiler an 12 V aus 1,5 kΩ und 3,3 kΩ mit einer Last von 3,3 kΩ](fig:st-teiler-12v-last)
 
 **a)** Berechnen Sie den Ersatzwiderstand $R_2 \parallel R_\mathrm{L}$.
 

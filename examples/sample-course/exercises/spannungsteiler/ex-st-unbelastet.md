@@ -14,7 +14,7 @@ answers:
 Ein Spannungsteiler aus $R_1 = 1{,}5\,\mathrm{k\Omega}$ und $R_2 = 3{,}3\,\mathrm{k\Omega}$
 liegt an der Gleichspannung $U_0 = 12\,\mathrm{V}$. Der Ausgang ist unbelastet.
 
-![Spannungsteiler mit U0 = 12 V, R1 = 1,5 kΩ und R2 = 3,3 kΩ](fig:st-teiler-12v)
+![Unbelasteter Spannungsteiler an 12 V aus 1,5 kΩ und 3,3 kΩ](fig:st-teiler-12v)
 
 **a)** Berechnen Sie den Strom $I$.
 

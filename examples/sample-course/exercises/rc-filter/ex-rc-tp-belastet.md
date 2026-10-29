@@ -14,7 +14,7 @@ answers:
 Ein RC-Tiefpass mit $R = 10\,\mathrm{k\Omega}$ und $C = 10\,\mathrm{nF}$ wird am Ausgang mit
 $R_\mathrm{L} = 10\,\mathrm{k\Omega}$ belastet. Schreiben Sie $s = \mathrm{j}\omega$.
 
-![Belasteter RC-Tiefpass mit R = 10 kΩ, C = 10 nF und RL = 10 kΩ](fig:rc-tp-last)
+![RC-Tiefpass mit R = 10 kΩ und C = 10 nF, belastet mit einem Widerstand von 10 kΩ](fig:rc-tp-last)
 
 **a)** Leiten Sie die Übertragungsfunktion
 $\underline{H}(s) = \underline{U}_\mathrm{a}/\underline{U}_\mathrm{e}$ allgemein her.

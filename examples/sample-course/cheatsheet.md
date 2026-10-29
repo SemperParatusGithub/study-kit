@@ -53,7 +53,7 @@ Mit $x = f/f_\mathrm{g}$: Tiefpass $|\underline{H}| = 1/\sqrt{1 + x^2}$,
 $\varphi = -\arctan x$; Hochpass $|\underline{H}| = x/\sqrt{1 + x^2}$,
 $\varphi = 90^\circ - \arctan x$.
 
-![Betragsgang von Tief- und Hochpass über f/fg mit Asymptoten; −3 dB bei fg](fig:cs-bode-asymptoten)
+![Betragsgang von Tief- und Hochpass über der normierten Frequenz, mit Asymptoten; −3 dB bei der Grenzfrequenz](fig:cs-bode-asymptoten)
 
 ::: note
 Bei $f_\mathrm{g}$: $-3\,\mathrm{dB}$, $\mp 45^\circ$. Asymptote: $20\,\mathrm{dB}$ pro Dekade.

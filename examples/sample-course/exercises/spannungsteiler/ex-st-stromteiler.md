@@ -14,7 +14,7 @@ answers:
 Eine ideale Stromquelle mit $I_0 = 50\,\mathrm{mA}$ speist die Parallelschaltung aus
 $R_1 = 220\,\Omega$ und $R_2 = 330\,\Omega$.
 
-![Stromteiler: Die Stromquelle I0 speist R1 und R2 parallel](fig:st-stromteiler)
+![Stromteiler: Eine Stromquelle speist zwei parallel geschaltete Widerstände](fig:st-stromteiler)
 
 **a)** Berechnen Sie den Teilstrom $I_1$ durch $R_1$.
 

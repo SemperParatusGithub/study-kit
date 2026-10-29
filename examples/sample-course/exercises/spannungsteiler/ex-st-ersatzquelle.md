@@ -16,7 +16,7 @@ answers:
 Die Schaltung soll an den Klemmen A und B durch eine Ersatzspannungsquelle beschrieben
 werden.
 
-![Spannungsquelle U0 = 10 V mit R1 = 6 kΩ und R2 = 4 kΩ; die Klemmen A und B liegen an R2](fig:st-ersatz-netz)
+![Spannungsteiler an 10 V aus 6 kΩ und 4 kΩ; die offenen Klemmen A und B liegen am Widerstand mit 4 kΩ](fig:st-ersatz-netz)
 
 **a)** Bestimmen Sie die Leerlaufspannung $U_\mathrm{q}$ an den Klemmen.
 

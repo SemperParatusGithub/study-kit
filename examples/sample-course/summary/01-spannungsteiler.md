@@ -14,7 +14,7 @@ objectives:
 Zwei Widerstände in Reihe an einer Spannungsquelle bilden die einfachste Schaltung, mit
 der sich aus einer festen Spannung eine kleinere gewinnen lässt.
 
-![Unbelasteter Spannungsteiler: Die Quelle U0 speist R1 und R2 in Reihe](fig:st-teiler)
+![Unbelasteter Spannungsteiler: Eine Spannungsquelle speist zwei Widerstände in Reihe](fig:st-teiler)
 
 Durch beide Widerstände fließt derselbe Strom $I = U_0/(R_1 + R_2)$. Multipliziert man ihn
 mit dem jeweiligen Widerstand, folgt die Spannungsteilerregel.
@@ -41,7 +41,7 @@ $U_1 = 4\,\mathrm{V}$; zusammen ergeben sie wieder $U_0$.
 
 ## Stromteiler
 
-![Stromteiler: Die Stromquelle I0 speist R1 und R2 parallel](fig:st-stromteiler)
+![Stromteiler: Eine Stromquelle speist zwei parallel geschaltete Widerstände](fig:st-stromteiler)
 
 An parallel geschalteten Widerständen liegt dieselbe Spannung. Mit dem Ersatzwiderstand
 
@@ -73,7 +73,7 @@ Spannungsteilerregel abschreibt, vertauscht die beiden Teilströme.
 
 ## Belasteter Spannungsteiler
 
-![Belasteter Spannungsteiler: Der Lastwiderstand RL liegt parallel zu R2](fig:st-teiler-last)
+![Belasteter Spannungsteiler: Der Lastwiderstand liegt parallel zum unteren Teilerwiderstand](fig:st-teiler-last)
 
 Schließt man an den Ausgang eine Last $R_\mathrm{L}$ an, fließt durch $R_1$ und $R_2$ nicht
 mehr derselbe Strom, und die Teilerregel gilt in ihrer einfachen Form nicht mehr. Man
@@ -87,7 +87,7 @@ Weil $R_2 \parallel R_\mathrm{L}$ immer kleiner als $R_2$ ist, sinkt $U_2$ unter
 Leerlaufspannung. Ein niederohmiger Teiler reagiert weniger empfindlich auf die Last,
 braucht dafür aber einen größeren Querstrom.
 
-![Ausgangsspannung zweier Teiler mit R1 = R2 an U0 = 10 V über dem Lastwiderstand; im Leerlauf liefern beide 5 V](fig:st-lastkennlinie)
+![Ausgangsspannung zweier Teiler aus je zwei gleichen Widerständen von 1 kΩ bzw. 10 kΩ an 10 V über dem Lastwiderstand; im Leerlauf liefern beide 5 V](fig:st-lastkennlinie)
 
 Übungen: [Belasteter Spannungsteiler](ex:ex-st-belastet),
 [Belasteter Teiler allgemein](ex:ex-st-belastet-allgemein)
@@ -102,7 +102,7 @@ wie eine ideale Spannungsquelle $U_\mathrm{q}$ in Reihe mit einem Innenwiderstan
 $R_\mathrm{i}$.
 :::
 
-![Ersatzspannungsquelle aus Uq und Ri mit dem Lastwiderstand RL an den Klemmen A und B](fig:st-ersatzquelle)
+![Ersatzspannungsquelle aus idealer Quelle und Innenwiderstand; an den Klemmen A und B hängt der Lastwiderstand](fig:st-ersatzquelle)
 
 Die beiden Kenngrößen bestimmt man getrennt:
 

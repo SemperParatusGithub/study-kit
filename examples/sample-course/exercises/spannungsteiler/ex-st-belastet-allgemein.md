@@ -13,7 +13,7 @@ answers:
 Ein Spannungsteiler aus $R_1$ und $R_2$ liegt an $U_0$. Parallel zu $R_2$ ist der
 Lastwiderstand $R_\mathrm{L}$ angeschlossen.
 
-![Belasteter Spannungsteiler mit der Last RL parallel zu R2](fig:st-teiler-last)
+![Belasteter Spannungsteiler: Der Lastwiderstand liegt parallel zum unteren Teilerwiderstand](fig:st-teiler-last)
 
 **a)** Leiten Sie $U_2$ als Funktion von $U_0$, $R_1$, $R_2$ und $R_\mathrm{L}$ her.
 Geben Sie das Ergebnis als einen Bruch ohne Doppelbruch an.
