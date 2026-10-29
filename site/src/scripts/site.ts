@@ -56,6 +56,21 @@ function nextSessions(): void {
   }
 }
 
+/** Plan sessions (<li data-date>) are marked past or today relative to the reader's day. */
+function planDays(): void {
+  const today = todayIso();
+  for (const el of document.querySelectorAll<HTMLElement>('.session[data-date]')) {
+    const date = el.dataset.date ?? '';
+    el.classList.toggle('past', date < today);
+    el.classList.toggle('today', date === today);
+  }
+}
+
+/** <span data-today> shows today's date (YYYY-MM-DD), e.g. in the export file name. */
+function todayFill(): void {
+  for (const el of document.querySelectorAll<HTMLElement>('[data-today]')) el.textContent = todayIso();
+}
+
 /** Client-side filters for lists: <form data-filter-form> over [data-filter-row] items. */
 function filters(): void {
   for (const form of document.querySelectorAll<HTMLFormElement>('[data-filter-form]')) {
@@ -132,6 +147,8 @@ function printDetails(): void {
 searchShortcut();
 countdowns();
 nextSessions();
+planDays();
+todayFill();
 filters();
 tocSpy();
 printDetails();

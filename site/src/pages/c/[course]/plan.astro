@@ -1,17 +1,17 @@
 ---
 // Study plan as a week timeline (plan.yaml, docs/architecture.md §2.9). <sk-plan> adds the
 // session checkboxes and shows the "behind schedule" banner from browser progress.
+// Past and today are relative to the reader's day, so scripts/site.ts marks them from
+// data-date; without JavaScript every session looks upcoming.
 import Base from '../../../layouts/Base.astro';
 import { coursePaths, route, type Course } from '../../../lib/courses';
 import {
-  daysBetween,
   formatDate,
   formatDay,
   formatDayMonth,
   formatMinutes,
   plural,
   SESSION_KIND,
-  todayIso,
 } from '../../../lib/format';
 import { sessionStart, taskView, weeks } from '../../../lib/plan';
 
@@ -23,7 +23,6 @@ const en = course.lang === 'en' ? undefined : 'en';
 const plan = course.plan;
 const sessions = plan?.sessions ?? [];
 const allWeeks = weeks(sessions);
-const today = todayIso();
 const totalMinutes = sessions.reduce((n, s) => n + s.minutes, 0);
 const examDate = plan?.exam_date ?? course.examDate;
 ---
@@ -68,66 +67,57 @@ const examDate = plan?.exam_date ?? course.examDate;
                 </span>
               </h2>
               <ol class="sessions" role="list">
-                {w.sessions.map((s) => {
-                  const days = daysBetween(today, s.date);
-                  return (
-                    <li
-                      class:list={['session', `kind-${s.kind}`, { past: days < 0, today: days === 0 }]}
-                      data-session={s.id}
-                      id={s.id}
-                    >
-                      <div class="session-date" lang={en}>
-                        <time datetime={s.date}>{formatDay(s.date)}</time>
-                        {days === 0 && <span class="badge badge-accent">Today</span>}
-                      </div>
-                      <div class="session-body">
-                        <p class="session-head" lang={en}>
-                          <span class="badge">{SESSION_KIND[s.kind] ?? s.kind}</span>
-                          <span class="muted small">{formatMinutes(s.minutes)}</span>
-                          {s.topics.map((t) =>
-                            course.summaries.some((x) => x.data.topic === t) ? (
-                              <a class="small" href={route.summary(c, t)} lang={course.lang}>
-                                {course.topicTitle(t)}
-                              </a>
-                            ) : (
-                              <span class="small" lang={course.lang}>
-                                {course.topicTitle(t)}
-                              </span>
-                            ),
-                          )}
-                        </p>
-                        {s.goal && <p class="session-goal">{s.goal}</p>}
-                        {s.tasks.length > 0 && (
-                          <ul class="session-tasks" lang={en}>
-                            {s.tasks.map((task) => {
-                              const v = taskView(course, task);
-                              return (
-                                <li>
-                                  <span class="task-label">{v.label}</span>
-                                  {v.links.map((l, i) => (
-                                    <>
-                                      {i > 0 && ', '}
-                                      <a href={l.href} lang={course.lang}>
-                                        {l.title}
-                                      </a>
-                                    </>
-                                  ))}
-                                  {v.detail && <span class="muted"> · {v.detail}</span>}
-                                </li>
-                              );
-                            })}
-                          </ul>
+                {w.sessions.map((s) => (
+                  <li class={`session kind-${s.kind}`} data-session={s.id} data-date={s.date} id={s.id}>
+                    <div class="session-date" lang={en}>
+                      <time datetime={s.date}>{formatDay(s.date)}</time>
+                      <span class="badge badge-accent today-badge">Today</span>
+                    </div>
+                    <div class="session-body">
+                      <p class="session-head" lang={en}>
+                        <span class="badge">{SESSION_KIND[s.kind] ?? s.kind}</span>
+                        <span class="muted small">{formatMinutes(s.minutes)}</span>
+                        {s.topics.map((t) =>
+                          course.summaries.some((x) => x.data.topic === t) ? (
+                            <a class="small" href={route.summary(c, t)} lang={course.lang}>
+                              {course.topicTitle(t)}
+                            </a>
+                          ) : (
+                            <span class="small" lang={course.lang}>
+                              {course.topicTitle(t)}
+                            </span>
+                          ),
                         )}
-                        {s.note && <p class="small muted">{s.note}</p>}
-                        {!(days < 0) && (
-                          <a class="small start" href={sessionStart(course, s)} lang={en}>
-                            Start →
-                          </a>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
+                      </p>
+                      {s.goal && <p class="session-goal">{s.goal}</p>}
+                      {s.tasks.length > 0 && (
+                        <ul class="session-tasks" lang={en}>
+                          {s.tasks.map((task) => {
+                            const v = taskView(course, task);
+                            return (
+                              <li>
+                                <span class="task-label">{v.label}</span>
+                                {v.links.map((l, i) => (
+                                  <>
+                                    {i > 0 && ', '}
+                                    <a href={l.href} lang={course.lang}>
+                                      {l.title}
+                                    </a>
+                                  </>
+                                ))}
+                                {v.detail && <span class="muted"> · {v.detail}</span>}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {s.note && <p class="small muted">{s.note}</p>}
+                      <a class="small start" href={sessionStart(course, s)} lang={en}>
+                        Start →
+                      </a>
+                    </div>
+                  </li>
+                ))}
               </ol>
             </li>
           ))}
@@ -200,6 +190,11 @@ const examDate = plan?.exam_date ?? course.examDate;
 
   .session.past .session-body {
     opacity: 0.8;
+  }
+
+  .session:not(.today) .today-badge,
+  .session.past .start {
+    display: none;
   }
 
   .session-date {

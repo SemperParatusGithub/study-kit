@@ -3,7 +3,6 @@
 // calibration and exam history from browser progress; <sk-export> exports and imports it.
 import Base from '../../../layouts/Base.astro';
 import { coursePaths, overallMastery, type Course } from '../../../lib/courses';
-import { todayIso } from '../../../lib/format';
 
 export const getStaticPaths = coursePaths;
 
@@ -52,7 +51,8 @@ const mastery = overallMastery(course);
   <section class="card backup" aria-labelledby="backup-title" lang={en}>
     <h2 id="backup-title">Back up and move</h2>
     <p class="small muted">
-      Export downloads <code>studykit-progress-{c}-{todayIso()}.json</code>. Import merges a file
+      Export downloads <code>studykit-progress-{c}-<span data-today>YYYY-MM-DD</span>.json</code>
+      (today's date). Import merges a file
       into what this browser already has; nothing is overwritten.
     </p>
     <sk-export data-course={c}></sk-export>
