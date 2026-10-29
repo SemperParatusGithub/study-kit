@@ -26,12 +26,29 @@ setup:
 doctor *flags:
     {{sk}} doctor {{flags}}
 
-# python tests and the golden math corpus
+# render the figure scripts of one course (or all)
+figures course="":
+    {{sk}} fig build {{course}}
+
+# quick check of edited course files (what the Claude Code hook runs)
+lint +files:
+    {{sk}} lint {{files}}
+
+# full check of one course (or all); flags: --quick, --release, --paths, --json
+validate course="" *flags:
+    {{sk}} validate {{course}} {{flags}}
+
+# regenerate schemas/*.schema.json from the pydantic models
+schema:
+    {{sk}} schema export
+
+# python tests, schema drift and the golden math corpus
 test:
     uv run --frozen pytest -q
+    {{sk}} schema export --check
     {{sk}} golden
 
-# lint and format check
-lint:
+# ruff lint and format check of the python code
+lint-code:
     uv run --frozen ruff check src tests
     uv run --frozen ruff format --check src tests

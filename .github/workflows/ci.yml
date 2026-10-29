@@ -42,7 +42,7 @@ jobs:
         run: .tools/bin/just setup
 
       - name: Lint
-        run: .tools/bin/just lint
+        run: .tools/bin/just lint-code
 
       - name: Test
         run: .tools/bin/just test
