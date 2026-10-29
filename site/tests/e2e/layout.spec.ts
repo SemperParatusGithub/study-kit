@@ -1,7 +1,7 @@
 // Layout of the sample course at the widths people use: nothing is cut off or pushed out of
 // view, on screen and in print.
 import { expect, test, type Page } from '@playwright/test';
-import { C } from './helpers.ts';
+import { C, elementsReady, freezeDay } from './helpers.ts';
 
 /** Display formulas of the cheat sheet that are wider than their box (cut or scrolling). */
 function overflowingMath(page: Page): Promise<string[]> {
@@ -59,4 +59,17 @@ test('at 320 px no page scrolls sideways, also with long German titles in the pa
     await page.goto(path);
     expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(320);
   }
+});
+
+test('past and done plan sessions keep their text contrast', async ({ page }) => {
+  await freezeDay(page);
+  await page.goto(`${C}/plan/`);
+  await elementsReady(page);
+  const first = page.locator('li.session').first();
+  await first.getByRole('checkbox').check();
+  await expect(first).toHaveClass(/is-done/);
+  const opacities = await page.locator('li.session .session-body').evaluateAll((els) =>
+    els.map((el) => Number.parseFloat(getComputedStyle(el).opacity)),
+  );
+  expect(opacities.every((o) => o === 1)).toBe(true);
 });
