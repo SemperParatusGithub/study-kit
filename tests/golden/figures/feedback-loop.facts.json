@@ -1,0 +1,62 @@
+{
+ "alt": "Blockschaltbild eines Regelkreises: Führungsgröße W(s), Vorwärtszweig G_R(s) → G_S(s), Ausgang Y(s); der Ausgang wird über H(s) negativ zurückgeführt. Die Störgröße Z(s) greift am Eingang des letzten Blocks an. Führungsübertragungsfunktion: G_R(s)*G_S(s)/(G_R(s)*G_S(s)*H(s) + 1).",
+ "disturbance": "Z(s)",
+ "disturbance_at": "input",
+ "disturbance_tf": {
+  "expr": "G2/(G1*G2*H + 1)",
+  "latex": "\\frac{G_S(s)}{G_R(s) G_S(s) H(s) + 1}",
+  "text": "G_S(s)/(G_R(s)*G_S(s)*H(s) + 1)"
+ },
+ "error_tf": {
+  "expr": "1/(G1*G2*H + 1)",
+  "latex": "\\frac{1}{G_R(s) G_S(s) H(s) + 1}",
+  "text": "1/(G_R(s)*G_S(s)*H(s) + 1)"
+ },
+ "feedback": "H(s)",
+ "forward": [
+  "G_R(s)",
+  "G_S(s)"
+ ],
+ "junction": "circle",
+ "junctions": [
+  {
+   "at": "reference",
+   "inputs": {
+    "S": "-",
+    "W": "+"
+   }
+  },
+  {
+   "at": "disturbance-input",
+   "inputs": {
+    "N": "+",
+    "W": "+"
+   }
+  }
+ ],
+ "loop_gain": {
+  "expr": "G1*G2*H",
+  "latex": "G_R(s) G_S(s) H(s)",
+  "text": "G_R(s)*G_S(s)*H(s)"
+ },
+ "reference_tf": {
+  "expr": "G1*G2/(G1*G2*H + 1)",
+  "latex": "\\frac{G_R(s) G_S(s)}{G_R(s) G_S(s) H(s) + 1}",
+  "text": "G_R(s)*G_S(s)/(G_R(s)*G_S(s)*H(s) + 1)"
+ },
+ "scale": 0.982,
+ "sign": "-",
+ "signals": {
+  "e": "E(s)",
+  "r": "W(s)",
+  "u": "U(s)",
+  "y": "Y(s)"
+ },
+ "symbols": {
+  "G1": "G_R(s)",
+  "G2": "G_S(s)",
+  "H": "H(s)"
+ },
+ "template": "block.feedback_loop",
+ "width_in": 3.6
+}

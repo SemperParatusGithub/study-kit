@@ -1,0 +1,160 @@
+{
+ "alt": "Themenkarte mit 5 Themen in 4 Ebenen nach Voraussetzungen (1: Gleichstromnetzwerke; 2: Komplexe Wechselstromrechnung; 3: RC-Filter und Bode-Diagramm, Schwingkreise; 4: Regelkreise). Pfeile führen von einer Voraussetzung zum Thema, das darauf aufbaut; höhere Boxen haben mehr Gewicht. Schwerpunkte: Komplexe Wechselstromrechnung. Übersprungen: Schwingkreise.",
+ "crossings": 0,
+ "depth": {
+  "gleichstrom": 0,
+  "rc-filter": 2,
+  "regelkreis": 3,
+  "schwingkreis": 2,
+  "wechselstrom": 1
+ },
+ "direction": "lr",
+ "direction_reason": "fits",
+ "edges": [
+  [
+   "gleichstrom",
+   "wechselstrom"
+  ],
+  [
+   "wechselstrom",
+   "rc-filter"
+  ],
+  [
+   "wechselstrom",
+   "schwingkreis"
+  ],
+  [
+   "rc-filter",
+   "regelkreis"
+  ],
+  [
+   "schwingkreis",
+   "regelkreis"
+  ]
+ ],
+ "focus": [
+  "wechselstrom"
+ ],
+ "layers": [
+  [
+   "gleichstrom"
+  ],
+  [
+   "wechselstrom"
+  ],
+  [
+   "rc-filter",
+   "schwingkreis"
+  ],
+  [
+   "regelkreis"
+  ]
+ ],
+ "node_overlaps": 0,
+ "nodes": {
+  "gleichstrom": {
+   "box": [
+    5.519,
+    2.12
+   ],
+   "lines": [
+    "Gleichstromnetzwerke"
+   ],
+   "status": "normal",
+   "title": "Gleichstromnetzwerke",
+   "weight": 0.15,
+   "xy": [
+    2.76,
+    -0.11
+   ]
+  },
+  "rc-filter": {
+   "box": [
+    4.211,
+    2.559
+   ],
+   "lines": [
+    "RC-Filter und",
+    "Bode-Diagramm"
+   ],
+   "status": "normal",
+   "title": "RC-Filter und Bode-Diagramm",
+   "weight": 0.25,
+   "xy": [
+    17.265,
+    1.26
+   ]
+  },
+  "regelkreis": {
+   "box": [
+    3.182,
+    2.12
+   ],
+   "lines": [
+    "Regelkreise"
+   ],
+   "status": "normal",
+   "title": "Regelkreise",
+   "weight": 0.15,
+   "xy": [
+    22.461,
+    -0.11
+   ]
+  },
+  "schwingkreis": {
+   "box": [
+    4.211,
+    2.12
+   ],
+   "lines": [
+    "Schwingkreise"
+   ],
+   "status": "skip",
+   "title": "Schwingkreise",
+   "weight": 0.15,
+   "xy": [
+    17.265,
+    -1.479
+   ]
+  },
+  "wechselstrom": {
+   "box": [
+    6.64,
+    2.778
+   ],
+   "lines": [
+    "Komplexe",
+    "Wechselstromrechnung"
+   ],
+   "status": "focus",
+   "title": "Komplexe Wechselstromrechnung",
+   "weight": 0.3,
+   "xy": [
+    10.339,
+    -0.11
+   ]
+  }
+ },
+ "order": [
+  "gleichstrom",
+  "wechselstrom",
+  "rc-filter",
+  "schwingkreis",
+  "regelkreis"
+ ],
+ "scale": 1.0,
+ "size_in": [
+  6.013,
+  1.27
+ ],
+ "skip": [
+  "schwingkreis"
+ ],
+ "template": "graph.topic_map",
+ "width_in": 6.073,
+ "wrap": {
+  "bands": 1,
+  "returns": 0,
+  "split": {}
+ }
+}

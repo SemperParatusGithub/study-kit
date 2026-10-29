@@ -1,0 +1,110 @@
+{
+ "alt": "Schaltbild einer Wheatstone-Brücke: Die Spannungsquelle U0 = 10 V speist die Spannungsteiler R1-R2 (Mittelpunkt A) und R3-R4 (Mittelpunkt B); R1 = 1 kΩ, R2 = 2 kΩ, R3 = 1 kΩ, R4 = 2 kΩ. Zählpfeil der Brückenspannung UAB von A nach B.",
+ "arrows": [
+  {
+   "element": "U0",
+   "from": "T",
+   "kind": "voltage",
+   "name": "U0",
+   "symbol": "U_0",
+   "to": "0"
+  },
+  {
+   "element": "U0",
+   "from": "0",
+   "kind": "current",
+   "name": "I",
+   "symbol": "I",
+   "to": "T"
+  },
+  {
+   "from": "A",
+   "kind": "voltage",
+   "name": "UAB",
+   "symbol": "U_\\mathrm{AB}",
+   "to": "B"
+  }
+ ],
+ "components": [
+  {
+   "kind": "voltage_source",
+   "label": null,
+   "name": "U0",
+   "nodes": [
+    "T",
+    "0"
+   ],
+   "si": 10.0,
+   "symbol": "U_0",
+   "unit": "V",
+   "value": "10 V"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_1 = 1\\,\\mathrm{k\\Omega}$",
+   "name": "R1",
+   "nodes": [
+    "T",
+    "A"
+   ],
+   "si": 1000.0,
+   "symbol": "R_1",
+   "unit": "Ω",
+   "value": "1 kΩ"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_2 = 2\\,\\mathrm{k\\Omega}$",
+   "name": "R2",
+   "nodes": [
+    "A",
+    "0"
+   ],
+   "si": 2000.0,
+   "symbol": "R_2",
+   "unit": "Ω",
+   "value": "2 kΩ"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_3 = 1\\,\\mathrm{k\\Omega}$",
+   "name": "R3",
+   "nodes": [
+    "T",
+    "B"
+   ],
+   "si": 1000.0,
+   "symbol": "R_3",
+   "unit": "Ω",
+   "value": "1 kΩ"
+  },
+  {
+   "kind": "resistor",
+   "label": "$R_4 = 2\\,\\mathrm{k\\Omega}$",
+   "name": "R4",
+   "nodes": [
+    "B",
+    "0"
+   ],
+   "si": 2000.0,
+   "symbol": "R_4",
+   "unit": "Ω",
+   "value": "2 kΩ"
+  }
+ ],
+ "derived": {
+  "U_A": 6.66667,
+  "U_AB": 0.0,
+  "U_B": 6.66667,
+  "balanced": true
+ },
+ "kind": "wheatstone",
+ "nodes": [
+  "0",
+  "A",
+  "B",
+  "T"
+ ],
+ "scale_in_per_unit": 0.2898,
+ "template": "circuit.bridge"
+}

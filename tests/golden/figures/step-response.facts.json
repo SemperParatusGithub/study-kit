@@ -1,0 +1,55 @@
+{
+ "G": {
+  "den": [
+   1.0,
+   4.0,
+   25.0
+  ],
+  "latex": "\\frac{25}{s^{2} + 4 s + 25}",
+  "num": [
+   25.0
+  ],
+  "variable": "s"
+ },
+ "alt": "Step response of G(s) = 25/(s^2 + 4*s + 25) for t from 0 s to 3 s: final value 1, overshoot 25.4 % at t = 0.686 s, 10-90 % rise time 0.293 s, 2 % settling time 1.68 s.",
+ "annotate": [
+  "final",
+  "overshoot",
+  "rise",
+  "settling"
+ ],
+ "final_sample": 0.9980580797065883,
+ "metrics": {
+  "final": 1.0,
+  "overshoot_percent": 25.382672210296377,
+  "peak": 1.2538267221029638,
+  "peak_time": 0.6855520903991188,
+  "rise_time": 0.2926985967135668,
+  "settling_band": 0.02,
+  "settling_time": 1.6818640184736355,
+  "t10": 0.09606252117045982,
+  "t90": 0.3887611178840266
+ },
+ "scipy_max_abs_diff": 5.5067062021407764e-14,
+ "stable": true,
+ "step_info": {
+  "Overshoot": 25.38267134919878,
+  "Peak": 1.2538267134919878,
+  "PeakTime": 0.6855,
+  "RiseTime": 0.2925,
+  "SettlingMax": 1.2538267134919878,
+  "SettlingMin": 0.9011981138942865,
+  "SettlingTime": 1.68225,
+  "SteadyStateValue": 1.0,
+  "Undershoot": 0.0
+ },
+ "t_range": [
+  0.0,
+  3.0
+ ],
+ "template": "signals.step_response",
+ "time_axis": {
+  "scale": 1.0,
+  "unit": "s"
+ }
+}

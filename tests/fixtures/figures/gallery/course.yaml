@@ -1,0 +1,14 @@
+# One figure script per template; tests/py/test_figures_gallery.py builds them with the
+# real runner and compares their facts with tests/golden/figures/.
+schema: 1
+id: gallery
+title: Figure gallery
+lang: de
+topics:
+  - {id: gleichstrom, title: Gleichstromnetzwerke, weight: 0.15, prereq: []}
+  - {id: wechselstrom, title: Komplexe Wechselstromrechnung, weight: 0.30, prereq: [gleichstrom]}
+  - {id: rc-filter, title: RC-Filter und Bode-Diagramm, weight: 0.25, prereq: [wechselstrom]}
+  - {id: schwingkreis, title: Schwingkreise, weight: 0.15, prereq: [wechselstrom]}
+  - {id: regelkreis, title: Regelkreise, weight: 0.15, prereq: [rc-filter, schwingkreis]}
+focus: [wechselstrom]
+skip: [schwingkreis]
