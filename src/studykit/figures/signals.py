@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import cmath
 import math
+import warnings
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
@@ -329,10 +330,95 @@ def _corners(st: Structure) -> list[dict]:
     return sorted(out, key=lambda e: e["omega"])
 
 
+def _on_axis_root(st: Structure, w: float) -> bool:
+    """omega = w is a zero or pole of G on the imaginary axis (the origin included).
+
+    G is 0 or infinite there and its phase is undefined, so a "crossover" found there is
+    an artefact of the method (python-control reports gm = 1/|G| = 4.5e15 at a zero).
+    """
+    axis = [abs(r.imag) for r in (*st.zeros, *st.poles) if r.real == 0]
+    if st.typ != 0:
+        axis.append(0.0)
+    return any(abs(w - a) <= 1e-7 * max(1.0, a) for a in axis)
+
+
+def _first_smallest(scores: Sequence[float]) -> int:
+    """Index of the smallest score; near-ties (1e-7) go to the first, the lowest frequency.
+
+    k s / (s^2 + a s + b) has two gain crossovers with phase margins +x and -x that differ
+    only by rounding; both methods must pick the same one.
+    """
+    best = min(scores)
+    return next(k for k, v in enumerate(scores) if v <= best * (1 + 1e-7) + 1e-12)
+
+
+def _pick_margins(phase_x, gms, gain_x, pms) -> dict:
+    """python-control's choice: the gain margin closest to 1, the smallest |phase margin|.
+
+    The crossover lists are sorted by frequency.
+    """
+    out = {"gm": None, "gm_db": None, "w_pc": None, "pm_deg": None, "w_gc": None}
+    if gms:
+        i = _first_smallest([abs(math.log(g)) for g in gms])
+        out.update(gm=gms[i], gm_db=20 * math.log10(gms[i]), w_pc=float(phase_x[i]))
+    if pms:
+        i = _first_smallest([abs(m) for m in pms])
+        out.update(pm_deg=pms[i], w_gc=float(gain_x[i]))
+    return out
+
+
+def _margins_control(p: Plant, st: Structure) -> dict:
+    """Margins by python-control's polynomial method, without on-axis artefacts."""
+    gms, pms, _sm, wpcs, wgcs, _wms = ct.stability_margins(p.tf, returnall=True)
+    phase = [
+        (float(w), float(g))
+        for w, g in zip(np.atleast_1d(wpcs), np.atleast_1d(gms), strict=True)
+        if math.isfinite(g) and g > 0 and not _on_axis_root(st, float(w))
+    ]
+    gain = [
+        (float(w), float(m))
+        for w, m in zip(np.atleast_1d(wgcs), np.atleast_1d(pms), strict=True)
+        if math.isfinite(m) and not _on_axis_root(st, float(w))
+    ]
+    phase_x, gms = [w for w, _ in sorted(phase)], [g for _, g in sorted(phase)]
+    gain_x, pms = [w for w, _ in sorted(gain)], [m for _, m in sorted(gain)]
+    return {
+        "method": "control.stability_margins",
+        "gain_crossovers": gain_x,
+        "phase_crossovers": phase_x,
+    } | _pick_margins(phase_x, gms, gain_x, pms)
+
+
+def _real_on_axis(p: Plant) -> bool:
+    """G(j omega) is real for every omega: num(j omega) den(-j omega) has no imaginary part."""
+    powers = np.array([1, 1j, -1, -1j])
+
+    def at_jw(c: np.ndarray, sign: int) -> np.ndarray:  # coefficients in omega
+        k = np.arange(len(c) - 1, -1, -1)
+        return c * powers[(sign * k) % 4]
+
+    prod = np.polymul(at_jw(p.num, 1), at_jw(p.den, -1))
+    return bool(np.all(np.abs(prod.imag) <= 1e-12 * np.max(np.abs(prod))))
+
+
 def _margins_check(p: Plant, st: Structure) -> dict:
-    """Independent margins: scipy.signal.freqresp scan, refined with brentq."""
+    """Independent margins: scipy.signal.freqresp scan, refined with brentq.
+
+    A type-0 loop with G(0) < 0 starts on the negative real axis: its phase crossover is
+    omega = 0 with gain margin 1/|G(0)| (an unstable plant stabilised by a gain, 10/(s-1)).
+    The scan sees only omega > 0, so that crossover is added explicitly. When G(j omega)
+    is real for every omega (undamped plants such as 1/(s^2 + 1)) no phase crossover is
+    isolated and none is reported, as python-control does.
+    """
     freqs = _interesting_frequencies(st)
-    w = np.logspace(math.log10(min(freqs)) - 3, math.log10(max(freqs)) + 3, 20001)
+    w = [np.logspace(math.log10(min(freqs)) - 3, math.log10(max(freqs)) + 3, 20001)]
+    # Lightly damped roots make |G| and the phase change within a tiny band around
+    # omega = Im r; geometric steps down to 1e-10 of Im r on both sides resolve it.
+    near = np.logspace(-10, -0.5, 200)
+    for r in (*st.poles, *st.zeros):
+        if r.imag > 0:
+            w += [r.imag * (1 - near), r.imag * (1 + near)]
+    w = np.unique(np.concatenate(w))
     _, H = sps.freqresp((p.num, p.den), w)
 
     def h(x: float) -> complex:
@@ -345,32 +431,34 @@ def _margins_check(p: Plant, st: Structure) -> dict:
         gain_x.append(brentq(lambda x: math.log(abs(h(x))), w[i], w[i + 1], xtol=1e-14 * w[i]))
     ang = np.angle(H)
     sin_a = np.sin(ang)
+    real_line = _real_on_axis(p)
     cand = (sin_a[:-1] * sin_a[1:] < 0) & (np.cos(ang[:-1]) < 0) & (np.cos(ang[1:]) < 0)
-    phase_x = []
-    for i in np.flatnonzero(cand):
-        x = brentq(lambda x: math.sin(cmath.phase(h(x))), w[i], w[i + 1], xtol=1e-14 * w[i])
-        if abs(math.sin(cmath.phase(h(x)))) < 1e-8 and h(x).real < 0:
+    phase_x = [0.0] if st.typ == 0 and st.k_bode < 0 and not real_line else []
+
+    def sin_phase(x: float) -> float:
+        return math.sin(cmath.phase(h(x)))
+
+    for i in np.flatnonzero(cand) if not real_line else []:
+        fa, fb = sin_phase(w[i]), sin_phase(w[i + 1])
+        if fa * fb <= 0:
+            x = brentq(sin_phase, w[i], w[i + 1], xtol=1e-14 * w[i])
+        else:  # the crossover is a grid point, its sine rounded to the neighbour's sign
+            x = float(w[i] if abs(fa) < abs(fb) else w[i + 1])
+        hx = h(x)
+        if _on_axis_root(st, x) or not 0 < abs(hx) < math.inf:
+            continue
+        new = not phase_x or abs(x - phase_x[-1]) > 1e-9 * x
+        if new and abs(math.sin(cmath.phase(hx))) < 1e-8 and hx.real < 0:
             phase_x.append(x)
+    gain_x = [x for x in gain_x if not _on_axis_root(st, x)]
 
     gms = [1 / abs(h(x)) for x in phase_x]
     pms = [(math.degrees(cmath.phase(h(x))) % 360.0) - 180.0 for x in gain_x]
-    out = {
+    return {
         "method": "scipy.signal.freqresp + brentq",
         "gain_crossovers": [float(x) for x in gain_x],
         "phase_crossovers": [float(x) for x in phase_x],
-        "gm": None,
-        "gm_db": None,
-        "w_pc": None,
-        "pm_deg": None,
-        "w_gc": None,
-    }
-    if gms:
-        i = min(range(len(gms)), key=lambda k: abs(math.log(gms[k])))
-        out.update(gm=gms[i], gm_db=20 * math.log10(gms[i]), w_pc=float(phase_x[i]))
-    if pms:
-        i = min(range(len(pms)), key=lambda k: abs(pms[k]))
-        out.update(pm_deg=pms[i], w_gc=float(gain_x[i]))
-    return out
+    } | _pick_margins(phase_x, gms, gain_x, pms)
 
 
 def _close(a: float | None, b: float | None, rtol: float = MARGIN_RTOL) -> bool:
@@ -379,32 +467,34 @@ def _close(a: float | None, b: float | None, rtol: float = MARGIN_RTOL) -> bool:
     return abs(a - b) <= rtol * max(1.0, abs(a), abs(b))
 
 
+MARGIN_KEYS = ("gm", "w_pc", "pm_deg", "w_gc")
+
+
 def stability_margins(G: TransferFunctionLike) -> dict:
     """Gain and phase margin with crossover frequencies, cross-checked two ways.
 
-    Returns `{"gm", "gm_db", "w_pc", "pm_deg", "w_gc", "control": {...}, "check": {...}}`
-    (frequencies in rad/s, None where a margin does not exist) and raises if the two
-    computations disagree.
+    Returns `{"gm", "gm_db", "w_pc", "pm_deg", "w_gc", "agree", "mismatch", "control",
+    "check"}`: frequencies in rad/s, None where a margin does not exist. The values are
+    python-control's; `check` holds the independent SciPy scan. A disagreement never
+    raises: `agree` is False, `mismatch` names the quantities that differ and a
+    RuntimeWarning carries both results.
     """
     p = _continuous(G, "margins")
     st = structure(p)
-    gm, pm, _sm, wpc, wgc, _wms = ct.stability_margins(p.tf)
-    ctl = {
-        "method": "control.stability_margins",
-        "gm": _number(gm),
-        "gm_db": _number(20 * math.log10(gm)) if gm > 0 and math.isfinite(gm) else None,
-        "w_pc": _number(wpc),
-        "pm_deg": _number(pm),
-        "w_gc": _number(wgc),
-    }
+    ctl = _margins_control(p, st)
     check = _margins_check(p, st)
-    agree = all(_close(ctl[k], check[k]) for k in ("gm", "w_pc", "pm_deg", "w_gc"))
-    if not agree:
-        raise RuntimeError(f"margin cross-check failed: control {ctl} vs scipy {check}")
+    mismatch = [k for k in MARGIN_KEYS if not _close(ctl[k], check[k])]
+    if mismatch:
+        warnings.warn(
+            f"margin cross-check differs in {', '.join(mismatch)}: control {ctl} vs scipy {check}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     return {k: ctl[k] for k in ("gm", "gm_db", "w_pc", "pm_deg", "w_gc")} | {
+        "agree": not mismatch,
+        "mismatch": mismatch,
         "control": ctl,
         "check": check,
-        "agree": agree,
     }
 
 
@@ -517,7 +607,9 @@ def bode(
                 "f_gc": None if mg["w_gc"] is None else mg["w_gc"] * to_x,
                 "f_pc": None if mg["w_pc"] is None else mg["w_pc"] * to_x,
             }
-        m_lo, m_hi, p_lo, p_hi = _draw_margins(ax_m, ax_p, p, st, mg, to_x, m_lo, m_hi, p_lo, p_hi)
+        m_lo, m_hi, p_lo, p_hi = _draw_margins(
+            ax_m, ax_p, p, st, mg, to_x, (x[0], x[-1]), m_lo, m_hi, p_lo, p_hi
+        )
 
     ax_m.set_ylim(*_pad_range(m_lo, m_hi))
     ax_p.set_ylim(*_pad_range(p_lo, p_hi))
@@ -577,7 +669,7 @@ def _margins_alt(mg: dict, to_x: float, unit: str) -> str:
     return ", ".join(parts)
 
 
-def _draw_margins(ax_m, ax_p, p, st, mg, to_x, m_lo, m_hi, p_lo, p_hi):
+def _draw_margins(ax_m, ax_p, p, st, mg, to_x, x_span, m_lo, m_hi, p_lo, p_hi):
     de = core.locale() == "de"
     var = r"\omega" if to_x == 1.0 else "f"
     # Margin labels get a page-coloured backing so grid and asymptote lines stay behind.
@@ -613,25 +705,40 @@ def _draw_margins(ax_m, ax_p, p, st, mg, to_x, m_lo, m_hi, p_lo, p_hi):
         p_lo, p_hi = min(p_lo, ref), max(p_hi, ref)
     else:
         ax_p.axhline(-180.0, color=FG, lw=0.7, zorder=2)
+        p_lo, p_hi = min(p_lo, -180.0), max(p_hi, -180.0)
     if mg["w_pc"] is not None:
         wpc = mg["w_pc"]
-        m_pc = float(20 * np.log10(np.abs(p.tf(1j * wpc))))
-        xp = wpc * to_x
-        for ax in (ax_m, ax_p):
-            ax.axvline(xp, color=MUTED, lw=0.8, ls=":", zorder=2)
+        pc_name = rf"{var}_\pi" if de else rf"{var}_\mathrm{{pc}}"
+        sym = r"A_\mathrm{R}" if de else r"\mathrm{GM}"
+        text = rf"{sym} = {_num_tex(mg['gm_db'])}\,\mathrm{{dB}}"
+        if wpc > 0:
+            m_pc = float(20 * np.log10(np.abs(p.tf(1j * wpc))))
+            xp = wpc * to_x
+            for ax in (ax_m, ax_p):
+                ax.axvline(xp, color=MUTED, lw=0.8, ls=":", zorder=2)
+            falling = float(20 * np.log10(np.abs(p.tf(1j * wpc * 1.05)))) < m_pc
+            where, side = (xp, m_pc / 2), _free_side(falling, m_pc < 0)
+            marks.append((xp, f"${pc_name}$"))
+        else:
+            # G(0) < 0: the phase crossover is omega = 0, which a log axis cannot show.
+            # The arrow stands just inside the left edge at the DC gain, which the flat
+            # type-0 magnitude has there, and the label says omega_pc = 0. The curve
+            # leaves the left edge sideways, so the label goes right of the arrow; an
+            # arrow too short to carry it (|GM| near 0 dB) gets it above its top end.
+            m_pc = 20 * math.log10(abs(st.k_bode))
+            xp = x_span[0] * (x_span[1] / x_span[0]) ** 0.04
+            text += rf"\;({pc_name} = 0)"
+            span = max(m_hi, 0.0) - min(m_lo, 0.0)
+            if abs(m_pc) >= 0.2 * span:
+                where, side = (xp, m_pc / 2), {"xytext": (4, 0), "ha": "left"}
+            else:
+                where = (xp, max(m_pc, 0.0))
+                side = {"xytext": (3, 4), "ha": "left", "va": "bottom"}
+                m_hi = max(m_hi, max(m_pc, 0.0) + 0.15 * span)
         _double_arrow(ax_m, (xp, m_pc), (xp, 0.0), color(1))
         ax_m.plot([xp], [m_pc], "o", ms=3.5, color=color(1), zorder=7)
-        sym = r"A_\mathrm{R}" if de else r"\mathrm{GM}"
-        falling = float(20 * np.log10(np.abs(p.tf(1j * wpc * 1.05)))) < m_pc
-        ax_m.annotate(
-            rf"${sym} = {_num_tex(mg['gm_db'])}\,\mathrm{{dB}}$",
-            (xp, m_pc / 2),
-            **_free_side(falling, m_pc < 0),
-            color=color(1),
-            **label_style,
-        )
-        marks.append((xp, rf"${var}_\pi$" if de else rf"${var}_\mathrm{{pc}}$"))
-        m_lo, m_hi = min(m_lo, m_pc, 0.0), max(m_hi, 0.0)
+        ax_m.annotate(f"${text}$", where, color=color(1), **(label_style | side))
+        m_lo, m_hi = min(m_lo, m_pc, 0.0), max(m_hi, m_pc, 0.0)
     # Crossover names at the top, right of their line; when the two lines are close the
     # lower frequency's name moves to the left of its line so the names do not collide.
     marks.sort()

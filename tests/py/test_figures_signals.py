@@ -116,6 +116,55 @@ def test_phase_is_continuous_for_right_half_plane_pairs():
     np.testing.assert_allclose(ph, np.degrees(exact), atol=1e-9)
 
 
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+def test_margins_of_unstable_and_negative_gain_plants():
+    # 1 + K 10/(s-1) is stable for K > 0.1: phase crossover at w = 0, GM = 1/|G(0)|.
+    mg = signals.stability_margins("10/(s-1)")
+    assert mg["agree"] and mg["mismatch"] == []
+    assert mg["gm"] == pytest.approx(0.1) and mg["w_pc"] == 0
+    assert mg["gm_db"] == pytest.approx(-20)
+    assert mg["w_gc"] == pytest.approx(math.sqrt(99), rel=1e-9)
+    assert mg["pm_deg"] == pytest.approx(math.degrees(math.atan(math.sqrt(99))), abs=1e-7)
+    fig = signals.bode("10/(s-1)", margins=True)
+    assert validate_svg(fig.svg) == []
+    assert "gain margin -20 dB at 0 rad/s" in fig.alt
+    neg = signals.stability_margins("-1/(s+1)")
+    assert neg["agree"] and neg["gm"] == pytest.approx(1) and neg["w_pc"] == 0
+    assert neg["pm_deg"] is None  # |G| < 1 for every w > 0
+    assert validate_svg(signals.bode("-1/(s+1)", margins=True).svg) == []
+
+
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+def test_margins_ignore_imaginary_axis_roots():
+    # G(jw) = -j (1 - w^2) / (w (4 - w^2)) is imaginary: no phase crossover; the zero at
+    # w = 1 is no crossover either (python-control reports gm = 4.5e15 there).
+    mg = signals.stability_margins("(s**2+1)/(s*(s**2+4))")
+    assert mg["agree"] and mg["gm"] is None
+    w_gc = brentq(lambda w: abs(1 - w**2) - w * abs(4 - w**2), 0.01, 0.9)
+    assert mg["w_gc"] == pytest.approx(w_gc, rel=1e-9) and mg["pm_deg"] == pytest.approx(90)
+    # Undamped: G(jw) = 1/(1 - w^2) is real everywhere, so no phase crossover is isolated.
+    und = signals.stability_margins("1/(s**2+1)")
+    assert und["agree"] and und["gm"] is None
+    assert und["w_gc"] == pytest.approx(math.sqrt(2)) and und["pm_deg"] == pytest.approx(0)
+    # k s/(s^2 + a s + b): phase margins +x and -x tie; both methods take the lower w.
+    tie = signals.stability_margins("2.5*s/(s**2+0.96*s+11.4)")
+    assert tie["agree"] and tie["w_gc"] < math.sqrt(11.4)
+
+
+def test_margin_disagreement_warns_instead_of_raising(monkeypatch):
+    real = signals._margins_check
+
+    def skewed(p, st):
+        return real(p, st) | {"gm": 99.0}
+
+    monkeypatch.setattr(signals, "_margins_check", skewed)
+    with pytest.warns(RuntimeWarning, match="differs in gm"):
+        fig = signals.bode(G_LOOP, margins=True)
+    mg = fig.facts["margins"]
+    assert not mg["agree"] and mg["mismatch"] == ["gm"]
+    assert mg["gm"] == pytest.approx(11) and mg["check"]["gm"] == 99
+
+
 def test_bode_negative_margins():
     mg = signals.stability_margins("200/(s*(s+1)*(s+10))")
     assert mg["gm"] == pytest.approx(110 / 200, rel=1e-9)  # Routh: K_crit = 110
