@@ -731,7 +731,7 @@ title: Überblick
 
 | Kind | Packages |
 |---|---|
-| dependencies | `astro 7.4.2`, `katex 0.16.47`, `yaml 2.9.1` (resolves Vite's optional peer; no site code imports it) |
+| dependencies | `astro 7.4.2`, `katex 0.16.47`, `yaml 2.9.1` (the version Astro's YAML loader uses for `course.yaml` and `plan.yaml`, and Vite's optional peer; no site code imports it) |
 | devDependencies | `typescript 6.0.3` (`@astrojs/check` peers ^5 or ^6), `@astrojs/check 0.9.12`, `@playwright/test 1.64.1`, `pagefind 1.5.2` |
 | unit tests | `node --test` (Node 24 strips TypeScript types natively) |
 | search | `pagefind` (CLI, run after `astro build`; see §3.5) |
@@ -1445,7 +1445,7 @@ Commits:
 | # | Risk | Mitigation |
 |---|---|---|
 | 1 | KaTeX (web) and texmath (PDF) disagree on math. This is the only remaining two-engine split. | One written subset; `math.lua` denylist with replacements; KaTeX strict plus `--fail-if-warnings`; lint hook on every write; golden corpus in CI, re-run on every pandoc or Typst bump |
-| 2 | The custom pandoc loader is our own code: dev hot reload, speed, error mapping | About 200 lines with digest caching and parallelism; error cards in dev; `+sourcepos` in lint; e2e test; fallback is the research's remark path with name-only fences |
+| 2 | The custom pandoc loader is our own code: dev hot reload, speed, error mapping | The loader plus the render bridge (`studykit render`), with digest caching and a thread pool; error cards in dev; `+sourcepos` in lint; e2e tests; fallback is the research's remark path with name-only fences |
 | 3 | LLM arithmetic errors, or wrong MC keys and distractors | Blind verifier enforced by a hook; check scripts; `mc_numeric` with named mistakes and a separation check; two-method rule; content-hash ledger; quarantine instead of shipping |
 | 4 | Pandoc may not detect `[x]` in *loose* task-list items (option paragraph plus `why` paragraph) | Covered by the Phase 1 golden corpus. Fallback: a tight list with the `why` as an indented `::: why`-free sub-list item that `mcq.lua` reads |
 | 5 | Cheat sheet over 3 pages, or different page counts on different machines | Embedded Typst fonts only with `--ignore-system-fonts`; exact Typst pin; density presets with a 7 pt floor; overflow measured with `typst eval`; capped condense rounds; hard failure that keeps the last valid PDF |
@@ -1455,5 +1455,5 @@ Commits:
 | 9 | Lost browser progress (origin or port change, Safari eviction) or edits invalidating it | Fixed `localhost:4321` with strictPort; `storage.persist()`; export, import and merge; content hashes per item; `/import-progress` keeps copies |
 | 10 | Claude Code's Grep and Glob may skip the gitignored `courses/` | `studykit ls --json` and explicit paths in every procedure; Read is unaffected; checked in Phase 5 |
 | 11 | Cost and time of a full ingest and generation run on large courses | Text-first reading with vision only for flagged pages; 20-page chunks; sonnet for ingestion; caps of 6 agents; estimate and core-first mode; resumable status |
-| 12 | Mock exams copy past exams too closely | Modelled at archetype level; n-gram similarity warning; new values and circuits required |
-| 13 | YAML pitfalls (backslash escapes, YAML 1.1 vs 1.2) | Scalar-style lint from parser events; restricted PyYAML loader; `yaml` 1.2 on the Node side; no LaTeX in `course.yaml` |
+| 12 | Mock exams copy past exams too closely | Modelled at archetype level; n-gram similarity warning (planned); new values and circuits required |
+| 13 | YAML pitfalls (backslash escapes, YAML 1.1 vs 1.2) | Scalar-style lint from parser events; restricted PyYAML loader that reads plain scalars like the YAML 1.2 core schema; the site gets frontmatter from that loader through the render bridge and reads `course.yaml` and `plan.yaml` with `yaml` 1.2 (core schema); no LaTeX in `course.yaml` |
