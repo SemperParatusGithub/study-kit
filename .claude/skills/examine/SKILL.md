@@ -38,28 +38,36 @@ lines, then start.
 
 ## One MC question
 
-1. Shuffle the options and label them A, B, … in the shown order; keep the map to the
-   source letters (A = the first option in the file). Show the stem and the type line
-   (single: exactly one correct; multi: one or more; Kprim: judge each statement).
+1. Shuffle the options and label them A, B, … in the shown order; write the map to the
+   source letters down before asking (A = the first option in the file; a `pin-last`
+   option stays last). Show the stem and the type line (single: exactly one correct;
+   multi: one or more; Kprim: judge each statement). Math is plain text with Unicode
+   (`f_g = 1/(2π R C)`, `3,18 kΩ`), never LaTeX, in the stem and in every choice.
 2. Ask with AskUserQuestion:
    - single with ≤ 4 options: one question, the options as choices (label: the letter,
      description: the option text; header: the question number, e.g. `3/10`);
    - multi with ≤ 4 options: one question with `multiSelect: true`;
-   - Kprim: four questions in one call, one per statement (header `A` to `D`), choices
-     true/false in the course language (richtig / falsch);
+   - Kprim: four questions in one call, one per statement (header `A` to `D`, the question
+     text the statement), choices true/false in the course language (richtig / falsch);
    - 5 or 6 options: show them as text and let the student answer with the letters.
-   Add the confidence question ("How sure are you?" with Sure / Unsure) to the same call
-   when the call has room (at most 4 questions), else ask it in a second call. Confidence
-   always comes before anything is revealed.
-3. Score it as the site does (`course.exam.mc.scoring` picks the multi rule): single 1/0;
-   multi all-or-nothing 1 only for the exact set, partial max(0, (right − wrong)/n), kprim
-   rule all right 1, one wrong 0.5, else 0; Kprim 4/4 → 1, 3/4 → 0.5, else 0. An option is
-   decided right when chosen and correct or not chosen and wrong; a Kprim statement left
-   open is wrong.
-4. Reveal: right or wrong, the correct options, the `why` of every option the student
-   chose wrongly, the explanation. If they were sure and wrong, name the misconception.
+   AskUserQuestion takes 1-4 questions per call and 2-4 choices per question, and a header
+   of at most 12 characters. Add the confidence question in the course language ("Wie
+   sicher sind Sie?" with Sicher / Unsicher; header e.g. `Sicherheit`) to the same call
+   when the call has room, else ask it in a second call before revealing anything (always
+   for Kprim). Confidence always comes before anything is revealed; `conf` is logged as
+   `sure` or `unsure`.
+3. Map the answer back to source letters. The score is the site's
+   (`course.exam.mc.scoring` picks the multi rule): single 1/0; multi all-or-nothing 1
+   only for the exact set, partial max(0, (right − wrong)/n), kprim rule all right 1, one
+   wrong 0.5, else 0; Kprim 4/4 → 1, 3/4 → 0.5, else 0. You need not compute it:
+   `studykit progress log` computes the score from `chosen` when you leave `score` out and
+   prints it (step 5), and refuses a score that does not match.
+4. Log it (step 5), then reveal: right or wrong with the logged score, the correct
+   options (in the shown letters), the `why` of every option the student chose wrongly,
+   the explanation. If they were sure and wrong, name the misconception.
 5. Log it (below) with `chosen` in **source letters** (for Kprim: the statements judged
-   true) and `conf` `sure` or `unsure`.
+   true) and `conf` `sure` or `unsure`, before revealing (the logged score is the one you
+   report).
 
 ## Exercises and exam tasks
 
@@ -102,13 +110,15 @@ topic and no item.
 After every graded item, append the result:
 
 ```bash
-uv run --frozen studykit progress log $0 --json-line '{"mode": "mc", "kind": "mc", "topic": "rc-filter", "item": "mc-rc-filter-003", "chosen": ["B"], "conf": "sure", "score": 0, "finding": "Phase des Hochpasses mit dem Tiefpass verwechselt"}'
+uv run --frozen studykit progress log $0 --json-line '{"mode": "mc", "kind": "mc", "topic": "rc-filter", "item": "mc-rc-filter-003", "chosen": ["A"], "conf": "sure", "finding": "Phase des Hochpasses mit dem Tiefpass verwechselt"}'
 ```
 
 - Fields: `mode`, `kind` (`mc`, `exercise`, `exam-task`, `oral`), `topic`, `item` (the id;
-  none for oral), `score` 0-1; MC only: `chosen`, `conf`; optional `points` with
-  `max_points` and a one-line `finding` in the course language naming the mistake (only
-  when something was wrong). `t` is added as now.
+  none for oral), `score` 0-1 (MC: leave it out, the command computes it from `chosen`);
+  MC only: `chosen`, `conf`; optional `points` with `max_points` and a one-line `finding`
+  in the course language naming the mistake (only when something was wrong). `t` is
+  added as now.
+- The command prints each logged item with its score; that is the score you report.
 - If the text has a single quote, pass the JSON line on stdin instead:
   `uv run --frozen studykit progress log $0 <<'EOF'` … `EOF`.
 - A rejected line (SK-PROGRESS-EXAMINER) is fixed and logged again; never skip it.
