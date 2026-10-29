@@ -408,12 +408,12 @@ def _add_pipeline_commands(sub) -> None:
 
 
 def cmd_pipeline_status(args: argparse.Namespace) -> int:
+    import re
+
     from studykit import model, pipeline
 
-    if not args.course or (
-        "/" not in args.course
-        and not __import__("re").fullmatch(model.PATTERNS["course"], args.course)
-    ):
+    as_path = "/" in args.course or Path(args.course).is_dir()
+    if not as_path and not re.fullmatch(model.PATTERNS["course"], args.course):
         print(f"error: {args.course!r} is not a course id or directory", file=sys.stderr)
         return 2
     result = pipeline.status(pipeline.resolve(args.course))
