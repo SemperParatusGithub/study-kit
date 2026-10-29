@@ -227,6 +227,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_hook.set_defaults(func=cmd_hook)
 
     _add_study_commands(sub)
+    _add_ingest_commands(sub)
 
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
@@ -297,6 +298,244 @@ def _add_study_commands(sub) -> None:
     p_status.add_argument("--today", type=_day, help="the day to report for (default: today)")
     p_status.add_argument("--json", action="store_true", help="machine-readable output")
     p_status.set_defaults(func=cmd_status)
+
+
+def _add_ingest_commands(sub) -> None:
+    """ingest and pipeline: the Python steps of /register-new-subject (§5.4)."""
+    kind_help = "a document's kind, DOC=KIND (DOC: id or path in the folder; repeatable)"
+    p_ing = sub.add_parser("ingest", help="scan, copy and read lecture material (§5.4)")
+    ing_sub = p_ing.add_subparsers(dest="ingest_command", metavar="<action>", required=True)
+
+    p_scan = ing_sub.add_parser(
+        "scan", help="inventory a folder of lecture PDFs (pages, text layer, kind, duplicates)"
+    )
+    p_scan.add_argument("folder", type=Path, help="the folder (or one file) to inventory")
+    p_scan.add_argument(
+        "--dry-run", action="store_true", help="accepted for clarity: scan never writes"
+    )
+    p_scan.add_argument("--kind", action="append", default=[], metavar="DOC=KIND", help=kind_help)
+    p_scan.add_argument("--today", type=_day, help="the day exam dates must follow")
+    p_scan.add_argument("--json", action="store_true", help="machine-readable output")
+    p_scan.set_defaults(func=cmd_ingest_scan)
+
+    p_init = ing_sub.add_parser(
+        "init",
+        help="copy the PDFs into courses/<id>/sources, write the manifest and a draft "
+        "course.yaml (resumes an existing course)",
+    )
+    p_init.add_argument("folder", type=Path, help="the folder with the lecture PDFs (only read)")
+    p_init.add_argument("course", help="the new course id, e.g. elektronik-1")
+    p_init.add_argument("--lang", choices=["de", "en"], help="content language (default: guessed)")
+    p_init.add_argument("--title", help="course title (default: the course id)")
+    p_init.add_argument("--short", help="short course name")
+    p_init.add_argument("--semester", help="e.g. 'WS 2026/27'")
+    p_init.add_argument(
+        "--exam-date", metavar="unknown|YYYY-MM-DD", type=_exam_day, help="round 1: exam date"
+    )
+    p_init.add_argument(
+        "--exam-format",
+        choices=["written", "written-mc", "mc", "oral"],
+        help="round 1: written, written with an MC part, MC only, oral",
+    )
+    p_init.add_argument(
+        "--cheatsheet",
+        type=int,
+        choices=[0, 1, 2, 3],
+        help="round 1: cheat-sheet pages allowed (0: none)",
+    )
+    p_init.add_argument("--hours-per-week", type=float, help="round 1: study hours per week")
+    p_init.add_argument("--exam-minutes", type=int, help="exam duration, if known")
+    p_init.add_argument("--exam-points", type=float, help="exam points, if known")
+    p_init.add_argument("--start", type=_day, help="first study day (default: today)")
+    p_init.add_argument("--kind", action="append", default=[], metavar="DOC=KIND", help=kind_help)
+    p_init.add_argument("--today", type=_day, help="the day recorded (default: today)")
+    p_init.add_argument("--dry-run", action="store_true", help="report, write nothing")
+    p_init.add_argument("--json", action="store_true", help="machine-readable output")
+    p_init.set_defaults(func=cmd_ingest_init)
+
+    p_ext = ing_sub.add_parser(
+        "extract", help="page text into sources/text and the chunk plan sources/chunks.yaml"
+    )
+    p_ext.add_argument("course", help="course id or directory")
+    p_ext.add_argument("--json", action="store_true", help="machine-readable output")
+    p_ext.set_defaults(func=cmd_ingest_extract)
+
+    p_add = ing_sub.add_parser(
+        "add", help="add new or changed PDFs to a course and extract them (/add-material)"
+    )
+    p_add.add_argument("course", help="course id or directory")
+    p_add.add_argument("source", type=Path, help="a PDF or a folder (only read)")
+    p_add.add_argument("--kind", action="append", default=[], metavar="DOC=KIND", help=kind_help)
+    p_add.add_argument("--today", type=_day, help="the day recorded (default: today)")
+    p_add.add_argument("--dry-run", action="store_true", help="report, write nothing")
+    p_add.add_argument("--json", action="store_true", help="machine-readable output")
+    p_add.set_defaults(func=cmd_ingest_add)
+
+    p_r2 = ing_sub.add_parser("round2", help="record the answers of ask round 2 (§5.4 step 6)")
+    p_r2.add_argument("course", help="course id or directory")
+    p_r2.add_argument("--mock-exams", type=int, choices=[1, 2, 3], required=True)
+    p_r2.add_argument(
+        "--scope",
+        choices=["full", "core"],
+        required=True,
+        help="core: summary, MC and plan first, the rest later",
+    )
+    p_r2.add_argument("--no-go", action="store_true", help="the user stopped the run here")
+    p_r2.add_argument("--today", type=_day, help="the day recorded (default: today)")
+    p_r2.add_argument("--json", action="store_true", help="machine-readable output")
+    p_r2.set_defaults(func=cmd_ingest_round2)
+
+
+def _exam_day(value: str) -> str:
+    return value if value == "unknown" else _day(value)
+
+
+def _ingest_out(result: dict, found, as_json: bool, text) -> int:
+    errors = [f for f in found if f.is_error]
+    if as_json:
+        out = {"ok": not errors, "findings": [f.to_dict() for f in found], **result}
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        for f in found:
+            print(f.format(), file=sys.stderr)
+        if result and not errors:
+            print(text(result))
+    return 1 if errors else 0
+
+
+def _ingest_call(fn, *args, **kwargs):
+    """(result, findings), or None after printing a usage error."""
+    from studykit import ingest
+
+    try:
+        return fn(*args, **kwargs)
+    except ingest.IngestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return None
+
+
+def _date_arg(value: str | None):
+    from datetime import date
+
+    return date.fromisoformat(value) if value else None
+
+
+def cmd_ingest_scan(args: argparse.Namespace) -> int:
+    from studykit import ingest
+
+    try:
+        kinds = ingest.parse_kinds(args.kind)
+    except ingest.IngestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    sc = ingest.scan(args.folder, kinds=kinds, today=_date_arg(args.today))
+    data = sc.to_json()
+    errors = [f for f in sc.findings if f.is_error]
+    if args.json:
+        print(json.dumps({"ok": not errors, **data}, ensure_ascii=False, indent=2))
+    else:
+        for f in sc.findings:
+            print(f.format(), file=sys.stderr)
+        print(ingest.format_scan(data))
+    return 1 if errors else 0
+
+
+def cmd_ingest_init(args: argparse.Namespace) -> int:
+    from studykit import ingest
+
+    try:
+        kinds = ingest.parse_kinds(args.kind)
+    except ingest.IngestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    got = _ingest_call(
+        ingest.init,
+        args.folder,
+        args.course,
+        lang=args.lang,
+        title=args.title,
+        short=args.short,
+        semester=args.semester,
+        exam_date=args.exam_date,
+        exam_format=args.exam_format,
+        cheatsheet=args.cheatsheet,
+        hours=args.hours_per_week,
+        duration=args.exam_minutes,
+        points=args.exam_points,
+        start=_date_arg(args.start),
+        kinds=kinds,
+        today=_date_arg(args.today),
+        dry_run=args.dry_run,
+    )
+    if got is None:
+        return 2
+    return _ingest_out(*got, args.json, lambda r: ingest.format_result(r, "init"))
+
+
+def cmd_ingest_extract(args: argparse.Namespace) -> int:
+    from studykit import ingest
+
+    try:
+        course = ingest.resolve(args.course)
+    except ingest.IngestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    got = _ingest_call(ingest.extract, course)
+    if got is None:
+        return 2
+    return _ingest_out(*got, args.json, lambda r: ingest.format_result(r, "extract"))
+
+
+def cmd_ingest_add(args: argparse.Namespace) -> int:
+    from studykit import ingest
+
+    try:
+        course = ingest.resolve(args.course)
+        kinds = ingest.parse_kinds(args.kind)
+    except ingest.IngestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    got = _ingest_call(
+        ingest.add,
+        course,
+        args.source,
+        kinds=kinds,
+        today=_date_arg(args.today),
+        dry_run=args.dry_run,
+    )
+    if got is None:
+        return 2
+    return _ingest_out(*got, args.json, lambda r: ingest.format_result(r, "add"))
+
+
+def cmd_ingest_round2(args: argparse.Namespace) -> int:
+    from studykit import ingest
+
+    try:
+        course = ingest.resolve(args.course)
+    except ingest.IngestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    got = _ingest_call(
+        ingest.round2,
+        course,
+        mock_exams=args.mock_exams,
+        scope=args.scope,
+        go=not args.no_go,
+        today=_date_arg(args.today),
+    )
+    if got is None:
+        return 2
+
+    def text(r: dict) -> str:
+        a = r["round2"]
+        return (
+            f"round 2 of {r['course']}: {a['mock_exams']} mock exam(s), scope {a['scope']}, "
+            f"{'go' if a['go'] else 'no-go'}"
+            + ("; course.yaml targets.mock_exams updated" if r["course_yaml_updated"] else "")
+        )
+
+    return _ingest_out(*got, args.json, text)
 
 
 def _print_findings(found, as_json: bool) -> None:

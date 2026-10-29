@@ -711,6 +711,39 @@ Fix: `studykit progress log <course> --json-line '{"mode": "mc", "kind": "mc", "
 source letters (A = the first option in the file; Kprim: the statements judged true), and
 a left-out `score` is computed.
 
+## Ingest (SK-INGEST, `studykit ingest`)
+
+`studykit ingest scan|init|add` report these at the file of the user's folder they concern
+(line 1, column 1). They are not validate stages. Only `SK-INGEST-FOLDER` and
+`SK-INGEST-COURSE` are errors, which stop the command before it writes anything; the
+warnings name files that are left out.
+
+### `SK-INGEST-FOLDER`
+**error.** The folder does not exist, or it (or the file given) holds no PDF at all.
+Fix: give the folder with the lecture material; export slides, scripts, sheets and exams
+as PDF first.
+
+### `SK-INGEST-UNSUPPORTED`
+**warning.** An office file (`.pptx`, `.docx`, `.odp`, `.key`, …) or an image (`.png`,
+`.jpg`, `.heic`, …) is not read.
+Fix: export the document as PDF (photos and scans: combine them into one PDF) and run
+`studykit ingest add <course> <file>`.
+
+### `SK-INGEST-DUPLICATE`
+**warning.** The PDF has the same content (sha256) as another one in the folder or a
+document the course already has; it is read once.
+Fix: nothing to do; delete the copy from the folder if it is not needed.
+
+### `SK-INGEST-PDF`
+**warning.** pypdfium2 cannot open the PDF: it is encrypted, damaged or not a PDF.
+Fix: remove the password or print the document to a new PDF, then add it again.
+
+### `SK-INGEST-COURSE`
+**error.** The draft `course.yaml` that `ingest init` would write does not validate, for
+example because of an empty title or a non-positive exam duration.
+Fix: correct the flag that feeds it (`--title`, `--exam-minutes`, `--exam-points`,
+`--hours-per-week`) and run `ingest init` again.
+
 ## Plan (SK-PLAN, `studykit plan`)
 
 `studykit plan` reports these at `course.yaml`; errors write no plan. A plan it writes is
