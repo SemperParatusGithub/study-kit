@@ -70,6 +70,9 @@ for (const scheme of ['light', 'dark'] as const) {
       }
       await expect(page.locator('.sk-quiz-result')).toBeVisible();
       await shot(page, `quiz-result-${scheme}`);
+      await page.getByRole('button', { name: /Retry mistakes/ }).click(); // a test-mode round
+      await answer(page.locator('.sk-quiz-stage sk-mc'), true, 'Sure');
+      await shot(page, `quiz-retry-${scheme}`, false);
     });
 
     test(`exercise ${scheme}`, async ({ page }) => {
