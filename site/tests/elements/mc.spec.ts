@@ -75,14 +75,29 @@ test('multi: all-or-nothing, and a sure wrong answer is a misconception', async 
   expect(entry).toMatchObject({ box: 0, due: await pageDay(page) });
   expect(entry.attempts[0]).toMatchObject({ chosen: ['A'], score: 0, conf: 'sure' });
 
-  // Try again: the next attempt is recorded on top
-  await mc.getByRole('button', { name: 'Try again' }).click();
-  await answer(mc, true, 'Unsure');
-  await mc.getByRole('button', { name: 'Check' }).click();
-  await expect(mc.locator('.sk-mc-feedback')).toContainText('Correct.');
+  // Try again after the solution was shown: practice only, the misconception stays
+  await page.evaluate(() => {
+    document.addEventListener('sk:answer', (e) => ((window as any).lastAnswer = (e as CustomEvent).detail));
+  });
+  for (let i = 0; i < 3; i++) {
+    await mc.getByRole('button', { name: 'Try again' }).click();
+    await expect(mc.locator('.sk-mc-note')).toContainText('Last time: wrong (sure), today · next review today.');
+    await answer(mc, true, 'Sure');
+    await mc.getByRole('button', { name: 'Check' }).click();
+    await expect(mc.locator('.sk-mc-feedback')).toContainText('Correct.');
+    await expect(mc.locator('.sk-mc-feedback')).toContainText('Practice answer: not recorded');
+    await expect(mc.locator('.sk-mc-note')).toBeHidden();
+  }
+  expect(await page.evaluate(() => (window as any).lastAnswer)).toMatchObject({ correct: true, recorded: false, box: null });
   const again = (await progress(page)).items['mc:mc-rc-tiefpass-002'];
-  expect(again.attempts.map((a: { score: number }) => a.score)).toEqual([0, 1]);
-  expect(again.box).toBe(1);
+  expect(again.attempts.map((a: { score: number }) => a.score)).toEqual([0]);
+  expect(again).toMatchObject({ box: 0, due: await pageDay(page) });
+  // after a reload the item is due again and counts normally
+  await page.reload();
+  await answer(mc, true, 'Sure');
+  await mc.getByRole('button', { name: 'Check' }).click();
+  await expect(mc.locator('.sk-mc-feedback')).toContainText('Correct. Next review tomorrow.');
+  expect((await progress(page)).items['mc:mc-rc-tiefpass-002']).toMatchObject({ box: 1, due: await pageDay(page, 1) });
 });
 
 test('a misconception names the day it comes back, also under the exam clamp', async ({ page }) => {

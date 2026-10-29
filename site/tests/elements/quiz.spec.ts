@@ -42,12 +42,26 @@ test('practice: feedback per question, result per topic with summary links', asy
   const items = (await progress(page)).items;
   expect(Object.keys(items).filter((k) => k.startsWith('mc:mc-rc-tiefpass-')).length).toBe(3);
 
+  // no "Try again" inside a quiz: the first answer is the quiz result
+  await expect(result.getByRole('button', { name: 'Try again' })).toHaveCount(0);
   // the review shows the answer, not a "Last time" note from before the quiz
   await expect(result.locator('.sk-mc-note')).toHaveCount(3);
   for (const note of await result.locator('.sk-mc-note').all()) await expect(note).toBeHidden();
 
+  // "Retry mistakes" re-asks what was just revealed: a practice round, nothing recorded
+  const before = (await progress(page)).items;
   await result.getByRole('button', { name: 'Retry mistakes (1)' }).click();
   await expect(q.locator('.sk-quiz-pos')).toHaveText('Question 1 of 1');
+  await expect(q.locator('.sk-quiz-practice')).toHaveText(
+    'Retry round: you have seen the solutions, so these answers are not recorded.');
+  const mc = current(page);
+  await answer(mc, true, 'Sure');
+  await mc.getByRole('button', { name: 'Check' }).click();
+  await expect(mc.locator('.sk-mc-feedback')).toContainText('Practice answer: not recorded');
+  await q.getByRole('button', { name: 'See result' }).click();
+  await expect(q.locator('.sk-quiz-meta')).toContainText('Retry round, not recorded · 1 of 1 answered');
+  await expect(q.locator('.sk-quiz-score')).toHaveText('1 / 1 points · 100 %');
+  expect((await progress(page)).items).toEqual(before);
 });
 
 test('N and Enter on the question move to the next one in practice', async ({ page }) => {

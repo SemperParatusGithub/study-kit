@@ -11,7 +11,10 @@
 //   mixed     every pool together, instant feedback
 // URL parameters: ?n=10&minutes=15&topics=a,b&difficulty=1,2 (or 1-3)&mode=… pre-fill the
 // start form. The result screen shows the score per topic, the time, the misconceptions
-// (sure but wrong) and links to the topic summaries. Every answer is recorded by <sk-mc>.
+// (sure but wrong) and links to the topic summaries. Every answer is recorded by <sk-mc>,
+// once: a question has no "Try again" inside a quiz, the first answer is the quiz result,
+// and "Retry mistakes" (after the solutions were shown) is a practice round that records
+// nothing.
 
 import { dayOf, effectiveDue, isDue } from '../lib/leitner.ts';
 import { randomSeed, shuffled } from '../lib/shuffle.ts';
@@ -104,6 +107,8 @@ export class SkQuiz extends HTMLElement {
   private startedAt = 0;
   private endedAt = 0;
   private deadline: number | null = null;
+  /** A "Retry mistakes" round: the solutions were shown, so nothing is recorded. */
+  private practiceRound = false;
   private timedOut = false;
   private timer: number | null = null;
   private screen: HTMLElement = h('div', { class: 'sk-quiz-screen' });
@@ -279,7 +284,7 @@ export class SkQuiz extends HTMLElement {
       e.preventDefault();
       const s = current();
       const picked = this.filtered(s);
-      this.begin(picked.slice(0, s.n ?? picked.length), this.mode === 'test' ? s.minutes : null);
+      this.begin(picked.slice(0, s.n ?? picked.length), this.mode === 'test' ? s.minutes : null, false);
     });
     update();
     this.screen.replaceChildren(
@@ -306,8 +311,9 @@ export class SkQuiz extends HTMLElement {
 
   // --- running ------------------------------------------------------------------------
 
-  private begin(list: PoolQuestion[], minutes: number | null): void {
+  private begin(list: PoolQuestion[], minutes: number | null, practiceRound: boolean): void {
     if (list.length === 0) return;
+    this.practiceRound = practiceRound;
     this.list = list;
     this.index = 0;
     this.items = [];
@@ -329,6 +335,10 @@ export class SkQuiz extends HTMLElement {
           this.posEl,
           h('span', { class: 'sk-quiz-bar', role: 'progressbar', 'aria-label': 'Progress', 'aria-valuemin': '0', 'aria-valuemax': String(list.length) }, this.bar),
           this.timeEl),
+        practiceRound
+          ? h('p', { class: 'sk-quiz-practice' },
+              'Retry round: you have seen the solutions, so these answers are not recorded.')
+          : null,
         this.stage,
         h('div', { class: 'sk-quiz-nav' }, end, this.nextBtn)),
     );
@@ -350,6 +360,8 @@ export class SkQuiz extends HTMLElement {
     }
     if (!el.hasAttribute('data-h') && q.h) el.setAttribute('data-h', q.h);
     el.setAttribute('data-mode', this.mode === 'test' ? 'deferred' : 'practice');
+    el.setAttribute('data-retry', 'false'); // one answer per question; "Retry mistakes" comes at the end
+    if (this.practiceRound) el.setAttribute('data-record', 'false');
     el.id ||= `q-${q.id}`;
     this.stage.replaceChildren(el);
     const mc = el as SkMc;
@@ -375,6 +387,7 @@ export class SkQuiz extends HTMLElement {
   }
 
   private onAnswer(e: CustomEvent<McAnswerDetail>): void {
+    if (this.results.has(e.detail.id)) return; // the first answer is the quiz result
     this.results.set(e.detail.id, e.detail);
     this.updateNext();
     if (this.mode !== 'test') this.nextBtn?.focus({ preventScroll: true });
@@ -479,7 +492,7 @@ export class SkQuiz extends HTMLElement {
     retry.hidden = wrong.length === 0;
     retry.addEventListener('click', () => {
       this.seed = randomSeed();
-      this.begin(shuffled(wrong, this.seed), null);
+      this.begin(shuffled(wrong, this.seed), null, true);
     });
     const again = h('button', { type: 'button', class: 'sk-btn sk-btn-primary' }, 'New quiz');
     again.addEventListener('click', () => {
@@ -494,7 +507,7 @@ export class SkQuiz extends HTMLElement {
         h('p', { class: 'sk-quiz-score' },
           h('strong', {}, `${pts(total)} / ${n}`), ` points · ${percent(n ? total / n : 0)}`),
         h('p', { class: 'sk-quiz-meta' },
-          `${INFO[this.mode].title} · ${answered} of ${n} answered · time ${duration(this.endedAt - this.startedAt)}`,
+          `${this.practiceRound ? 'Retry round, not recorded' : INFO[this.mode].title} · ${answered} of ${n} answered · time ${duration(this.endedAt - this.startedAt)}`,
           this.timedOut ? h('strong', {}, ' · time is up') : null),
         h('h3', {}, 'By topic'),
         h('table', { class: 'sk-quiz-topics' },

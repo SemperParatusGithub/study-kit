@@ -8,15 +8,19 @@
 //     <div class="sk-explanation" hidden>…</div>
 //   </sk-mc>
 // Optional attributes set by containers: data-mode="practice|deferred|exam" (default
-// practice), data-scoring (multi rule; else the nearest [data-mc-scoring]), data-record="false",
-// data-shuffle="false".
+// practice), data-scoring (multi rule; else the nearest [data-mc-scoring]),
+// data-record="false" (practice only: nothing is recorded), data-retry="false" (no "Try
+// again"), data-history="false" (no "Last time" note), data-shuffle="false".
 //
 // Options are shown in the mc.pdf order (shuffle.ts) with display letters A–F; answers are
 // stored by source key. Single → radio buttons, multi → checkboxes, Kprim → a true/false
 // pair per statement. "Sure" or "Unsure" is required before Check. Checking shows every
 // option's why and the explanation, records the attempt (Leitner) and emits `sk:answer`
-// (detail: McAnswerDetail). Keyboard: 1–6 choose (Kprim: cycle true/false), S/U sure or
-// unsure, Enter check, N next (`sk:next`, cancelable; otherwise focus the next question).
+// (detail: McAnswerDetail). Once the solution has been shown, "Try again" answers are
+// practice only: they are checked but not recorded, so they cannot lift a wrong or
+// misconceived item out of its box. Keyboard: 1–6 choose (Kprim: cycle true/false), S/U
+// sure or unsure, Enter check, N next (`sk:next`, cancelable; otherwise focus the next
+// question).
 
 import { dayOf, type Conf } from '../lib/leitner.ts';
 import { LETTERS, optionOrder } from '../lib/shuffle.ts';
@@ -62,6 +66,8 @@ export interface McAnswerDetail extends McSelection {
   ms: number;
   correct: boolean;
   misconception: boolean;
+  /** The attempt went into the progress store (Leitner); false for practice answers. */
+  recorded: boolean;
   box: number | null;
   due: string | null;
 }
@@ -105,6 +111,8 @@ export class SkMc extends HTMLElement {
   private note: HTMLElement | null = null;
   private explanation: HTMLElement | null = null;
   private startedAt: number | null = null;
+  /** The solution (whys, explanation) has been shown on this page. */
+  private seenSolution = false;
 
   get mode(): McMode {
     const m = this.dataset.mode;
@@ -118,8 +126,9 @@ export class SkMc extends HTMLElement {
     );
   }
 
+  /** Answers count for the review schedule: not in exams, not after the solution was shown. */
   private get records(): boolean {
-    return this.mode !== 'exam' && this.dataset.record !== 'false';
+    return this.mode !== 'exam' && this.dataset.record !== 'false' && !this.seenSolution;
   }
 
   connectedCallback(): void {
@@ -436,6 +445,7 @@ export class SkMc extends HTMLElement {
       ms: this.startedAt === null ? 0 : Date.now() - this.startedAt,
       correct: isCorrect(value),
       misconception: this.conf !== null && isMisconception(value, this.conf),
+      recorded: false,
       box: null,
       due: null,
     };
@@ -445,6 +455,7 @@ export class SkMc extends HTMLElement {
         { h: this.dataset.h ?? hashOf(this), chosen: sel.chosen, score: value, conf: this.conf, ms: detail.ms },
         { examDate: examDate() },
       );
+      detail.recorded = true;
       detail.box = r.review.box;
       detail.due = r.review.due;
     }
@@ -470,6 +481,7 @@ export class SkMc extends HTMLElement {
       ms: 0,
       correct: isCorrect(value),
       misconception: false,
+      recorded: false,
       box: null,
       due: null,
     };
@@ -517,6 +529,7 @@ export class SkMc extends HTMLElement {
     }
     if (this.explanation) this.explanation.hidden = false;
     if (this.note) this.note.hidden = true; // "Last time" describes the state before this answer
+    this.seenSolution = true;
     this.classList.add('is-checked');
     const verdict =
       r.correct ? 'Correct.' : r.score > 0 ? `Partly correct: ${pts(r.score)} of 1 point.` : 'Not correct.';
@@ -529,6 +542,9 @@ export class SkMc extends HTMLElement {
     } else if (r.due) {
       parts.push(`Next review ${relativeDay(r.due)}.`);
     }
+    if (!r.recorded && r.conf !== null) {
+      parts.push('Practice answer: not recorded, so your review schedule stays as it was.');
+    }
     if (this.feedback) {
       this.feedback.className = `sk-mc-feedback ${r.correct ? 'is-ok' : r.score > 0 ? 'is-partial' : 'is-bad'}`;
       this.feedback.replaceChildren(
@@ -537,13 +553,13 @@ export class SkMc extends HTMLElement {
         parts.join(' '),
       );
     }
-    if (this.mode === 'practice' && this.retryBtn) this.retryBtn.hidden = false;
+    if (this.mode === 'practice' && this.dataset.retry !== 'false' && this.retryBtn) this.retryBtn.hidden = false;
     if (this.contains(document.activeElement) || document.activeElement === document.body) {
       this.feedback?.focus({ preventScroll: true });
     }
   }
 
-  /** Clear the answer for another attempt. */
+  /** Clear the answer for another attempt (practice only: the solution has been seen). */
   reset(): void {
     this.result = null;
     this.conf = null;
@@ -572,6 +588,7 @@ export class SkMc extends HTMLElement {
     this.updateState();
     this.showHistory();
     this.opts[0]?.inputs[0]?.focus();
+    emit(this, 'sk:change', { id: this.qid, ...this.selection(), conf: this.conf, complete: false });
   }
 
   /** "Last time: …" or "Content changed since your attempt." */

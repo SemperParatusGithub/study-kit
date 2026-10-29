@@ -682,6 +682,15 @@ sk-quiz {
   margin-block: 0.5rem;
 }
 
+.sk-quiz-practice {
+  margin: 0.75rem 0 0;
+  padding: 0.45rem 0.85rem;
+  border-inline-start: 4px solid var(--ske-accent);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-accent-soft);
+  font-size: 0.95rem;
+}
+
 .sk-quiz-nav {
   display: flex;
   justify-content: space-between;
