@@ -134,6 +134,8 @@ def test_value_label():
     assert circuit.value_label("R_1", q) == r"$R_1 = 1\,\mathrm{k\Omega}$"
     assert circuit.value_label("R_1", q, stacked=True) == "$R_1$\n" + r"$1\,\mathrm{k\Omega}$"
     assert circuit.value_label("R_1", None) == "$R_1$"
+    assert circuit.value_label("R_1", circuit.quantity("R_1", "resistor")) == "$R_1$"
+    assert circuit.value_label("R_1", circuit.quantity("2R", "resistor")) == "$R_1 = 2R$"
     assert circuit.plain_name(r"U_\mathrm{e}") == "Ue"
 
 
