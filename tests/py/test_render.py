@@ -92,6 +92,21 @@ def test_index_change_invalidates_every_digest(mini: Path) -> None:
     assert all(second[rel]["digest"] != first[rel]["digest"] for rel in first)
 
 
+def test_course_limits_are_part_of_the_digest(mini: Path) -> None:
+    """cheatsheet.max_pages reaches the cheat sheet's schema check, not the index."""
+    sheet = mini / "cheatsheet.md"
+    sheet.write_text(sheet.read_text(encoding="utf-8").replace("max_pages: 1", "max_pages: 2"))
+    first = by_rel(render.render_course(mini))
+    assert first["cheatsheet.md"]["findings"] == []
+    known = {rel: row["digest"] for rel, row in first.items()}
+    course = mini / "course.yaml"
+    text = course.read_text(encoding="utf-8")
+    course.write_text(text.replace("max_pages: 2}", "max_pages: 1}"), "utf-8")
+    row = by_rel(render.render_course(mini, known=known))["cheatsheet.md"]
+    assert row["cached"] is False
+    assert [f["code"] for f in row["findings"]] == ["SK-SCHEMA-VALUE"]
+
+
 def test_every_module_the_bridge_loads_is_in_the_digest() -> None:
     """A studykit module that render imports, even indirectly, shapes what it returns."""
     script = (

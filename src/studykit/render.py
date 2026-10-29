@@ -8,9 +8,10 @@ instead of assembling pandoc arguments itself, so the argv stays in one place
 2. picks the files: overview, summary, exercise, mc, exam-mc, exam-task and cheatsheet are
    rendered to HTML, exam.yaml comes back as data only; `paths` narrows the selection;
 3. computes each file's digest: sha256 of a format tag, the pandoc version, the filter tree
-   (`pandoc/` plus this module and the studykit modules it imports), the index and the
-   file bytes. A file whose digest the caller already holds (`known`) comes back as
-   `cached` without running pandoc;
+   (`pandoc/` plus this module and the studykit modules it imports), the index, the
+   frontmatter validation context (topics and limits from course.yaml) and the file
+   bytes. A file whose digest the caller already holds (`known`) comes back as `cached`
+   without running pandoc;
 4. renders the rest with `pandoc.run_filtered(target="html")` in a thread pool.
 
 Output (`--json`), one document:
@@ -34,6 +35,7 @@ from __future__ import annotations
 import ast
 import datetime as dt
 import hashlib
+import json
 import os
 from collections.abc import Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -242,12 +244,14 @@ def render_course(
     tree = content.CourseTree(course_dir)
     index_file, data = index.write(tree)
     version = pandoc_version()
+    # The validation context carries course.yaml values the index does not hold
+    # (cheatsheet.max_pages); it also computes the shared context before the threads.
+    context = json.dumps(tree.context, sort_keys=True, default=str).encode()
     base = b"\0".join(
-        [FORMAT_TAG, version.encode(), tree_digest().encode(), index_file.read_bytes()]
+        [FORMAT_TAG, version.encode(), tree_digest().encode(), index_file.read_bytes(), context]
     )
     docs, skipped = _select(tree, paths)
     known = known or {}
-    tree.context  # noqa: B018 - compute the shared validation context before the threads
 
     def one(doc: content.Doc) -> dict[str, Any]:
         digest = file_digest(base, doc.path)
