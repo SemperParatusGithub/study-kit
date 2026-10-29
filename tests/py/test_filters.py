@@ -534,10 +534,10 @@ def test_html_refs_use_routes(workdir):
         assert snippet in html
 
 
-def test_exam_question_route(workdir):
-    body = "Siehe [Frage](mc:pk1-mc-01).\n"
+def test_source_link_without_a_page_opens_the_pdf(workdir):
+    body = "Siehe [Vorlesung](src:vl-05).\n"
     html = pandoc.convert(body, document("summary/02-rc-filter.md", workdir), "html")
-    assert 'href="/c/rc-netzwerke/exams/probeklausur-1/#pk1-mc-01"' in html
+    assert 'href="/c/rc-netzwerke/src/vl-05.pdf"' in html
 
 
 def test_typst_refs_link_inside_the_document_or_name_the_target(workdir):

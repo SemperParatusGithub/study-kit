@@ -4,8 +4,8 @@
 -- HTML:  <a class="sk-ref sk-ref-{kind}" href="{route}">text</a>, routes
 --          ex     /c/<c>/exercises/<id>/        mc     /c/<c>/mc/<topic>/#<id>
 --          topic  /c/<c>/summary/<topic>/       exam   /c/<c>/exams/<exam>/
---          src    /c/<c>/src/<doc>.pdf#page=<n>
---        (an mc question from exams/<exam>/mc.md links to /c/<c>/exams/<exam>/#<id>)
+--          src    /c/<c>/src/<doc>.pdf#page=<n>   (src:<doc> alone: the PDF, no page)
+--        mc: links only reach practice-bank questions; exam questions are not linkable.
 -- Typst: a link when the target is a label in this document, otherwise the text plus
 --        „(→ Übung: Titel)“.
 -- Other links: http(s) and mailto stay as they are; bare URLs and every other target
@@ -99,7 +99,12 @@ function M.resolve(scheme, rest, ctx)
   end
   local exam = type(item.path) == 'string' and item.path:match('^exams/([^/]+)/') or nil
   if exam then
-    return { route = base .. 'exams/' .. exam .. '/#' .. rest, title = title, anchor = rest }
+    local info = idx.exams[exam]
+    local exam_title = type(info) == 'table' and type(info.title) == 'string' and info.title or exam
+    return fail(
+      'question `' .. rest .. '` belongs to exam `' .. exam .. '`, not to a practice bank',
+      'link the exam instead: [' .. exam_title .. '](exam:' .. exam .. ')'
+    )
   end
   if type(item.topic) ~= 'string' then
     return fail('question `' .. rest .. '` has no topic in the index', 'rebuild the index')

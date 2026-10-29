@@ -92,7 +92,7 @@ tau = 3.3e3 * 47e-9
 ```
 
 Verweise: [Übung](ex:ex-rc-tp-grenzfrequenz), [Thema](topic:gleichstrom),
-[Frage](mc:mc-rc-filter-003), [Klausurfrage](mc:pk1-mc-01), [Klausur](exam:probeklausur-1),
+[Frage](mc:mc-rc-filter-003), [Klausur](exam:probeklausur-1),
 [Vorlesung](src:vl-05) und [extern](https://example.org).
 
 # sk-file: exercises/rc-filter/ex-rc-tp-grenzfrequenz.md
