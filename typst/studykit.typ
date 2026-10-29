@@ -405,12 +405,12 @@
   text(size: 0.82em, weight: "regular", link(back, label))
 }
 
+// An entry stays on one page unless it is long (a solution with a figure).
 #let sk-appendix-entry(title: none, back: none, back-label: [↑], body) = block(
   width: 100%,
-  breakable: true,
   above: 1.5em,
   below: 1.2em,
-  {
+  sk-keep(limit: 35%, {
     block(below: 0.7em, sticky: true, {
       set par(justify: false)
       text(weight: "bold", size: 1.05em, title)
@@ -419,7 +419,7 @@
       line(length: 100%, stroke: 0.4pt + sk-rule)
     })
     body
-  },
+  }),
 )
 
 // One hint inside an appendix entry: the label in a narrow column, the hint beside it.
@@ -545,7 +545,7 @@
   labels: sk-default-labels,
   back: none,
   back-label: [↑],
-) = block(width: 100%, breakable: true, above: 1.4em, below: 1.2em, {
+) = block(width: 100%, above: 1.4em, below: 1.2em, sk-keep(limit: 35%, {
   block(below: 0.65em, sticky: true, {
     set par(justify: false)
     text(weight: "bold", if title != none { title } else { id })
@@ -556,7 +556,7 @@
     line(length: 100%, stroke: 0.4pt + sk-rule)
   })
   sk-mcq-answer(type: type, options: options, explanation: explanation, labels: labels)
-})
+}))
 
 // The key at a glance: number, answer and id of every question in the appendix.
 #let sk-key-table(labels: sk-default-labels, rows: ()) = {
