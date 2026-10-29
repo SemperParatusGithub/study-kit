@@ -1456,22 +1456,24 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
 
 | Stage | Checks | Code |
 |---|---|---|
-| Structure | required files (`overview.md`, `plan.yaml` and an allowed `cheatsheet.md` are warnings until `--release`), known file paths, ID patterns and file names, unique and non-retired IDs, acyclic prerequisites, topics ⊆ course topics, the six overview sections, exam points add up | SK-STRUCT |
-| Schema | pydantic validation of YAML and frontmatter; scalar-style lint; control characters; label and rubric fields are text plus inline math only | SK-SCHEMA, SK-YAML |
+| Structure | required files (`overview.md`, `plan.yaml` and an allowed `cheatsheet.md` are warnings until `--release`), known file paths, ID patterns and file names, unique and non-retired IDs, acyclic prerequisites, topics ⊆ course topics, the six overview sections, exam points add up, a ready course without the placeholder topic `draft` | SK-STRUCT |
+| Schema | pydantic validation of YAML and frontmatter (the ingest files too); scalar-style lint; control characters; label and rubric fields are text plus inline math only; the exam profile's shares add up to 1 | SK-SCHEMA, SK-YAML |
 | Fences | line scan outside code: exact fence forms, allowed placement, depth, blank lines, hint and solution count, code languages; `\|` on pipe-table rows; line-end hyphens (warning) | SK-BLOCK |
 | MC | option counts per type, `[x]` invariants, a `why` on every option, one explanation, `pin-last` rule, no "all of the above", no option letters, bank-bias warnings | SK-MCQ |
 | Math | denylist and environment allowlist; KaTeX strict via `check-math.mjs` (skipped with a note without `site/node_modules`); inline and display form; block markers; space commands between digits; hint-leak warning | SK-MATH |
-| References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and MC file, `modeled_on` and frontmatter source documents, archetypes, `src:` pages | SK-REF |
+| References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and MC file, `modeled_on` and frontmatter source documents, archetypes, `src:` pages; chunk notes against `sources/chunks.yaml` and the chunk plan against the manifest, the profile's exams and topics | SK-REF |
 | Pandoc | the Lua filter set with the json target, on files the stages above left without errors; also with `--quick`, then at file scope (targets missing from the index are not reported). The filter reports family-plus-rule codes: the code validate uses for a rule both check (e.g. SK-REF-FIGURE), and SK-BLOCK-RAW, SK-BLOCK-MARKDOWN, SK-REF-LINK and SK-MATH-TYPST for rules only it checks; a failure without a finding is SK-PANDOC-FAIL | SK-* |
 | Figures | build (cached) plus SVG validation; unreferenced scripts (warning) | SK-FIG |
 | Verification | reads the ledger (§2.10) and runs no checks (`studykit verify` does): a broken entry (SK-VER-LEDGER, error), a disputed item (SK-VER-DISPUTED, warning, error with `--release`), quarantined and stale items (SK-VER-QUARANTINED, SK-VER-STALE, warnings), and on a whole course (not with `--paths`) ledgers and check files of unknown ids (SK-VER-ORPHAN, warning; `<id>.<tag>.*` and `sum-*` are not orphans); with `--release` every unverified item (SK-VER-UNVERIFIED) and every numeric MC question without `checks/<id>.py` (SK-VER-CHECK), both warnings. The note counts verified, disputed, quarantined and stale items | SK-VER |
 | PDF | every full validate, not `--quick` or `lint`: builds the course's PDFs into `_build/pdf` as `studykit pdf` does, manifest included, but without building figures (the Figures stage did); cached, so only documents whose inputs changed rebuild; with `--paths` only the documents made from those files. Every document compiles with no Typst or pandoc warning, and the cheat sheet fits its limit; a filter finding in a document keeps its own code; the note reports how many PDFs are ready and the cheat sheet's pages and density. A Typst diagnostic is reported at the file and line of the course item (exercise, question, task, chapter) it points into, else at the file that defines the document, else `course.yaml`; an overflow at the cheat sheet's `max_pages`. Skipped with a note when PDF building is turned off (`Config.pdf`, for tests), pandoc or typst is missing, the course is outside the repository, or an earlier stage found errors | SK-PDF-COMPILE, SK-PDF-WARNING, SK-PDF-CHEATSHEET, SK-PDF-BUILD |
 | Site | `--release` only, for whole courses (not with `--paths`), and only when the stages above found no errors: strict `astro build` into a temporary `--outDir` with `STUDYKIT_COURSES_DIR` set to a temporary directory that holds one symlink to the course; Pagefind with `--force-language`; `pnpm -C site check` without `STUDYKIT_STRICT`; `check-links` over the course's own pages, reported as `dist/<page>` | SK-SITE |
-| Coverage | `--release` only: the overview links every topic; each topic has a summary, at least `targets.exercises_per_topic` (4 with `auto`) exercises over two or more difficulties, and at least `targets.mc_per_topic` MC questions (with `auto`: 10–25 by weight); a bank lacking a type of `course.exam.mc.types` (warning); at least `targets.mock_exams` mock exams, each within ±10% of the points and time in `course.yaml: exam` | SK-COV |
+| Coverage | `--release` only: the overview links every topic; each topic has a summary, at least `targets.exercises_per_topic` (4 with `auto`) exercises over two or more difficulties, and at least `targets.mc_per_topic` MC questions (with `auto`: 10–25 by weight); a bank lacking a type the exam uses (warning: a type with a share in the profile's `mc.type_mix`, else every type, limited to `course.exam.mc.types`); at least `targets.mock_exams` mock exams, each within ±10% of the points and time in `course.yaml: exam` | SK-COV |
 
-Two families are not stages: `studykit progress` reports SK-PROGRESS (an export, the merged
-state or an examiner result that does not validate) and `studykit plan` SK-PLAN (§2.9,
-§2.11); both write nothing while one is an error. The lint hook (`studykit lint --hook`,
+Three families are not stages: `studykit progress` reports SK-PROGRESS (an export, the merged
+state or an examiner result that does not validate), `studykit plan` SK-PLAN (§2.9,
+§2.11) and `studykit ingest scan|init|add` SK-INGEST (§5.4: a folder without PDFs, office
+files and images, duplicates, unreadable PDFs, a draft `course.yaml` that would not
+validate); each writes nothing while one is an error. The lint hook (`studykit lint --hook`,
 §5.1) shows errors and warnings of the quick stages on every Write or Edit of a course file.
 
 ### 4.4 Tests
@@ -1498,7 +1500,9 @@ state or an examiner result that does not validate) and `studykit plan` SK-PLAN 
     profile; `pipeline status` reports the right resume point for a course at each step
     (an interrupted reading wave, changed material, a damaged extract, the core scope)
     and on a copy of the sample course, and `pipeline report` proves step 14 until the
-    content changes
+    content changes; `examples/sample-materials` builds and scans as expected (kinds
+    from the file names, the circuit slides and the scan as visual pages, the exam date on
+    the last slide)
   - verification on copies of the sample course: `calc` (exact, complex, units, a parser
     that rejects Python), blind views without keys, solutions or marks (`test_blind.py`),
     the runner and ledger (`test_verify.py`: a correct item verifies, a seeded wrong number
@@ -1520,9 +1524,15 @@ state or an examiner result that does not validate) and `studykit plan` SK-PLAN 
     when typed, the agents' model, effort, turns, tools and preloaded skills, only the
     verifier with a hook); every file, repository path, `studykit` command and flag, `just`
     recipe and SK code that a skill or an agent names exists (in `CLAUDE.md` too: paths,
-    commands and recipes); the check-script
+    commands and recipes), and each command's `allowed-tools` cover the shell commands it
+    writes out; the check-script
     recipes run and pass the verifier guard; every content-format template passes lint in a
-    copy of the sample course; `settings.json` has the attribution, permissions and hooks
+    copy of the sample course, and the ingest templates (notes, both exam profiles,
+    notation) validate in a draft course; `/register-new-subject` has the steps 0–14 of
+    `pipeline status` in order, with a gate on each step's status from step 2 on, and asks rounds 1 and 2 as §5.4
+    says; both ingest commands cap agents at 6, read `pipeline status`, judge by files and never
+    touch the user's folder; `/add-material` quotes the rebuild dependencies of §5.4
+    verbatim; `settings.json` has the attribution, permissions and hooks
     of §5.1, and the hook commands run as Claude Code runs them (the lint hook catches a
     broken fence from any directory, pre-git denies a forced add, the guard keeps the
     verifier blind)
