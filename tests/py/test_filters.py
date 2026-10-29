@@ -503,6 +503,24 @@ def test_html_mcq_contract(workdir):
     ]
 
 
+@pytest.mark.parametrize("target", TARGETS)
+def test_bare_urls_split_by_sourcepos_are_found(target, workdir):
+    """+sourcepos splits `https://b.de` into Strs at every punctuation mark."""
+    body = "Text.\n\nSiehe https://b.de und www.c.de hier, (https://d.de/x).\n"
+    with pytest.raises(pandoc.FilterError) as info:
+        pandoc.convert(body, document("summary/02-rc-filter.md", workdir), target)
+    found = {
+        (m["line"], m["col"], m["message"].split(" (fix:")[0])
+        for f in info.value.findings
+        if (m := pandoc.FINDING.match(f))
+    }
+    want = {("3", "7", "bare URL https://b.de"), ("3", "24", "bare URL www.c.de")}
+    want.add(("3", "40", "bare URL https://d.de/x"))
+    if target != "json":
+        want = {("0", "0", message) for _, _, message in want}
+    assert found == want
+
+
 def test_html_refs_use_routes(workdir):
     body = pandoc.blank_frontmatter((OK / "summary/02-rc-filter.md").read_text(encoding="utf-8"))
     html = pandoc.convert(body, document("summary/02-rc-filter.md", workdir), "html")

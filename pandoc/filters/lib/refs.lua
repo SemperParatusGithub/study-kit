@@ -151,10 +151,36 @@ function M.link(el, ctx, W)
   return out
 end
 
---- Bare URLs in running text.
-function M.str(el, ctx)
-  if el.text:match('^https?://') or el.text:match('^www%.') then
-    ctx:fail('SK-REF', 'bare URL ' .. el.text, 'write [descriptive text](' .. el.text .. ')')
+--- Bare URLs in running text. `leaves` is an inline list with sourcepos wrappers spliced
+--- away ({el, pos} each, from W.leaves). A URL can span several Str elements (+sourcepos
+--- splits `https://b.de` at every punctuation mark), so each run of adjacent Strs is
+--- joined and searched as one word.
+function M.bare_urls(leaves, ctx)
+  local i = 1
+  while i <= #leaves do
+    if leaves[i].el.t ~= 'Str' then
+      i = i + 1
+    else
+      local parts, starts, j, len = {}, {}, i, 0
+      while leaves[j] and leaves[j].el.t == 'Str' do
+        starts[j] = len + 1
+        table.insert(parts, leaves[j].el.text)
+        len = len + #leaves[j].el.text
+        j = j + 1
+      end
+      local text = table.concat(parts)
+      local at = text:find('https?://') or text:find('%f[%w]www%.[%w-]')
+      if at then
+        local url = text:sub(at):gsub('[%.,;:!%?%)%]}"\'»“”]+$', '')
+        local k = i
+        while k + 1 < j and starts[k + 1] <= at do
+          k = k + 1
+        end
+        local href = url:match('^www%.') and ('https://' .. url) or url
+        ctx:fail('SK-REF', 'bare URL ' .. url, 'write [descriptive text](' .. href .. ')', leaves[k].pos)
+      end
+      i = j
+    end
   end
 end
 

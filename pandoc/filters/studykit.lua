@@ -315,6 +315,20 @@ function W.unwrap(blks, pos, out)
   return out
 end
 
+--- Inlines with wrapper Spans spliced away: a list of {el = inline, pos = "l:c" | nil}.
+function W.leaves(inls, pos, out)
+  out = out or {}
+  for _, el in ipairs(inls) do
+    local p = W.pos_of(el) or pos
+    if W.is_wrapper(el) then
+      W.leaves(el.content, p, out)
+    else
+      table.insert(out, { el = el, pos = p })
+    end
+  end
+  return out
+end
+
 --- Inlines with wrapper Spans spliced away (recursively).
 function W.flatten(inls)
   local out = pandoc.Inlines({})
@@ -338,18 +352,25 @@ function W.with_pos(ctx, p, fn)
   return result
 end
 
-function W.inlines(inls, ctx)
+local function walk_inlines(inls, ctx)
   local out = pandoc.Inlines({})
   for _, el in ipairs(inls) do
     W.with_pos(ctx, W.pos_of(el), function()
       if W.is_wrapper(el) then
-        out:extend(W.inlines(el.content, ctx))
+        out:extend(walk_inlines(el.content, ctx))
       else
         out:extend(W.inline(el, ctx))
       end
     end)
   end
   return out
+end
+
+--- Walk an inline list. Text checks that span several Str elements (+sourcepos splits
+--- words at punctuation) run here on the list as a whole.
+function W.inlines(inls, ctx)
+  refs.bare_urls(W.leaves(inls), ctx)
+  return walk_inlines(inls, ctx)
 end
 
 function W.inline(el, ctx)
@@ -364,7 +385,6 @@ function W.inline(el, ctx)
     guard.note(el, ctx)
     return {}
   elseif t == 'Str' then
-    refs.str(el, ctx)
     return { el }
   elseif t == 'Span' then
     guard.span(el, ctx)
