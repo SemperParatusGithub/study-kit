@@ -34,8 +34,15 @@ const prev = siblings[at - 1];
 const next = siblings[at + 1];
 const hasSummary = course.summaries.some((s) => s.data.topic === topicId);
 const RELATION: Record<string, string> = { original: 'From', adapted: 'Adapted from', inspired: 'Inspired by' };
+// The source document opens at its page when the site serves it (/c/<c>/src/<doc>.pdf).
 const source = fm.source
-  ? `${RELATION[fm.source.relation] ?? 'From'} ${sourceTitle(c, fm.source.doc)}${fm.source.page ? `, p. ${fm.source.page}` : ''}`
+  ? {
+      relation: RELATION[fm.source.relation] ?? 'From',
+      text: `${sourceTitle(c, fm.source.doc)}${fm.source.page ? `, p. ${fm.source.page}` : ''}`,
+      href: course.sources.some((d) => d.id === fm.source?.doc)
+        ? route.source(c, fm.source.doc, fm.source.page)
+        : null,
+    }
   : null;
 const KIND: Record<string, string> = {
   compute: 'Compute',
@@ -73,7 +80,20 @@ const KIND: Record<string, string> = {
         <Difficulty value={fm.difficulty} label />
         {fm.minutes && <span>about {fm.minutes} min</span>}
         {fm.kind && <span class="badge">{KIND[fm.kind] ?? fm.kind}</span>}
-        {source && <span lang={course.lang}>{source}</span>}
+        {
+          source && (
+            <span lang={course.lang}>
+              {source.relation}{' '}
+              {source.href ? (
+                <a class="sk-ref sk-ref-src" href={source.href}>
+                  {source.text}
+                </a>
+              ) : (
+                source.text
+              )}
+            </span>
+          )
+        }
       </p>
     </header>
 

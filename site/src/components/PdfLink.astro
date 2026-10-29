@@ -1,0 +1,45 @@
+---
+// A download link to one built PDF (lib/pdf.ts): "PDF · 4 pages · 120 kB". Renders nothing
+// when the document is not built. Its text is English UI (the caller's container sets the
+// lang); print hides it (print.css) and Pagefind skips it.
+import type { Course } from '../lib/courses';
+import { pdfHref, pdfMeta, type PdfDoc } from '../lib/pdf';
+
+interface Props {
+  course: Course;
+  doc: PdfDoc | null | undefined;
+  /** The visible name, e.g. "PDF with solutions". */
+  label?: string;
+  /** Show the page count (the cheat sheet shows it in its own badge). */
+  pages?: boolean;
+}
+
+const { course, doc, label = 'PDF', pages = true } = Astro.props;
+---
+
+{
+  doc && (
+    <a
+      class="pdf-link"
+      href={pdfHref(course.id, doc.file)}
+      download={`${course.id}-${doc.file}`}
+      type="application/pdf"
+      data-sk-pdf={doc.kind}
+      data-pages={doc.pages}
+      data-bytes={doc.bytes}
+      data-pagefind-ignore
+    >
+      <svg class="pdf-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <path
+          d="M8 2v8m-3.25-3.25L8 10l3.25-3.25M3 11.5v1A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-1"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <span class="pdf-label">{label}</span><span class="pdf-meta">{` · ${pdfMeta(doc, pages)}`}</span>
+    </a>
+  )
+}

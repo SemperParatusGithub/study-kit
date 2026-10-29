@@ -1,11 +1,14 @@
 ---
 // Cheat sheet in CSS columns, with the page count of the built PDF against its limit
-// (min(3, course.cheatsheet.max_pages, frontmatter max_pages), docs/architecture.md §3.3).
+// (min(3, course.cheatsheet.max_pages, frontmatter max_pages), docs/architecture.md §3.3):
+// both come from _build/pdf/manifest.json once the PDF is built.
 import Base from '../../../layouts/Base.astro';
 import Html from '../../../components/Html.astro';
+import PdfLink from '../../../components/PdfLink.astro';
 import SearchTags from '../../../components/SearchTags.astro';
-import { coursePaths, pdfPages, type Course } from '../../../lib/courses';
+import { coursePaths, type Course } from '../../../lib/courses';
 import { sectionize } from '../../../lib/html';
+import { densityPt, findPdf } from '../../../lib/pdf';
 import type { CheatsheetFm } from '../../../lib/types';
 
 export const getStaticPaths = coursePaths;
@@ -15,9 +18,10 @@ const c = course.id;
 const en = course.lang === 'en' ? undefined : 'en';
 const doc = course.cheatsheet;
 const fm = (doc?.data.fm ?? {}) as Partial<CheatsheetFm>;
-const max = Math.min(3, course.data.cheatsheet.max_pages, fm.max_pages ?? 3);
-const pages = doc ? pdfPages(c, 'cheatsheet') : null;
-const over = pages !== null && pages > max;
+const pdf = doc ? findPdf(course.pdfs, 'cheatsheet') : null;
+const max = pdf?.maxPages ?? Math.min(3, course.data.cheatsheet.max_pages, fm.max_pages ?? 3);
+const over = pdf !== null && pdf.pages > max;
+const pt = densityPt(pdf?.density);
 ---
 
 <Base title={doc?.data.title ?? 'Cheat sheet'} course={course} tab="cheatsheet">
@@ -28,22 +32,28 @@ const over = pages !== null && pages > max;
     </div>
     {
       doc && (
-        <p class="cs-badges" lang={en}>
-          {pages === null ? (
+        <div class="cs-badges" lang={en}>
+          {pdf === null ? (
             <span class="badge" data-sk-pdf-pages data-max={max} title={`Build it with: just pdf ${c}`}>
               PDF not built yet · limit {max} {max === 1 ? 'page' : 'pages'}
             </span>
           ) : (
-            <span
-              class:list={['badge', over ? 'badge-warn' : 'badge-accent']}
-              data-sk-pdf-pages
-              data-max={max}
-              data-pages={pages}
-            >
-              PDF ({pages}/{max} {max === 1 ? 'page' : 'pages'}){over && ' · over the limit'}
-            </span>
+            <>
+              <PdfLink course={course} doc={pdf} pages={false} />
+              <span
+                class:list={['badge', over ? 'badge-warn' : 'badge-accent']}
+                data-sk-pdf-pages
+                data-max={max}
+                data-pages={pdf.pages}
+                data-density={pdf.density ?? undefined}
+                title={pt ? `Set in ${pt} pt (density ${pdf.density} of 0–4)` : undefined}
+              >
+                {pdf.pages} / {max} {max === 1 ? 'page' : 'pages'}
+                {over && ' · over the limit'}
+              </span>
+            </>
           )}
-        </p>
+        </div>
       )
     }
   </div>
@@ -79,6 +89,10 @@ const over = pages !== null && pages > max;
   }
 
   .cs-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
     margin: 0;
   }
 

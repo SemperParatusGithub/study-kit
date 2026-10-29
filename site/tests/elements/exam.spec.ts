@@ -187,6 +187,41 @@ test('submit: solutions open, rubric grading, MC auto-scored, result saved', asy
   expect((await progress(page)).items['exam:probeklausur-1'].attempts).toHaveLength(1);
 });
 
+test('the solutions PDF in the page head comes out with the solutions, not before', async ({ page }) => {
+  await page.goto('/exam.html');
+  const link = page.getByRole('link', { name: 'Solutions PDF', exact: true });
+  const other = page.getByRole('link', { name: 'Other solutions PDF' });
+  await expect(page.getByRole('link', { name: 'Exam PDF' })).toBeVisible();
+  await expect(exam(page).getByRole('button', { name: 'Start exam' })).toBeVisible();
+  await expect(link).toBeHidden();
+
+  await exam(page).getByRole('button', { name: 'Start exam' }).click();
+  await expect(page.locator('.sk-exam-clock')).toBeVisible();
+  await expect(link).toBeHidden();
+  await page.goto('/exam.html'); // still running after a reload
+  await expect(page.locator('.sk-exam-clock')).toBeVisible();
+  await expect(link).toBeHidden();
+
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  await expect(link).toBeVisible();
+  await expect(other).toBeHidden();
+  await page.reload();
+  await expect(exam(page).getByRole('heading', { name: 'Result' })).toBeVisible();
+  await expect(link).toBeVisible();
+
+  await exam(page).getByRole('button', { name: 'Retake exam' }).click();
+  await expect(exam(page).getByRole('button', { name: 'Start exam' })).toBeVisible();
+  await expect(link).toBeHidden();
+});
+
+test('time-up shows the solutions PDF too', async ({ page }) => {
+  await start(page);
+  await elapse(page, 61);
+  await expect(exam(page).getByRole('heading', { name: 'Result' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Solutions PDF', exact: true })).toBeVisible();
+});
+
 test('Start and the task links end with the part heading below the sticky bar', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 500 });
   await page.addInitScript(() => {

@@ -3,6 +3,7 @@
 import Base from '../../../layouts/Base.astro';
 import Html from '../../../components/Html.astro';
 import NextSession from '../../../components/NextSession.astro';
+import PdfLinks from '../../../components/PdfLinks.astro';
 import SearchTags from '../../../components/SearchTags.astro';
 import { coursePaths, route, type Course } from '../../../lib/courses';
 import {
@@ -14,6 +15,7 @@ import {
   plural,
   todayIso,
 } from '../../../lib/format';
+import { findPdf } from '../../../lib/pdf';
 
 export const getStaticPaths = coursePaths;
 
@@ -33,6 +35,7 @@ const firstSummary = course.summaries[0];
       {course.short}{course.data.semester && ` · ${course.data.semester}`}
     </p>
     <h1>{course.title}</h1>
+    <PdfLinks course={course} items={[{ doc: findPdf(course.pdfs, 'overview') }]} />
   </div>
 
   <section class="today" aria-labelledby="today-title" lang={en}>

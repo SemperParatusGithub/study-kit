@@ -3,6 +3,7 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
 import type { DocData, ExamFm } from './types';
 import { renderLabel } from './katex';
+import { pdfHref, readPdfs, readSources, sourceHref, type PdfDoc, type SourceDoc } from './pdf';
 import type { CourseInfo } from './stats.ts';
 import { coursesDir, joinPath, readJson } from './sys.mjs';
 
@@ -27,6 +28,8 @@ export const route = {
   exams: (c: string) => `/c/${c}/exams/`,
   exam: (c: string, id: string) => `/c/${c}/exams/${id}/`,
   progress: (c: string) => `/c/${c}/progress/`,
+  pdf: pdfHref,
+  source: sourceHref,
 };
 
 export interface Topic {
@@ -66,6 +69,10 @@ export interface Course {
   exams: Exam[];
   plan: PlanData | null;
   mastery: Record<string, unknown> | null;
+  /** Built PDFs from _build/pdf/manifest.json (lib/pdf.ts); empty until they are built. */
+  pdfs: PdfDoc[];
+  /** Source documents (sources/raw) the site serves. */
+  sources: SourceDoc[];
 }
 
 const cache = new Map<string, Promise<Course>>();
@@ -144,6 +151,11 @@ async function build(id: string): Promise<Course> {
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const titles = new Map(topics.map((t) => [t.id, t.title]));
+  // Dev keeps a page's props (this course) until content changes, and PDFs are built while
+  // it runs: there the getters below read them again on every render.
+  const live = !import.meta.env.PROD;
+  const pdfs = live ? [] : readPdfs(id);
+  const sources = live ? [] : readSources(id);
   return {
     id,
     data,
@@ -162,6 +174,12 @@ async function build(id: string): Promise<Course> {
     exams,
     plan,
     mastery,
+    get pdfs() {
+      return live ? readPdfs(id) : pdfs;
+    },
+    get sources() {
+      return live ? readSources(id) : sources;
+    },
   };
 }
 
@@ -269,17 +287,4 @@ export function sourceTitle(courseId: string, doc: string): string {
     sources?: Record<string, { title?: string }>;
   } | null;
   return index?.sources?.[doc]?.title ?? doc;
-}
-
-/** Page count of a built PDF from _build/pdf/manifest.json (Phase 4), if it exists. */
-export function pdfPages(courseId: string, name: string): number | null {
-  const manifest = readJson(joinPath(coursesDir(), courseId, '_build', 'pdf', 'manifest.json'));
-  if (!manifest || typeof manifest !== 'object') return null;
-  const m = manifest as Record<string, unknown>;
-  const entry = (m[`${name}.pdf`] ?? m[name] ?? (m.documents as Record<string, unknown> | undefined)?.[name]) as
-    | { pages?: unknown }
-    | number
-    | undefined;
-  const pages = typeof entry === 'number' ? entry : entry?.pages;
-  return typeof pages === 'number' ? pages : null;
 }

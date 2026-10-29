@@ -1,0 +1,35 @@
+---
+// A row of PDF download links for a page head (components/PdfLink.astro). Renders nothing
+// when none of the documents is built, so a course without PDFs shows no trace of them.
+// Extra links that need their own wrapper go into the slot.
+import type { Course } from '../lib/courses';
+import type { PdfDoc } from '../lib/pdf';
+import PdfLink from './PdfLink.astro';
+
+interface Item {
+  doc: PdfDoc | null | undefined;
+  label?: string;
+}
+
+interface Props {
+  course: Course;
+  items: Item[];
+  /** Built documents the slot links (they count for whether the row is shown). */
+  extra?: (PdfDoc | null | undefined)[];
+}
+
+const { course, items, extra = [] } = Astro.props;
+const shown = items.filter((i) => i.doc);
+const en = course.lang === 'en' ? undefined : 'en';
+---
+
+{
+  (shown.length > 0 || extra.some(Boolean)) && (
+    <div class="pdf-links" lang={en} data-pagefind-ignore>
+      {shown.map((i) => (
+        <PdfLink course={course} doc={i.doc} label={i.label} />
+      ))}
+      <slot />
+    </div>
+  )
+}

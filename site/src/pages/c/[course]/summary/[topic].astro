@@ -4,10 +4,12 @@
 import Base from '../../../../layouts/Base.astro';
 import Difficulty from '../../../../components/Difficulty.astro';
 import Html from '../../../../components/Html.astro';
+import PdfLinks from '../../../../components/PdfLinks.astro';
 import QuizSlot from '../../../../components/QuizSlot.astro';
 import SearchTags from '../../../../components/SearchTags.astro';
 import Toc from '../../../../components/Toc.astro';
 import { labelHtml, listCourses, route, sourceTitle, type Course, type Doc } from '../../../../lib/courses';
+import { findPdf, firstPage } from '../../../../lib/pdf';
 import type { SummaryFm } from '../../../../lib/types';
 
 export async function getStaticPaths() {
@@ -31,9 +33,15 @@ const next = course.summaries[index + 1];
 const exercises = course.exercises.filter((e) => e.data.topic === topicId);
 const hasBank = course.banks.some((b) => b.data.topic === topicId);
 const objectives = (fm.objectives ?? []).map((o) => labelHtml(doc, o));
-const sources = (fm.sources ?? []).map(
-  (s) => `${sourceTitle(c, s.doc)}${s.pages ? `, pp. ${s.pages.replace('-', '–')}` : ''}`,
-);
+// Each source names its pages and, when the document is served, opens it at the first one.
+const served = new Set(course.sources.map((d) => d.id));
+const sources = (fm.sources ?? []).map((s) => {
+  const pages = s.pages ? String(s.pages) : '';
+  return {
+    text: `${sourceTitle(c, s.doc)}${pages ? `, ${pages.includes('-') ? 'pp.' : 'p.'} ${pages.replace('-', '–')}` : ''}`,
+    href: served.has(s.doc) ? route.source(c, s.doc, firstPage(s.pages)) : null,
+  };
+});
 const extra = [
   ...(hasBank ? [{ href: '#test-yourself', text: 'Test yourself' }] : []),
   ...(exercises.length ? [{ href: '#practice', text: 'Practice' }] : []),
@@ -82,11 +90,23 @@ const extra = [
               <p class="meta-row" data-pagefind-ignore>
                 <span>
                   <span lang={en}>Sources: </span>
-                  {sources.join('; ')}
+                  {sources.map((src, i) => (
+                    <>
+                      {i > 0 && '; '}
+                      {src.href ? (
+                        <a class="sk-ref sk-ref-src" href={src.href}>
+                          {src.text}
+                        </a>
+                      ) : (
+                        src.text
+                      )}
+                    </>
+                  ))}
                 </span>
               </p>
             )
           }
+          <PdfLinks course={course} items={[{ doc: findPdf(course.pdfs, 'summary'), label: 'Summary PDF' }]} />
         </header>
 
         {
