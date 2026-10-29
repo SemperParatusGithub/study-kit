@@ -262,7 +262,7 @@ def _check_required_files(ctx: Context) -> None:
     course = tree.model
     required = [
         ("overview.md", "author it with the six sections of docs/architecture.md §2.12"),
-        ("plan.yaml", "run `studykit plan <course>`"),
+        ("plan.yaml", "`/regenerate <course> plan`, or write it as in docs/architecture.md §2.9"),
     ]
     if course is not None and course.cheatsheet.allowed:
         required.append(("cheatsheet.md", "`/regenerate <course> cheatsheet`, then fit it"))
@@ -1429,7 +1429,7 @@ def _check_plan(ctx: Context, plan: Doc, targets: dict) -> None:
                         loc,
                         "SK-REF-MISSING",
                         f"plan reference '{ref}' does not exist",
-                        "regenerate the plan with `studykit plan` or fix the id",
+                        "regenerate the plan (`/regenerate <course> plan`) or fix the id",
                     )
                 elif scheme not in targets:
                     ctx.at_yaml(

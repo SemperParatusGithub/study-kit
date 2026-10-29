@@ -633,7 +633,7 @@ class Session(Strict):
 
 
 class Plan(Strict):
-    """`plan.yaml`, written by `studykit plan` (goal and note text by Claude)."""
+    """`plan.yaml`, written by `studykit plan` (Phase 5; goal and note text by Claude)."""
 
     schema_version: Literal[1] = Field(alias="schema")
     generated: IsoDate
