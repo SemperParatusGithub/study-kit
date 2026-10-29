@@ -25,7 +25,9 @@ PANDOC_MISSING = not tools.bin_path(tools.repo_root(), "pandoc").exists()
 
 
 def run(course: Path, denylist: Path, **kw) -> validate.Report:
-    config = validate.Config(denylist=denylist, katex=kw.pop("katex", False))
+    config = validate.Config(
+        denylist=denylist, katex=kw.pop("katex", False), figures=kw.pop("figures", False)
+    )
     return validate.validate([course], config=config, **kw)
 
 
@@ -100,6 +102,20 @@ def test_the_filter_reports_what_the_python_stages_miss(quick: bool, mini: Path,
         ("SK-BLOCK", "</span>"),
     }
     assert all(f.path.endswith("summary/01-spannungsteiler.md") for f in report.findings)
+
+
+def test_figures_are_built_and_failures_reported(mini: Path, denylist: Path):
+    report = run(mini, denylist, figures=True)
+    assert report.findings == []
+    out = mini / "_build" / "figures"
+    assert (out / "rc-bode.facts.json").is_file() and (out / "topic-map.web.svg").is_file()
+    script = mini / "figures" / "rc-bode.py"
+    script.write_text(script.read_text().replace("return c_.figure", "raise ValueError('kaputt')"))
+    report = run(mini, denylist, figures=True)
+    assert [(f.code, f.path.endswith("figures/rc-bode.py")) for f in report.findings] == [
+        ("SK-FIG-BUILD", True)
+    ]
+    assert "ValueError: kaputt" in report.findings[0].message
 
 
 def test_paths_limit_findings_to_those_files(mini: Path, denylist: Path):

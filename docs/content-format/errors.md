@@ -359,6 +359,12 @@ Fix: `src:<doc>#p=<page>` with a page from 1 to the document's page count.
 
 ## Figures (SK-FIG)
 
+### `SK-FIG-BUILD`
+**error.** A figure script (or a builtin such as the topic map) does not build: it raises,
+runs longer than 60 s, has no alt text, or its SVG fails validation (colours outside the
+palette, text not converted to paths, too large).
+Fix: run `studykit fig build <course> --only <slug>`, fix the script and look at the PNG.
+
 ### `SK-FIG-UNUSED`
 **warning.** A figure script is never embedded.
 Fix: embed it with `![Caption](fig:<slug>)` or delete the script.

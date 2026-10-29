@@ -42,6 +42,7 @@ class Config:
     root: Path = field(default_factory=tools.repo_root)
     denylist: Path | None = None  # default: <root>/pandoc/math-denylist.json
     katex: bool = True
+    figures: bool = True  # build the figure scripts in the Figures stage (cached)
 
     @property
     def denylist_path(self) -> Path:
@@ -1433,7 +1434,38 @@ def check_figures(ctx: Context) -> None:
                 f"embed it with ![Caption](fig:{slug}) or delete the script",
                 "warning",
             )
-    ctx.note("figure build and SVG validation not run here; use `studykit fig build`")
+    _build_figures(ctx)
+
+
+def _build_figures(ctx: Context) -> None:
+    """Build the selected figure scripts (all of them, plus the builtins, for a whole course).
+
+    The runner caches by content, validates every SVG and writes facts.json, so a failure
+    here is a script that raises, times out, misses alt text or draws outside the palette.
+    """
+    if not ctx.config.figures:
+        ctx.note("figure build skipped (Config.figures is off)")
+        return
+    scripts = ctx.docs("figure")
+    if ctx.selected is not None and not scripts:
+        return
+    from studykit.figures import runner
+
+    only = None if ctx.selected is None else {d.parts["slug"] for d in scripts}
+    for outcome in runner.build_course(ctx.tree.root, only=only):
+        if outcome.status != "failed":
+            continue
+        doc = ctx.tree.get(f"figures/{outcome.slug}.py") or ctx.tree.course_doc
+        last = [p.strip().splitlines()[-1] for p in outcome.problems if p.strip()]
+        ctx.at(
+            doc,
+            1,
+            1,
+            "SK-FIG-BUILD",
+            f"figure '{outcome.slug}' failed: " + ("; ".join(last) or "no output"),
+            f"run `studykit fig build {ctx.tree.id} --only {outcome.slug}`, fix the script "
+            "and look at the PNG",
+        )
 
 
 # --- later phases: pluggable stages that skip until their tools exist ------------------------
