@@ -675,10 +675,19 @@ tick, date, minutes, kind, goal, topics and tasks (§3.3).
 
 ### 2.10 Verification ledger (`state/verify/<item-id>.json`)
 
-`studykit verify <course> [id|topic|exam|all]` runs each item's check (`checks/<id>.py` in a
-subprocess with a timeout and no shell, or `checks/<id>.json`), compares it with the key and
-writes one ledger file per exercise, exam task and MC question (`model.VerifyEntry`,
-`schemas/verify.schema.json`):
+`studykit verify <course> [id|topic|exam|all]` (`verify.py`) runs each item's check
+(`checks/<id>.py` with the project's Python in the course directory, no shell, `--timeout`
+seconds, default 120; or `checks/<id>.json`), compares it with the key and writes one
+ledger file per exercise, exam task and MC question (`model.VerifyEntry`,
+`schemas/verify.schema.json`). An item without a check is listed as `no-check` and keeps
+its entry. A run exits with 1 when a check mismatched, errored or its item is quarantined
+(`--confirm` when the second method errored), with 2 on a usage error (an unknown id, a
+second method without a fresh entry).
+
+```
+studykit verify <course> [target] [--status | --confirm FILE [--method …] | --dispute --note … [--computed key=value …]
+                                   | --quarantine --note … | --clear] [--report] [--show-key] [--timeout s] [--json]
+```
 
 ```json
 {"schema": 1, "item": "ex-rc-tp-grenzfrequenz", "kind": "exercise",
@@ -690,36 +699,50 @@ writes one ledger file per exercise, exam task and MC question (`model.VerifyEnt
  "checked_at": "2026-10-30T10:12:00Z", "verified_at": "2026-10-30T10:12:00Z"}
 ```
 
-- A check script ends with one `studykit.check` call, which prints the JSON line the runner
-  reads: `answers(**values)` (numbers in the key's unit, `quantity(x, "kHz")` in another
-  unit of the same kind, SymPy expressions for symbolic keys), `mc_answer(letters)`,
-  `mc_numeric(…)` (§2.6) or `review(agree, reason)` for an item without keys.
-- Exercises and exam tasks compare every `answers` key: numbers within `atol + rtol·|value|`,
-  expressions by SymPy simplification, then at sample points. MC questions compare the set
-  of correct letters (single, multi), each statement (Kprim) or the `mc_numeric` assertions.
+- A check script ends with one `studykit.check` call (`check.py`), which prints the JSON
+  line the runner reads from the end of its output: `answers(**values)` (numbers in the
+  key's unit, `quantity(x, "kHz")` in another unit of the same kind, SymPy expressions for
+  symbolic keys), `mc_answer(letters)`, `mc_numeric(…)` (§2.6) or `review(agree, reason)`
+  for an item without keys. `verify-protocol/recipes.md` (§5.2) has worked recipes.
+- Exercises and exam tasks compare every `answers` key: numbers within `atol + rtol·|value|`
+  (SI prefixes convert; `rad/s` and `1/s` count as the same unit), expressions by SymPy
+  simplification, then at sample points. MC questions compare the set of correct letters
+  (single, multi), each statement (Kprim) or the `mc_numeric` assertions; a blind answer
+  marked `ambiguous` is a dispute, and a `confidence` other than `high` is a warning. A
+  `review` that disagrees is a dispute; whether its reason matches the solution is judged
+  by `/verify` (§5.3).
 - `status`: `unverified` (no check, a check that did not run to a result, or two methods
   that disagree), `verified` (with earlier disputes it counts as fixed), `disputed`, or
-  `quarantined`. `method` is `script`, `blind` (a JSON answer) or `manual`.
+  `quarantined`. `method` is `script`, `blind` (a JSON answer) or `manual` (set by hand).
 - `content_sha256` is the sha256 of the item's source: the whole file of an exercise or exam
   task, the fenced block of an MC question. If it no longer matches, the entry is stale
   (SK-VER-STALE) and the next run checks the new version.
 - `disputes` records each disagreement with the verifier's numbers and the key, per version
   of the item; `rounds` counts the author fix rounds (versions disputed after the first).
-  The dispute after the second fix round quarantines the item. `--confirm checks/<id>.<tag>.py`
-  records a second method in `confirmations`: one that reproduces a dispute confirms it, one
-  that sides with the key (or contradicts a verified result) sends the item back to
-  unverified. `--dispute --note … --computed key=value` and `--quarantine --note …` record
-  either by hand; `--clear` deletes entries (also `stale` and `orphans`).
+  The dispute after the second fix round quarantines the item. `--confirm
+  checks/<id>.<tag>.py` (or `.json`; another file than the first check, on an entry that is
+  not stale) records a second method in `confirmations`: one that reproduces a dispute
+  confirms it, one that sides with the key (or contradicts a verified result) sends the
+  item back to unverified. `--dispute --note … --computed key=value` (a confirmed dispute)
+  and `--quarantine --note …` record either by hand; `--clear` deletes entries (also
+  `stale` and `orphans`). Ledger files are written by `studykit verify` only.
+- `--status` runs nothing and lists every selected item with `status`, `outcome`
+  (`no-ledger`, `stale` or the status), `stale`, `rounds`, `results`, `problems`, `note`,
+  `confirmed` (a second method reproduced the last dispute of this version) and the
+  `confirmations` of this version; every result has the counts per status (plus `fixed`,
+  `stale` and `no_check`) and the quarantined items.
 - Quarantined items are hidden from the site and the PDFs (§0): the course index lists them
   under `quarantined`, the render bridge skips their exercise and exam-task files, the filter
   drops their MC questions from HTML and Typst and turns links to them into plain text, and
   an exam loses their tasks and points (its pass mark keeps its share). `plan`, `progress
   report` and `status` read the course the same way, so their stats, plans and mock-exam
-  verdicts match the site. `verify --report`
-  writes `state/verify/report.md` with the counts and every item that is not verified.
-- The text output never shows the key (the verifier reads it); `--json` and `--show-key` do.
+  verdicts match the site. A check that passes again shows the item again. `verify --report`
+  writes `state/verify/report.md` with the counts and every item that is not verified
+  (quarantined, disputed, stale, unverified), each with its reason.
+- The text output never shows the key (the verifier reads it), nor does `--confirm`'s;
+  `--json` and `--show-key` do, so the verifier's guard hook denies both (§5.3).
 - Summary chapters and the cheat sheet get formula audits too, in `checks/sum-<topic>.py`
-  *(planned)*.
+  *(planned; validate already accepts these files)*.
 
 ### 2.11 Progress
 
