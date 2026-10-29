@@ -1215,9 +1215,13 @@ lint-code:
     uv run --frozen ruff format --check src tests
 ```
 
-`build` sets `STUDYKIT_STRICT=1` itself and builds the whole site (all courses, each with
-the PDFs its manifest lists); its `course` argument picks what figures, validation and PDFs
-cover. Planned recipes: `verify`, `status`, `tutor` and `examine` (Phase 5 and 6).
+`build` runs in this order: figures; `validate`, whose PDF stage already builds the PDFs;
+`pdf`, which finds them up to date and fails the recipe if a document failed; the strict
+site build, which copies every PDF its manifest lists into `site/dist`; `check-links`. It
+sets `STUDYKIT_STRICT=1` itself and builds the whole site (all courses); its `course`
+argument picks what figures, validation and PDFs cover. `cheatsheet` is the fit on its own
+(exit code 3 with the overflow, §3.3). Planned recipes: `verify`, `status`, `tutor` and
+`examine` (Phase 5 and 6).
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
 
