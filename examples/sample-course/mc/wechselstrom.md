@@ -45,10 +45,10 @@ $f = 1\,\mathrm{kHz}$?
 
   Falsches Vorzeichen: Ein negativer Imaginärteil gehört zu einem Kondensator.
 
-- [ ] $\mathrm{j}\,15{,}9\,\mathrm{m\Omega}$
+- [ ] $\mathrm{j}\,62{,}8\,\mathrm{m\Omega}$
 
-  Kehrwert gebildet: $1/(\omega L)$ statt $\omega L$, verwechselt mit der Formel des
-  Kondensators.
+  Falsche Zehnerpotenz: Milli als $10^{-6}$ statt $10^{-3}$ eingesetzt, also mit
+  $10\,\mathrm{\mu H}$ gerechnet.
 
 ::: explanation
 Die Spannung an der Spule eilt dem Strom um $90^\circ$ voraus. Deshalb ist ihre Impedanz
