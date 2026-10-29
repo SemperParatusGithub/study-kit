@@ -45,9 +45,10 @@ $f = 1\,\mathrm{kHz}$?
 
   Falsches Vorzeichen: Ein negativer Imaginärteil gehört zu einem Kondensator.
 
-- [ ] $62{,}8\,\Omega$
+- [ ] $\mathrm{j}\,15{,}9\,\mathrm{m\Omega}$
 
-  Ohne $\mathrm{j}$ wäre es ein ohmscher Widerstand; Strom und Spannung wären in Phase.
+  Kehrwert gebildet: $1/(\omega L)$ statt $\omega L$, verwechselt mit der Formel des
+  Kondensators.
 
 ::: explanation
 Die Spannung an der Spule eilt dem Strom um $90^\circ$ voraus. Deshalb ist ihre Impedanz
