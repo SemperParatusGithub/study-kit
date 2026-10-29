@@ -731,91 +731,156 @@ title: Überblick
 
 | Kind | Packages |
 |---|---|
-| dependencies | `astro 7.4.2`, `katex 0.16.47`, `yaml 2.9.1` |
-| devDependencies | `typescript 6.0.3` (`@astrojs/check` peers ^5 or ^6), `@astrojs/check 0.9.12`, `@playwright/test 1.64.1` |
+| dependencies | `astro 7.4.2`, `katex 0.16.47`, `yaml 2.9.1` (resolves Vite's optional peer; no site code imports it) |
+| devDependencies | `typescript 6.0.3` (`@astrojs/check` peers ^5 or ^6), `@astrojs/check 0.9.12`, `@playwright/test 1.64.1`, `pagefind 1.5.2` |
 | unit tests | `node --test` (Node 24 strips TypeScript types natively) |
-| search | `pagefind 1.5.2` (CLI, run after `astro build`; see §3.5) |
-| not used | remark/rehype, MDX, Tailwind, a UI framework, Mermaid |
+| search | `pagefind` (CLI, run after `astro build`; see §3.5) |
+| not used | remark/rehype, MDX, Tailwind, a UI framework, Mermaid, `@types/node` |
+
+`package.json` scripts: `dev`, `build` (`astro build && node scripts/pagefind.mjs`), `preview`,
+`check` (`astro check`), `test:unit`, `test:elements` and `e2e` (§4.4).
 
 **`astro.config.mjs`:**
 - `output: 'static'`
-- `server: {host: 'localhost', port: 4321}`, with `preview` on the same port
-- `vite.server.strictPort: true` (progress is tied to the origin)
+- `server: {host: 'localhost', port: 4321}`; `vite.server.strictPort` and `vite.preview.strictPort` are true (progress is tied to the origin)
 - `vite.server.fs.allow: [repoRoot]`
+- `devToolbar: {enabled: false}`
+- It sets `STUDYKIT_SITE_ROOT` for `src/lib/sys.mjs`: pages are bundled into chunks, so build-time code cannot find the site from its own URL. `sys.mjs` is the only module with `node:` imports.
 - The `markdown` section is unused.
 - `ASTRO_TELEMETRY_DISABLED=1` is exported from the justfile.
 
+`tsconfig.json` extends `astro/tsconfigs/strict` and includes only `src/` (and Astro's generated types).
+
 **`content.config.ts`:**
-- `courses`: `glob({pattern: '*/course.yaml', base: process.env.STUDYKIT_COURSES_DIR ?? '../courses'})`, with a minimal Zod schema.
-- `docs`: `pandocLoader({base})`. It works as follows:
-  1. Discovers summary, exercise, exam-task, MC-bank and cheat-sheet files.
-  2. Splits the frontmatter, parses it with `yaml` (YAML 1.2 core schema) and runs minimal Zod checks.
-  3. Runs pandoc with `-d common -d web` on the body, with concurrency equal to the CPU count.
-  4. Extracts and removes `sk-meta`.
-  5. Replaces each `<sk-math>` with `katex.renderToString(tex, {displayMode, throwOnError: true, strict: 'error', trust: false})`.
-  6. Stores `{id: '<course>/<relpath>', data, rendered: {html, metadata: {headings}}}`. The digest is sha256 of the file bytes, the filter tree and the pandoc version, so unchanged files are skipped.
-  7. In dev, `watcher.add(base)` re-renders the changed file.
-- `plans` and `mastery`: `glob()` over `*/plan.yaml` and `*/progress/mastery.json`.
-- **Errors:** in dev, a red error card shows `file:line` and the message. With `STUDYKIT_STRICT=1`, the build throws.
+- `courses`: `glob({pattern: '*/course.yaml', base})` with `base = STUDYKIT_COURSES_DIR ?? '../courses'` and a minimal Zod schema.
+- `docs`: `pandocLoader({base})` (`src/loaders/pandoc.ts`). pandoc runs in Python, through the render bridge `studykit render <course> --known - --json` (`src/studykit/render.py`; `uv run --frozen`, or `.venv/bin/studykit` without uv), so the pandoc argv and the filter metadata exist once. Per course and sync:
+  1. The loader sends the digests it already stores. The bridge rewrites `_build/index.json`, picks the overview, summary, exercise, MC-bank, exam-MC, exam-task and cheat-sheet files (rendered to HTML) and each `exam.yaml` (data only), and parses every frontmatter with the restricted PyYAML loader and the pydantic models (SK-YAML and SK-SCHEMA findings).
+  2. Files whose digest the loader holds come back as `cached`. The bridge renders the rest with `pandoc -d common -d web` in a thread pool of CPU count. The digest is the sha256 of a format tag, the pandoc version, the `pandoc/` tree plus `render.py` and every studykit module it imports, the index, the frontmatter validation context (topics, `cheatsheet.max_pages`) and the file bytes.
+  3. The loader removes the trailing `sk-meta` script and keeps its headings.
+  4. It hashes each `<sk-mc>` and each exercise or exam-task fragment as the filter wrote it (first 8 hex digits of sha256) for the content hash `h` (§2.11).
+  5. It replaces each `<sk-math>` with `katex.renderToString(tex, {displayMode, throwOnError: true, strict: 'error', trust: false})` (`lib/katex.ts`), and renders the inline math of the frontmatter labels (answer labels, rubric criteria, objectives) into `labels`.
+  6. It stores `{id: '<course>/<rel>', data, rendered: {html, metadata: {headings}}}`, with the bridge digest behind a stamp of the loader and KaTeX versions, so a loader or KaTeX change re-renders everything.
+  7. In dev the watcher re-syncs a course 150 ms after one of its `.md`/`.yaml` files changes (all courses when its `course.yaml` is gone); only files whose digest changed re-render, all of them when the index changed. Changes under `_build`, `_history`, `state`, `progress`, `checks`, `sources` and `analysis` are ignored.
+- `plans` and `mastery`: `glob()` over `*/plan.yaml` and `*/progress/mastery.json` (read loosely until Phase 5 writes it).
+- **Errors:** a document's findings (filter, schema, KaTeX in the body or a label) become a red error card at its top with `file:line:col`, the code and the message. With `STUDYKIT_STRICT=1` the load throws instead, and a courses directory without a course fails the build.
 
-**Figures** are swapped in when the page renders. `lib/figures.ts` replaces each `data-slug` placeholder with the current `_build/figures/<slug>.web.svg` from the figure manifest, so the content cache can never serve a stale figure. Colours are `var(--fig-*)`, so the theme toggle also switches figures to dark mode.
+**Figures** are swapped in when the page renders. `lib/figures.ts` replaces each `data-slug` placeholder with the current `_build/figures/<slug>.web.svg` from the figure manifest, so the content cache can never serve a stale figure. Colours are `var(--fig-*)`, so the theme toggle also switches figures to dark mode. A missing figure is an error card in dev and fails a strict build.
 
-**Routes** (UI in English; `<html lang>` set to the course language):
+**Routes** (UI in English; `<html lang>` set to the course language; page routes end in `/`):
 
 | Route | Purpose |
 |---|---|
-| `/` | Course cards: exam countdown, mastery ring, number of reviews due today, next session |
-| `/c/<c>/` | **Overview tab** (§2.12) with a compact Today panel on top: exam countdown, today's session, due reviews, weakest 3 topics, "continue" |
-| `/c/<c>/plan` | Week timeline, session checkboxes, "behind schedule" banner suggesting `/regenerate <c> plan` |
-| `/c/<c>/summary/<topic>` | Reading view (max 70ch, sticky table of contents), objectives, `src:` links, "Test yourself" quiz |
-| `/c/<c>/exercises/`, `…/<id>` | Filters for topic, difficulty and status; hint ladder; answer check; solution; self-grade |
-| `/c/<c>/mc/` | **MC hub:** accuracy per topic, due count; modes Practice, Test, Mistakes, Due, Mixed |
-| `/c/<c>/mc/<topic>.json` | Static endpoint with pre-rendered question HTML, loaded on demand for mixed or due pools |
-| `/c/<c>/cheatsheet` | Web view in CSS columns, plus a "PDF (n/3 pages)" badge |
-| `/c/<c>/exams/`, `…/<id>` | Exam mode |
-| `/c/<c>/progress` | Topic bars, sure/unsure calibration, exam history, export and import |
-| `/c/<c>/pdf/<name>.pdf`, `/c/<c>/src/<doc>.pdf` | Static endpoints serving `_build/pdf` and `sources/raw`. Local only; `dist` is gitignored. |
+| `/` | Course cards: exam countdown, mastery ring, number of MC reviews due today, next session |
+| `/c/<c>/` | **Overview tab** (§2.12) with a compact Today panel on top: exam countdown and format, next session, MC reviews due, the 3 weakest topics; topic chips with weight, focus and skip |
+| `/c/<c>/plan/` | Week timeline, session checkboxes, "behind schedule" banner suggesting `/regenerate <c> plan` |
+| `/c/<c>/summary/`, `…/<topic>/` | Chapter list in teaching order; reading view (max 70ch, sticky table of contents), objectives, `src:` links, "Test yourself" quiz |
+| `/c/<c>/exercises/`, `…/<id>/` | Filters for topic, difficulty and status; hint ladder; answer check; solution; self-grade |
+| `/c/<c>/mc/` | **MC hub:** accuracy and due count per topic bank; modes Practice, Test, Mistakes, Due, Mixed |
+| `/c/<c>/mc/<topic>/` | Every question of the bank in source order with its id as anchor (the target of `mc:` links), plus a practice quiz over the bank |
+| `/c/<c>/mc/<topic>.json` | Static endpoint `{topic, title, questions: [{id, type, difficulty, topic, h, html}]}` with pre-rendered question HTML, loaded by `<sk-quiz>` |
+| `/c/<c>/cheatsheet/` | Web view in CSS columns, plus a badge with the page count of the built PDF against `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`: "PDF (n/max pages)", with "· over the limit" when exceeded, or "PDF not built yet · limit max pages" until Phase 4 builds it |
+| `/c/<c>/exams/`, `…/<id>/` | Mock exam list; exam mode |
+| `/c/<c>/progress/` | Mastery ring, topic bars, reviews due, misconceptions, sure/unsure calibration, exam history, export and import |
+| `/search/` | Pagefind search (§3.5) |
+| `/404.html` | Not found |
+| `/c/<c>/pdf/<name>.pdf`, `/c/<c>/src/<doc>.pdf` | *(Phase 4)* Static endpoints serving `_build/pdf` and `sources/raw`. Local only; `dist` is gitignored. Until then `check-links` reports links to them as warnings. |
 
-**Custom elements.** Plain TypeScript in processed `<script>` tags. Data arrives through `data-*` attributes.
+**Shell.** `layouts/Base.astro` renders `<body data-course data-exam-date data-mc-scoring
+data-negative-marking>` (the course's exam rule), the header with search and theme toggle,
+the course tabs, and the course info as `<script type="application/json"
+data-sk-course-data="<course>">` (`components/CourseData.astro`). Pages render the progress
+figures as empty placeholders (`[data-sk-due-count]`, `[data-sk-accuracy]`,
+`[data-sk-weakest]`, `[data-sk-mastery]`, `[data-sk-exam-best]`, `[data-sk-status]`,
+`[data-next-session]`); `elements/dashboard.ts` fills them from the store with `lib/stats.ts`
+and refreshes them when progress changes on the page or in another tab, and when the page
+comes back from the back/forward cache. `scripts/site.ts` holds the shell's small
+enhancements (search shortcut `/`, countdowns, plan day marks, list filters, table-of-contents
+spy, the current tab scrolled into view, `<details>` opened for printing); it never touches
+progress. Every page works without JavaScript.
+
+**Language of parts.** UI chrome is English, course text follows `course.lang`. Inside a
+course page the shell marks its own text `lang="en"`; the elements mark their UI text
+`lang="en"` inside course content, and course text inside their UI with the course language.
+
+**Custom elements.** Plain TypeScript, loaded by the one processed `<script>` of the base
+layout (`elements/index.ts`). Data arrives through `data-*` attributes; elements talk through
+`sk:*` events.
 
 | Element | Behaviour |
 |---|---|
-| `<sk-mc>` | Radio buttons, checkboxes, or Kprim true/false pairs. A sure/unsure toggle is required before **Check**. After checking it shows every option's `why` plus the explanation, then emits `sk:answer`. Keyboard: 1–6, Enter, N. |
-| `<sk-quiz>` | Modes (details below). Seeded mulberry32 + Fisher-Yates shuffle keeps `pin-last` options in place. URL parameters: `?n=10&minutes=15&topics=…&difficulty=…`. The result screen shows score per topic, time, misconceptions, and links to the matching summary sections. |
-| `<sk-hints>` | Reveals hints one at a time ("Hint 2 of 3") and counts them. |
-| `<sk-answer-check>` | Numeric input with decimal comma, unit and tolerance taken from `answers`. It appears before the solution can be revealed. |
-| `<sk-reveal>` | "Tried it?" confirmation before the solution opens. |
-| `<sk-self-assess>` | Solved / Partly / Not yet. Using more than one hint caps the rating at "Partly". |
+| `<sk-mc>` | Radio buttons (single), checkboxes (multi), or a true/false pair per statement (Kprim), in the `mc.pdf` order with display letters A–F; answers are stored by source key. Outside exams, Sure or Unsure is required before **Check**. Checking shows every option's `why` plus the explanation, records the attempt and emits `sk:answer`; after the solution was shown, "Try again" is practice and not recorded. Keyboard, while focus is in the question: 1–6 choose (Kprim: a key cycles the statement through true and false), S/U set sure or unsure, Enter checks (in Test mode it moves on), N goes to the next question. Attributes: `data-mode` (`practice`, `deferred` for Test, `exam`), `data-scoring` (else the nearest `[data-mc-scoring]`), `data-record`, `data-retry`, `data-history`, `data-shuffle` (each `"false"` to turn it off). |
+| `<sk-quiz>` | Modes (details below). Attributes `data-course`, `data-mode`, `data-pools` (the `mc/<topic>.json` URLs), `data-topic-titles`, `data-summary-base`, `data-lang` (the course language of the questions and topic names), `data-n`, `data-intro="false"`, `data-frame="none"`. URL parameters `?n=10&minutes=15&topics=a,b&difficulty=1,2` (or `1-3`) and `mode=` pre-fill the start form; with several quizzes on a page the parameters go to the quiz of `?mode=`. Each question is answered once; the result screen shows score per topic, time, misconceptions (sure but wrong) and links to the topic summaries, and "Retry mistakes" is a practice round that records nothing. |
+| `<sk-hints>` | Reveals hints one at a time ("Show hint 2 of 3") and counts the hints of this attempt; when a rated exercise is due again, the new attempt starts with every hint closed. A printed page shows every hint, except in a running exam. |
+| `<sk-answer-check>` | One input per answer (`data-answers` `[{key, label, label_html, value, unit, rtol, atol, expr, symbols}]`): numbers in German or English notation with unit and SI prefix, or an expression in the given symbols (`lib/answer.ts`, §2.5). A verdict and the reading of the input per answer, and hints for typical mistakes (2π, √2, power of ten, dB). Stores `answer_ok`. |
+| `<sk-reveal>` | "Tried it?" confirmation before the solution opens; skipped once the answer check was used. |
+| `<sk-self-assess>` | Solved / Partly / Not yet; schedules the exercise (Leitner, below). Using more than one hint in this attempt caps the rating at "Partly". |
 | `<sk-exam>` | Exam mode (details below). |
-| `<sk-plan>` `<sk-progress>` `<sk-theme>` `<sk-export>` | Plan checkboxes; progress rings and bars; light/dark/system theme (an inline head script prevents a flash of the wrong theme); export and import. |
+| `<sk-plan>` | A done checkbox per `li[data-session][data-date]` (into its `[data-sk-plan-slot]`), stored as `plan:<id>`; past sessions not done fill the shell's `[data-sk-behind]` banner. |
+| `<sk-progress>` | `data-topics`, `data-exams`, `data-exam-date`: mastery ring, topic bars, MC reviews and exercises due, misconceptions, calibration, exam history; live across tabs. |
+| `<sk-theme>` `<sk-export>` | Light/dark/system theme, stored as `studykit:theme` (an inline head script applies it before first paint); export and import of the progress document. |
 
 `<sk-quiz>` modes:
 - **Practice:** instant feedback.
-- **Test:** N questions with feedback at the end and an optional timer.
-- **Mistakes:** questions answered wrong the last time.
-- **Due:** questions the Leitner schedule says are due.
-- **Mixed:** all banks together.
+- **Test:** N questions with feedback at the end and an optional time limit.
+- **Mistakes:** questions whose last attempt was not fully right (score < 1, so a Kprim
+  with 3 of 4 counts), misconceptions first.
+- **Due:** questions the Leitner schedule says are due (exam clamp included).
+- **Mixed:** all banks together, instant feedback.
 
-`<sk-exam>` flow:
-1. A cover page shows aids, points and duration.
-2. The timer stores its start time, so a reload doesn't reset it. It warns on `beforeunload`, at 10 minutes left and at 1 minute left.
-3. Solutions stay `inert` until Submit or time-up.
-4. After that, the rubric appears with checkboxes per task, and the MC part is scored automatically with the real exam's rule.
-5. The result shows total, grade estimate and time per task, and the attempt is saved.
+`<sk-exam>` (`data-exam`, `data-duration-min`, `data-points`, `data-pass-points`, `data-aids`,
+`data-mc-scoring`, `data-negative-marking`; the last two fall back to `<body>`'s). Each task
+is `section.sk-exam-task#<task-id>` with `data-task`, `data-title`, `data-points`, `data-h`
+and `data-rubric` `[{criterion, criterion_html, points}]`; the MC part is
+`section.sk-exam-mc#mc-part` with `data-points` and `data-points-each`. Flow:
+1. A cover page shows duration, points, pass mark and allowed aids. Start moves focus to the
+   first task heading.
+2. The start time is kept in the session key, so a reload doesn't reset the timer. It warns on
+   `beforeunload`, at 10 minutes left and at 1 minute left. While the exam runs, the head with
+   the timer is sticky: the element sets `--sk-exam-head` to its height and the page's
+   `scroll-padding-top` just below it, so a jump to a part or a focused control is never
+   under it.
+3. Hints and solutions stay hidden and `inert` until Submit (after a confirmation dialog) or
+   time-up.
+4. After that, the rubric appears with checkboxes per task, and the MC part is scored
+   automatically with the exam's multi rule and, if set, negative marking (§2.6).
+5. The result shows total, pass or fail, a grade estimate and the time per part (all time on
+   the exam clock, including time a reload or a closed tab took), and the attempt is saved
+   as `exam:<id>` and updated while grading. The grade estimate uses the German scale:
+   4.0 at `pass_points`, ten equal steps up to 1.0 at full points, 5.0 below the pass mark,
+   none without `pass_points`.
+6. The same exam open in a second tab follows a submission, retake or restart made in the
+   other tab (storage and pageshow events) and never writes a stale session over it; it also
+   takes over the other tab's rubric ticks of the same submission.
 
 **Shared libraries:**
-- `lib/store.ts` is the only code that touches localStorage. It has a versioned schema, migrations, try/catch on every access, and union-merge import.
+- `lib/store.ts` owns the progress document and the session key (§2.11): versioned schema,
+  migrations, try/catch on every access, union-merge import. Only the inline theme script
+  of the base layout reads `studykit:theme` itself, before first paint.
 - `lib/leitner.ts`:
-  - Boxes 0–5 with intervals of 0, 1, 3, 7, 14 and 30 days.
-  - A wrong answer sends the item to box 1.
-  - A "sure" answer that is wrong sends it to box 0 and flags it as a misconception.
-  - Exam clamp: no item is due after `exam_date − 2 days`, and every attempted item comes up again in the last 10 days.
+  - Boxes 0–5 with intervals of 0, 1, 3, 7, 14 and 30 days. A new item starts in box 1.
+  - A fully right answer (score 1) moves the item up one box, at most to box 5.
+  - Any score below 1 is wrong: it sends the item to box 1, or to box 0 (due again today)
+    when the answer was "sure". The misconception is not stored; it follows from the last
+    attempt (§2.11).
+  - Exercises are scheduled from the self-assessment as "unsure" answers: solved = 1,
+    partly = 0.5, not yet = 0.
+  - Exam clamp, with limit = `exam_date − 2 days` and window = `[exam_date − 10, limit]`:
+    nothing is due during the two rest days; a due day past the limit moves to the window
+    start (reviewed before the window) or to the limit (reviewed inside it), so every
+    attempted item comes up again in the last 10 days; an item reviewed on or after the
+    limit is next due the day after the exam. The clamp applies when scheduling and again on
+    every "is it due?" check, so a changed exam date counts at once. Exercise entries keep no
+    review day, so their check uses `reviewDayOf(due, box) = due − interval(box)`, which lies
+    on the same side of the limit as the real review day.
+- `lib/scoring.ts` (§2.6), `lib/shuffle.ts` (FNV-1a and mulberry32, the `mc.pdf` order),
+  `lib/answer.ts` (§2.5), `lib/stats.ts` (§2.11).
 
 **CSS:**
-- `tokens.css`: `light-dark()`, `[data-theme]`, the figure palette variables `--fig-fg`, `--fig-muted`, `--fig-grid`, `--fig-c1` … `--fig-c6`, and a system font stack. KaTeX's own fonts come from the package.
-- `content.css`: `sk-*` blocks and display math with `overflow-x: auto`.
+- `tokens.css`: `light-dark()` pairs, `[data-theme]`, the figure palette variables `--fig-fg`, `--fig-muted`, `--fig-grid`, `--fig-bg`, `--fig-c1` … `--fig-c6`, and a system font stack. Text colour pairs reach 4.5:1 in both themes (`tests/unit/tokens.test.ts`). KaTeX's own fonts come from the package.
+- `base.css`: the shell. `elements.css`: the custom elements.
+- `content.css`: `sk-*` blocks and display math with `overflow-x: auto`. The cheat sheet's topic sections flow through the columns; boxes, figures, tables and formulas stay whole. In the cheat sheet, display math wraps between formulas set apart with top-level `\qquad` (`lib/katex.ts` adds `\allowbreak` and groups each formula), otherwise after `=` or `+`.
 - `code.css`: skylighting token classes for light and dark.
-- `print.css`: A4 `@page`, no page breaks inside boxes, `<details>` opened on `beforeprint`.
+- `print.css`: A4 `@page`, light colours, no site chrome, no page breaks inside boxes, figures, questions, tables and formulas, a question's label kept with its question. The cheat sheet prints as two columns of `<main>` with the title spanning them. `.no-print` hides the summary's "On this page" box, the "Test yourself" quiz and the MC topic practice card; the elements' controls (`elements.css`) and the exam's Start/Retake buttons and alerts are hidden too. `scripts/site.ts` opens every `<details>` on `beforeprint` and restores them after.
 - Colour is never the only signal; feedback uses `aria-live`; `prefers-reduced-motion` is respected.
 
 ### 3.3 PDF: pandoc 3.13 → Typst 0.15.1, in two explicit steps
