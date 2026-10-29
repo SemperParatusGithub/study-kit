@@ -89,9 +89,16 @@ test('placeholders follow progress recorded on the page and in other tabs', asyn
   await expect(page.locator('[data-topic-row="rc-tiefpass"] [data-sk-accuracy]')).toHaveText('50%');
   await expect(page.locator('#ring .mastery-value')).toHaveText('55%');
 
-  // a second tab rates the other exercise
+  // a second tab opens a hint of the other exercise: started, not rated yet
   const other = await context.newPage();
   await other.goto('/dashboard.html');
+  await other.evaluate(async () => {
+    const { storeFor } = await import('/build/lib/store.js' as string);
+    storeFor('mini').updateEx('ex-st-teiler', 'ffffffff', { hints: 1 });
+  });
+  await expect(page.locator('#exercises li').nth(1)).toHaveAttribute('data-status', 'started');
+  await expect(page.locator('#exercises li').nth(1).locator('[data-sk-status]')).toHaveText('Started');
+  // then rates it
   await other.evaluate(async () => {
     const { storeFor } = await import('/build/lib/store.js' as string);
     storeFor('mini').rateEx('ex-st-teiler', 'ffffffff', 'partial');

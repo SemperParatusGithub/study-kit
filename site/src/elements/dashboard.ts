@@ -12,8 +12,9 @@
 //   [data-sk-mastery][data-course]                  mastery ring (MasteryRing.astro)
 //   [data-sk-exam-best][data-course][data-exam]     best mock-exam result
 //   [data-sk-status][data-item]                     exercise status; the row [data-item]
-//                                                   gets data-status (new, not-yet,
-//                                                   partial, solved) for the list filter
+//                                                   gets data-status (new, started,
+//                                                   not-yet, partial, solved) for the
+//                                                   list filter
 //   [data-next-session][data-course]                shows the first session card
 //                                                   ([data-session-date][data-session])
 //                                                   today or later that is not done
@@ -50,6 +51,7 @@ const PLACEHOLDERS = [
 
 const STATUS_TEXT: Record<ExerciseStatus, string> = {
   new: '',
+  started: 'Started',
   'not-yet': 'Not yet',
   partial: 'Partly',
   solved: 'Solved',

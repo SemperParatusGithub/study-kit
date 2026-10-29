@@ -54,7 +54,8 @@ export interface CourseInfo {
 }
 
 export type Items = Record<string, Entry>;
-export type ExerciseStatus = 'new' | 'not-yet' | 'partial' | 'solved';
+/** new: nothing done; started: hints opened or an answer checked, not rated yet. */
+export type ExerciseStatus = 'new' | 'started' | 'not-yet' | 'partial' | 'solved';
 
 const MC_ID_RE = /^mc-(.+)-\d{3}$/;
 
@@ -201,8 +202,10 @@ export function mastery(stats: readonly TopicStat[], topics: readonly TopicInfo[
 }
 
 export function exerciseStatus(entry: Entry | undefined): ExerciseStatus {
-  const rating = (entry as ExEntry | undefined)?.rating;
-  return rating === 'solved' || rating === 'partial' || rating === 'not-yet' ? rating : 'new';
+  const ex = entry as ExEntry | undefined;
+  const rating = ex?.rating;
+  if (rating === 'solved' || rating === 'partial' || rating === 'not-yet') return rating;
+  return ex && ((ex.hints ?? 0) > 0 || typeof ex.answer_ok === 'boolean') ? 'started' : 'new';
 }
 
 export interface ExamSummary {

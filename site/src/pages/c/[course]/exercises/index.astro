@@ -70,6 +70,7 @@ const KIND: Record<string, string> = {
             <select name="status">
               <option value="">Any status</option>
               <option value="new">Not started</option>
+              <option value="started">Started, not rated</option>
               <option value="not-yet">Not yet</option>
               <option value="partial">Partly solved</option>
               <option value="solved">Solved</option>
@@ -160,6 +161,11 @@ const KIND: Record<string, string> = {
   }
 
   .ex-status[data-status='not-yet'] {
+    color: var(--text-muted);
+  }
+
+  .ex-status[data-status='started'] {
+    border-style: dashed;
     color: var(--text-muted);
   }
 </style>

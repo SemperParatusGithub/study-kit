@@ -111,7 +111,10 @@ test('exercise status, exam summary and plan sessions', () => {
   assert.equal(exerciseStatus(ITEMS['ex:ex-a']), 'solved');
   assert.equal(exerciseStatus(ITEMS['ex:ex-b']), 'partial');
   assert.equal(exerciseStatus(undefined), 'new');
-  assert.equal(exerciseStatus({ h: 'aaaaaaaa', hints: 1, answer_ok: null, rating: null, box: null, due: null }), 'new');
+  // worked on but not rated yet: started, not "not started"
+  assert.equal(exerciseStatus({ h: 'aaaaaaaa', hints: 1, answer_ok: null, rating: null, box: null, due: null }), 'started');
+  assert.equal(exerciseStatus({ h: 'aaaaaaaa', hints: 0, answer_ok: false, rating: null, box: null, due: null }), 'started');
+  assert.equal(exerciseStatus({ h: 'aaaaaaaa', hints: 0, answer_ok: null, rating: null, box: null, due: null }), 'new');
 
   const exam = examSummary(ITEMS['exam:probeklausur-1']);
   assert.equal(exam.count, 2);
