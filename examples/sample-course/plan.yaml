@@ -1,0 +1,349 @@
+# yaml-language-server: $schema=../../schemas/plan.schema.json
+schema: 1
+generated: 2026-10-29
+exam_date: 2027-02-15
+sessions:
+  - id: s-2026-11-02-a
+    date: 2026-11-02
+    minutes: 120
+    kind: learn
+    topics: [spannungsteiler]
+    goal: 'Spannungs- und Stromteilerregel sicher anwenden'
+    tasks:
+      - {do: read, ref: 'topic:spannungsteiler'}
+      - {do: exercises, refs: ['ex:ex-st-unbelastet', 'ex:ex-st-stromteiler']}
+  - id: s-2026-11-04-a
+    date: 2026-11-04
+    minutes: 120
+    kind: learn
+    topics: [spannungsteiler]
+    goal: 'Belastete Teiler mit Parallelschaltung und Ersatzquelle berechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-st-belastet', 'ex:ex-st-ersatzquelle']}
+      - {do: mc, topic: spannungsteiler, count: 5}
+  - id: s-2026-11-07-a
+    date: 2026-11-07
+    minutes: 120
+    kind: review
+    topics: [spannungsteiler]
+    goal: 'Wiederholung: Spannungsteiler'
+    tasks:
+      - {do: review, topic: spannungsteiler}
+      - {do: mc, topic: spannungsteiler, count: 10}
+  - id: s-2026-11-09-a
+    date: 2026-11-09
+    minutes: 120
+    kind: learn
+    topics: [spannungsteiler]
+    goal: 'Den belasteten Teiler allgemein herleiten'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-st-belastet-allgemein']}
+      - {do: mc, topic: spannungsteiler, count: 10}
+  - id: s-2026-11-11-a
+    date: 2026-11-11
+    minutes: 120
+    kind: mixed
+    topics: [wechselstrom, spannungsteiler]
+    goal: 'Sinusgrößen beschreiben und Zeigerdiagramme zeichnen'
+    tasks:
+      - {do: read, ref: 'topic:wechselstrom'}
+      - {do: exercises, refs: ['ex:ex-ws-effektivwert', 'ex:ex-ws-zeigerdiagramm']}
+      - {do: review, topic: spannungsteiler}
+  - id: s-2026-11-14-a
+    date: 2026-11-14
+    minutes: 120
+    kind: review
+    topics: [spannungsteiler, wechselstrom]
+    goal: 'Wiederholung: Spannungsteiler und Wechselstromrechnung'
+    tasks:
+      - {do: review, topic: spannungsteiler}
+      - {do: review, topic: wechselstrom}
+      - {do: mc, topic: wechselstrom, count: 10}
+  - id: s-2026-11-16-a
+    date: 2026-11-16
+    minutes: 120
+    kind: mixed
+    topics: [wechselstrom, spannungsteiler]
+    goal: 'Impedanzen von Reihenschaltungen berechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-ws-impedanz-rc', 'ex:ex-ws-rl-reihe']}
+      - {do: mc, topic: wechselstrom, count: 5}
+      - {do: review, topic: spannungsteiler}
+  - id: s-2026-11-18-a
+    date: 2026-11-18
+    minutes: 120
+    kind: learn
+    topics: [wechselstrom]
+    goal: 'Mit Admittanzen rechnen und Parallelschaltungen umformen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-ws-parallel-rc']}
+      - {do: mc, topic: wechselstrom, count: 10}
+  - id: s-2026-11-21-a
+    date: 2026-11-21
+    minutes: 120
+    kind: review
+    topics: [wechselstrom]
+    goal: 'Wiederholung: Wechselstromrechnung'
+    tasks:
+      - {do: review, topic: wechselstrom}
+      - {do: mc, topic: wechselstrom, count: 10}
+  - id: s-2026-11-23-a
+    date: 2026-11-23
+    minutes: 120
+    kind: mixed
+    topics: [rc-filter, wechselstrom]
+    goal: 'Übertragungsfunktion und Grenzfrequenz des Tiefpasses verstehen'
+    tasks:
+      - {do: read, ref: 'topic:rc-filter'}
+      - {do: exercises, refs: ['ex:ex-rc-tp-grenzfrequenz']}
+      - {do: review, topic: wechselstrom}
+  - id: s-2026-11-25-a
+    date: 2026-11-25
+    minutes: 120
+    kind: mixed
+    topics: [rc-filter, wechselstrom]
+    goal: 'Bode-Diagramme mit Asymptoten skizzieren'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-tp-bode', 'ex:ex-rc-hp-dimensionieren']}
+      - {do: mc, topic: rc-filter, count: 5}
+      - {do: review, topic: wechselstrom}
+  - id: s-2026-11-28-a
+    date: 2026-11-28
+    minutes: 120
+    kind: review
+    topics: [rc-filter]
+    goal: 'Wiederholung: RC-Filter'
+    tasks:
+      - {do: review, topic: rc-filter}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2026-11-30-a
+    date: 2026-11-30
+    minutes: 120
+    kind: learn
+    topics: [rc-filter]
+    goal: 'Sprungantwort und Zeitkonstante berechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-sprungantwort']}
+      - {do: mc, topic: rc-filter, count: 5}
+  - id: s-2026-12-02-a
+    date: 2026-12-02
+    minutes: 120
+    kind: learn
+    topics: [rc-filter]
+    goal: 'Einen Tiefpass aus Messwerten bestimmen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-tp-messung']}
+      - {do: mc, topic: rc-filter, count: 5}
+  - id: s-2026-12-05-a
+    date: 2026-12-05
+    minutes: 120
+    kind: review
+    topics: [rc-filter]
+    goal: 'Wiederholung: RC-Filter'
+    tasks:
+      - {do: review, topic: rc-filter}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2026-12-07-a
+    date: 2026-12-07
+    minutes: 120
+    kind: learn
+    topics: [rc-filter]
+    goal: 'Den belasteten Tiefpass mit der Ersatzquelle herleiten'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-tp-belastet']}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2026-12-09-a
+    date: 2026-12-09
+    minutes: 120
+    kind: learn
+    topics: [rc-filter]
+    goal: 'Bode-Diagramm und Belastung im Zusammenhang wiederholen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-tp-bode', 'ex:ex-rc-tp-belastet']}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2026-12-12-a
+    date: 2026-12-12
+    minutes: 120
+    kind: review
+    topics: [rc-filter]
+    goal: 'Wiederholung: RC-Filter'
+    tasks:
+      - {do: review, topic: rc-filter}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2026-12-14-a
+    date: 2026-12-14
+    minutes: 120
+    kind: mixed
+    topics: [spannungsteiler, wechselstrom, rc-filter]
+    goal: 'Gemischte Übung vor der Pause: Teiler und Zeiger'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-st-ersatzquelle', 'ex:ex-ws-impedanz-rc']}
+      - {do: mc, topic: wechselstrom, count: 10}
+      - {do: review, topic: rc-filter}
+  - id: s-2026-12-16-a
+    date: 2026-12-16
+    minutes: 120
+    kind: mixed
+    topics: [rc-filter]
+    goal: 'Gemischte Übung vor der Pause: RC-Filter'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-hp-dimensionieren', 'ex:ex-rc-sprungantwort']}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2026-12-19-a
+    date: 2026-12-19
+    minutes: 120
+    kind: review
+    topics: [rc-filter]
+    goal: 'Wiederholung: RC-Filter'
+    tasks:
+      - {do: review, topic: rc-filter}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2027-01-09-a
+    date: 2027-01-09
+    minutes: 120
+    kind: mixed
+    topics: [spannungsteiler, wechselstrom]
+    goal: 'Nach der Pause: Teiler und Zeiger auffrischen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-st-belastet', 'ex:ex-ws-rl-reihe']}
+      - {do: mc, topic: spannungsteiler, count: 10}
+  - id: s-2027-01-11-a
+    date: 2027-01-11
+    minutes: 120
+    kind: mixed
+    topics: [rc-filter]
+    goal: 'Grenzfrequenz und Bode-Diagramm ohne Hinweise rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-tp-grenzfrequenz', 'ex:ex-rc-tp-bode']}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2027-01-13-a
+    date: 2027-01-13
+    minutes: 120
+    kind: mixed
+    topics: [wechselstrom]
+    goal: 'Impedanzen und Phasenwinkel sicher bestimmen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-ws-impedanz-rc', 'ex:ex-ws-parallel-rc']}
+      - {do: mc, topic: wechselstrom, count: 10}
+  - id: s-2027-01-16-a
+    date: 2027-01-16
+    minutes: 120
+    kind: mixed
+    topics: [rc-filter]
+    goal: 'Sprungantworten unter Zeitdruck rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-sprungantwort', 'ex:ex-rc-tp-messung']}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2027-01-18-a
+    date: 2027-01-18
+    minutes: 120
+    kind: mixed
+    topics: [spannungsteiler, rc-filter]
+    goal: 'Belastung bei Teiler und Filter vergleichen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-st-belastet-allgemein', 'ex:ex-rc-tp-belastet']}
+      - {do: mc, topic: spannungsteiler, count: 10}
+  - id: s-2027-01-20-a
+    date: 2027-01-20
+    minutes: 120
+    kind: mixed
+    topics: [wechselstrom, rc-filter]
+    goal: 'Hochpass und Zeigerdiagramm verbinden'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-hp-dimensionieren', 'ex:ex-ws-zeigerdiagramm']}
+      - {do: mc, topic: wechselstrom, count: 10}
+  - id: s-2027-01-23-a
+    date: 2027-01-23
+    minutes: 120
+    kind: review
+    topics: [spannungsteiler]
+    goal: 'Ersatzspannungsquellen ohne Hinweise bestimmen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-st-ersatzquelle', 'ex:ex-st-stromteiler']}
+      - {do: review, topic: spannungsteiler}
+  - id: s-2027-01-25-a
+    date: 2027-01-25
+    minutes: 120
+    kind: mixed
+    topics: [rc-filter]
+    goal: 'Den belasteten Tiefpass noch einmal selbstständig herleiten'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-tp-belastet', 'ex:ex-rc-tp-bode']}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2027-01-27-a
+    date: 2027-01-27
+    minutes: 120
+    kind: review
+    topics: [wechselstrom]
+    goal: 'Zeigerdiagramme sauber zeichnen und ablesen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-ws-zeigerdiagramm', 'ex:ex-ws-effektivwert']}
+      - {do: review, topic: wechselstrom}
+  - id: s-2027-01-30-a
+    date: 2027-01-30
+    minutes: 120
+    kind: buffer
+    goal: 'Puffer für Liegengebliebenes'
+    tasks: []
+  - id: s-2027-02-01-a
+    date: 2027-02-01
+    minutes: 90
+    kind: review
+    topics: [spannungsteiler, wechselstrom, rc-filter]
+    goal: 'Vor der Probeklausur alle Themen kurz wiederholen'
+    tasks:
+      - {do: review, topic: spannungsteiler}
+      - {do: review, topic: wechselstrom}
+      - {do: review, topic: rc-filter}
+  - id: s-2027-02-03-a
+    date: 2027-02-03
+    minutes: 120
+    kind: mixed
+    topics: [rc-filter]
+    goal: 'Klausurtypische RC-Aufgaben unter Zeitdruck rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-rc-tp-bode', 'ex:ex-rc-sprungantwort']}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2027-02-06-a
+    date: 2027-02-06
+    minutes: 150
+    kind: mock-exam
+    goal: 'Probeklausur unter Klausurbedingungen schreiben'
+    tasks:
+      - {do: exam, ref: 'exam:probeklausur-1'}
+  - id: s-2027-02-08-a
+    date: 2027-02-08
+    minutes: 90
+    kind: review
+    topics: [spannungsteiler, wechselstrom, rc-filter]
+    goal: 'Fehler aus der Probeklausur nacharbeiten'
+    tasks:
+      - {do: review, topic: spannungsteiler}
+      - {do: review, topic: wechselstrom}
+      - {do: review, topic: rc-filter}
+  - id: s-2027-02-10-a
+    date: 2027-02-10
+    minutes: 90
+    kind: mixed
+    topics: [wechselstrom, rc-filter]
+    goal: 'Schwachstellen gezielt üben'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-ws-rl-reihe', 'ex:ex-rc-tp-belastet']}
+      - {do: mc, topic: wechselstrom, count: 10}
+  - id: s-2027-02-13-a
+    date: 2027-02-13
+    minutes: 90
+    kind: review
+    topics: [spannungsteiler, wechselstrom, rc-filter]
+    goal: 'Letzte gemischte MC-Runde'
+    tasks:
+      - {do: mc, topic: spannungsteiler, count: 10}
+      - {do: mc, topic: wechselstrom, count: 10}
+      - {do: mc, topic: rc-filter, count: 10}
+  - id: s-2027-02-14-a
+    date: 2027-02-14
+    minutes: 90
+    kind: cheatsheet
+    goal: 'Das Formelblatt fertigstellen und prüfen'
+    tasks:
+      - {do: cheatsheet}
