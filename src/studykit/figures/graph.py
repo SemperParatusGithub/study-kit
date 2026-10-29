@@ -1179,7 +1179,8 @@ def _shared_segments(routes: list[dict]) -> int:
             o = 1 - axis
             lo = max(min(a1[o], b1[o]), min(a2[o], b2[o]))
             hi = min(max(a1[o], b1[o]), max(a2[o], b2[o]))
-            count += hi - lo > 1e-6
+            if hi - lo > 1e-6:  # a plain int: numpy comparisons would make count an int64
+                count += 1
     return count
 
 
