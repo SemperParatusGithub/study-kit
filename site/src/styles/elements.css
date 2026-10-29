@@ -24,13 +24,13 @@
   --ske-accent: var(--accent, light-dark(#1f5fbf, #8ab4f8));
   --ske-accent-fg: var(--accent-contrast, light-dark(#ffffff, #0d1117));
   --ske-accent-soft: var(--accent-soft, light-dark(#e7eefb, #1d2a40));
-  --ske-ok: var(--ok, light-dark(#1a7f37, #56d364));
+  --ske-ok: var(--ok, light-dark(#197c35, #56d364));
   --ske-ok-soft: var(--ok-soft, light-dark(#e6f4ea, #1a2e22));
   --ske-bad: var(--bad, light-dark(#cf222e, #ff7b72));
   --ske-bad-soft: var(--bad-soft, light-dark(#ffebe9, #3a1d1f));
-  --ske-warn: var(--warn, light-dark(#9a6700, #e3b341));
+  --ske-warn: var(--warn, light-dark(#966400, #e3b341));
   --ske-warn-soft: var(--warn-soft, light-dark(#fff4d6, #2e2714));
-  --ske-partial: var(--warn, light-dark(#9a6700, #e3b341));
+  --ske-partial: var(--warn, light-dark(#966400, #e3b341));
   --ske-radius: var(--radius, 0.6rem);
   --ske-radius-small: var(--radius-sm, 0.375rem);
   --ske-focus: var(--focus, light-dark(#1f5fbf, #8ab4f8));
