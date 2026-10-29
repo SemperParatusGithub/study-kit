@@ -59,7 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_validate = sub.add_parser("validate", help="validate courses stage by stage (SK-codes)")
     p_validate.add_argument("course", nargs="?", help="course id or directory (default: all)")
     p_validate.add_argument("--paths", nargs="+", type=Path, help="only report these files")
-    p_validate.add_argument("--quick", action="store_true", help="stages up to Math only")
+    p_validate.add_argument(
+        "--quick", action="store_true", help="quick stages: Structure to Math, Pandoc backstop"
+    )
     p_validate.add_argument(
         "--release", action="store_true", help="add the Site and Coverage stages"
     )

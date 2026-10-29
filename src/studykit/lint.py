@@ -1,8 +1,8 @@
 """`studykit lint <files…> [--hook]`: the fast per-file check.
 
-Lint is `validate --quick` restricted to the given files: Structure, Schema, Fences, MC and
-Math (plus the pandoc filter run once it exists), each file checked in the context of
-its course so topic ids, retired ids and duplicates are known.
+Lint is `validate --quick` restricted to the given files: Structure, Schema, Fences, MC,
+Math and the Pandoc backstop, each file checked in the context of its course so topic ids,
+retired ids and duplicates are known.
 
 With `--hook` it is the Claude Code PostToolUse hook for Write and Edit: it reads the hook
 JSON from stdin, lints `tool_input.file_path` when that is a course file under

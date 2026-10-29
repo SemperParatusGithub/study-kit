@@ -1,9 +1,9 @@
 """`studykit validate`: every content check as an ordered list of stages (§4.3).
 
 A stage is a function over one course that adds findings. Stages are registered with
-`@stage(...)` in pipeline order; `--quick` runs only quick stages (up to and including
-Math, used by the lint hook), `--release` adds the Site build and Coverage. A stage whose
-tools or inputs are not there yet (pandoc filters, figure builds, PDFs, the site) declares
+`@stage(...)` in pipeline order; `--quick` runs only quick stages (Structure to Math plus
+the Pandoc backstop, used by the lint hook), `--release` adds the Site build and Coverage.
+A stage whose tools or inputs are not there yet (figure builds, PDFs, the site) declares
 `requires=` and is reported as skipped with an info note instead of failing, so later
 phases plug in by registering a stage or by providing what `requires` looks for.
 """
