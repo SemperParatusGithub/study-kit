@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+<head>
+<!--#include partials/head.html-->
+<title>Exercise harness</title>
+</head>
+<body data-course="mini" data-exam-date="2027-02-15">
+<!--#include partials/header.html-->
+<main>
+<h1>Grenzfrequenz eines RC-Tiefpasses</h1>
+<!--#include fixtures/exercise.html-->
+
+<h2>More answer formats</h2>
+<p>The §2.5 examples: an absolute tolerance in dB and a symbolic answer.</p>
+<sk-answer-check id="more-answers" data-item="ex:ex-answer-formats" data-h="0a1b2c3d" data-answers='[
+  {"key": "Hdb", "label": "$|\\underline{H}(f_\\mathrm{g})|$", "value": -3.0103, "unit": "dB", "atol": 0.01},
+  {"key": "H", "label": "$\\underline{H}(s)$", "expr": "1/(1+s*R*C)", "symbols": ["s", "R", "C"]}
+]'></sk-answer-check>
+</main>
+</body>
+</html>

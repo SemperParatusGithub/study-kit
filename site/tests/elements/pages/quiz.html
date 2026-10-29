@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="de">
+<head>
+<!--#include partials/head.html-->
+<title>Quiz harness</title>
+</head>
+<body data-course="mini" data-exam-date="2027-02-15">
+<!--#include partials/header.html-->
+<main>
+<h1>Multiple choice</h1>
+<sk-quiz data-course="mini" data-mode="practice"
+  data-pools='["/fixtures/pools/rc-tiefpass.json", "/fixtures/pools/rc-filter.json"]'
+  data-topic-titles='{"rc-tiefpass": "RC-Tiefpass", "rc-filter": "RC-Filter und Bode-Diagramm"}'
+  data-summary-base="/c/mini/summary/">
+  <p class="no-js">The quiz needs JavaScript. The questions are listed on the topic pages.</p>
+</sk-quiz>
+</main>
+</body>
+</html>

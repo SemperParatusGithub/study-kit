@@ -1,0 +1,11 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  // Mirrors the shell's inline head script: apply the stored theme before first paint.
+  try { document.documentElement.dataset.theme = localStorage.getItem('studykit:theme') || 'system'; } catch {}
+</script>
+<link rel="stylesheet" href="/katex/katex.min.css">
+<link rel="stylesheet" href="/harness.css">
+<link rel="stylesheet" href="/styles/elements.css">
+<script type="importmap">{"imports": {"katex": "/katex/katex.mjs"}}</script>
+<script type="module" src="/build/elements/index.js"></script>

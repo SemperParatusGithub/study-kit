@@ -1,0 +1,93 @@
+/* Stand-in for the site shell's tokens.css and base.css in the element harness only:
+ * color-scheme from [data-theme], a page frame, figure placeholders and <details>. */
+
+:root {
+  color-scheme: light dark;
+  --page-bg: light-dark(#ffffff, #0e1217);
+  --page-fg: light-dark(#1c2128, #e4e7eb);
+  --page-border: light-dark(#d0d7de, #39424d);
+  --page-link: light-dark(#1f5fbf, #7db3ff);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--page-fg);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--page-link);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1.25rem;
+  border-block-end: 1px solid var(--page-border);
+}
+
+.page-header strong {
+  font-size: 1.05rem;
+}
+
+main {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 4rem;
+}
+
+h1 {
+  font-size: 1.6rem;
+  margin-block: 0.75rem 1rem;
+}
+
+.sk-fig {
+  margin: 1rem 0;
+  padding: 1.25rem;
+  border: 1px dashed var(--page-border);
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.sk-fig::before {
+  content: 'figure ' attr(data-slug);
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+figcaption {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+details.sk-hint,
+details.sk-solution {
+  margin-block: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--page-border);
+  border-radius: 0.5rem;
+}
+
+details.sk-hint > summary,
+details.sk-solution > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.katex {
+  font-size: 1.08em;
+}

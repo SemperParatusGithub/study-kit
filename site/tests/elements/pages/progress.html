@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de">
+<head>
+<!--#include partials/head.html-->
+<title>Progress harness</title>
+</head>
+<body data-course="mini" data-exam-date="2027-02-15">
+<!--#include partials/header.html-->
+<main>
+<h1>Progress</h1>
+<sk-progress data-course="mini"
+  data-topics='[{"id": "spannungsteiler", "title": "Spannungsteiler"}, {"id": "rc-tiefpass", "title": "RC-Tiefpass"}, {"id": "rc-filter", "title": "RC-Filter und Bode-Diagramm"}]'
+  data-exams='{"probeklausur-1": {"title": "Probeklausur 1", "points": 20}}'></sk-progress>
+
+<h2>Study plan</h2>
+<!--#include fixtures/plan.html-->
+
+<h2>Export and import</h2>
+<sk-export data-course="mini"></sk-export>
+</main>
+</body>
+</html>
