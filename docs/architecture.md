@@ -19,7 +19,7 @@ them in the same change.
 
 ## 1. Repository layout
 
-Entries marked (Phase n) are planned and do not exist yet.
+Everything below exists; the optional Phase 7 (§6) would add to it.
 
 ```
 study-kit/
@@ -33,6 +33,9 @@ study-kit/
 ├── .github/workflows/ci.yml  guard.yml
 ├── .github/scripts/guard.sh        # the guard workflow's checks: `commits`, `courses`, `pdfs`
 ├── .github/scripts/test-hooks.sh   # tests of the git hooks and guard.sh in throwaway repositories (`just test`)
+├── docs/architecture.md            # this specification
+├── docs/walkthrough.md             # registering a subject and studying it, step by step
+├── docs/content-format/errors.md   # every SK code with its fix and owner (§4.3)
 ├── src/studykit/
 │   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links, pdf, cheatsheet fit,
 │   │                               # calc, verify, plan, status, progress import|log|report, ingest and pipeline
@@ -88,14 +91,16 @@ study-kit/
 │   ├── sample-course/              # self-written German mini course `sample-course` using every feature (CI fixture)
 │   └── sample-materials/           # self-written Typst sources (op-amp circuits) for fake slides, script, exercise sheet, past exam
 │                                   # and one rasterised "scan"; `just sample-materials` builds the PDFs into its gitignored _build/
-├── tests/py/                       # pytest (§4.4); test_claude.py checks the .claude/ layer
+├── tests/py/                       # pytest (§4.4); test_claude.py checks the .claude/ layer; materials.py makes lecture PDFs at test time
 ├── tests/golden/{math.md,math-denied.md,math.typ.snap,blocks.md,mcq.md,figures/}
 ├── tests/fixtures/{bad/<SK-CODE>/,courses/mini/,pandoc/{ok,bad}/,figures/gallery/,progress/}
 ├── .claude/
 │   ├── settings.json               # attribution, permissions, the lint and pre-git hooks (§5.1)
 │   ├── agents/                     # ingester.md exam-analyst.md author.md verifier.md tutor.md examiner.md (§5.3)
 │   └── skills/                     # §5.2: <name>/SKILL.md per skill
+│       ├── register-new-subject/  add-material/   # user commands that build and extend a course (§5.4)
 │       ├── regenerate/  verify/  tutor/  examine/  import-progress/  study-status/   # user commands
+│       ├── ingest/                 # SKILL.md, exam-analysis.md, templates/ (notes, exam profile with and without past exams, notation, outline)
 │       ├── content-format/         # SKILL.md, templates/ (course.yaml, overview, summary, exercises, MC bank, exam/, cheat sheet, plan, exam profile, figure)
 │       ├── authoring/              # SKILL.md, parts/{overview,summary,exercises,mc,exam,cheatsheet,plan}.md
 │       ├── figures/                # SKILL.md, reference.md (the studykit.figures API)
@@ -133,9 +138,17 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── plan.yaml                       # written by `studykit plan` (§2.9); Claude writes only each session's goal and note
 ├── figures/<slug>.py
 ├── checks/<item-id>.py | <item-id>.json    # verifier output; <item-id>.<tag>.py|json a second method
-├── sources/raw/<doc>.pdf  manifest.yaml  chunks.yaml  text/<doc>/{index.json,p0001.txt,p0001.vision.md}  notes/<chunk>.md  outline.md
-├── analysis/exam-profile.yaml  notation.yaml
+├── sources/                        # the lecture material and what was read from it (§5.4)
+│   ├── manifest.yaml               # `studykit ingest`: documents (id, kind, sha256, pages, origin), skipped files, the ask-round answers
+│   ├── raw/<doc>.pdf               # `ingest init|add`: copies of the user's PDFs; the user's folder is only read
+│   ├── text/<doc>/index.json  p0001.txt   # `ingest extract`: page text and per-page flags (visual, scanned, why)
+│   ├── text/<doc>/p0001.vision.md  # the ingester's transcription of a scanned page
+│   ├── chunks.yaml                 # `ingest extract`: chunks `<doc>-cNN` of at most 20 pages with flagged and scanned pages
+│   ├── notes/<chunk>.md            # the ingester's digest of one chunk (frontmatter `ChunkNotes`)
+│   └── outline.md                  # the synthesis step: topics, their sources and every chunk id
+├── analysis/exam-profile.yaml  notation.yaml   # the exam-analyst: archetypes, MC rules, topic weights; j vs. i, phasors, decimal sign
 ├── state/verify/<item-id>.json     # ledger, one file per item (no locking); report.md
+├── state/pipeline/report.md        # `studykit pipeline report` (step 14), with the fingerprint that marks it current
 ├── progress/state.json  browser/*.json  examiner.jsonl  mastery.json  report.md   # §2.11, written by `studykit progress`
 ├── _history/<timestamp>/…          # copies saved by /regenerate before overwriting (UTC timestamp, same relative paths)
 └── _build/{index.json,figures,typ,pdf,blind,logs}   # typ: assembled .md/.typ and digests; pdf: PDFs and manifest.json; logs: pandoc logs
@@ -144,8 +157,8 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 Discovery (`content.py`) knows the content kinds above (course, overview, summary, exercise,
 mc, exam, exam task, exam MC, cheat sheet, plan, figure scripts, exam profile, notation,
 manifest, chunk plan, outline, chunk notes). It never enters `_build`, `_history`, `state`,
-`progress`, `checks`, `sources/raw` and `sources/text`; any other file in the course is
-SK-STRUCT-PATH. Chunk notes are Markdown like the content files (the Fences, Math and
+`progress`, `checks`, `sources/raw` and `sources/text` (so page texts and transcriptions are
+neither validated nor linted); any other file in the course is SK-STRUCT-PATH. Chunk notes are Markdown like the content files (the Fences, Math and
 References stages check them) but are never rendered, so the Pandoc stage skips them.
 
 **Schemas.** The pydantic models in `model.py` are the single source. `just schema` exports them to `schemas/*.schema.json`, which editors use through `# yaml-language-server: $schema=…`; `just test` fails when the committed files are stale (`schema export --check`). The ingest files have models too (§5.4): `sources/manifest.yaml` (`SourceManifest`: per document id, title, file in `sources/raw/`, origin in the user's folder, sha256, bytes, pages, kind, where the kind came from, text-layer share, added and updated days; the skipped files; the ask-round answers), `sources/chunks.yaml` (`ChunkPlan`), the frontmatter of `sources/notes/<chunk>.md` (`ChunkNotes`), `analysis/exam-profile.yaml` (`ExamProfile`; archetype, MC-type and topic-weight shares add up to 1, SK-SCHEMA-SHARES) and `analysis/notation.yaml` (`Notation`). The References stage checks that they agree (SK-REF-CHUNK, SK-REF-MISSING); validate reads the profile's archetype ids and the manifest's document ids and page counts. The site declares only a minimal `astro/zod` schema for the fields it renders, so a site that no longer matches the data fails the strict build of the sample course.
@@ -837,8 +850,8 @@ TypeScript on the shared cases in `tests/fixtures/progress/` and compares every 
   prints): days left, plan adherence (done sessions, and past sessions not done as the
   site's banner counts them), the next three sessions, the three weakest answered topics and
   the topics not practised yet (they count 0 in the mastery), reviews
-  due, the last mock exam and hints for the next step. It is the student's status; the
-  pipeline status of §5.4 needs another name.
+  due, the last mock exam and hints for the next step. It is the student's status; where
+  `/register-new-subject` stands is `studykit pipeline status` (§5.4).
 - The site reads `mastery.json` at build time (`lib/courses.ts`, straight from the course directory: `overall`, else the mean of `topics.<id>.mastery`), so examiner results show up on the course home page until the browser has answers of its own.
 
 ### 2.12 Overview (`overview.md`)
@@ -872,7 +885,8 @@ title: Überblick
 - Links to topics use `topic:` references; every topic must be linked at least once.
 - Written by the `author` agent with `authoring/parts/overview.md` (§5.2):
   `/regenerate <course> overview` re-runs it, and `/regenerate <course> all` (like the
-  Phase 6 author wave) writes it first so the other parts can link to it. It links only
+  author wave of `/register-new-subject`, §5.4 step 7) writes it first so the other parts
+  can link to it. It links only
   what exists, so the exercises and mock exams get their links when the course is
   published (§5.4 step 13) or at the end of `/regenerate <course> all`.
 - Web: `/c/<c>/` (the Overview tab). PDF: `overview.pdf`, also the first chapter of
