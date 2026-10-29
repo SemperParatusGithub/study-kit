@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../../../schemas/plan.schema.json
+schema: 1
+generated: 2026-10-29
+exam_date: 2027-02-15
+sessions:
+  - id: s-2026-11-02-a
+    date: 2026-11-02
+    minutes: 90
+    kind: learn
+    topics: [spannungsteiler]
+    tasks:
+      - {do: read, ref: 'topic:spannungsteiler'}
+  - {id: s-2027-02-16-a, date: 2027-02-16, minutes: 60, kind: mock-exam, tasks: [{do: exam, ref: 'exam:probeklausur-1'}]}

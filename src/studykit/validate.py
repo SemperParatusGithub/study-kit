@@ -251,6 +251,7 @@ def check_structure(ctx: Context) -> None:
     _check_required_files(ctx)
     _check_ids(ctx)
     _check_exams(ctx)
+    _check_plan_dates(ctx)
 
 
 def _check_required_files(ctx: Context) -> None:
@@ -263,7 +264,7 @@ def _check_required_files(ctx: Context) -> None:
     course = tree.model
     required = [
         ("overview.md", "author it with the six sections of docs/architecture.md §2.12"),
-        ("plan.yaml", "`/regenerate <course> plan`, or write it as in docs/architecture.md §2.9"),
+        ("plan.yaml", "`studykit plan <course>`, then write the session goals"),
     ]
     if course is not None and course.cheatsheet.allowed:
         required.append(("cheatsheet.md", "`/regenerate <course> cheatsheet`, then fit it"))
@@ -279,6 +280,38 @@ def _check_required_files(ctx: Context) -> None:
                     fix,
                     "error" if ctx.release else "warning",
                 )
+            )
+
+
+def _check_plan_dates(ctx: Context) -> None:
+    """A plan made for another exam date: sessions on or after the exam are errors, a
+    different `exam_date` is a warning (the plan is stale)."""
+    plan, course = ctx.tree.get("plan.yaml"), ctx.tree.model
+    if plan is None or plan not in ctx.docs("plan") or plan.model is None or course is None:
+        return
+    exam = course.exam.date
+    fix = "replan with `studykit plan <course>` (done sessions and session goals are kept)"
+    if exam is None:
+        return
+    if plan.model.exam_date != exam:
+        planned = plan.model.exam_date.isoformat() if plan.model.exam_date else "an unknown date"
+        ctx.at_yaml(
+            plan,
+            ["exam_date"],
+            "SK-STRUCT-PLAN",
+            f"plan.yaml was made for the exam on {planned}, course.yaml has {exam.isoformat()}",
+            fix,
+            "warning",
+        )
+    for i, session in enumerate(plan.model.sessions):
+        if session.date >= exam:
+            ctx.at_yaml(
+                plan,
+                ["sessions", i, "date"],
+                "SK-STRUCT-PLAN",
+                f"session {session.id} on {session.date.isoformat()} is not before the exam "
+                f"on {exam.isoformat()}",
+                fix,
             )
 
 
@@ -1430,7 +1463,8 @@ def _check_plan(ctx: Context, plan: Doc, targets: dict) -> None:
                         loc,
                         "SK-REF-MISSING",
                         f"plan reference '{ref}' does not exist",
-                        "regenerate the plan (`/regenerate <course> plan`) or fix the id",
+                        "replan with `studykit plan <course>` (done sessions and goals are kept) "
+                        "or fix the id",
                     )
                 elif scheme not in targets:
                     ctx.at_yaml(

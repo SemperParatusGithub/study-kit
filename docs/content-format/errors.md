@@ -46,9 +46,8 @@ an error card on the page.
 in an `exams/<exam-id>/` directory, or a file given to `lint`. A missing `overview.md`,
 `plan.yaml` or (when the exam allows one) `cheatsheet.md` is a warning while the course is
 being authored and an error with `--release`.
-Fix: create the file from its schema in `schemas/`, or remove the stray directory. Until
-`studykit plan` exists (Phase 5), write `plan.yaml` by hand against
-`schemas/plan.schema.json`.
+Fix: create the file from its schema in `schemas/`, or remove the stray directory;
+`plan.yaml` comes from `studykit plan <course>` (then write the session goals).
 
 ### `SK-STRUCT-PATH`
 **error.** A file is not where the layout (§2.1) expects it, its path disagrees with its
@@ -98,6 +97,13 @@ at a glance, how to study, prerequisites.
 **error.** In `exam.yaml`, task points plus MC questions × `points_each` do not add up to
 `points`.
 Fix: adjust task `points`, the number of questions in `mc.md`, `points_each` or the total.
+
+### `SK-STRUCT-PLAN`
+**error** (a session) or **warning** (the exam date). `plan.yaml` no longer fits the exam in
+`course.yaml`: a session is on or after the exam day (error), or the plan's `exam_date` is
+not the exam date (warning: the plan was made for another date).
+Fix: `studykit plan <course>` replans from today; done sessions and the goals of unchanged
+sessions are kept.
 
 ## Schema (SK-SCHEMA, SK-YAML)
 
