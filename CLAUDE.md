@@ -30,7 +30,8 @@ before changing that area, and keep code and spec in sync.
   finishing; a full validate also builds the course's PDFs.
 - After changing how PDFs look (`typst/`, `pdf.py`, the filter's Typst branch), build the
   sample course's PDFs and look at the pages (render them to PNG with pypdfium2).
-- Grep and Glob may skip the gitignored `courses/`; use `studykit ls` or explicit paths.
+- Grep and Glob may skip the gitignored `courses/`; use `studykit ls` (files),
+  `studykit index <course> --json` (ids) or explicit paths.
 - Pin exact versions; `toolchain.toml`, `uv.lock` and `site/pnpm-lock.yaml` are the source
   of truth.
 
@@ -48,5 +49,10 @@ before changing that area, and keep code and spec in sync.
 - Hooks in `.claude/settings.json`: every Write or Edit of a course file runs
   `studykit lint --hook` (fix what it prints at once); `studykit hook pre-git` blocks git
   commands that would commit course files.
+- Ledger files (`state/verify/`) are written only by `studykit verify`, `progress/` only
+  by `studykit progress import|log|report`, and `plan.yaml` only by `studykit plan`, except
+  each session's goal and note. Never edit them by hand.
+- `/register-new-subject`, `/add-material`, `ingester` and `exam-analyst` come with
+  Phase 6 (docs/architecture.md §5.4); they do not exist yet.
 - When you change a skill or an agent, run `uv run --frozen pytest -q tests/py/test_claude.py`:
   it checks frontmatter, referenced files, `studykit` commands and `just` recipes.
