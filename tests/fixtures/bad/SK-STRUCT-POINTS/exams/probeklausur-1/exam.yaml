@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../../../../../../schemas/exam.schema.json
+schema: 1
+id: probeklausur-1
+title: Probeklausur 1
+duration_min: 60
+points: 40
+pass_points: 15
+aids: inherit
+modeled_on: []
+tasks: [01-pk1-t1.md, 02-pk1-t2.md]
+mc: {file: mc.md, points_each: 2}

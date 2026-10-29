@@ -1,0 +1,5 @@
+schema: 1
+confidence: low
+archetypes:
+  - {id: spannungsteiler-rechnung, share: 0.4}
+  - {id: bode-diagramm, share: 0.6}

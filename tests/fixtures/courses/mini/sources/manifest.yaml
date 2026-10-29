@@ -1,0 +1,6 @@
+schema: 1
+documents:
+  - {id: vl-01, title: Vorlesung 1, pages: 20}
+  - {id: vl-02, title: Vorlesung 2, pages: 24}
+  - {id: ue-01, title: Übung 1, pages: 4}
+  - {id: ue-02, title: Übung 2, pages: 4}

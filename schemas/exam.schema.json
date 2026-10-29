@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ExamMcPart": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "const": "mc.md",
+          "default": "mc.md",
+          "title": "File",
+          "type": "string"
+        },
+        "points_each": {
+          "exclusiveMinimum": 0,
+          "title": "Points Each",
+          "type": "number"
+        }
+      },
+      "required": [
+        "points_each"
+      ],
+      "title": "ExamMcPart",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`exams/<exam-id>/exam.yaml`.",
+  "properties": {
+    "schema": {
+      "const": 1,
+      "title": "Schema",
+      "type": "integer"
+    },
+    "id": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "pattern": "^[^\\n]*\\S[^\\n]*$",
+      "title": "Title",
+      "type": "string"
+    },
+    "duration_min": {
+      "exclusiveMinimum": 0,
+      "title": "Duration Min",
+      "type": "integer"
+    },
+    "points": {
+      "exclusiveMinimum": 0,
+      "title": "Points",
+      "type": "number"
+    },
+    "pass_points": {
+      "exclusiveMinimum": 0,
+      "title": "Pass Points",
+      "type": "number"
+    },
+    "aids": {
+      "anyOf": [
+        {
+          "const": "inherit",
+          "type": "string"
+        },
+        {
+          "items": {
+            "minLength": 1,
+            "pattern": "^[^\\n]*\\S[^\\n]*$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "default": "inherit",
+      "title": "Aids"
+    },
+    "modeled_on": {
+      "default": [],
+      "items": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Modeled On",
+      "type": "array"
+    },
+    "tasks": {
+      "items": {
+        "pattern": "^[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*-t[0-9]+\\.md$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Tasks",
+      "type": "array"
+    },
+    "mc": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExamMcPart"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "duration_min",
+    "points",
+    "pass_points",
+    "tasks"
+  ],
+  "title": "Exam",
+  "type": "object"
+}

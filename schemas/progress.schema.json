@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ExamAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "started": {
+          "format": "date-time",
+          "title": "Started",
+          "type": "string"
+        },
+        "duration_s": {
+          "minimum": 0,
+          "title": "Duration S",
+          "type": "integer"
+        },
+        "points": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Points",
+          "type": "object"
+        },
+        "total": {
+          "minimum": 0,
+          "title": "Total",
+          "type": "number"
+        }
+      },
+      "required": [
+        "started",
+        "duration_s",
+        "points",
+        "total"
+      ],
+      "title": "ExamAttempt",
+      "type": "object"
+    },
+    "ExamProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ExamAttempt"
+          },
+          "title": "Attempts",
+          "type": "array"
+        }
+      },
+      "title": "ExamProgress",
+      "type": "object"
+    },
+    "ExerciseProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "h": {
+          "pattern": "^[0-9a-f]{8,64}$",
+          "title": "H",
+          "type": "string"
+        },
+        "hints": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Hints",
+          "type": "integer"
+        },
+        "answer_ok": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Answer Ok"
+        },
+        "rating": {
+          "anyOf": [
+            {
+              "enum": [
+                "solved",
+                "partial",
+                "not-yet"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rating"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "due": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Due"
+        }
+      },
+      "required": [
+        "h"
+      ],
+      "title": "ExerciseProgress",
+      "type": "object"
+    },
+    "McAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "chosen": {
+          "items": {
+            "pattern": "^[A-F]$",
+            "type": "string"
+          },
+          "title": "Chosen",
+          "type": "array"
+        },
+        "score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "conf": {
+          "enum": [
+            "sure",
+            "unsure"
+          ],
+          "title": "Conf",
+          "type": "string"
+        },
+        "ms": {
+          "minimum": 0,
+          "title": "Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "t",
+        "chosen",
+        "score",
+        "conf",
+        "ms"
+      ],
+      "title": "McAttempt",
+      "type": "object"
+    },
+    "McProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "h": {
+          "pattern": "^[0-9a-f]{8,64}$",
+          "title": "H",
+          "type": "string"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "due": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Due"
+        },
+        "attempts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/McAttempt"
+          },
+          "title": "Attempts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "h"
+      ],
+      "title": "McProgress",
+      "type": "object"
+    },
+    "PlanProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "done": {
+          "title": "Done",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "done"
+      ],
+      "title": "PlanProgress",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A browser progress export, `studykit-progress-<course>-<date>.json`.",
+  "properties": {
+    "schema": {
+      "const": "studykit-progress/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "course": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,39}$",
+      "title": "Course",
+      "type": "string"
+    },
+    "exported_at": {
+      "format": "date-time",
+      "title": "Exported At",
+      "type": "string"
+    },
+    "items": {
+      "default": {},
+      "patternProperties": {
+        "^(mc|ex|exam|plan):[a-z0-9][a-z0-9-]*$": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/McProgress"
+            },
+            {
+              "$ref": "#/$defs/ExerciseProgress"
+            },
+            {
+              "$ref": "#/$defs/ExamProgress"
+            },
+            {
+              "$ref": "#/$defs/PlanProgress"
+            }
+          ]
+        }
+      },
+      "title": "Items",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "course",
+    "exported_at"
+  ],
+  "title": "Progress",
+  "type": "object"
+}

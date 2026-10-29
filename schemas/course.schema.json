@@ -1,0 +1,407 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "CheatsheetPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "max_pages": {
+          "default": 2,
+          "description": "the validator caps it at 3",
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Max Pages",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "allowed"
+      ],
+      "title": "CheatsheetPolicy",
+      "type": "object"
+    },
+    "CourseExam": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "null = unknown; the plan uses a placeholder",
+          "title": "Date"
+        },
+        "duration_min": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Min"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points"
+        },
+        "format": {
+          "enum": [
+            "written",
+            "mc",
+            "oral",
+            "mixed"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "aids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "pattern": "^[^\\n]*\\S[^\\n]*$",
+            "type": "string"
+          },
+          "title": "Aids",
+          "type": "array"
+        },
+        "mc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExamMc"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "format"
+      ],
+      "title": "CourseExam",
+      "type": "object"
+    },
+    "ExamMc": {
+      "additionalProperties": false,
+      "properties": {
+        "present": {
+          "title": "Present",
+          "type": "boolean"
+        },
+        "types": {
+          "default": [],
+          "items": {
+            "enum": [
+              "single",
+              "multi",
+              "kprim"
+            ],
+            "type": "string"
+          },
+          "title": "Types",
+          "type": "array"
+        },
+        "scoring": {
+          "default": "all-or-nothing",
+          "enum": [
+            "all-or-nothing",
+            "partial",
+            "kprim"
+          ],
+          "title": "Scoring",
+          "type": "string"
+        },
+        "negative_marking": {
+          "default": false,
+          "title": "Negative Marking",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "present"
+      ],
+      "title": "ExamMc",
+      "type": "object"
+    },
+    "Study": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        },
+        "hours_per_week": {
+          "exclusiveMinimum": 0,
+          "title": "Hours Per Week",
+          "type": "number"
+        },
+        "blocked": {
+          "default": [],
+          "items": {
+            "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})(?:\\.\\.([0-9]{4}-[0-9]{2}-[0-9]{2}))?$",
+            "type": "string"
+          },
+          "title": "Blocked",
+          "type": "array"
+        }
+      },
+      "required": [
+        "hours_per_week"
+      ],
+      "title": "Study",
+      "type": "object"
+    },
+    "Targets": {
+      "additionalProperties": false,
+      "properties": {
+        "exercises_per_topic": {
+          "anyOf": [
+            {
+              "const": "auto",
+              "type": "string"
+            },
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            }
+          ],
+          "default": "auto",
+          "title": "Exercises Per Topic"
+        },
+        "mc_per_topic": {
+          "anyOf": [
+            {
+              "const": "auto",
+              "type": "string"
+            },
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            }
+          ],
+          "default": "auto",
+          "title": "Mc Per Topic"
+        },
+        "mock_exams": {
+          "default": 2,
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Mock Exams",
+          "type": "integer"
+        }
+      },
+      "title": "Targets",
+      "type": "object"
+    },
+    "Topic": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "title": "Title",
+          "type": "string"
+        },
+        "weight": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Weight",
+          "type": "number"
+        },
+        "prereq": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Prereq",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "weight"
+      ],
+      "title": "Topic",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`course.yaml`: one per course directory.",
+  "properties": {
+    "schema": {
+      "const": 1,
+      "title": "Schema",
+      "type": "integer"
+    },
+    "id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,39}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "pattern": "^[^\\n]*\\S[^\\n]*$",
+      "title": "Title",
+      "type": "string"
+    },
+    "short": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Short"
+    },
+    "lang": {
+      "description": "language of generated content",
+      "enum": [
+        "de",
+        "en"
+      ],
+      "title": "Lang",
+      "type": "string"
+    },
+    "semester": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "pattern": "^[^\\n]*\\S[^\\n]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Semester"
+    },
+    "status": {
+      "default": "draft",
+      "enum": [
+        "draft",
+        "ready"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "exam": {
+      "$ref": "#/$defs/CourseExam"
+    },
+    "cheatsheet": {
+      "$ref": "#/$defs/CheatsheetPolicy",
+      "default": {
+        "allowed": false,
+        "max_pages": 2
+      }
+    },
+    "study": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Study"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "topics": {
+      "description": "order = teaching order",
+      "items": {
+        "$ref": "#/$defs/Topic"
+      },
+      "minItems": 1,
+      "title": "Topics",
+      "type": "array"
+    },
+    "focus": {
+      "default": [],
+      "items": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Focus",
+      "type": "array"
+    },
+    "skip": {
+      "default": [],
+      "items": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Skip",
+      "type": "array"
+    },
+    "targets": {
+      "$ref": "#/$defs/Targets",
+      "default": {
+        "exercises_per_topic": "auto",
+        "mc_per_topic": "auto",
+        "mock_exams": 2
+      }
+    },
+    "retired_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Retired Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "lang",
+    "exam",
+    "topics"
+  ],
+  "title": "Course",
+  "type": "object"
+}

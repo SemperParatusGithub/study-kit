@@ -867,7 +867,7 @@ ci:
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
 
-Every finding has the form `path:line:col SK-CODE message (fix: …)`. Each code is documented in `content-format/errors.md` with a fix recipe and the pipeline step that owns it. `--quick` covers the stages up to and including Math, for one file in under about 1 s, and is used by the hook.
+Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is the stage family from the table plus a rule (`SK-MCQ-COUNT`, `SK-YAML-ESCAPE`); warnings keep the shape and start the message with `warning:`. Each code is documented in `content-format/errors.md` with a fix recipe and the pipeline step that owns it. `--quick` covers the stages up to and including Math, for one file in under about 1 s, and is used by the hook.
 
 | Stage | Checks | Code |
 |---|---|---|
