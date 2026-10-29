@@ -142,6 +142,7 @@ class Sheet:
         ax.set_ylim(box.y0, box.y1)
 
     def _extent(self, fig, ax) -> Bbox:
+        fig.draw_without_rendering()  # positions the background boxes of texts
         renderer = fig.canvas.get_renderer()
         to_data = ax.transData.inverted()
         boxes = []
