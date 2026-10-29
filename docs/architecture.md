@@ -453,6 +453,22 @@ Beurteilen Sie für den RC-Tiefpass:
   mulberry32, then Fisher-Yates runs from the last option down (a `pin-last` option is left
   out), and the keys (A)–(F) are assigned after shuffling.
 
+**In the PDF** (`mcq.lua` emits `#sk-mcq`; `typst/studykit.typ` sets it):
+- Questions are numbered through the document. Below the stem, an italic line names the
+  type in the course language („Genau eine Antwort ist richtig.“, „Eine oder mehrere
+  Antworten sind richtig.“, „Beurteilen Sie jede Aussage: richtig oder falsch.“).
+- single and multi: one row per option with an empty box, its key (A)–(F) and the text.
+  Kprim: a table of the statements with two boxes per row, under „richtig“ and „falsch“.
+- The order is the deterministic shuffle above, which `<sk-mc>` uses too (`lib/shuffle.ts`),
+  so a letter means the same option on the site and on paper.
+- Where the key goes follows the document's solution mode (§3.1 `solutions`). `mc.pdf`
+  collects it in an appendix „Lösungsschlüssel“: first a two-column table of number,
+  answer and question id (Kprim: „richtig: A, C“; each number links to its question), then
+  one entry per question with the correct keys (Kprim: the true and the false ones), every
+  option marked ✓ or ✗ (Kprim: richtig or falsch) with its `why`, the explanation and a
+  link back „↑ zur Frage“. An exam's MC part has no key; the exam's solutions PDF shows each
+  question's key inline below it.
+
 **Lint rules** (`mcq.lua` and the MC stage of `validate.py`, which `lint` runs too):
 - `single` has 3–5 options with exactly one `[x]`.
 - `multi` has 4–6 options with at least one `[x]` and at least one `[ ]`.
@@ -549,12 +565,16 @@ mc: {file: mc.md, points_each: 2}        # present only if course.exam.mc.presen
     (SK-COV-EXAM)
   - *(planned)* the archetype mix matches the profile, and an n-gram similarity above 0.6 to
     the extracted past-exam text produces a "too close to source" warning
+- PDF: `<exam>.pdf` to write on (cover, tasks, MC part, no solutions) and
+  `<exam>-solutions.pdf` (solutions with rubric) (§3.3).
 
 ### 2.8 Cheat sheet (`cheatsheet.md`)
 
 - **Frontmatter:** `title`, `max_pages`, which must be ≤ `course.cheatsheet.max_pages` ≤ 3, and `priority` (topic IDs).
 - **Body:** a `##` section per topic containing formulas, small tables, definition/note/warning boxes, and small figures.
 - **Not allowed:** exercises and hints.
+- **PDF:** `cheatsheet.pdf` in two columns, set at the first density (9 down to 7 pt) that
+  fits `min(3, course.cheatsheet.max_pages, max_pages)` pages (§3.3).
 
 ### 2.9 Study plan (`plan.yaml`)
 
@@ -586,6 +606,9 @@ How the scheduler places sessions:
 - Reviews follow at +1, +3 and +7 days.
 - Mock exams go into the last 14 days, and the last day is for the cheat sheet.
 - `--replan` keeps past sessions and puts weak topics from `progress/mastery.json` first.
+
+`plan.pdf` lists the sessions week by week („Woche n · dates“), one row each with a box to
+tick, date, minutes, kind, goal, topics and tasks (§3.3).
 
 ### 2.10 Verification ledger (`state/verify/<item-id>.json`, Phase 5)
 
