@@ -162,8 +162,11 @@ the run with its findings.
    a very small course): kebab ids in the course language (ASCII), titles in the course
    language, teaching order, `prereq` acyclic and only on earlier topics.
 3. **Weights:** with a profile of `confidence` medium or high, each topic's share of the
-   exam points (`topic_weights` and archetype shares mapped to the topics); otherwise the
-   lecture coverage (pages of slides and script per topic). Compute with
+   exam points: the profile's `topic_weights` (they already count the MC part) added up
+   over the slugs merged into the topic, so the course weights equal the mapped profile
+   of item 6; archetype shares (task points only) only when the profile has no
+   `topic_weights`. Otherwise the lecture coverage (pages of slides and script per
+   topic). Compute with
    `uv run --frozen studykit calc`, round to two decimals, remainder on the largest, sum 1.
 4. Write `sources/outline.md` from `.claude/skills/ingest/templates/outline.md`: the topic
    table (number, id, title, weight, prerequisites, chunks, past-exam frequency), one
