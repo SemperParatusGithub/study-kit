@@ -74,8 +74,16 @@ def test_mc_view_lists_options_in_source_order_without_marks(course: Path):
         ("D", "$190\\,\\mathrm{kHz}$"),
     ]
     assert "single choice" in text
+    # every option is a number: the view asks for an mc_numeric script, not a JSON answer
+    assert "Every option is a number" in text and "mc_numeric(" in text
+    assert '"answer"' not in text
     for leak in ("[x]", "[ ]", "Faktor $2\\pi$ vergessen", "explanation", "2\\pi f_\\mathrm{g} RC"):
         assert leak not in text, leak
+
+
+def test_conceptual_mc_asks_for_an_answer(course: Path):
+    text = view(course, "mc-rc-filter-006")  # options are sentences
+    assert '"answer": ["…"]' in text and "mc_numeric" not in text
 
 
 def test_kprim_and_exam_mc(course: Path):

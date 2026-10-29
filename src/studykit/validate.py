@@ -1656,7 +1656,7 @@ def check_verification(ctx: Context) -> None:
             )
         if (
             ctx.release
-            and _numeric_question(item)
+            and verify.numeric_question(item.question)
             and not (tree.root / verify.CHECKS_DIR / f"{item.id}.py").is_file()
         ):
             ctx.at(
@@ -1676,16 +1676,6 @@ def check_verification(ctx: Context) -> None:
         f"{counts['verified']} of {total} items verified, {counts['disputed']} disputed, "
         f"{counts['quarantined']} quarantined, {counts['stale']} stale"
     )
-
-
-def _numeric_question(item) -> bool:
-    """A single or multi question whose every option states a number (§2.6)."""
-    from studykit import verify
-
-    q = item.question
-    if q is None or q.type not in ("single", "multi") or not q.options:
-        return False
-    return all(verify.option_value(o.text) is not None for o in q.options)
 
 
 def _check_orphans(ctx: Context, known: set[str]) -> None:

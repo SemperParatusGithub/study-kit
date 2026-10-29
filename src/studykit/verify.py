@@ -411,6 +411,14 @@ def option_value(text: str) -> float | None:
     return number * parsed[0]
 
 
+def numeric_question(question: Any) -> bool:
+    """A single or multi question whose every option states a number (§2.6); its check
+    is an `mc_numeric` script (SK-VER-CHECK)."""
+    if question is None or question.type not in ("single", "multi") or not question.options:
+        return False
+    return all(option_value(o.text) is not None for o in question.options)
+
+
 def close(a: float, b: float, rtol: float, atol: float = 0.0) -> bool:
     return abs(a - b) <= atol + rtol * abs(b)
 

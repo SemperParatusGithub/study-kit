@@ -37,7 +37,7 @@ the blind view.
    - `answers(key=value, …)`: an exercise or exam task, one value per key, in the key's
      unit (or `quantity(x, "kHz")`), SymPy expressions for symbolic keys;
    - `mc_numeric(correct=…, options={…}, mistakes={…})`: an MC question whose options are
-     numbers;
+     all numbers (the blind view says so; a JSON answer does not count there, SK-VER-CHECK);
    - `mc_answer([...], reason=…)` or `checks/<id>.json` `{"answer": […], "confidence":
      "high", "ambiguous": false, "reason": "…"}`: a conceptual MC question;
    - `review(agree, reason)`: an item without keys (see recipes).

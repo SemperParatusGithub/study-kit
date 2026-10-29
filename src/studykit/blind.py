@@ -91,13 +91,18 @@ def render(tree: CourseTree, item_id: str) -> str:
                 '"ambiguous": false, "reason": "…"}`, or a script ending with '
                 "`mc_answer({...})`."
             )
+        elif verify.numeric_question(q):
+            out.append(
+                f"Every option is a number: write `checks/{item.id}.py` ending with "
+                "`mc_numeric(correct=…, options={…}, mistakes={…})` from `studykit.check`, "
+                "every option's value in SI units and, for each distractor, the value its "
+                "mistake gives. A JSON answer does not count for a numeric question."
+            )
         else:
             out.append(
                 f"Write `checks/{item.id}.json` as "
-                '`{"answer": ["…"], "confidence": "high", "ambiguous": false, "reason": "…"}`. '
-                f"For a numeric question write `checks/{item.id}.py` ending with "
-                "`mc_numeric(correct=…, options={…}, mistakes={…})`, every option's value "
-                "in SI units."
+                '`{"answer": ["…"], "confidence": "high", "ambiguous": false, "reason": "…"}`, '
+                "or a script ending with `mc_answer([...])`."
             )
     else:
         doc = item.doc
