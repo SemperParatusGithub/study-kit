@@ -17,19 +17,19 @@ that owns the file:
 
 | File | Owner |
 |---|---|
-| `course.yaml` | `/register-new-subject` scaffold and synthesis (main thread); `retired_ids` also by `/regenerate` |
-| `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part, started by `/regenerate` and `/verify`) |
+| `course.yaml` | `studykit ingest init` (the draft) and `round2` (`targets.mock_exams`), then the main thread of `/register-new-subject` (synthesis, round 2, publish) and `/add-material` (topic-map diff); `retired_ids` also by `/regenerate` |
+| `overview.md`, `summary/`, `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `figures/` | `author` (one agent per topic and part, started by `/register-new-subject`, `/regenerate` and `/verify`) |
 | `plan.yaml` | `studykit plan` (only `goal` and `note` are written by Claude afterwards) |
-| `analysis/exam-profile.yaml`, `analysis/notation.yaml` | `exam-analyst` |
-| `sources/manifest.yaml`, `sources/chunks.yaml`, `sources/raw/`, `sources/text/` | `studykit ingest` |
+| `analysis/exam-profile.yaml`, `analysis/notation.yaml` | `exam-analyst`; the main thread maps the profile's candidate topic slugs to course topics |
+| `sources/manifest.yaml`, `sources/chunks.yaml`, `sources/raw/`, `sources/text/` | `studykit ingest init`, `extract` and `add` (only the transcriptions `sources/text/<doc>/pNNNN.vision.md` come from the `ingester`) |
 | `sources/notes/<chunk>.md` | `ingester` (one agent per chunk) |
-| `sources/outline.md` | `/register-new-subject` synthesis (main thread) |
+| `sources/outline.md` | `/register-new-subject` synthesis and `/add-material` topic-map diff (main thread) |
 | `checks/`, `state/verify/` | `verifier` (blind) and `studykit verify` |
 | `progress/` | `studykit progress import`, `log` and `report` |
 
-The `author` and `verifier` agents and the `studykit plan`, `verify` and `progress` commands
-come from Phase 5; `studykit ingest`, `studykit pipeline`, the `ingester` and
-`exam-analyst` agents, `/register-new-subject` and `/add-material` from Phase 6.
+`/register-new-subject` and `/add-material` route a failed gate by this table
+(docs/architecture.md §5.4) and continue at the step `studykit pipeline status <course>`
+reports.
 
 Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
 `validate --quick`; References, Figures, Verification and PDF run in `validate`; Site and
