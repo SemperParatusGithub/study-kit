@@ -13,6 +13,7 @@ The golden corpora tests/golden/blocks.md and mcq.md are split into parts at
 from __future__ import annotations
 
 import base64
+import dataclasses
 import json
 import re
 import shutil
@@ -538,6 +539,16 @@ def test_source_link_without_a_page_opens_the_pdf(workdir):
     body = "Siehe [Vorlesung](src:vl-05).\n"
     html = pandoc.convert(body, document("summary/02-rc-filter.md", workdir), "html")
     assert 'href="/c/rc-netzwerke/src/vl-05.pdf"' in html
+
+
+def test_typst_figure_paths_are_relative_to_the_typst_root(workdir, tmp_path):
+    body = "Text.\n\n![Bode-Diagramm](fig:rc-bode)\n"
+    typ = pandoc.convert(body, document("summary/02-rc-filter.md", workdir), "typst")
+    rel = (workdir / "figures").relative_to(ROOT).as_posix()
+    assert f'image("/{rel}/rc-bode.svg", alt: "Bode-Diagramm")' in typ
+    outside = dataclasses.replace(document("summary/02-rc-filter.md", workdir), figdir=tmp_path)
+    with pytest.raises(pandoc.FilterError, match="outside the working directory"):
+        pandoc.convert(body, outside, "typst")
 
 
 def test_typst_refs_link_inside_the_document_or_name_the_target(workdir):

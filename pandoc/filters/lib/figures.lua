@@ -3,9 +3,10 @@
 --   HTML   <figure class="sk-fig" data-slug="{slug}"><div class="sk-fig-slot"></div>
 --          <figcaption>{caption}</figcaption></figure>   (the site inlines the SVG)
 --   Typst  #figure(image("<figdir>/<slug>.svg", alt: "…"), caption: […])
--- Typst resolves absolute paths against --root, so a figure directory inside pandoc's
--- working directory (the repository root, which is also the Typst root) is written
--- relative to it: /courses/<c>/_build/figures/<slug>.svg.
+-- Typst reads no file outside --root and resolves a path starting with / against it, so
+-- the absolute sk-figdir is written relative to pandoc's working directory, which must
+-- be the repository root (the Typst root): /courses/<c>/_build/figures/<slug>.svg
+-- (docs/architecture.md §3.1). A figure directory outside it is a finding.
 
 local guard = require 'lib.guard'
 
@@ -24,11 +25,19 @@ local function typst_dir(ctx)
     return nil
   end
   dir = dir:gsub('/+$', '')
-  local cwd = pandoc.system.get_working_directory()
+  local cwd = pandoc.system.get_working_directory():gsub('/+$', '')
   if dir:sub(1, #cwd + 1) == cwd .. '/' then
     return dir:sub(#cwd + 1)
   end
-  return dir
+  if not ctx.reported_figdir_outside then
+    ctx.reported_figdir_outside = true
+    ctx:fail(
+      'SK-FIG',
+      'figure directory ' .. dir .. ' is outside the working directory ' .. cwd .. ', so Typst cannot read it',
+      'run pandoc from the repository root and build figures below it (studykit.pandoc does both)'
+    )
+  end
+  return nil
 end
 
 --- An image that is the only element of its paragraph.
