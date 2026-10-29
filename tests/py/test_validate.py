@@ -21,6 +21,7 @@ NEEDS_KATEX = {"SK-MATH-KATEX"}
 # A duplicate is reported at every occurrence, the untouched original included.
 ALSO_ON_THE_ORIGINAL = {"SK-STRUCT-DUP"}
 KATEX_MISSING = validate.katex_available(tools.repo_root())
+PANDOC_MISSING = not tools.bin_path(tools.repo_root(), "pandoc").exists()
 
 
 def run(course: Path, denylist: Path, **kw) -> validate.Report:
@@ -86,6 +87,19 @@ def test_quick_skips_cross_file_stages(mini: Path, denylist: Path):
     names = [s.name for s in report.courses[0].stages]
     assert names[:5] == ["Structure", "Schema", "Fences", "MC", "Math"]
     assert "References" not in names and "Coverage" not in names
+
+
+@pytest.mark.skipif(PANDOC_MISSING, reason="pandoc is not installed in .tools/bin")
+@pytest.mark.parametrize("quick", [False, True])
+def test_the_filter_reports_what_the_python_stages_miss(quick: bool, mini: Path, denylist: Path):
+    summary = mini / "summary" / "01-spannungsteiler.md"
+    summary.write_text(summary.read_text() + "\nText mit <span>rohem HTML</span>.\n")
+    report = run(mini, denylist, quick=quick)
+    assert {(f.code, f.message.split("`")[1]) for f in report.findings} == {
+        ("SK-BLOCK", "<span>"),
+        ("SK-BLOCK", "</span>"),
+    }
+    assert all(f.path.endswith("summary/01-spannungsteiler.md") for f in report.findings)
 
 
 def test_paths_limit_findings_to_those_files(mini: Path, denylist: Path):

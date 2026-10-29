@@ -133,6 +133,7 @@ class Context:
         self.release = release
         self.findings: list[Finding] = []
         self.notes: list[str] = []
+        self.prior: list[Finding] = []  # what the stages before this one reported
 
     def docs(self, *kinds: str) -> list[Doc]:
         """Selected documents of the given kinds (all kinds when none are given)."""
@@ -1093,17 +1094,25 @@ def _pandoc_ready(ctx: Context) -> str | None:
     return None
 
 
-@stage("Pandoc", "SK-PANDOC", 55, quick=True, requires=_pandoc_ready)
+@stage("Pandoc", "SK-PANDOC", 65, quick=True, requires=_pandoc_ready)
 def check_pandoc(ctx: Context) -> None:
-    """Run every selected file through the Lua filters (guard, mcq, math, refs, …)."""
+    """Run the selected files through the Lua filters that build the site and the PDFs.
+
+    The stages before this one give the precise findings; this one is the backstop for
+    what they cannot see, so it skips files that already have errors (the filter would
+    repeat them under its family codes). In --quick runs the References stage does not
+    run, so the filter does not report link or figure targets missing from the index.
+    """
     from studykit import index, pandoc
 
     index.write(ctx.tree)
+    failed = {f.path for f in ctx.prior if f.is_error}
+    scope = "file" if ctx.quick else "course"
     for doc in ctx.docs():
-        if doc.body is None or doc.split.error:
+        if doc.body is None or doc.split.error or doc.display in failed:
             continue
         try:
-            pandoc.run_filtered(ctx.tree.root, doc.rel, "json")  # type: ignore[attr-defined]
+            pandoc.run_filtered(ctx.tree.root, doc.rel, "json", scope=scope)
         except Exception as exc:  # any pandoc failure is a finding
             found = findings_mod.parse(str(exc))
             last = str(exc).strip().splitlines()[-1:] or [type(exc).__name__]
@@ -1583,6 +1592,7 @@ def run_course(
         if st.release_only and not release:
             continue
         ctx = Context(tree, config, selected, quick, release)
+        ctx.prior = list(report.findings)
         reason = st.requires(ctx) if st.requires else None
         if reason:
             report.stages.append(StageResult(st.name, "skipped", [f"skipped: {reason}"]))
