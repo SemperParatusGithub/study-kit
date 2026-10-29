@@ -27,12 +27,13 @@ PANDOC_MISSING = not tools.bin_path(tools.repo_root(), "pandoc").exists()
 
 
 def run(course: Path, denylist: Path, **kw) -> validate.Report:
-    """Validate without KaTeX, figure builds and the site build unless asked for
-    (tests/py/test_sitecheck.py covers the Site stage)."""
+    """Validate without KaTeX, figure, PDF and site builds unless asked for
+    (tests/py/test_validate_pdf.py covers the PDF stage, test_sitecheck.py the Site stage)."""
     config = validate.Config(
         denylist=denylist,
         katex=kw.pop("katex", False),
         figures=kw.pop("figures", False),
+        pdf=kw.pop("pdf", False),
         site=kw.pop("site", False),
     )
     return validate.validate([course], config=config, **kw)
@@ -208,8 +209,7 @@ def test_missing_course_files_warn_while_authoring(mini: Path, denylist: Path):
 def test_skipped_stages_explain_why(mini: Path, denylist: Path):
     report = run(mini, denylist)
     stages = {s.name: s for s in report.courses[0].stages}
-    # PDF is not among them since studykit.pdf exists (Phase 4)
-    for name in ("Verification", "Site"):
+    for name in ("Verification", "PDF", "Site"):
         assert stages[name].status == "skipped"
         assert stages[name].notes and stages[name].notes[0].startswith("skipped: ")
 
