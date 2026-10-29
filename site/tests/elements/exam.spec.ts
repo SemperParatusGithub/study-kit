@@ -8,8 +8,8 @@ const clockSeconds = async (page: Page): Promise<number> => {
 };
 
 /**
- * Leave the exam page, move the stored start time back as if `minutes` had passed, and
- * open the exam again (a reload with time passing). The page saves its session on
+ * Leave the exam page, move the stored start time and last tick back as if the page had
+ * been closed for `minutes`, and open the exam again. The page saves its session on
  * pagehide, so the edit happens on another page of the same origin.
  */
 async function elapse(page: Page, minutes: number): Promise<void> {
@@ -18,9 +18,18 @@ async function elapse(page: Page, minutes: number): Promise<void> {
     const all = JSON.parse(localStorage.getItem(key as string) ?? '{}');
     const s = all['exam:probeklausur-1'];
     s.started = new Date(Date.parse(s.started) - (min as number) * 60_000).toISOString();
+    if (s.tick_at) s.tick_at -= (min as number) * 60_000;
     localStorage.setItem(key as string, JSON.stringify(all));
   }, [SESSION_KEY, minutes] as const);
   await page.goto('/exam.html');
+}
+
+/** The "Time" column of the result table, by part. */
+async function partTimes(page: Page): Promise<Record<string, string>> {
+  const rows = await exam(page).locator('.sk-exam-table tbody tr').all();
+  const out: Record<string, string> = {};
+  for (const r of rows) out[(await r.locator('th').textContent()) ?? ''] = (await r.locator('td').last().textContent()) ?? '';
+  return out;
 }
 
 async function start(page: Page): Promise<void> {
@@ -97,6 +106,32 @@ test('time-up submits automatically, also across a reload', async ({ page }) => 
   await expect(exam(page).locator('details.sk-solution')).toBeVisible();
   const attempt = (await progress(page)).items['exam:probeklausur-1'].attempts[0];
   expect(attempt.duration_s).toBe(3600);
+  // the hour the page was closed goes to the part that was on screen
+  expect(Object.values(await partTimes(page)).sort()).toEqual(['0 s', '1 h 0 min']);
+});
+
+test('time per part: late ticks count in full', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 320 }); // task 1 is short: let it fill the screen
+  const t0 = new Date('2026-11-10T09:00:00').getTime();
+  await page.clock.install({ time: t0 });
+  await start(page);
+  /** Scroll a part to the top and wait until it counts as the one on screen. */
+  const show = async (selector: string, id: string) => {
+    await page.evaluate((sel) => document.querySelector(sel)?.scrollIntoView({ block: 'start' }), selector);
+    await expect.poll(() => page.evaluate(() => (document.querySelector('sk-exam') as any).activeSection())).toBe(id);
+  };
+  await show('#task-pk1-t1', 'pk1-t1');
+  // the laptop sleeps (or the tab is throttled in the background) for 3 minutes on task 1
+  await page.clock.setSystemTime(t0 + 3 * 60_000);
+  await page.clock.runFor(1_000);
+  await show('#exam-mc', 'mc');
+  await page.clock.setSystemTime(t0 + 10 * 60_000);
+  await page.clock.runFor(1_000);
+  await exam(page).getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
+  const times = await partTimes(page);
+  expect(times).toEqual({ '1. Aufgabe 1: Spannungsteiler (12 P)': '3 min', 'Multiple choice': '7 min' });
+  await expect(exam(page).locator('.sk-exam-result')).toContainText('Time used: 10 min of 60 min.');
 });
 
 test('submit: solutions open, rubric grading, MC auto-scored, result saved', async ({ page }) => {

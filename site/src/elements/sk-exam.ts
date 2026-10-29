@@ -9,9 +9,12 @@
 // 3. Hints and solutions stay hidden and `inert` until Submit or time-up.
 // 4. Then each task gets its rubric as checkboxes; the MC part is scored automatically with
 //    the exam's multi rule (data-mc-scoring), without negative marking.
-// 5. The result shows total, pass/fail, a grade estimate and the time per task (the task
-//    on screen while the clock ran). The attempt is saved as exam:<id> and updated while
-//    grading. Without JS the tasks and solutions are plain content.
+// 5. The result shows total, pass/fail, a grade estimate and the time per task: all time
+//    on the exam clock goes to the part that was on screen, including gaps between late
+//    ticks (a sleeping laptop, a throttled background tab while the student reads a
+//    formula sheet) and the time a reload or a closed tab took. The attempt is saved as
+//    exam:<id> and updated while grading. Without JS the tasks and solutions are plain
+//    content.
 
 import { examPoints, gradeEstimate, multiRule, type MultiRule } from '../lib/scoring.ts';
 import type { ExamEntry } from '../lib/store.ts';
@@ -39,6 +42,9 @@ interface ExamSession {
   mc?: Record<string, McSelection>;
   rubric?: Record<string, number[]>;
   task_ms?: Record<string, number>;
+  /** Epoch ms up to which time has been given to a part, and the part on screen then. */
+  tick_at?: number;
+  active?: string;
   warned?: number[];
 }
 
@@ -78,7 +84,15 @@ export class SkExam extends HTMLElement {
     e.preventDefault();
     e.returnValue = '';
   };
-  private onPageHide = () => this.save();
+  private onPageHide = () => {
+    this.account();
+    this.save();
+  };
+  private onVisibility = () => {
+    if (document.visibilityState !== 'hidden') return;
+    this.account();
+    this.save();
+  };
 
   private get sessionKey(): string {
     return `exam:${this.examId}`;
@@ -138,8 +152,10 @@ export class SkExam extends HTMLElement {
     this.session = storeOf(this).session<ExamSession>(this.sessionKey) ?? null;
     if (!this.session?.started) this.renderCover();
     else if (this.session.submitted) this.renderGraded();
-    else if (this.left() <= 0) this.submit('time');
-    else this.run();
+    else if (this.left() <= 0) {
+      this.resumeClock(Date.now());
+      this.submit('time');
+    } else this.run();
   }
 
   disconnectedCallback(): void {
@@ -240,8 +256,9 @@ export class SkExam extends HTMLElement {
     );
     window.addEventListener('beforeunload', this.onBeforeUnload);
     window.addEventListener('pagehide', this.onPageHide);
+    document.addEventListener('visibilitychange', this.onVisibility);
     this.observe();
-    this.lastTick = Date.now();
+    this.resumeClock(Date.now());
     this.timer = window.setInterval(() => this.tick(), 1000);
     this.tick();
   }
@@ -275,6 +292,37 @@ export class SkExam extends HTMLElement {
     return best ?? this.tasks[0]?.id ?? null;
   }
 
+  /** Give `from`…`to` (epoch ms, cut at the end of the exam) to part `id`. */
+  private credit(id: string, from: number, to: number): void {
+    const s = this.session;
+    if (!s) return;
+    const ms = Math.min(to, Date.parse(s.started) + this.durationMs) - from;
+    if (!(ms > 0)) return;
+    s.task_ms ??= {};
+    s.task_ms[id] = (s.task_ms[id] ?? 0) + ms;
+  }
+
+  /** Time that passed while no page ran the clock goes to the part on screen before it. */
+  private resumeClock(now: number): void {
+    const s = this.session;
+    if (s?.tick_at && s.active) this.credit(s.active, s.tick_at, now);
+    this.lastTick = now;
+    if (s) s.tick_at = now;
+  }
+
+  /** Give all time since the last tick to the part on screen now (ticks can come late). */
+  private account(now = Date.now()): void {
+    const s = this.session;
+    if (!s || s.submitted || this.lastTick === 0) return;
+    const active = this.activeSection();
+    if (active) {
+      this.credit(active, this.lastTick, now);
+      s.active = active;
+    }
+    this.lastTick = now;
+    s.tick_at = now;
+  }
+
   private tick(): void {
     const s = this.session;
     if (!s || !this.clockEl) return;
@@ -282,13 +330,7 @@ export class SkExam extends HTMLElement {
     const left = this.left(now);
     this.clockEl.textContent = clock(left);
     this.classList.toggle('is-low', left <= 10 * 60_000);
-    const active = this.activeSection();
-    if (active) {
-      const delta = Math.min(5_000, Math.max(0, now - this.lastTick));
-      s.task_ms ??= {};
-      s.task_ms[active] = (s.task_ms[active] ?? 0) + delta;
-    }
-    this.lastTick = now;
+    this.account(now);
     const warned = (s.warned ??= []);
     for (const m of WARNINGS) {
       if (left <= m * 60_000 && left > 0 && !warned.includes(m)) {
@@ -321,8 +363,10 @@ export class SkExam extends HTMLElement {
     this.timer = null;
     this.observer?.disconnect();
     this.observer = null;
+    this.lastTick = 0;
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     window.removeEventListener('pagehide', this.onPageHide);
+    document.removeEventListener('visibilitychange', this.onVisibility);
   }
 
   private confirmSubmit(trigger: HTMLElement): void {
@@ -372,6 +416,7 @@ export class SkExam extends HTMLElement {
   private submit(reason: 'submit' | 'time'): void {
     if (!this.session) return;
     this.saveMcFinal();
+    this.account();
     this.stop();
     this.session.submitted = new Date().toISOString();
     this.session.reason = reason;

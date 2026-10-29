@@ -102,7 +102,9 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.evaluate((key) => {
         const all = JSON.parse(localStorage.getItem(key) ?? '{}');
         const s = all['exam:probeklausur-1'];
-        s.started = new Date(Date.now() - 50.6 * 60_000).toISOString();
+        const shift = Date.parse(s.started) - (Date.now() - 50.6 * 60_000);
+        s.started = new Date(Date.parse(s.started) - shift).toISOString();
+        if (s.tick_at) s.tick_at -= shift; // as if the page had been closed for 50 minutes
         localStorage.setItem(key, JSON.stringify(all));
       }, SESSION_KEY);
       await page.goto('/exam.html');
