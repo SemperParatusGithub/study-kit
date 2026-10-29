@@ -8,6 +8,13 @@ msg_file="$1"
 msg=$(grep -v '^#' "$msg_file" || true)
 subject=$(printf '%s\n' "$msg" | sed -n '1p')
 
+# Applies to every commit, including the git-generated subjects exempted below.
+if printf '%s\n' "$msg" | grep -Eiq '^co-authored-by:'; then
+  echo "commit-msg: Co-Authored-By trailers are not allowed in this repository" >&2
+  exit 1
+fi
+
+# Subjects git writes itself are exempt from the Conventional Commit format only.
 case "$subject" in
   "Merge "*|"Revert \""*|"fixup! "*|"squash! "*|"amend! "*) exit 0 ;;
 esac
@@ -22,10 +29,5 @@ fi
 
 if [ "${#subject}" -gt 100 ]; then
   echo "commit-msg: subject is longer than 100 characters" >&2
-  exit 1
-fi
-
-if printf '%s\n' "$msg" | grep -Eiq '^co-authored-by:'; then
-  echo "commit-msg: Co-Authored-By trailers are not allowed in this repository" >&2
   exit 1
 fi

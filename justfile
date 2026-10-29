@@ -59,10 +59,11 @@ validate course="" *flags:
 schema:
     {{sk}} schema export
 
-# python and node unit tests, schema drift and the golden math corpus
+# python and node unit tests, the git hooks, schema drift and the golden math corpus
 test:
     uv run --frozen pytest -q
     pnpm -C site run test:unit
+    bash .github/scripts/test-hooks.sh
     {{sk}} schema export --check
     {{sk}} golden
 
