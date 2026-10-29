@@ -1189,7 +1189,7 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
   - `lang`: every text resolves to the language it is written in (quiz questions and topic names in the course language, the elements' own text in English)
   - `layout`: the cheat sheet fills its columns and cuts no formula, the current course tab is visible on a phone, no sideways scrolling at 320 px, past and done plan sessions keep their contrast
   - `print`: an exercise prints its hints and solution (without counting the hints as used); summary, MC topic and exam pages print without their quizzes and buttons
-  - `pdf`: the pipeline built every sample-course document; `dist` holds exactly the manifest's PDFs, byte for byte and served inline; each page links its PDF with the manifest's page count and size; the solutions PDF is hidden on the exam index and shows on the exam page only after submitting; the cheat-sheet badge reads the manifest; downloads keep the course name; printing hides the links; search never returns a PDF
+  - `pdf`: the pipeline built every sample-course document; `dist` holds exactly the manifest's PDFs, byte for byte and served inline; each page links its PDF with the manifest's page count and size; the solutions PDF is collapsed on the exam index, hidden there and on the exam page while the exam runs, and shown after submitting; the cheat-sheet badge reads the manifest; downloads keep the course name; printing hides the links; search never returns a PDF
 
 Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
 
@@ -1200,8 +1200,8 @@ Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
   2. `uv run --frozen studykit tools install`, which fetches the pinned pandoc, typst and just binaries by hash; later steps call `.tools/bin/just`
   3. `just setup`, `just lint-code`, then `playwright install --with-deps chromium`
   4. `just ci`
-  5. the element harness (`pnpm -C site run test:elements`, if Chromium installed) and `just e2e` (if `just ci` passed); both run even after an earlier failure, so one failure does not hide the other
-  6. on every run that is not cancelled: `just pdf sample-course` (cached after `just ci`) and an upload of `examples/sample-course/_build/pdf/`, kept 14 days
+  5. on every run that is not cancelled: `just pdf sample-course` (cached after `just ci`) and an upload of `examples/sample-course/_build/pdf/`, kept 14 days
+  6. the element harness (`pnpm -C site run test:elements`, if Chromium installed) and `just e2e` (if `just ci` passed); both run even after an earlier failure, so one failure does not hide the other
   7. on failure only: upload `site/dist` and the Playwright reports and results (`site/node_modules/.cache/sk-e2e/`, `sk-elements/results/`), kept 14 days
 - **`guard.yml`** (push, PR; full history) runs `bash .github/scripts/guard.sh commits|courses|pdfs`:
   - `commits`: every non-merge commit in the range passes `.githooks/commit-msg` (a Conventional Commit, no `Co-Authored-By`). The range is base..head for a pull request and before..HEAD for a push. When the before commit is missing (a new branch, or a force push), a branch is checked as `origin/<default>..HEAD`; creating the default branch checks its whole history; a rewrite of the default branch fails and has to be checked by hand; a range git cannot list fails the check.
