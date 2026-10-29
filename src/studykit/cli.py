@@ -93,6 +93,38 @@ def build_parser() -> argparse.ArgumentParser:
     p_links.add_argument("--json", action="store_true", help="machine-readable output")
     p_links.set_defaults(func=cmd_check_links)
 
+    p_pdf = sub.add_parser("pdf", help="build the course's PDF documents into _build/pdf")
+    p_pdf.add_argument("course", nargs="?", help="course id or directory (default: all)")
+    p_pdf.add_argument(
+        "docs",
+        nargs="*",
+        metavar="doc",
+        help="only these documents: overview, summary, exercises, exercises-blank, mc, "
+        "<exam>, <exam>-solutions, cheatsheet, plan (default: all)",
+    )
+    p_pdf.add_argument("--force", action="store_true", help="rebuild even if up to date")
+    p_pdf.add_argument(
+        "--no-figures", action="store_true", help="do not build the figures (cached) first"
+    )
+    p_pdf.add_argument("--jobs", type=int, help="documents built in parallel (default: CPUs)")
+    p_pdf.add_argument("--json", action="store_true", help="machine-readable output")
+    p_pdf.set_defaults(func=cmd_pdf)
+
+    p_cs = sub.add_parser("cheatsheet", help="the cheat sheet PDF and its page limit")
+    cs_sub = p_cs.add_subparsers(dest="cheatsheet_command", metavar="<action>", required=True)
+    p_fit = cs_sub.add_parser(
+        "fit",
+        help="build cheatsheet.pdf at the first density (0-4) within its page limit; "
+        "exit 3 with the overflow when none fits",
+    )
+    p_fit.add_argument("course", help="course id or directory")
+    p_fit.add_argument("--force", action="store_true", help="rebuild even if up to date")
+    p_fit.add_argument(
+        "--no-figures", action="store_true", help="do not build the figures (cached) first"
+    )
+    p_fit.add_argument("--json", action="store_true", help="machine-readable output")
+    p_fit.set_defaults(func=cmd_cheatsheet_fit)
+
     p_fig = sub.add_parser("fig", help="figures: build course figure scripts")
     fig_sub = p_fig.add_subparsers(dest="fig_command", metavar="<action>", required=True)
     p_fig_build = fig_sub.add_parser("build", help="render figures to _build/figures")
@@ -292,6 +324,60 @@ def cmd_check_links(args: argparse.Namespace) -> int:
             f"{len(found) - len(errors)} warning(s)"
         )
     return 1 if errors else 0
+
+
+def cmd_pdf(args: argparse.Namespace) -> int:
+    """One course (an object with --json), or every course (a list)."""
+    from studykit import content, pdf
+
+    if args.course is None:
+        roots = content.list_courses()
+        if not roots:
+            print(f"no courses in {content.courses_dir()}", file=sys.stderr)
+    else:
+        tree = _course_tree(args.course)
+        if tree is None:
+            return 1
+        roots = [tree.root]
+    results = []
+    for root in roots:
+        try:
+            result = pdf.build(
+                root,
+                args.docs or None,
+                force=args.force,
+                figures=not args.no_figures,
+                jobs=args.jobs,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        results.append(result)
+        if not args.json:
+            print(pdf.format_text(result))
+    if args.json:
+        out = results[0] if args.course is not None else results
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    failed = any(d["status"] == "failed" for r in results for d in r["docs"])
+    return 1 if failed else 0
+
+
+def cmd_cheatsheet_fit(args: argparse.Namespace) -> int:
+    from studykit import cheatsheet
+
+    tree = _course_tree(args.course)
+    if tree is None:
+        return 1
+    try:
+        code, result = cheatsheet.run(tree.root, force=args.force, figures=not args.no_figures)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(cheatsheet.format_text(result))
+    return code
 
 
 def cmd_fig_build(args: argparse.Namespace) -> int:

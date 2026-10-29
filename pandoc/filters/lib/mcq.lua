@@ -24,10 +24,11 @@
 --            <div class="sk-why" hidden>…</div></sk-opt> …
 --          <div class="sk-explanation" hidden>…</div></sk-mc>
 --        Options stay in source order; the site shuffles at runtime.
--- Typst: #sk-mcq(id:, type:, difficulty:, answers:, options: ((key:, text:, correct:,
---        why:), …), explanation:, labels: sk-l)[stem] <id>, options in a deterministic
---        shuffle seeded by the question id (pin-last keeps the last option last), keys
---        (A)–(F) assigned after shuffling; the answer key goes through solutions.lua.
+-- Typst: #sk-mcq(id:, number:, type:, difficulty:, answers:, options: ((key:, text:,
+--        correct:, why:), …), explanation:, labels: sk-l)[stem] <id>, options in a
+--        deterministic shuffle seeded by the question id (pin-last keeps the last option
+--        last), keys (A)–(F) assigned after shuffling; numbers run through the whole
+--        document; the answer key goes through solutions.lua.
 
 local solutions = require 'lib.solutions'
 
@@ -385,9 +386,12 @@ end
 
 local function typst_options(q, ctx)
   local order = M.order(q.id, #q.options, q.pin_last)
-  local parts = {}
+  local parts, keys = {}, {}
   for pos, src in ipairs(order) do
     local o = q.options[src]
+    if o.correct then
+      table.insert(keys, KEYS:sub(pos, pos))
+    end
     table.insert(
       parts,
       string.format(
@@ -399,13 +403,14 @@ local function typst_options(q, ctx)
       )
     )
   end
-  return '(\n    ' .. table.concat(parts, '\n    ') .. '\n  )'
+  return '(\n    ' .. table.concat(parts, '\n    ') .. '\n  )', keys
 end
 
 local function render_typst(q, ctx)
-  local options = typst_options(q, ctx)
+  local options, keys = typst_options(q, ctx)
   local explanation = ctx:typst(q.explanation_out or {})
   local id = ctx.label_ok(q.id) and q.id or nil
+  local mode = ctx.solution_mode or ctx.solutions
   ctx.question_count = ctx.question_count + 1
   local number = ctx.question_count
   local call = string.format(
@@ -414,13 +419,13 @@ local function render_typst(q, ctx)
     number,
     ctx.typst_str(q.type or ''),
     q.difficulty and tostring(q.difficulty) or 'none',
-    ctx.typst_str(ctx.solutions),
+    ctx.typst_str(mode),
     options,
     explanation,
     ctx:typst(q.stem_out),
     id and (' <' .. id .. '>') or ''
   )
-  if ctx.solutions == 'appendix' then
+  if mode == 'appendix' then
     solutions.mcq_key(
       ctx,
       string.format(
@@ -431,7 +436,8 @@ local function render_typst(q, ctx)
         options,
         explanation,
         solutions.back_arg(ctx, id, 'back_question')
-      )
+      ),
+      { number = number, id = q.id, type = q.type, keys = keys }
     )
   end
   return { ctx.raw_typst(call) }

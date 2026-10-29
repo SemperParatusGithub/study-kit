@@ -107,6 +107,40 @@ test('placeholders follow progress recorded on the page and in other tabs', asyn
   await expect(page.locator('#exercises li').nth(1).locator('[data-sk-status]')).toHaveText('Partly');
 });
 
+test('the solutions PDF on the exam list is hidden while that exam runs', async ({ page, context }) => {
+  const SESSION = 'studykit:v1:mini:session';
+  const setSession = (value: unknown) =>
+    page.evaluate(([key, text]) => localStorage.setItem(key, text), [SESSION, JSON.stringify({ 'exam:probeklausur-1': value })] as const);
+  const solutions = page.locator('#solutions-pdf');
+  await page.goto('/dashboard.html');
+  await expect(solutions).toBeVisible(); // never started
+
+  // started 30 minutes ago with 60 minutes to go: locked
+  await setSession({ started: new Date('2026-11-10T11:30:00').toISOString(), task_ms: {} });
+  await page.reload();
+  await expect(solutions).toBeHidden();
+
+  // submitted: open again
+  await setSession({ started: new Date('2026-11-10T11:30:00').toISOString(), submitted: new Date().toISOString() });
+  await page.reload();
+  await expect(solutions).toBeVisible();
+
+  // started two hours ago: the time is up, even before the exam page has graded it
+  await setSession({ started: new Date('2026-11-10T10:00:00').toISOString() });
+  await page.reload();
+  await expect(solutions).toBeVisible();
+
+  // started (and then submitted) in another tab: this page follows
+  await setSession({});
+  await page.reload();
+  const other = await context.newPage();
+  await other.goto('/dashboard.html');
+  await other.evaluate((key) => localStorage.setItem(key, JSON.stringify({ 'exam:probeklausur-1': { started: new Date().toISOString() } })), SESSION);
+  await expect(solutions).toBeHidden();
+  await other.evaluate((key) => localStorage.removeItem(key), SESSION);
+  await expect(solutions).toBeVisible();
+});
+
 test('sk-plan uses the shell slot for its checkbox and the shell banner', async ({ page }) => {
   await page.goto('/dashboard.html');
   const plan = page.locator('sk-plan');

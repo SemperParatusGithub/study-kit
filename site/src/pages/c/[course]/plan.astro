@@ -4,6 +4,7 @@
 // Past and today are relative to the reader's day, so scripts/site.ts marks them from
 // data-date; without JavaScript every session looks upcoming.
 import Base from '../../../layouts/Base.astro';
+import PdfLinks from '../../../components/PdfLinks.astro';
 import { coursePaths, route, type Course } from '../../../lib/courses';
 import {
   formatDate,
@@ -13,6 +14,7 @@ import {
   plural,
   SESSION_KIND,
 } from '../../../lib/format';
+import { findPdf } from '../../../lib/pdf';
 import { sessionStart, taskView, weeks } from '../../../lib/plan';
 
 export const getStaticPaths = coursePaths;
@@ -40,6 +42,7 @@ const examDate = plan?.exam_date ?? course.examDate;
         <p class="muted">No plan yet.</p>
       )
     }
+    {plan && <PdfLinks course={course} items={[{ doc: findPdf(course.pdfs, 'plan') }]} />}
   </div>
 
   {

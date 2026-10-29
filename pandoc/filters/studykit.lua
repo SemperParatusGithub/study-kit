@@ -14,6 +14,8 @@
 --   sk-figdir     typst only: absolute directory of the built figures
 --   sk-scope      course (default) | file: with file, link and figure targets missing
 --                 from the index are not reported (the quick lint of one edited file)
+--   sk-doc        typst only: the input is a PDF document assembled by `studykit pdf`
+--                 (overview, summary, exercises, …); see lib/document.lua
 --
 -- Findings are collected over the whole document and printed to stderr, one per line,
 --   <sk-file>:<line>:<col> SK-CODE message (fix: …)
@@ -34,6 +36,7 @@ local figures = require 'lib.figures'
 local refs = require 'lib.refs'
 local meta = require 'lib.meta'
 local solutions = require 'lib.solutions'
+local document = require 'lib.document'
 
 local EXIT_FINDINGS = 65
 
@@ -66,7 +69,7 @@ local function target_of(format)
 end
 
 --- File kind from the course-relative path (docs/architecture.md §2.1).
-local function file_kind(rel)
+function Ctx.file_kind(rel)
   if rel == 'overview.md' then
     return 'overview'
   elseif rel == 'cheatsheet.md' then
@@ -95,6 +98,7 @@ function Ctx.new(doc)
   self.figdir = meta_string(m, 'sk-figdir')
   self.solutions = meta_string(m, 'sk-solutions') or 'appendix'
   self.scope = meta_string(m, 'sk-scope') or 'course'
+  self.doc = meta_string(m, 'sk-doc')
   self.pos = nil
   self.errors = {}
   self.seen_errors = {}
@@ -103,13 +107,20 @@ function Ctx.new(doc)
   self.hint_count = 0
   self.question_count = 0
   self.labels = {} -- Typst labels defined in this document (for in-document refs)
-  self.appendix = { hints = {}, solutions = {} }
+  self.anchors = {} -- item anchors already written (#metadata(id) <id>)
+  self.appendix = { hints = {}, hint_groups = {}, solutions = {}, keys = {} }
 
   if not self.file then
     self.file = '<stdin>'
     self:fail('SK-PANDOC-FAIL', 'missing -M sk-file', 'run pandoc through studykit.pandoc, which passes it')
+  elseif self.doc then
+    -- an assembled document: each part names its own file and kind (lib/document.lua)
+    self.kind = nil
+    if self.target ~= 'typst' then
+      self:fail('SK-PANDOC-FAIL', 'sk-doc documents are Typst only', 'build PDFs with `studykit pdf`')
+    end
   else
-    self.kind = file_kind(self.file)
+    self.kind = Ctx.file_kind(self.file)
     if not self.kind then
       self:fail(
         'SK-STRUCT-PATH',
@@ -519,6 +530,11 @@ function Pandoc(doc)
   local ctx = Ctx.new(doc)
 
   local source = read_source()
+  if ctx.doc then
+    local out = document.run(doc, ctx, W, source)
+    ctx:report_and_exit()
+    return out
+  end
   if source then
     guard.scan_fences(source, ctx)
   end

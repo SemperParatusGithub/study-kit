@@ -27,9 +27,9 @@ The agents and commands in this table come with Phases 5 and 6; until then these
 written by hand.
 
 Stages: Structure, Schema, Fences, MC, Math and Pandoc run in `studykit lint` and
-`validate --quick`; References and Figures run in `validate`; Site and Coverage only with
-`validate --release`. Verification (Phase 5) and PDF (Phase 4) are reported as skipped, and
-so is a stage whose tools are missing (pandoc in `.tools/bin`, `site/node_modules`).
+`validate --quick`; References, Figures and PDF run in `validate`; Site and Coverage only
+with `validate --release`. Verification (Phase 5) is reported as skipped, and so is a stage
+whose tools are missing (pandoc or typst in `.tools/bin`, `site/node_modules`).
 
 The Pandoc stage runs the Lua filter set that builds the site and the PDFs on every file
 the earlier stages left without errors (at file scope in `lint` and `--quick`, where targets
@@ -457,6 +457,59 @@ Fix: run `studykit fig build <course> --only <slug>`, fix the script and look at
 ### `SK-FIG-UNUSED`
 **warning.** A figure script is never embedded.
 Fix: embed it with `![Caption](fig:<slug>)` or delete the script.
+
+## PDF (SK-PDF)
+
+Every full `validate` builds the course's PDFs as `studykit pdf` does, into `_build/pdf`
+with its manifest, using the figures the Figures stage built; `validate --quick` and `lint`
+never do. It runs in every full validate
+rather than only with `--release` because it is cheap and finds what only Typst sees while
+the author is still on the file: a document whose inputs did not change is reused by its
+digest, so after an edit only the documents that contain the file are rebuilt (Typst
+compiles all nine PDFs of the sample course in about a second), and a formula Typst cannot
+set, a warning or a cheat sheet over its page limit shows up at once instead of at release
+time. With `--paths` only the documents built from those files are built. The stage is
+skipped with a note when pandoc or typst is missing from `.tools/bin`, when the course lies
+outside the repository (Typst reads only files below it) and while earlier stages report
+errors (the PDFs are built from checked files). A document that fails keeps its previous PDF
+but leaves the manifest, so the site links no PDF that does not match the course.
+
+A problem is reported at the course file it comes from where that can be known: for a Typst
+diagnostic in the assembled `_build/typ/<doc>.typ`, the file and line of the exercise,
+question, task or chapter it sits in; otherwise the file that defines the document
+(`overview.md`, `cheatsheet.md`, `plan.yaml`, `exams/<exam>/exam.yaml`), else `course.yaml`.
+A finding of the filter set in the PDF's pandoc run keeps its own code.
+
+### `SK-PDF-COMPILE`
+**error.** Typst cannot compile a document. The message names the PDF, Typst's error and
+its position in `_build/typ/<doc>.typ` (or in `typst/studykit.typ`). Typical causes are a
+figure whose SVG was never built (`file not found`) and math that converts to Typst but
+does not compile there.
+Fix: look at that line of the `.typ` file and rewrite the construct in the course file; run
+`studykit fig build <course>` for a missing figure. An error inside `typst/studykit.typ` is a
+bug in the house library, not in the course.
+
+### `SK-PDF-WARNING`
+**error.** Typst or pandoc printed a warning while building a document. Every warning fails
+the PDF (`docs/architecture.md` §3.3), so no document ships with a formula pandoc could not
+convert or a font Typst had to replace.
+Fix: change the construct the warning names; pandoc's messages are in
+`_build/logs/<doc>.json`.
+
+### `SK-PDF-CHEATSHEET`
+**error.** The cheat sheet has more pages than its limit even at density 4 (7 pt). The limit
+is `min(3, course.yaml cheatsheet.max_pages, max_pages)`, so more than 3 pages is never
+allowed. Reported at the `max_pages` line of `cheatsheet.md`, with how far it overflows and
+its largest sections; the previous `cheatsheet.pdf` stays in place.
+Fix: condense it, in this order: derivations, duplicate examples, prose, then the
+lowest-priority topics. `studykit cheatsheet fit <course> --json` measures the overflow and
+the height of each section in pages (exit code 3 while it does not fit).
+
+### `SK-PDF-BUILD`
+**error.** A document could not be built for another reason: the course files do not
+assemble into it (an exam task file is missing), pandoc failed without a finding, or the
+build itself stopped.
+Fix: run `studykit pdf <course> <doc>` and fix the first error it prints.
 
 ## Site (SK-SITE, `--release` only)
 

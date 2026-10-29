@@ -10,7 +10,9 @@
 // 1. A cover page shows duration, points, pass mark and allowed aids.
 // 2. Start stores the start time (session state), so a reload keeps the timer running. While
 //    the exam runs a beforeunload warning is set, and alerts come at 10 and at 1 minute left.
-// 3. Hints and solutions stay hidden and `inert` until Submit or time-up.
+// 3. Hints and solutions stay hidden and `inert` until Submit or time-up; so do links to
+//    the exam's solutions outside the element ([data-sk-exam-solutions="<exam id>"], the
+//    solutions PDF), which start hidden.
 // 4. Then each task gets its rubric as checkboxes; the MC part is scored automatically with
 //    the exam's multi rule (data-mc-scoring) and, if the exam has it, negative marking
 //    (scoring.examScore; the MC part never goes below 0).
@@ -269,6 +271,11 @@ export class SkExam extends HTMLElement {
     for (const el of this.lockables()) {
       el.inert = locked;
       el.hidden = locked;
+    }
+    // Links to this exam's solutions elsewhere on the page (the solutions PDF in the page
+    // head) come out with the solutions; their markup starts hidden.
+    for (const el of document.querySelectorAll<HTMLElement>('[data-sk-exam-solutions]')) {
+      if (el.dataset.skExamSolutions === this.examId) el.hidden = locked;
     }
   }
 

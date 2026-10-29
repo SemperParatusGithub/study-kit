@@ -4,9 +4,12 @@
 // page is a readable exam with collapsed solutions.
 import Base from '../../../../layouts/Base.astro';
 import Html from '../../../../components/Html.astro';
+import PdfLink from '../../../../components/PdfLink.astro';
+import PdfLinks from '../../../../components/PdfLinks.astro';
 import SearchTags from '../../../../components/SearchTags.astro';
 import { labelHtml, listCourses, route, type Course, type Exam } from '../../../../lib/courses';
 import { formatMinutes, formatNumber, plural } from '../../../../lib/format';
+import { findPdf } from '../../../../lib/pdf';
 import type { ExamTaskFm } from '../../../../lib/types';
 
 export async function getStaticPaths() {
@@ -36,6 +39,9 @@ const tasks = exam.tasks.map((t) => {
   };
 });
 const mcCount = exam.mc?.data.questions.length ?? 0;
+const pdf = findPdf(course.pdfs, 'exam', exam.id);
+// sk-exam shows the solutions PDF with the solutions, after submitting or time-up.
+const solutions = findPdf(course.pdfs, 'exam-solutions', exam.id);
 ---
 
 <Base title={exam.doc.data.title} course={course} tab="exams">
@@ -43,6 +49,15 @@ const mcCount = exam.mc?.data.questions.length ?? 0;
     <header class="page-head">
       <p class="eyebrow" lang={en}><a href={route.exams(c)}>Mock exams</a></p>
       <h1>{exam.doc.data.title}</h1>
+      <PdfLinks course={course} items={[{ doc: pdf, label: 'Exam PDF' }]} extra={[solutions]}>
+        {
+          solutions && (
+            <span class="pdf-after-submit" data-sk-exam-solutions={exam.id} hidden>
+              <PdfLink course={course} doc={solutions} label="Solutions PDF" />
+            </span>
+          )
+        }
+      </PdfLinks>
     </header>
 
     <sk-exam

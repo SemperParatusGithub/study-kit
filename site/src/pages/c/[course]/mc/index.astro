@@ -2,9 +2,11 @@
 // MC hub (docs/architecture.md §3.2): per-topic banks with accuracy and due counts (filled
 // from browser progress by the elements) and the five quiz modes.
 import Base from '../../../../layouts/Base.astro';
+import PdfLinks from '../../../../components/PdfLinks.astro';
 import QuizSlot, { type QuizMode } from '../../../../components/QuizSlot.astro';
 import { coursePaths, route, type Course } from '../../../../lib/courses';
 import { MC_TYPE, plural } from '../../../../lib/format';
+import { findPdf } from '../../../../lib/pdf';
 
 export const getStaticPaths = coursePaths;
 
@@ -32,6 +34,7 @@ const scoring = course.data.exam.mc?.scoring ?? 'all-or-nothing';
       are scored {scoring === 'partial' ? 'with partial credit' : scoring === 'kprim' ? 'like Kprim' : 'all-or-nothing'},
       as in the exam.
     </p>
+    <PdfLinks course={course} items={[{ doc: findPdf(course.pdfs, 'mc'), label: 'PDF with answer key' }]} />
   </div>
 
   {

@@ -34,7 +34,7 @@ study-kit/
 ├── .github/scripts/guard.sh        # the guard workflow's checks: `commits`, `courses`, `pdfs`
 ├── .github/scripts/test-hooks.sh   # tests of the git hooks and guard.sh in throwaway repositories (`just test`)
 ├── src/studykit/
-│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links
+│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links, pdf, cheatsheet fit
 │   ├── tools.py                    # `tools install`: pandoc, typst and just → .tools/bin, sha256-checked
 │   ├── doctor.py                   # `doctor`: tool versions, site packages, Typst fonts, git hooks, courses/ ignored, port 4321
 │   ├── model.py                    # pydantic models: the single schema source
@@ -52,7 +52,8 @@ study-kit/
 │   │                               # circuit.py block.py graph.py labels.py builtins.py
 │   │                               # finalize.py validate.py child.py runner.py
 │   ├── check.py  verify.py  blind.py   # (Phase 5) check-script API, runner + ledger, blind views
-│   ├── pdf.py  cheatsheet.py       # (Phase 4) assemble → pandoc → typst; page-fit loop
+│   ├── pdf.py                      # `pdf`: assemble → pandoc → typst per document, digest cache, _build/pdf/manifest.json (§3.3)
+│   ├── cheatsheet.py               # `cheatsheet fit`: density loop 0–4, overflow measured with `typst eval` (§3.3)
 │   ├── ingest.py                   # (Phase 6) scan, copy, page text, chunk plan
 │   ├── plan.py                     # (Phase 5) deterministic scheduler
 │   ├── progress.py                 # (Phase 5) import browser export, examiner log, report and mastery
@@ -60,20 +61,21 @@ study-kit/
 │   └── calc.py                     # (Phase 5) `studykit calc "<sympy>"` for tutor and examiner
 ├── pandoc/
 │   ├── defaults/common.yaml web.yaml typst.yaml json.yaml
-│   ├── filters/studykit.lua + lib/{guard,blocks,mcq,math,figures,alttext,refs,meta,i18n,solutions}.lua
+│   ├── filters/studykit.lua + lib/{guard,blocks,mcq,math,figures,alttext,refs,meta,i18n,solutions,document}.lua
 │   └── math-denylist.json          # denied math constructs and their replacements (§2.3), read by math.lua and lint
 ├── typst/
-│   ├── studykit.typ                # house library; a Phase 3 stub with the API the filter calls (Phase 4: the real look)
-│   └── pandoc-template.typ         # ~15 lines; imports the house library
+│   ├── studykit.typ                # house library: page setup, boxes, MC, appendix and key, exam cover, plan, cheat-sheet densities
+│   └── pandoc-template.typ         # ~15 lines; imports the house library and calls sk-doc
 ├── site/                           # Astro (kept out of the repo root so Vite never watches .venv)
 │   ├── package.json  pnpm-workspace.yaml  pnpm-lock.yaml  astro.config.mjs  tsconfig.json
 │   ├── pagefind.yml  playwright.config.ts
 │   ├── src/content.config.ts
 │   ├── src/loaders/pandoc.ts       # custom content loader over `studykit render`
-│   ├── src/lib/{katex,figures,courses,store,scoring,shuffle,leitner,answer,stats,plan,format,html,findings,types}.ts
+│   ├── src/lib/{katex,figures,courses,pdf,store,scoring,shuffle,leitner,answer,stats,plan,format,html,findings,types}.ts
 │   ├── src/lib/sys.mjs             # the only module with node: imports (the site has no @types/node)
 │   ├── src/elements/*.ts           # custom elements (§3.2), dashboard.ts (fills the shell's placeholders), util.ts, index.ts
 │   ├── src/layouts/  src/pages/  src/components/  src/scripts/site.ts
+│   ├── src/pages/c/[course]/{pdf/[name],src/[doc]}.pdf.ts   # built PDFs and lecture sources (§3.2)
 │   ├── src/styles/{tokens,base,content,elements,code,print}.css
 │   ├── scripts/check-math.mjs      # KaTeX strict check, called by the Math stage (lint, validate) and `golden`
 │   ├── scripts/pagefind.mjs        # search index after `astro build` (§3.5)
@@ -126,7 +128,7 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── state/verify/<item-id>.json     # (Phase 5) ledger, one file per item (no locking)
 ├── progress/browser/*.json  examiner.jsonl  mastery.json  report.md    # (Phase 5)
 ├── _history/<timestamp>/…          # (Phase 5) copies saved by /regenerate before overwriting
-└── _build/{index.json,figures,typ,pdf,blind,logs}
+└── _build/{index.json,figures,typ,pdf,blind,logs}   # typ: assembled .md/.typ and digests; pdf: PDFs and manifest.json; logs: pandoc logs
 ```
 
 Discovery (`content.py`) knows the content kinds above (course, overview, summary, exercise,
@@ -168,7 +170,7 @@ exam:
     types: [single, multi, kprim]
     scoring: all-or-nothing     # all-or-nothing | partial | kprim
     negative_marking: false
-cheatsheet: {allowed: true, max_pages: 2}   # validator caps at 3
+cheatsheet: {allowed: true, max_pages: 2}   # validator caps at 3; the PDF's page limit (§3.3); allowed: false → no cheatsheet.pdf
 study: {start: 2026-11-02, hours_per_week: 8, blocked: ['2026-12-21..2027-01-06']}
 topics:                         # the only allowed topic ids; order = teaching order; prerequisites acyclic
   - {id: gleichstrom,  title: Gleichstromnetzwerke,          weight: 0.15, prereq: []}
@@ -451,6 +453,22 @@ Beurteilen Sie für den RC-Tiefpass:
   mulberry32, then Fisher-Yates runs from the last option down (a `pin-last` option is left
   out), and the keys (A)–(F) are assigned after shuffling.
 
+**In the PDF** (`mcq.lua` emits `#sk-mcq`; `typst/studykit.typ` sets it):
+- Questions are numbered through the document. Below the stem, an italic line names the
+  type in the course language („Genau eine Antwort ist richtig.“, „Eine oder mehrere
+  Antworten sind richtig.“, „Beurteilen Sie jede Aussage: richtig oder falsch.“).
+- single and multi: one row per option with an empty box, its key (A)–(F) and the text.
+  Kprim: a table of the statements with two boxes per row, under „richtig“ and „falsch“.
+- The order is the deterministic shuffle above, which `<sk-mc>` uses too (`lib/shuffle.ts`),
+  so a letter means the same option on the site and on paper.
+- Where the key goes follows the document's solution mode (§3.1 `solutions`). `mc.pdf`
+  collects it in an appendix „Lösungsschlüssel“: first a two-column table of number,
+  answer and question id (Kprim: „richtig: A, C“; each number links to its question), then
+  one entry per question with the correct keys (Kprim: the true and the false ones), every
+  option marked ✓ or ✗ (Kprim: richtig or falsch) with its `why`, the explanation and a
+  link back „↑ zur Frage“. An exam's MC part has no key; the exam's solutions PDF shows each
+  question's key inline below it.
+
 **Lint rules** (`mcq.lua` and the MC stage of `validate.py`, which `lint` runs too):
 - `single` has 3–5 options with exactly one `[x]`.
 - `multi` has 4–6 options with at least one `[x]` and at least one `[ ]`.
@@ -547,12 +565,16 @@ mc: {file: mc.md, points_each: 2}        # present only if course.exam.mc.presen
     (SK-COV-EXAM)
   - *(planned)* the archetype mix matches the profile, and an n-gram similarity above 0.6 to
     the extracted past-exam text produces a "too close to source" warning
+- PDF: `<exam>.pdf` to write on (cover, tasks, MC part, no solutions) and
+  `<exam>-solutions.pdf` (solutions with rubric) (§3.3).
 
 ### 2.8 Cheat sheet (`cheatsheet.md`)
 
 - **Frontmatter:** `title`, `max_pages`, which must be ≤ `course.cheatsheet.max_pages` ≤ 3, and `priority` (topic IDs).
 - **Body:** a `##` section per topic containing formulas, small tables, definition/note/warning boxes, and small figures.
 - **Not allowed:** exercises and hints.
+- **PDF:** `cheatsheet.pdf` in two columns, set at the first density (9 down to 7 pt) that
+  fits `min(3, course.cheatsheet.max_pages, max_pages)` pages (§3.3).
 
 ### 2.9 Study plan (`plan.yaml`)
 
@@ -584,6 +606,9 @@ How the scheduler places sessions:
 - Reviews follow at +1, +3 and +7 days.
 - Mock exams go into the last 14 days, and the last day is for the cheat sheet.
 - `--replan` keeps past sessions and puts weak topics from `progress/mastery.json` first.
+
+`plan.pdf` lists the sessions week by week („Woche n · dates“), one row each with a box to
+tick, date, minutes, kind, goal, topics and tasks (§3.3).
 
 ### 2.10 Verification ledger (`state/verify/<item-id>.json`, Phase 5)
 
@@ -692,8 +717,8 @@ title: Überblick
 - Links to topics use `topic:` references; every topic must be linked at least once.
 - *(Phase 5)* Authored by `author` with `authoring/parts/overview.md`, first in the author
   wave so other parts can link to it. `/regenerate <course> overview` re-runs it.
-- Web: `/c/<c>/` (the Overview tab). PDF *(Phase 4)*: `overview.pdf`, also the first chapter
-  of `summary.pdf`.
+- Web: `/c/<c>/` (the Overview tab). PDF: `overview.pdf`, also the first chapter of
+  `summary.pdf`.
 - A missing `overview.md` is SK-STRUCT-MISSING (a warning, an error with `--release`); the
   six sections are SK-STRUCT-SECTIONS, checked on every run; SK-COV-OVERVIEW (`--release`)
   requires a `topic:` link to every topic that is not skipped.
@@ -711,7 +736,7 @@ title: Überblick
 - `typst.yaml`: `to: typst`, `standalone: true`, `template: typst/pandoc-template.typ`, `syntax-highlighting: idiomatic`.
 - `json.yaml`: `to: json` and the reader with `+sourcepos`, so findings carry `file:line:col`; used by lint and validate (Phase 5: blind views and verification). The filter only checks and returns the AST unchanged.
 
-**Metadata.** `studykit.pandoc` builds the argv; the filter needs `-M sk-index` (the course's `_build/index.json`), `sk-course`, `sk-lang`, `sk-file` (the course-relative path, which decides the file kind), for Typst `sk-solutions` and `sk-figdir`, and optionally `sk-scope=course|file`. pandoc runs in the repository root on a temporary copy whose frontmatter is blanked.
+**Metadata.** `studykit.pandoc` builds the argv; the filter needs `-M sk-index` (the course's `_build/index.json`), `sk-course`, `sk-lang`, `sk-file` (the course-relative path, which decides the file kind), for Typst `sk-solutions` and `sk-figdir`, and optionally `sk-scope=course|file`; `studykit pdf` adds `sk-doc=<kind>` for an assembled document (`document` below). pandoc runs in the repository root on a temporary copy whose frontmatter is blanked.
 
 **Findings.** The filter collects every finding of a document and prints them to stderr as `<sk-file>:<line>:<col> SK-CODE message (fix: …)`, then exits with status 65. A rule that validate checks too has the same code in both (e.g. SK-REF-FIGURE, SK-BLOCK-FENCE, SK-MCQ-KEY); rules only the filter sees have their own codes (SK-BLOCK-RAW, SK-BLOCK-MARKDOWN, SK-REF-LINK, SK-MATH-TYPST). A run without the metadata above, or with an unreadable index or `math-denylist.json`, is SK-PANDOC-FAIL.
 
@@ -721,14 +746,15 @@ title: Überblick
 |---|---|
 | `guard` | Fails on any paragraph starting with `:::`, unknown classes, blocks in the wrong file kind, nesting other than mcq→explanation (a block inside a list counts), fence lines that are not exactly `::: name`, `:::: {.mcq …}`, `:::` or `::::` (checked on the source lines), hint and solution count and position, code blocks without exactly one allowed language, raw HTML and other raw blocks, H1 in the body, footnotes, and `{…}` attributes on headings, spans, inline code and tables (the HTML writer would copy an `onclick` onto the element). |
 | `blocks` | HTML: `<aside class="sk-block sk-{name}" data-block="{name}">` with a `sk-block-title` div; hints are `<details class="sk-hint" data-index="n">`, the solution `<details class="sk-solution">`. Typst: `#sk-box(kind:…, title:…)[…]`. |
-| `mcq` | Reads the ☐/☒ task list (option text, why, explanation) and validates it. HTML: `<sk-mc data-id data-type data-difficulty data-topic data-pin-last>` (plus `data-tags`/`data-source` when set) with a `sk-stem` div, `<sk-opt data-key data-correct>` children holding `<div class="sk-opt-text">` and a hidden `sk-why`, and a hidden `sk-explanation`; options stay in source order (the site shuffles, and its loader adds `data-h`). Typst: options (A)–(F) with empty boxes in a seeded shuffle, plus answer-key entries. |
-| `math` | Applies the denylist to every Math node. In HTML it emits `<sk-math data-tex="<base64>" data-display="0\|1"></sk-math>`. Base64 avoids entity-escaping problems, and since `guard` rejects raw HTML, authors cannot fake these elements. Also rejects environments outside the allowlist, non-ASCII outside `\text{…}` (SK-MATH-KATEX, so it shows up without KaTeX too) and a space command between two digits (SK-MATH-THINSPACE). Typst and json: each node is converted to Typst on its own, and a conversion warning is SK-MATH-TYPST, so the lint fails on what the PDF would fail on; Typst then gets two fixes from Phase 1 (decimal comma, `cases` gap). |
+| `mcq` | Reads the ☐/☒ task list (option text, why, explanation) and validates it. HTML: `<sk-mc data-id data-type data-difficulty data-topic data-pin-last>` (plus `data-tags`/`data-source` when set) with a `sk-stem` div, `<sk-opt data-key data-correct>` children holding `<div class="sk-opt-text">` and a hidden `sk-why`, and a hidden `sk-explanation`; options stay in source order (the site shuffles, and its loader adds `data-h`). Typst: `#sk-mcq` with options (A)–(F) in the seeded shuffle and a number that runs through the document; the key goes where the solution mode puts it (§2.6). |
+| `math` | Applies the denylist to every Math node. In HTML it emits `<sk-math data-tex="<base64>" data-display="0\|1"></sk-math>`. Base64 avoids entity-escaping problems, and since `guard` rejects raw HTML, authors cannot fake these elements. Also rejects environments outside the allowlist, non-ASCII outside `\text{…}` (SK-MATH-KATEX, so it shows up without KaTeX too) and a space command between two digits (SK-MATH-THINSPACE). Typst and json: each node is converted to Typst on its own, and a conversion warning is SK-MATH-TYPST, so the lint fails on what the PDF would fail on; Typst then gets two fixes from Phase 1 (decimal comma, `cases` gap), and a display that sets formulas apart with top-level `\qquad` becomes `#sk-formulas(…)`, one equation per formula, wrapping between them. |
 | `figures` | Checks `fig:` images (alone in the paragraph, no attributes, a caption; SK-REF-FIGURE, SK-REF-IMAGE, SK-REF-MISSING). HTML: a `<figure class="sk-fig" data-slug>` placeholder with a `sk-fig-slot` and the caption. Typst: `#figure(image("/courses/<c>/_build/figures/<slug>.svg", alt: …), caption: …)`; the path is relative to the Typst root, and a figure directory outside it is SK-PANDOC-FAIL. |
 | `alttext` | Typst only: the figure's `alt:` text from the caption, with math read as plain text (`\underline{U}_C` → U_C, `\mathrm{k\Omega}` → kΩ). |
-| `refs` | Resolves `ex:`, `mc:`, `topic:`, `exam:` and `src:` against a course ID index. HTML: `<a class="sk-ref sk-ref-{scheme}">` with route URLs (`mc:<id>` → `/c/<c>/mc/<topic>/#<id>`, `src:` → `/c/<c>/src/<doc>.pdf#page=<n>`). Typst: an in-document link, otherwise plain text such as „(→ Übung: Titel)“. `http(s)` and `mailto` links pass; bare URLs and links with attributes are SK-REF-LINK, other targets SK-REF-SCHEME. With `-M sk-scope=file` (`lint` and `validate --quick`) targets missing from the index are not reported. |
+| `refs` | Resolves `ex:`, `mc:`, `topic:`, `exam:` and `src:` against a course ID index. HTML: `<a class="sk-ref sk-ref-{scheme}">` with route URLs (`mc:<id>` → `/c/<c>/mc/<topic>/#<id>`, `src:` → `/c/<c>/src/<doc>.pdf#page=<n>`). Typst: a link when the target is in the same document (an exercise or exam task, a question, a summary chapter for `topic:`), otherwise the text plus „(→ Übung: Titel)“, or the text alone when it is the target's title. `http(s)` and `mailto` links pass; bare URLs and links with attributes are SK-REF-LINK, other targets SK-REF-SCHEME. With `-M sk-scope=file` (`lint` and `validate --quick`) targets missing from the index are not reported. |
 | `meta` | HTML: appends `<script type="application/json" id="sk-meta">` with headings (level, id, text) and items: the file's own index entry, then each MC question, as `{id, kind, topic, difficulty}` (MC items add `type`; difficulty is null when the index has none). |
 | `i18n` | Labels in German and English (Hinweis, Lösung, Aufgabe, Punkte …). |
-| `solutions` | Typst `-M sk-solutions=inline\|appendix\|none` (default appendix): hints, solutions and MC keys stay in place, move into an appendix with back-links, or are dropped. |
+| `solutions` | Typst `-M sk-solutions=inline\|appendix\|none` (default appendix; in an assembled document each part sets its own mode for hints and for solutions, and MC keys follow the solution's): hints, solutions and MC keys stay in place, move into an appendix, or are dropped. The appendix has up to three sections: „Hinweise“ (one entry per exercise with all its hints), „Lösungen“ (each solution with the results generated for it) and „Lösungsschlüssel“ (§2.6); each entry links back to its item. |
+| `document` | Typst with `sk-doc` only: an assembled PDF document (§3.3). Its top level holds generated blocks (headings, `sk-gen` JSON for the document info, exam cover and plan, `sk-meta`, `sk-objectives`, `sk-rubric`, `sk-answers`, `sk-unit`), and each course file sits in a `:::::: {.sk-part file= lines= first=}` that is checked and rendered as that file, so a finding names the course file and its own line. The cheat sheet ends with `<cs-end>`, which the fit measures. |
 
 ### 3.2 Website: Astro 7.4.2 static, pandoc loader, custom elements, plain CSS
 
@@ -736,7 +762,7 @@ title: Überblick
 
 | Kind | Packages |
 |---|---|
-| dependencies | `astro 7.4.2`, `katex 0.16.47`, `yaml 2.9.1` (the version Astro's YAML loader uses for `course.yaml` and `plan.yaml`, and Vite's optional peer; no site code imports it) |
+| dependencies | `astro 7.4.2`, `katex 0.16.47`, `yaml 2.9.1` (the version Astro's YAML loader uses for `course.yaml` and `plan.yaml`, and Vite's optional peer; `lib/pdf.ts` imports it to read `sources/manifest.yaml`) |
 | devDependencies | `typescript 6.0.3` (`@astrojs/check` peers ^5 or ^6), `@astrojs/check 0.9.12`, `@playwright/test 1.64.1`, `pagefind 1.5.2` |
 | unit tests | `node --test` (Node 24 strips TypeScript types natively) |
 | search | `pagefind` (CLI, run after `astro build`; see §3.5) |
@@ -783,19 +809,22 @@ title: Überblick
 | `/c/<c>/mc/` | **MC hub:** accuracy and due count per topic bank; modes Practice, Test, Mistakes, Due, Mixed |
 | `/c/<c>/mc/<topic>/` | Every question of the bank in source order with its id as anchor (the target of `mc:` links), plus a practice quiz over the bank |
 | `/c/<c>/mc/<topic>.json` | Static endpoint `{topic, title, questions: [{id, type, difficulty, topic, h, html}]}` with pre-rendered question HTML, loaded by `<sk-quiz>` |
-| `/c/<c>/cheatsheet/` | Web view in CSS columns, plus a badge with the page count of the built PDF against `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`: "PDF (n/max pages)", with "· over the limit" when exceeded, or "PDF not built yet · limit max pages" until Phase 4 builds it |
+| `/c/<c>/cheatsheet/` | Web view in CSS columns, plus a "PDF · size" link and a badge with the page count of the built PDF against the manifest's `max_pages` (`min(3, course.cheatsheet.max_pages, frontmatter max_pages)`): "n / max pages", with "· over the limit" when exceeded, and the density's font size as its tooltip; "PDF not built yet · limit max pages" without a manifest entry |
 | `/c/<c>/exams/`, `…/<id>/` | Mock exam list; exam mode |
 | `/c/<c>/progress/` | Mastery ring, topic bars, reviews due, misconceptions, sure/unsure calibration, exam history, export and import |
 | `/search/` | Pagefind search (§3.5) |
 | `/404.html` | Not found |
-| `/c/<c>/pdf/<name>.pdf`, `/c/<c>/src/<doc>.pdf` | *(Phase 4)* Static endpoints serving `_build/pdf` and `sources/raw`. Local only; `dist` is gitignored. Until then `check-links` reports links to them as warnings. |
+| `/c/<c>/pdf/<file>` | Static endpoint serving `_build/pdf/<file>` byte for byte, inline as `application/pdf`, for every document in `_build/pdf/manifest.json` (`lib/pdf.ts`). A document that is not built, or whose entry or file is broken (a build warning), has no route and no link. Local only; `dist` is gitignored. |
+| `/c/<c>/src/<doc>.pdf` | The lecture PDF `sources/raw/<file>` of each document in `sources/manifest.yaml` (`documents` or `docs`, a list or a mapping; the file is the entry's `file` or `path` inside `sources/raw/`, else `<id>.pdf`), served the same way; `src:` links open it at `#page=<n>`. A link to a document the site does not serve, under `/src/` or `/pdf/`, is a `check-links` warning (an error with `--strict-documents`). |
+
+**PDF links** (`components/PdfLink.astro`, `PdfLinks.astro`). Each link reads "PDF · 14 pages · 353 kB" with the manifest's page count and size (SI units), downloads as `<course>-<file>`, is English UI text kept out of Pagefind, and is hidden in print; a page whose documents are not built shows no link. Overview and summary list ("PDF"), each chapter ("Summary PDF", the whole summary), exercise list ("PDF with solutions", "PDF without solutions"), MC hub ("PDF with answer key"), plan ("PDF") and cheat sheet (the size only; the badge has the pages) link their PDF. The exam list links "Exam PDF" and puts the solutions PDF in a collapsed "Solutions PDF, for after the exam" section, which `elements/dashboard.ts` hides while that exam runs (`[data-sk-exam-locked]`: started, not submitted, time left); on the exam page `<sk-exam>` shows the solutions link only after submitting or time-up and hides it again on a retake. In dev both manifests are re-read on every render, so PDFs built while the server runs appear without a restart. The frontmatter sources of chapters and exercises link to `/c/<c>/src/<doc>.pdf#page=<first page>` when the site serves that document.
 
 **Shell.** `layouts/Base.astro` renders `<body data-course data-exam-date data-mc-scoring
 data-negative-marking>` (the course's exam rule), the header with search and theme toggle,
 the course tabs, and the course info as `<script type="application/json"
 data-sk-course-data="<course>">` (`components/CourseData.astro`). Pages render the progress
 figures as empty placeholders (`[data-sk-due-count]`, `[data-sk-accuracy]`,
-`[data-sk-weakest]`, `[data-sk-mastery]`, `[data-sk-exam-best]`, `[data-sk-status]`,
+`[data-sk-weakest]`, `[data-sk-mastery]`, `[data-sk-exam-best]`, `[data-sk-exam-locked]`, `[data-sk-status]`,
 `[data-next-session]`); `elements/dashboard.ts` fills them from the store with `lib/stats.ts`
 and refreshes them when progress changes on the page or in another tab, and when the page
 comes back from the back/forward cache. `scripts/site.ts` holds the shell's small
@@ -886,46 +915,118 @@ and `data-rubric` `[{criterion, criterion_html, points}]`; the MC part is
 - `base.css`: the shell. `elements.css`: the custom elements.
 - `content.css`: `sk-*` blocks and display math with `overflow-x: auto`. The cheat sheet's topic sections flow through the columns; boxes, figures, tables and formulas stay whole. In the cheat sheet, display math wraps between formulas set apart with top-level `\qquad` (`lib/katex.ts` adds `\allowbreak` and groups each formula), otherwise after `=` or `+`.
 - `code.css`: skylighting token classes for light and dark.
-- `print.css`: A4 `@page`, light colours, no site chrome, no page breaks inside boxes, figures, questions, tables and formulas, a question's label kept with its question. The cheat sheet prints as two columns of `<main>` with the title spanning them. `.no-print` hides the summary's "On this page" box, the "Test yourself" quiz and the MC topic practice card; the elements' controls (`elements.css`) and the exam's Start/Retake buttons and alerts are hidden too. `scripts/site.ts` opens every `<details>` on `beforeprint` and restores them after.
+- `print.css`: A4 `@page`, light colours, no site chrome, no page breaks inside boxes, figures, questions, tables and formulas, a question's label kept with its question. The cheat sheet prints as two columns of `<main>` with the title spanning them. `.no-print` hides the summary's "On this page" box, the "Test yourself" quiz and the MC topic practice card; the elements' controls (`elements.css`) and the exam's Start/Retake buttons and alerts are hidden too, and so are the PDF links. `scripts/site.ts` opens every `<details>` on `beforeprint` and restores them after.
 - Colour is never the only signal; feedback uses `aria-live`; `prefers-reduced-motion` is respected.
 
 ### 3.3 PDF: pandoc 3.13 → Typst 0.15.1, in two explicit steps
 
-*Phase 4.* What exists: the Typst branch of the filter set (§3.1), `typst/pandoc-template.typ`
-and a stub `typst/studykit.typ` with the functions the filter calls. `studykit pdf`,
-`studykit cheatsheet fit`, the PDF stage of validate and the PDF routes do not exist yet.
+`studykit pdf [course] [doc …] [--force] [--no-figures] [--jobs n] [--json]`
+(`src/studykit/pdf.py`) builds the documents of one course, or of every course when none
+is given (`just pdf`; `just build` runs it before the site). It first builds the course's
+figures (cached; `--no-figures` skips that), then the documents in a thread pool (`--jobs`,
+default the CPU count). Typst reads files only below `--root`, the repository, so a course
+outside it cannot be built. The site reads the result through `_build/pdf/manifest.json`
+(§3.2).
 
-**Steps.**
-1. `studykit pdf <c> [doc]` assembles `_build/typ/<doc>.md`:
-   - It strips frontmatter and concatenates in course order.
-   - It generates headings and an exam cover with a points table.
-   - Rubric and answer labels go in as plain text with inline math.
-2. `pandoc -d common -d typst --log _build/logs/<doc>.json` writes `_build/typ/<doc>.typ`.
-3. `typst compile --root <repo> --ignore-system-fonts --diagnostic-format short --input density=<n> …`, run with `SOURCE_DATE_EPOCH=0`.
-   - Only Typst's embedded fonts are used (NewCM10, NewCMMath, DejaVu Sans Mono), so no fonts are vendored and page counts are the same on every machine.
-   - Every `warning:` line counts as an error.
-4. Page counts come from `len(pypdfium2.PdfDocument(pdf))` and are written to `_build/pdf/manifest.json`, which the site reads.
+**Steps per document.**
+1. Assemble `_build/typ/<doc>.md` (`Assembler` in `pdf.py`):
+   - Each course file's body, frontmatter stripped, goes into a part
+     `:::::: {.sk-part file=… lines=… first=…}` in course order, so the filter checks and
+     renders it as that file and reports findings at the course file and its own line
+     (`lib/document.lua`, §3.1).
+   - Generated blocks around the parts: headings and numbers, the document info, the exam
+     cover and the plan as `sk-gen` JSON, and meta lines, objectives, rubrics and answer
+     labels as plain text with inline math. Generated text is escaped, so a title is never
+     read as Markdown.
+2. `pandoc -d common -d typst -M sk-doc=<kind> -M sk-solutions=<mode> --log _build/logs/<doc>.json`
+   (through `studykit.pandoc`) writes `_build/typ/<doc>.typ`.
+3. `typst compile --root <repo> --ignore-system-fonts --diagnostic-format short` into
+   `_build/pdf/.<doc>.partial.pdf`, which replaces `<doc>.pdf` only when the document
+   succeeded. The cheat sheet adds `--input density=<n>` (fit, below).
+   - Only Typst's embedded fonts are used (New Computer Modern, New Computer Modern Math,
+     DejaVu Sans Mono), so no fonts are vendored and page counts are the same on every
+     machine.
+   - Every Typst `warning:` line and every warning in the pandoc log fails the document.
+4. The page count is `len(pypdfium2.PdfDocument(pdf))`; it goes into the manifest.
 
-**Documents per course:**
+**Determinism.** Typst runs with `SOURCE_DATE_EPOCH=0` and without the caller's `TYPST_*`
+environment variables (no fonts or packages from the machine); the house library sets no
+document date; the toolchain is pinned exactly (§4.1). A forced rebuild writes the same
+bytes.
+
+**Cache.** A document is rebuilt only when the digest of its inputs changed, or with
+`--force`: the pandoc and Typst versions, the `pandoc/` and `typst/` trees and studykit's
+Python sources (figures excluded), `_build/index.json`, the kind, the solution mode, the
+cheat sheet's limit, the assembled Markdown and the SVG of every figure it shows. A
+successful build stores the digest in `_build/typ/<doc>.digest` (the cheat sheet's density
+on a second line, so a cached run still reports it).
+
+**Failure.** A document fails on a filter finding, a pandoc or Typst error or warning,
+course files that do not assemble into it (a missing exam task file), or a cheat sheet over
+its limit. Its errors are printed, its previous PDF stays on disk, and it leaves the
+manifest. A figure that fails to build is a note; a document that shows it then fails to
+compile. The exit code is 1 when a document failed, 2 for a document id the course does
+not have. `--json` prints `{course, manifest, docs: [<manifest entry> + status
+(built|cached|failed), errors, overflow?], notes}`, a list of these without a course.
+
+**Manifest** (`_build/pdf/manifest.json`, the contract with the site, `lib/pdf.ts`):
+
+```json
+{"schema": "studykit-pdf/1", "course": "<course id>", "docs": [
+  {"id": "overview", "kind": "overview", "file": "overview.pdf", "title": "Überblick", "pages": 2, "bytes": 67239},
+  {"id": "<exam>", "kind": "exam", "file": "<exam>.pdf", "exam": "<exam id>", "title": "…", "pages": 7, "bytes": 150378},
+  {"id": "cheatsheet", "kind": "cheatsheet", "file": "cheatsheet.pdf", "title": "…", "pages": 1, "bytes": 73511, "max_pages": 2, "density": 0}]}
+```
+
+- Kinds: `overview`, `summary`, `exercises`, `exercises-blank`, `mc`, `exam`,
+  `exam-solutions` (both with `exam`), `cheatsheet` (with `max_pages` and `density`) and
+  `plan`. Entries come in that order, exams sorted by id, each exam before its solutions.
+- `pages` is the pypdfium2 page count, `bytes` the file size.
+- It lists what this run built or found up to date. A document that is not built (its
+  sources do not exist, or `cheatsheet.allowed` is false) is absent; one that fails leaves
+  it; one whose sources are gone leaves it and its PDF is deleted. When only some
+  documents are built (`doc …`, or validate with `--paths`), the others keep their entries
+  while their PDFs exist.
+- The site checks every entry (schema, course, kind, a plain `.pdf` file name that
+  exists, a page count, the exam id) and serves only those that pass.
+
+**Documents per course** (text in `course.lang`; „…“ below is German):
 
 | File | Contents |
 |---|---|
-| `summary.pdf` | The summary |
-| `exercises.pdf` | Hints and solutions in appendices |
-| `exercises-blank.pdf` | Exercises only |
-| `mc.pdf` | Options (A)–(F) with empty boxes in a deterministic shuffle seeded by question ID; appendix with answer key, every `why` and the explanation |
-| `<exam>.pdf` | Cover page, „Seite x von y“, MC part if present |
-| `<exam>-solutions.pdf` | Solutions with rubric |
-| `cheatsheet.pdf` | The cheat sheet |
-| `plan.pdf` | The study plan |
+| `overview.pdf` | The overview (§2.12) |
+| `summary.pdf` | Contents, the overview as the first chapter, then one chapter per topic in teaching order, each on a new page with its sources and objectives |
+| `exercises.pdf` | Contents; the exercises grouped by topic, numbered n.m, sorted by difficulty and title, each with difficulty, minutes and kind; appendices „Hinweise“ (all hints of an exercise in one entry) and „Lösungen“ (with the results from `answers`), each entry linked back to its exercise |
+| `exercises-blank.pdf` | The same exercises without hints, solutions and results |
+| `mc.pdf` | The banks in topic order with their question counts; questions as in §2.6, the appendix „Lösungsschlüssel“ with the key table and every question's key, `why`s and explanation |
+| `<exam>.pdf` | Cover (name and Matrikelnummer fields; date, time, points and pass mark, aids; notes, with the MC scoring and negative-marking rule when there is an MC part; points table with an empty column for the result), each task on a new page with its points, the MC part; no hints or solutions |
+| `<exam>-solutions.pdf` | „<title> – Lösungen“: each task with its solution, rubric table and results; the MC part with each key inline |
+| `cheatsheet.pdf` | Two columns, set at the fitted density; its lines use `top-edge: "bounds"` so tall inline math keeps clear of the line above |
+| `plan.pdf` | Exam date, number of sessions and hours, the plan's date, then the sessions by week (§2.9) |
 
-German hyphenation comes from `set text(lang: "de")`.
+Footers: exams, their solutions and the cheat sheet carry „Seite x von y“, the other
+documents course · title and the page number. Hyphenation follows `set text(lang:
+course.lang)`.
 
-**Cheat-sheet fit** (`studykit cheatsheet fit <c>`). The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter.max_pages)`.
-1. Compile at densities 0–4 (9, 8.5, 8, 7.5, then 7 pt as the floor, with tighter leading and margins). Stop at the first one with at most `max` pages.
-2. If 7 pt still overflows, read `typst eval 'query(<cs-end>).first().location().position()' --in _build/typ/cheatsheet.typ` and the height of each section. Exit with code 3 and JSON such as `{"overflow_pages":0.42,"largest_sections":[…]}`.
-3. The `authoring/parts/cheatsheet.md` procedure then condenses, in this order: derivations, duplicate examples, prose, then the lowest-priority (low weight, high mastery) topics. Rebuild after each round, for at most 3 rounds, then ask the user what to drop.
-4. More than 3 pages is a hard failure, and the previous valid PDF stays in place.
+**Cheat-sheet fit** (`studykit cheatsheet fit <c> [--force] [--no-figures] [--json]`,
+`src/studykit/cheatsheet.py`). `studykit pdf` builds `cheatsheet.pdf` through the same fit.
+The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`.
+1. Compile at densities 0–4 (9, 8.5, 8, 7.5, then 7 pt as the floor, with tighter leading,
+   spacing, margins and column gutter) and keep the first with at most `max` pages; the
+   manifest records that density.
+2. If 7 pt still overflows, `typst eval` over `_build/typ/cheatsheet.typ` reads the page
+   geometry (`<cs-page>`), where `<cs-end>` sits and where each `##` heading starts. Exit
+   code 3 with JSON such as `{"overflow_pages":0.42,"largest_sections":[{"title","line","height_pages"}…],"pages":2,"max_pages":1,"density":4,"used_pages":1.42,"kept":"…/cheatsheet.pdf"}`
+   (plus `course`, `file`, `status`, `fits`); `line` is the heading's line in
+   `cheatsheet.md`. A section's height runs from its heading to the next in the column flow,
+   so it is an estimate. The cheat sheet leaves the manifest and the previous valid PDF stays
+   in place. Exit code 0 means it fits, 1 that it did not build, 2 that the course has no
+   cheat sheet.
+3. *(Phase 5)* The `authoring/parts/cheatsheet.md` procedure then condenses, in this order:
+   derivations, duplicate examples, prose, then the lowest-priority (low weight, high
+   mastery) topics. Rebuild after each round, for at most 3 rounds, then ask the user what
+   to drop.
+4. More than 3 pages is never allowed (the schema caps both settings at 3).
 
 ### 3.4 Figures: `studykit.figures`, Python only, Matplotlib for everything
 
@@ -1044,7 +1145,7 @@ warning. `doctor --quick` skips the site packages, the Typst fonts and the port.
 | just | **1.59.0** | same installer; `just-1.59.0-aarch64-apple-darwin.tar.gz` and `just-1.59.0-x86_64-unknown-linux-musl.tar.gz`, locally and in CI |
 | uv / Python | ≥ 0.11.30 / 3.14 | uv-managed: `requires-python = ">=3.14,<3.15"`, `python-preference = "only-managed"`. Falling back to 3.13 is a one-line change. |
 | node / pnpm | ≥ 24.17.0 / ≥ 11.22.0 | installed by the user (`corepack enable pnpm`); CI pins 24.17.0 and 11.22.0 |
-| Python (`uv.lock`) | figure stack from §3.4, plus pydantic 2.14.1, PyYAML 6.0.3 (pypdfium2 5.14.0 comes with Phase 4); dev: pytest 9.1.1, ruff 0.17.1 | `exclude-newer = "7 days"` |
+| Python (`uv.lock`) | figure stack from §3.4, plus pydantic 2.14.1, PyYAML 6.0.3, pypdfium2 5.14.0 (PDF page counts and text checks); dev: pytest 9.1.1, ruff 0.17.1 | `exclude-newer = "7 days"` |
 | npm | from §3.2 | `minimumReleaseAge: 10080` |
 
 Not needed for any core build: Chromium, TeX, Graphviz, Mermaid, rsvg or resvg. Playwright downloads Chromium only for the browser tests (`just e2e` installs it; the element harness needs it too) and in CI.
@@ -1079,9 +1180,13 @@ figures course="":
     {{sk}} fig build {{course}}
 dev: (figures "")            # http://localhost:4321 (strictPort)
     pnpm -C site dev
-build course="": (figures course) (validate course)
+build course="": (figures course) (validate course) (pdf course)
     STUDYKIT_STRICT=1 pnpm -C site build
     {{sk}} check-links site/dist
+pdf course="":               # <course>/_build/pdf with manifest.json (all courses without one)
+    {{sk}} pdf {{course}}
+cheatsheet course:           # exits 3 with the overflow when even 7 pt is too long
+    {{sk}} cheatsheet fit {{course}}
 check-links dist="site/dist":
     {{sk}} check-links {{dist}}
 lint +files:
@@ -1110,9 +1215,12 @@ lint-code:
     uv run --frozen ruff format --check src tests
 ```
 
-`build` sets `STUDYKIT_STRICT=1` itself and builds the whole site (all courses); its
-`course` argument picks what figures and validation cover. Planned recipes: `pdf` and
-`cheatsheet` (Phase 4, and `build` then depends on `pdf`), `verify`, `status`, `tutor` and
+`build` runs in this order: figures; `validate`, whose PDF stage already builds the PDFs;
+`pdf`, which finds them up to date and fails the recipe if a document failed; the strict
+site build, which copies every PDF its manifest lists into `site/dist`; `check-links`. It
+sets `STUDYKIT_STRICT=1` itself and builds the whole site (all courses); its `course`
+argument picks what figures, validation and PDFs cover. `cheatsheet` is the fit on its own
+(exit code 3 with the overflow, §3.3). Planned recipes: `verify`, `status`, `tutor` and
 `examine` (Phase 5 and 6).
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
@@ -1130,7 +1238,7 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
 | Pandoc | the Lua filter set with the json target, on files the stages above left without errors; also with `--quick`, then at file scope (targets missing from the index are not reported). The filter reports family-plus-rule codes: the code validate uses for a rule both check (e.g. SK-REF-FIGURE), and SK-BLOCK-RAW, SK-BLOCK-MARKDOWN, SK-REF-LINK and SK-MATH-TYPST for rules only it checks; a failure without a finding is SK-PANDOC-FAIL | SK-* |
 | Figures | build (cached) plus SVG validation; unreferenced scripts (warning) | SK-FIG |
 | Verification | *(Phase 5; skipped)* ledger complete and fresh; disputed and quarantined items listed; numeric MC questions have a check script | SK-VER |
-| PDF | *(Phase 4; skipped)* every document compiles with no warnings; cheat sheet ≤ its limit | SK-PDF |
+| PDF | every full validate, not `--quick` or `lint`: builds the course's PDFs into `_build/pdf` as `studykit pdf` does, manifest included, but without building figures (the Figures stage did); cached, so only documents whose inputs changed rebuild; with `--paths` only the documents made from those files. Every document compiles with no Typst or pandoc warning, and the cheat sheet fits its limit; a filter finding in a document keeps its own code; the note reports how many PDFs are ready and the cheat sheet's pages and density. A Typst diagnostic is reported at the file and line of the course item (exercise, question, task, chapter) it points into, else at the file that defines the document, else `course.yaml`; an overflow at the cheat sheet's `max_pages`. Skipped with a note when PDF building is turned off (`Config.pdf`, for tests), pandoc or typst is missing, the course is outside the repository, or an earlier stage found errors | SK-PDF-COMPILE, SK-PDF-WARNING, SK-PDF-CHEATSHEET, SK-PDF-BUILD |
 | Site | `--release` only, for whole courses (not with `--paths`), and only when the stages above found no errors: strict `astro build` into a temporary `--outDir` with `STUDYKIT_COURSES_DIR` set to a temporary directory that holds one symlink to the course; Pagefind with `--force-language`; `pnpm -C site check` without `STUDYKIT_STRICT`; `check-links` over the course's own pages, reported as `dist/<page>` | SK-SITE |
 | Coverage | `--release` only: the overview links every topic; each topic has a summary, at least `targets.exercises_per_topic` (4 with `auto`) exercises over two or more difficulties, and at least `targets.mc_per_topic` MC questions (with `auto`: 10–25 by weight); a bank lacking a type of `course.exam.mc.types` (warning); at least `targets.mock_exams` mock exams, each within ±10% of the points and time in `course.yaml: exam` | SK-COV |
 
@@ -1143,12 +1251,13 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
     and right-half-plane counts of the control templates
   - every figure template renders and validates, with a `facts.json` snapshot (never SVG bytes); the palette, its readable text colours and the site's figure tokens agree
   - lint fixtures (`tests/fixtures/bad/<SK-CODE>/`): each forbidden construct produces its code and its replacement hint; every emitted code is documented in `errors.md`, and every documented code is emitted
-  - the filter set over `tests/fixtures/pandoc/` and the golden `blocks.md` and `mcq.md` corpora through html5, typst (compiled) and json
+  - the filter set over `tests/fixtures/pandoc/` and the golden `blocks.md` and `mcq.md` corpora through html5, typst (compiled) and json; assembled PDF documents (metadata, appendix placement, findings at the course file and line, unknown generated blocks), `\qquad` formula rows and link text that is its target's title
   - YAML loading, the schemas, validate's stages, the render bridge, the Site stage, `check-links`, `doctor` and `tools`
+  - `studykit pdf` on the sample course (`test_pdf.py`): every document builds without warnings, the manifest follows the contract with pypdfium2 page counts, a second run is cached, generated text is escaped, `mc.pdf` has an answer key for every question in the order validate and the site use, the exam has „Seite x von y“ and its points table but no solutions, the solutions PDF has every rubric, `exercises.pdf` has every solution and the blank sheet none, a failed compile keeps the previous PDF and leaves the manifest, a filter finding names the course file and line, unknown documents are refused, no course builds every course; `cheatsheet fit` (`test_cheatsheet.py`: the limit, the density loop, positions through the columns, the overflow JSON with section lines, exit code 3 keeping the previous PDF, the 3-page failure); validate's PDF stage (`test_validate_pdf.py`: built once and reused, `--paths`, the overflow at `max_pages`, a missing figure at the file that shows it, the skip reasons, where problems are reported)
   - *(planned)* key points of function plots (`cos x = x`, touching roots, poles) beyond the
     gallery snapshot; *(Phase 5/6)* `mc_numeric`, the scheduler, `status`, and ingest of a
     generated two-page PDF
-- **node --test** (`site/tests/unit/`): scoring for every type and mode, shuffle determinism with `pin-last` (against values printed by Python), Leitner and the exam clamp, store migration and merge, the answer check (`lib/answer.ts`), the progress figures (`lib/stats.ts`), and text colour pairs of `tokens.css` at 4.5:1 or more in both themes.
+- **node --test** (`site/tests/unit/`): the PDF and source manifests the site reads (`lib/pdf.ts`, with small test PDFs from `make-pdf.mjs`), scoring for every type and mode, shuffle determinism with `pin-last` (against values printed by Python), Leitner and the exam clamp, store migration and merge, the answer check (`lib/answer.ts`), the progress figures (`lib/stats.ts`), and text colour pairs of `tokens.css` at 4.5:1 or more in both themes.
 - **Git hooks and guard** (`.github/scripts/test-hooks.sh`): `commit-msg`, `pre-commit` and `guard.sh` in throwaway repositories.
 - **Schema drift:** `studykit schema export --check`.
 - **Golden corpus** (`studykit golden`): `tests/golden/math.md`, EE and math formulas including decimal comma, `\underline`, `\mathrm{k\Omega}`, `cases`, `aligned` and determinants, through KaTeX strict and pandoc → Typst with zero warnings; `math.typ.snap` pins the Typst translation; every construct in `math-denied.md` must still fail an engine.
@@ -1165,6 +1274,7 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
   - `lang`: every text resolves to the language it is written in (quiz questions and topic names in the course language, the elements' own text in English)
   - `layout`: the cheat sheet fills its columns and cuts no formula, the current course tab is visible on a phone, no sideways scrolling at 320 px, past and done plan sessions keep their contrast
   - `print`: an exercise prints its hints and solution (without counting the hints as used); summary, MC topic and exam pages print without their quizzes and buttons
+  - `pdf`: the pipeline built every sample-course document; `dist` holds exactly the manifest's PDFs, byte for byte and served inline; each page links its PDF with the manifest's page count and size, pages without one link none; the solutions PDF is collapsed on the exam index, hidden there and on the exam page while the exam runs, and shown after submitting; the cheat-sheet badge reads the manifest; downloads keep the course name; printing hides the links; source documents are served byte for byte as `sources/manifest.yaml` lists them; search never returns a PDF
 
 Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
 
@@ -1174,9 +1284,10 @@ Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
   1. checkout, `setup-uv` (uv 0.11.30), `pnpm/action-setup` (pnpm 11.22.0), `setup-node` (Node 24.17.0, pnpm cache), and a cache of the pinned tool downloads keyed by `toolchain.toml`
   2. `uv run --frozen studykit tools install`, which fetches the pinned pandoc, typst and just binaries by hash; later steps call `.tools/bin/just`
   3. `just setup`, `just lint-code`, then `playwright install --with-deps chromium`
-  4. `just ci`
-  5. the element harness (`pnpm -C site run test:elements`, if Chromium installed) and `just e2e` (if `just ci` passed); both run even after an earlier failure, so one failure does not hide the other
-  6. on failure only: upload `site/dist` and the Playwright reports and results (`site/node_modules/.cache/sk-e2e/`, `sk-elements/results/`), kept 14 days. Uploading the sample-course PDFs comes with Phase 4.
+  4. `just ci`, whose `build` validates and builds the sample course's PDFs
+  5. on every run that is not cancelled: `just pdf sample-course` (cached after `just ci`, a build of its own when `just ci` stopped earlier) and an upload of `examples/sample-course/_build/pdf/` (the PDFs and `manifest.json`) as the artifact `sample-course-pdfs`, kept 14 days
+  6. the element harness (`pnpm -C site run test:elements`, if Chromium installed) and `just e2e` (if `just ci` passed); both run even after an earlier failure, so one failure does not hide the other
+  7. on failure only: upload `site/dist` and the Playwright reports and results (`site/node_modules/.cache/sk-e2e/`, `sk-elements/results/`), kept 14 days
 - **`guard.yml`** (push, PR; full history) runs `bash .github/scripts/guard.sh commits|courses|pdfs`:
   - `commits`: every non-merge commit in the range passes `.githooks/commit-msg` (a Conventional Commit, no `Co-Authored-By`). The range is base..head for a pull request and before..HEAD for a push. When the before commit is missing (a new branch, or a force push), a branch is checked as `origin/<default>..HEAD`; creating the default branch checks its whole history; a rewrite of the default branch fails and has to be checked by hand; a range git cannot list fails the check.
   - `courses`: `git ls-files courses` returns only `courses/README.md`.
@@ -1209,7 +1320,7 @@ are planned.
 - **No `memory:` field on any agent.** Course-specific state lives in `courses/<c>/progress` and `state`, and `.claude/agent-memory*/` is gitignored as a safety net.
 
 **`CLAUDE.md`:**
-- Never commit `courses/`.
+- Never commit `courses/`, nor PDFs outside `tests/fixtures/`.
 - Conventional Commits, one logical change each, no Co-Authored-By.
 - Skills and UI are in English; generated content follows `course.lang`.
 - Figures are code. Never compute numbers in your head; use Python.
@@ -1333,7 +1444,7 @@ any content → figures → verify → pdf
 
 These follow your order (toolchain → figures → website → PDF → agents/skills → /register-new-subject), with a small guardrails phase first. Every commit is a Conventional Commit, one logical change, with no Co-Authored-By trailer.
 
-**Status:** Phases 0–3 are complete; Phase 4 is next. Sections of this document that describe
+**Status:** Phases 0–4 are complete; Phase 5 is next. Sections of this document that describe
 later phases mark the parts that do not exist yet.
 
 **Phase 0: guardrails.** Done when the hooks reject a bad message and staged course data, and the guard workflow is green.
@@ -1450,11 +1561,11 @@ Commits:
 
 | # | Risk | Mitigation |
 |---|---|---|
-| 1 | KaTeX (web) and texmath (PDF) disagree on math. This is the only remaining two-engine split. | One written subset; `math.lua` denylist with replacements; KaTeX strict plus `--fail-if-warnings`; lint hook on every write; golden corpus in CI, re-run on every pandoc or Typst bump |
+| 1 | KaTeX (web) and texmath (PDF) disagree on math. This is the only remaining two-engine split. | One written subset; `math.lua` denylist with replacements; KaTeX strict plus `--fail-if-warnings`; lint hook on every write; every full `validate` compiles the course's PDFs with every warning an error (SK-PDF); golden corpus in CI, re-run on every pandoc or Typst bump |
 | 2 | The custom pandoc loader is our own code: dev hot reload, speed, error mapping | The loader plus the render bridge (`studykit render`), with digest caching and a thread pool; error cards in dev; `+sourcepos` in lint; e2e tests; fallback is the research's remark path with name-only fences |
 | 3 | LLM arithmetic errors, or wrong MC keys and distractors | Blind verifier enforced by a hook; check scripts; `mc_numeric` with named mistakes and a separation check; two-method rule; content-hash ledger; quarantine instead of shipping |
 | 4 | Pandoc may not detect `[x]` in *loose* task-list items (option paragraph plus `why` paragraph) | Covered by the Phase 1 golden corpus. Fallback: a tight list with the `why` as an indented `::: why`-free sub-list item that `mcq.lua` reads |
-| 5 | Cheat sheet over 3 pages, or different page counts on different machines | Embedded Typst fonts only with `--ignore-system-fonts`; exact Typst pin; density presets with a 7 pt floor; overflow measured with `typst eval`; capped condense rounds; hard failure that keeps the last valid PDF |
+| 5 | Cheat sheet over 3 pages, or different page counts on different machines | Embedded Typst fonts only with `--ignore-system-fonts`, no `TYPST_*` environment, `SOURCE_DATE_EPOCH=0`; exact Typst pin; density presets with a 7 pt floor; overflow measured with `typst eval`; SK-PDF-CHEATSHEET in every full `validate`; capped condense rounds (Phase 5); hard failure that keeps the last valid PDF and drops it from the manifest |
 | 6 | Figures valid but visually wrong | Templates hide placement; mandatory PNG review; facts JSON is the numeric source; `plot.custom()` is the only raw route |
 | 7 | Course material leaks into the public repo | Gitignore; pre-commit hook; Claude `pre-git` hook and deny rules; CI guard; no agent memory; self-written sample course |
 | 8 | Toolchain drift (pandoc 3.13 is 3 days old; Typst 0.x breaking changes; Astro 7 Markdown churn) | sha256-pinned binaries shared by local and CI; lockfiles with 7-day cooldowns; `doctor`; Astro's Markdown pipeline not used at all; one-line fallback to pandoc 3.12.1 |

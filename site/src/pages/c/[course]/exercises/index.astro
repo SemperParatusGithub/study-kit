@@ -3,8 +3,10 @@
 // Status comes from browser progress: the elements set data-status on each [data-item] row.
 import Base from '../../../../layouts/Base.astro';
 import Difficulty from '../../../../components/Difficulty.astro';
+import PdfLinks from '../../../../components/PdfLinks.astro';
 import { coursePaths, route, type Course } from '../../../../lib/courses';
 import { DIFFICULTY, plural } from '../../../../lib/format';
+import { findPdf } from '../../../../lib/pdf';
 
 export const getStaticPaths = coursePaths;
 
@@ -33,6 +35,13 @@ const KIND: Record<string, string> = {
       {plural(course.exercises.length, 'exercise')} with hints, an answer check and a worked solution.
       Try each one before you open the hints.
     </p>
+    <PdfLinks
+      course={course}
+      items={[
+        { doc: findPdf(course.pdfs, 'exercises'), label: 'PDF with solutions' },
+        { doc: findPdf(course.pdfs, 'exercises-blank'), label: 'PDF without solutions' },
+      ]}
+    />
   </div>
 
   {
