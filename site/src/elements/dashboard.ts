@@ -11,6 +11,9 @@
 //                                                   [data-sk-weakest-empty] hides itself
 //   [data-sk-mastery][data-course]                  mastery ring (MasteryRing.astro)
 //   [data-sk-exam-best][data-course][data-exam]     best mock-exam result
+//   [data-sk-exam-locked][data-course][data-exam]   hidden while that mock exam runs
+//     [data-duration-min]                           (started, not submitted, time left):
+//                                                   the solutions PDF on the exam list
 //   [data-sk-status][data-item]                     exercise status; the row [data-item]
 //                                                   gets data-status (new, started,
 //                                                   not-yet, partial, solved) for the
@@ -45,6 +48,7 @@ const PLACEHOLDERS = [
   '[data-sk-weakest]',
   '[data-sk-mastery]',
   '[data-sk-exam-best]',
+  '[data-sk-exam-locked]',
   '[data-sk-status]',
   '[data-next-session]',
 ].join(',');
@@ -188,6 +192,16 @@ function fillExam(el: HTMLElement, items: Items, info: CourseInfo): void {
   el.dataset.value = String(best.total);
 }
 
+/** Hide `el` while its mock exam runs, as <sk-exam> keeps the exam's solutions locked. */
+function fillExamLock(el: HTMLElement, course: string): void {
+  const s = storeFor(course).session<{ started?: unknown; submitted?: unknown }>(`exam:${el.dataset.exam ?? ''}`);
+  const started = typeof s?.started === 'string' ? Date.parse(s.started) : Number.NaN;
+  // a missing or broken duration counts as time left: locked until submitted
+  const end = started + Number(el.dataset.durationMin) * 60_000;
+  const running = Boolean(s?.started) && !s?.submitted && !(Date.now() >= end);
+  if (el.hidden !== running) el.hidden = running;
+}
+
 function fillStatus(el: HTMLElement, items: Items): void {
   const item = el.dataset.item ?? '';
   const status = exerciseStatus(items[item]);
@@ -226,6 +240,7 @@ export function fillCourse(course: string, root: ParentNode = document): void {
     } else if (el.matches('[data-sk-weakest]')) fillWeakest(el, items, info, day);
     else if (el.matches('[data-sk-mastery]')) fillMastery(el, items, info, day);
     else if (el.matches('[data-sk-exam-best]')) fillExam(el, items, info);
+    else if (el.matches('[data-sk-exam-locked]')) fillExamLock(el, course);
     else if (el.matches('[data-sk-status]')) fillStatus(el, items);
     else if (el.matches('[data-next-session]')) fillNextSession(el, items, day);
   }
@@ -257,6 +272,10 @@ export function startDashboard(root: ParentNode = document): void {
     // A page restored from the back/forward cache missed what other pages recorded.
     window.addEventListener('pageshow', (e) => {
       if (e.persisted) for (const c of placeholderCourses(root)) fillCourse(c, root);
+    });
+    // A mock exam started, submitted or retaken in another tab changes only session state.
+    window.addEventListener('storage', (e) => {
+      if (e.key?.endsWith(':session')) for (const c of placeholderCourses(root)) fillCourse(c, root);
     });
   }
 }

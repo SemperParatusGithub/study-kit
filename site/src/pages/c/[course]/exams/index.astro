@@ -65,7 +65,13 @@ const en = course.lang === 'en' ? undefined : 'en';
                 <div class="exam-pdfs" lang={en} data-pagefind-ignore>
                   <PdfLink course={course} doc={pdf} label="Exam PDF" />
                   {solutions && (
-                    <details class="pdf-spoiler">
+                    <details
+                      class="pdf-spoiler"
+                      data-sk-exam-locked
+                      data-course={c}
+                      data-exam={exam.id}
+                      data-duration-min={exam.fm.duration_min}
+                    >
                       <summary>Solutions PDF, for after the exam</summary>
                       <p class="small muted">
                         Every solution with its rubric. Open it after you have written the exam.

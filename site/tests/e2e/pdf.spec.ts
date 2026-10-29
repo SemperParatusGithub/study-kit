@@ -141,7 +141,7 @@ test.describe('built PDFs', () => {
     }
   });
 
-  test('exam solutions: behind a label on the index, on the exam page only after submitting', async ({ page }) => {
+  test('exam solutions: behind a label on the index, out of reach while the exam runs, then shown', async ({ page }) => {
     const d = doc('exam-solutions', EXAM);
     expect(d).toBeDefined();
     if (!d) return;
@@ -162,11 +162,18 @@ test.describe('built PDFs', () => {
     await exam.getByRole('button', { name: 'Start exam' }).click();
     await expect(page.locator('.sk-exam-clock')).toBeVisible();
     await expect(link).toBeHidden();
+    // while the exam runs, the exam list keeps its solutions PDF out of reach too
+    await open(page, `${C}/exams/`);
+    await expect(spoiler).toBeHidden();
+    await open(page, `${C}/exams/${EXAM}/`);
+    await expect(page.locator('.sk-exam-clock')).toBeVisible();
     await exam.getByRole('button', { name: 'Submit' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
     await expect(exam.getByRole('heading', { name: 'Result' })).toBeVisible();
     await expect(link).toBeVisible();
     await expectLink(link, d, 'Solutions PDF');
+    await open(page, `${C}/exams/`);
+    await expect(spoiler).toBeVisible();
   });
 
   test('the cheat sheet badge shows the page count against the limit from the manifest', async ({ page }) => {
