@@ -6,9 +6,8 @@ import Base from '../../../../layouts/Base.astro';
 import Difficulty from '../../../../components/Difficulty.astro';
 import Html from '../../../../components/Html.astro';
 import SearchTags from '../../../../components/SearchTags.astro';
-import { listCourses, route, sourceTitle, type Course, type Doc } from '../../../../lib/courses';
+import { labelHtml, listCourses, route, sourceTitle, type Course, type Doc } from '../../../../lib/courses';
 import { splitExercise } from '../../../../lib/html';
-import { renderLabel } from '../../../../lib/katex';
 import type { ExerciseFm } from '../../../../lib/types';
 
 export async function getStaticPaths() {
@@ -28,7 +27,7 @@ const item = `ex:${id}`;
 const en = course.lang === 'en' ? undefined : 'en';
 const topicId = doc.data.topic ?? '';
 const parts = splitExercise(doc.rendered?.html ?? '');
-const answers = (fm.answers ?? []).map((a) => ({ ...a, label_html: renderLabel(a.label) }));
+const answers = (fm.answers ?? []).map((a) => ({ ...a, label_html: labelHtml(doc, a.label) }));
 const siblings = course.exercises.filter((e) => e.data.topic === topicId);
 const at = siblings.findIndex((e) => e.id === doc.id);
 const prev = siblings[at - 1];

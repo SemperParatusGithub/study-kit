@@ -28,6 +28,8 @@ export interface DocData {
   order: number | null;
   /** validated frontmatter (or exam.yaml) as plain JSON */
   fm: Record<string, unknown>;
+  /** frontmatter labels with inline math (answers, rubric, objectives): text -> HTML */
+  labels: Record<string, string>;
   /** content hash of an exercise or exam task (§2.11) */
   h: string | null;
   headings: MetaHeading[];

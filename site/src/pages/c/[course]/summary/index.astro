@@ -1,8 +1,7 @@
 ---
 // Chapter list of the summary, in teaching order.
 import Base from '../../../../layouts/Base.astro';
-import { coursePaths, route, type Course } from '../../../../lib/courses';
-import { renderLabel } from '../../../../lib/katex';
+import { coursePaths, labelHtml, route, type Course } from '../../../../lib/courses';
 import { plural } from '../../../../lib/format';
 import type { SummaryFm } from '../../../../lib/types';
 
@@ -49,7 +48,7 @@ const en = course.lang === 'en' ? undefined : 'en';
                 {(fm.objectives ?? []).length > 0 && (
                   <ul class="small muted">
                     {(fm.objectives ?? []).map((o) => (
-                      <li set:html={renderLabel(o)} />
+                      <li set:html={labelHtml(s, o)} />
                     ))}
                   </ul>
                 )}

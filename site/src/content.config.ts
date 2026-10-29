@@ -76,6 +76,7 @@ const docs = defineCollection({
     exam: z.string().nullable(),
     order: z.number().nullable(),
     fm: z.record(z.string(), z.unknown()),
+    labels: z.record(z.string(), z.string()),
     h: z.string().nullable(),
     headings: z.array(z.object({ level: z.number(), id: z.string(), text: z.string() })),
     questions: z.array(

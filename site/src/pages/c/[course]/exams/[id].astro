@@ -5,9 +5,8 @@
 import Base from '../../../../layouts/Base.astro';
 import Html from '../../../../components/Html.astro';
 import SearchTags from '../../../../components/SearchTags.astro';
-import { listCourses, route, type Course, type Exam } from '../../../../lib/courses';
+import { labelHtml, listCourses, route, type Course, type Exam } from '../../../../lib/courses';
 import { formatMinutes, formatNumber, plural } from '../../../../lib/format';
-import { renderLabel } from '../../../../lib/katex';
 import type { ExamTaskFm } from '../../../../lib/types';
 
 export async function getStaticPaths() {
@@ -32,7 +31,7 @@ const tasks = exam.tasks.map((t) => {
     rubric: (tf.rubric ?? []).map((r) => ({
       criterion: r.criterion,
       points: r.points,
-      criterion_html: renderLabel(r.criterion),
+      criterion_html: labelHtml(t, r.criterion),
     })),
   };
 });

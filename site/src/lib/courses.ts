@@ -2,6 +2,7 @@
 // the route table (docs/architecture.md §3.2; refs.lua writes the same URLs).
 import { getCollection, type CollectionEntry } from 'astro:content';
 import type { DocData, ExamFm } from './types';
+import { renderLabel } from './katex';
 import { coursesDir, joinPath, readJson } from './sys.mjs';
 
 export type CourseData = CollectionEntry<'courses'>['data'];
@@ -214,6 +215,15 @@ export function overallMastery(course: Course): number | null {
     .map((t) => fraction(typeof t === 'number' ? t : (t as { mastery?: unknown })?.mastery))
     .filter((v): v is number => v !== null);
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+}
+
+/**
+ * A frontmatter label of `doc` as HTML. The loader renders every answer label, rubric
+ * criterion and objective (and reports KaTeX errors with their line); other text is rendered
+ * here as a fallback.
+ */
+export function labelHtml(doc: Doc, text: string): string {
+  return doc.data.labels[text] ?? renderLabel(text);
 }
 
 /** Titles of source documents from the course index (_build/index.json). */

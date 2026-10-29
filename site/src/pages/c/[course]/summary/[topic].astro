@@ -7,8 +7,7 @@ import Html from '../../../../components/Html.astro';
 import QuizSlot from '../../../../components/QuizSlot.astro';
 import SearchTags from '../../../../components/SearchTags.astro';
 import Toc from '../../../../components/Toc.astro';
-import { listCourses, route, sourceTitle, type Course, type Doc } from '../../../../lib/courses';
-import { renderLabel } from '../../../../lib/katex';
+import { labelHtml, listCourses, route, sourceTitle, type Course, type Doc } from '../../../../lib/courses';
 import type { SummaryFm } from '../../../../lib/types';
 
 export async function getStaticPaths() {
@@ -31,7 +30,7 @@ const prev = course.summaries[index - 1];
 const next = course.summaries[index + 1];
 const exercises = course.exercises.filter((e) => e.data.topic === topicId);
 const hasBank = course.banks.some((b) => b.data.topic === topicId);
-const objectives = (fm.objectives ?? []).map((o) => renderLabel(o));
+const objectives = (fm.objectives ?? []).map((o) => labelHtml(doc, o));
 const sources = (fm.sources ?? []).map(
   (s) => `${sourceTitle(c, s.doc)}${s.pages ? `, pp. ${s.pages.replace('-', '–')}` : ''}`,
 );

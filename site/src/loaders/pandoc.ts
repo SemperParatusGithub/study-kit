@@ -9,17 +9,18 @@
 //   2. removes the trailing sk-meta script and keeps its headings;
 //   3. hashes each <sk-mc> and each exercise or exam-task fragment as the filter wrote it
 //      (first 8 hex of sha256) for the progress content hash `h` (§2.11);
-//   4. renders every <sk-math> with KaTeX (lib/katex.ts);
+//   4. renders every <sk-math> with KaTeX (lib/katex.ts), and the inline math of the
+//      frontmatter labels (answer labels, rubric criteria, objectives) into `labels`;
 //   5. stores {id: '<course>/<rel>', data, rendered: {html, metadata: {headings}}}.
-// Findings (filter, schema, KaTeX) become a red error card at the top of the document; with
-// STUDYKIT_STRICT=1 the load throws instead. In dev the watcher re-syncs a course when one
+// Findings (filter, schema, KaTeX in the body or a label) become a red error card at the top
+// of the document; with STUDYKIT_STRICT=1 the load throws instead. In dev the watcher re-syncs a course when one
 // of its files changes; only the changed files (or all, if the index changed) re-render.
 // Figures are not part of the cache: pages inline them at render time (lib/figures.ts).
 import type { Loader, LoaderContext } from 'astro/loaders';
 import katex from 'katex';
 import { errorCard, StrictError, type Finding } from '../lib/findings';
 import { addMcHashes, extractMeta, hash8, lineOf, mcElements } from '../lib/html';
-import { renderMath } from '../lib/katex';
+import { renderLabel, renderMath, type MathError } from '../lib/katex';
 import {
   displayPath,
   fromFileUrl,
@@ -36,7 +37,7 @@ import {
 import type { DocData, DocKind } from '../lib/types';
 
 // Bump when this file changes what it stores, so cached entries are rebuilt.
-const LOADER_VERSION = 2;
+const LOADER_VERSION = 3;
 const STAMP = `sk${LOADER_VERSION}-katex${katex.version}:`;
 const RENDER_SCHEMA = 1;
 const HASHED_KINDS: DocKind[] = ['exercise', 'exam-task'];
@@ -188,6 +189,36 @@ function str(value: unknown): string | null {
   return typeof value === 'string' && value ? value : null;
 }
 
+/** Frontmatter strings that hold a label with inline math (docs/architecture.md §2.5). */
+function labelTexts(fm: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const field = (list: unknown, key: string | null) => {
+    if (!Array.isArray(list)) return;
+    for (const item of list) {
+      const value = key === null ? item : (item as Record<string, unknown> | null)?.[key];
+      if (typeof value === 'string') out.push(value);
+    }
+  };
+  field(fm.answers, 'label');
+  field(fm.rubric, 'criterion');
+  field(fm.objectives, null);
+  return out;
+}
+
+/** Line and column of a label formula in the frontmatter (1:1 when it cannot be found). */
+function frontmatterPosition(source: string, tex: string): { line: number; col: number } {
+  const end = source.startsWith('---') ? source.indexOf('\n---', 3) : -1;
+  const head = end > 0 ? source.slice(0, end) : source;
+  // as written, or with the backslashes doubled inside a double-quoted YAML string
+  for (const needle of [`$${tex}$`, `$${tex.replace(/\\/g, '\\\\')}$`]) {
+    const at = head.indexOf(needle);
+    if (at < 0) continue;
+    const lines = head.slice(0, at).split('\n');
+    return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+  }
+  return { line: 1, col: 1 };
+}
+
 function buildEntry(course: string, courseDir: string, file: BridgeFile) {
   const fm = file.data ?? {};
   const groups = PARTS.find(([kind, rx]) => kind === file.kind && rx.test(file.rel))?.[1].exec(file.rel)
@@ -197,16 +228,23 @@ function buildEntry(course: string, courseDir: string, file: BridgeFile) {
   const source = readText(path) ?? '';
   const { html: fragment, meta } = extractMeta(file.html ?? '');
   const h = HASHED_KINDS.includes(file.kind) && file.html !== null ? hash8(fragment) : null;
-  let html = renderMath(addMcHashes(fragment), (err) =>
+  const mathFinding = (err: MathError, at: { line: number; col: number }, where: string) =>
     findings.push({
       path: displayPath(path),
-      line: lineOf(source, err.tex),
-      col: 1,
+      ...at,
       code: 'SK-MATH-KATEX',
-      message: `KaTeX rejects ${err.display ? 'display' : 'inline'} math: ${err.message}`,
+      message: `KaTeX rejects ${err.display ? 'display' : 'inline'} math${where}: ${err.message}`,
       fix: 'follow the KaTeX message; words go in \\text{…}, units in \\mathrm{…}',
       severity: 'error',
-    }),
+    });
+  const labels: Record<string, string> = Object.create(null);
+  for (const text of labelTexts(fm)) {
+    labels[text] ??= renderLabel(text, (err) =>
+      mathFinding(err, frontmatterPosition(source, err.tex), ' in a frontmatter label'),
+    );
+  }
+  let html = renderMath(addMcHashes(fragment), (err) =>
+    mathFinding(err, { line: lineOf(source, err.tex), col: 1 }, ''),
   );
   const questions = MC_KINDS.includes(file.kind) ? mcElements(html) : [];
   const errors = findings.filter((f) => f.severity === 'error');
@@ -222,6 +260,7 @@ function buildEntry(course: string, courseDir: string, file: BridgeFile) {
     exam: groups.exam ?? null,
     order: groups.nn ? Number.parseInt(groups.nn, 10) : null,
     fm,
+    labels,
     h,
     headings: meta.headings,
     questions,
