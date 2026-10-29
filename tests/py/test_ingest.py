@@ -7,6 +7,8 @@ import datetime as dt
 import io
 import json
 import shutil
+import subprocess
+import sys
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
@@ -507,3 +509,36 @@ def test_a_ready_course_cannot_keep_the_draft_topic(courses: Path, folder: Path)
 def test_schema_files_cover_the_ingest_models():
     for name in ("manifest", "chunks", "notes", "exam-profile", "notation"):
         assert (REPO / "schemas" / f"{name}.schema.json").is_file()
+
+
+# --- the sample materials (examples/sample-materials) --------------------------------------------
+
+
+def test_the_sample_materials_build_and_scan(tmp_path: Path):
+    """`just sample-materials` builds every PDF, and the scan sees them as §5.4 expects:
+    the kinds from the file names, the circuit slides and the scan as visual pages."""
+    out = tmp_path / "materials"
+    script = REPO / "examples" / "sample-materials" / "build.py"
+    proc = subprocess.run(
+        [sys.executable, str(script), "--out", str(out)], capture_output=True, text=True
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    data = ingest.scan(out, today=dt.date(2026, 10, 29)).to_json()
+    assert data["findings"] == []
+    docs = {d["origin"]: d for d in data["documents"]}
+    assert {o: d["kind"] for o, d in docs.items()} == {
+        "Altes_Uebungsblatt02_Scan.pdf": "exercises",
+        "Klausur_WS2025-26.pdf": "exam",
+        "Klausur_WS2025-26_Loesung.pdf": "exam-solutions",
+        "Skript_Kapitel4_Operationsverstaerker.pdf": "script",
+        "Uebung03_OPV_Grundschaltungen.pdf": "exercises",
+        "Uebung03_OPV_Grundschaltungen_Loesung.pdf": "solutions",
+        "VL03_Operationsverstaerker_Grundschaltungen.pdf": "slides",
+    }
+    scan = docs["Altes_Uebungsblatt02_Scan.pdf"]
+    assert scan["text_share"] == 0.0 and scan["scanned_pages"] == [1]
+    slides = docs["VL03_Operationsverstaerker_Grundschaltungen.pdf"]
+    assert slides["pages"] == 14 and slides["landscape"] and slides["text_share"] == 1.0
+    assert {5, 8, 11} <= set(slides["visual_pages"])  # the three circuit slides
+    assert "2027-02-17" in [d["date"] for d in data["exam_dates"]]
+    assert data["lang"] == "de"
