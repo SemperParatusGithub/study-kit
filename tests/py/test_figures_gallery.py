@@ -122,3 +122,24 @@ def test_facts_match_the_snapshots(built):
         if found:
             problems[slug] = found[:10]
     assert not problems, json.dumps(problems, indent=1, ensure_ascii=False)
+
+
+def test_children_use_only_the_bundled_fonts(tmp_path: Path):
+    """A cold font cache holds matplotlib's own fonts only (docs/architecture.md §3.4).
+
+    Without MPL_IGNORE_SYSTEM_FONTS every child of the first wave scans all system fonts
+    itself; on a busy machine they all hit the timeout and none writes the cache.
+    """
+    import matplotlib
+
+    env = runner.child_env("de", mpl_dir=tmp_path)
+    assert env["MPL_IGNORE_SYSTEM_FONTS"] == "1"
+    assert runner.child_env("de")["MPLCONFIGDIR"] == str(runner.mpl_config_dir())
+    runner.warm_font_cache(env)
+    (cache,) = tmp_path.glob("fontlist-*.json")
+    fonts = json.loads(cache.read_text())["ttflist"]
+    # matplotlib stores its own fonts relative to its data directory
+    bundled = Path(matplotlib.get_data_path()).resolve()
+    paths = {f["fname"]: (bundled / f["fname"]).resolve() for f in fonts}
+    outside = sorted(name for name, path in paths.items() if not path.is_relative_to(bundled))
+    assert fonts and not outside, outside[:5]

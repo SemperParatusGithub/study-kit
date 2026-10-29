@@ -79,14 +79,51 @@ def _rel(script: Path) -> str:
     return f"{script.parent.name}/{script.name}"
 
 
-def _run_script(script: Path, out_dir: Path, slug: str, locale: str) -> Outcome:
-    env = {
+def mpl_config_dir() -> Path:
+    """Matplotlib's config and font cache directory for figure children.
+
+    matplotlib names its font cache by its own version only, so a cache written while the
+    system fonts were still scanned would be reused as is; the directory name carries the
+    font policy instead.
+    """
+    return tools.repo_root() / ".cache" / "mpl-nosys"
+
+
+def child_env(locale: str, mpl_dir: Path | None = None) -> dict[str, str]:
+    """The environment of a figure child (docs/architecture.md §3.4).
+
+    MPL_IGNORE_SYSTEM_FONTS keeps matplotlib to its bundled fonts (the house style uses
+    only DejaVu Sans and Computer Modern): a cold cache then takes a fraction of a second
+    to build instead of a scan of every system font, which on a busy machine ran past the
+    timeout in every child of the first wave, so none of them ever wrote the cache.
+    """
+    return {
         **os.environ,
         "STUDYKIT_LOCALE": locale,
         "MPLBACKEND": "Agg",
-        "MPLCONFIGDIR": str(tools.repo_root() / ".cache" / "mpl"),
+        "MPLCONFIGDIR": str(mpl_dir or mpl_config_dir()),
+        "MPL_IGNORE_SYSTEM_FONTS": "1",
         "SOURCE_DATE_EPOCH": "0",
     }
+
+
+def warm_font_cache(env: dict[str, str]) -> None:
+    """Build matplotlib's font cache once, before the children start in parallel."""
+    mpl_dir = Path(env["MPLCONFIGDIR"])
+    if any(mpl_dir.glob("fontlist-*.json")):
+        return
+    mpl_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [sys.executable, "-I", "-c", "import matplotlib.font_manager"],
+        capture_output=True,
+        timeout=TIMEOUT_S,
+        env=env,
+        check=False,
+    )
+
+
+def _run_script(script: Path, out_dir: Path, slug: str, locale: str) -> Outcome:
+    env = child_env(locale)
     try:
         proc = subprocess.run(
             [sys.executable, "-I", "-m", "studykit.figures.child", str(script), str(out_dir), slug],
@@ -173,6 +210,8 @@ def build_course(course: Path, only: set[str] | None = None, force: bool = False
     script_jobs = [j for j in todo if j[0] not in BUILTINS]
     for slug, _, run in builtin_jobs:
         outcomes[slug] = run()
+    if script_jobs:
+        warm_font_cache(child_env(locale))
     with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         for (slug, _, _), outcome in zip(
             script_jobs, pool.map(lambda j: j[2](), script_jobs), strict=True
