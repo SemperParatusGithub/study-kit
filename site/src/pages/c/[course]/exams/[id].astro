@@ -118,6 +118,7 @@ const mcCount = exam.mc?.data.questions.length ?? 0;
             class="sk-exam-task"
             id={t.id}
             data-task={t.id}
+            data-title={t.doc.data.title}
             data-points={t.points}
             data-rubric={JSON.stringify(t.rubric)}
             data-h={t.doc.data.h}

@@ -130,7 +130,7 @@ test('time per part: late ticks count in full', async ({ page }) => {
   await exam(page).getByRole('button', { name: 'Submit' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Submit now' }).click();
   const times = await partTimes(page);
-  expect(times).toEqual({ '1. Aufgabe 1: Spannungsteiler (12 P)': '3 min', 'Multiple choice': '7 min' });
+  expect(times).toEqual({ '1. Spannungsteiler': '3 min', 'Multiple choice': '7 min' });
   await expect(exam(page).locator('.sk-exam-result')).toContainText('Time used: 10 min of 60 min.');
 });
 
@@ -172,7 +172,7 @@ test('submit: solutions open, rubric grading, MC auto-scored, result saved', asy
   await expect(result.locator('.sk-exam-total')).toContainText('passed (pass mark 10)');
   await expect(result.locator('.sk-exam-grade')).toContainText('Grade estimate: 4.0');
   await expect(result.locator('.sk-exam-table tbody tr')).toHaveCount(2);
-  await expect(result.locator('.sk-exam-table')).toContainText('Aufgabe 1: Spannungsteiler (12 P)');
+  await expect(result.locator('.sk-exam-table tbody th').first()).toHaveText('1. Spannungsteiler'); // data-title
 
   const attempts = (await progress(page)).items['exam:probeklausur-1'].attempts;
   expect(attempts).toHaveLength(1);

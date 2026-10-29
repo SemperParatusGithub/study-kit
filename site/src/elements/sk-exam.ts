@@ -1,6 +1,6 @@
 // <sk-exam data-exam data-duration-min data-points data-pass-points data-aids='[…]'
 //          data-mc-scoring data-negative-marking="true|false">
-//   <section class="sk-exam-task" data-task data-points data-h
+//   <section class="sk-exam-task" data-task data-title data-points data-h
 //            data-rubric='[{criterion, criterion_html, points}]'>…</section>
 //   <section class="sk-exam-mc" data-points data-points-each><sk-mc>…</sk-mc>…</section>
 // </sk-exam>                                               (docs/architecture.md §2.7, §3.2)
@@ -146,7 +146,7 @@ export class SkExam extends HTMLElement {
       const heading = el.querySelector('h1, h2, h3, h4');
       this.tasks.push({
         id,
-        title: heading?.textContent?.trim() || `Task ${this.tasks.length + 1}`,
+        title: el.dataset.title?.trim() || heading?.textContent?.trim() || `Task ${this.tasks.length + 1}`,
         points: Number(el.dataset.points) || 0,
         rubric: parseJson<unknown[]>(el.dataset.rubric, [])
           .filter((r): r is RubricItem => typeof (r as RubricItem)?.criterion === 'string')

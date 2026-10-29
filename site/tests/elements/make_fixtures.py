@@ -114,7 +114,8 @@ def exam(mini_mc: str) -> str:
     mc_points = points_each * len(questions)
     total = fm["points"] + mc_points
     task_attrs = (
-        f'data-task="{fm["id"]}" data-points="{fm["points"]}" data-rubric="{rubric}" '
+        f'data-task="{fm["id"]}" data-title="{html.escape(fm["title"], quote=True)}" '
+        f'data-points="{fm["points"]}" data-rubric="{rubric}" '
         f'data-h="{short_hash(task)}"'
     )
     mc = "\n".join(questions)
