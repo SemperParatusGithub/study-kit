@@ -19,71 +19,91 @@ them in the same change.
 
 ## 1. Repository layout
 
+Entries marked *(Phase n)* are planned and do not exist yet.
+
 ```
 study-kit/
 ├── README.md  LICENSE  CLAUDE.md  .editorconfig  .gitignore
-├── justfile                        # single entry point for humans, Claude and CI
-├── toolchain.toml                  # pandoc/typst: exact version, URL, sha256 per platform; minimum versions of brew tools
+├── justfile                        # single entry point for humans, Claude and CI (§4.2)
+├── toolchain.toml                  # pandoc/typst/just: exact version, URL, sha256 per platform; minimum versions of uv, node, pnpm
 ├── .python-version                 # 3.14
 ├── pyproject.toml  uv.lock         # package "studykit" (src layout); [tool.uv] exclude-newer = "7 days"
-├── .githooks/commit-msg            # Conventional Commits; reject any Co-Authored-By trailer
-├── .githooks/pre-commit            # reject staged paths under courses/ (except README) and stray PDFs
+├── .githooks/commit-msg            # Conventional Commits; reject a Co-Authored-By trailer on every commit
+├── .githooks/pre-commit            # reject staged paths under courses/ (except README) and PDFs outside tests/fixtures/
 ├── .github/workflows/ci.yml  guard.yml
+├── .github/scripts/guard.sh        # the guard workflow's checks: `commits`, `courses`, `pdfs`
+├── .github/scripts/test-hooks.sh   # tests of the git hooks and guard.sh in throwaway repositories (`just test`)
 ├── src/studykit/
-│   ├── cli.py                      # argparse (stdlib); every command supports --json
-│   ├── tools.py                    # `tools install` (pandoc/typst → .tools/bin, sha256) and `doctor`
+│   ├── cli.py                      # argparse (stdlib); --json on doctor, ls, index, lint, validate, render, check-links
+│   ├── tools.py                    # `tools install`: pandoc, typst and just → .tools/bin, sha256-checked
+│   ├── doctor.py                   # `doctor`: tool versions, site packages, Typst fonts, git hooks, courses/ ignored, port 4321
 │   ├── model.py                    # pydantic models: the single schema source
 │   ├── yamlio.py                   # restricted SafeLoader (no YAML-1.1 yes/no/on/off, no sexagesimal) + scalar-style lint
-│   ├── content.py                  # discovery, frontmatter split, fence-line scanner, MC parser
-│   ├── index.py                    # _build/index.json: ids, topics, exams, sources, figures
+│   ├── content.py                  # discovery, frontmatter split, fence-line and math scanners, MC parser
+│   ├── index.py                    # `index`: _build/index.json (ids, topics, exams, sources, figures)
 │   ├── findings.py                 # Finding (path:line:col SK-CODE message (fix: …)) and its parser
-│   ├── pandoc.py                   # run pandoc with shared defaults (targets: html5 | typst | json)
+│   ├── pandoc.py                   # run pandoc with the shared defaults and filter metadata (targets: html | typst | json)
 │   ├── lint.py  validate.py        # per-file lint (hook) / full validation, findings as SK-codes
+│   ├── render.py                   # `render`: the site loader's bridge to pandoc (§3.2)
+│   ├── sitecheck.py                # the Site stage of `validate --release` (§4.3)
+│   ├── checklinks.py               # `check-links`: internal links and anchors of the built site
+│   ├── golden.py                   # `golden`: the golden math corpus through KaTeX and pandoc → Typst
 │   ├── figures/                    # house.mplstyle palette.py core.py keypoints.py plot.py signals.py
 │   │                               # circuit.py block.py graph.py labels.py builtins.py
 │   │                               # finalize.py validate.py child.py runner.py
-│   ├── check.py  verify.py  blind.py   # check-script API, runner + ledger, blind views
-│   ├── pdf.py  cheatsheet.py       # assemble → pandoc → typst; page-fit loop
-│   ├── ingest.py                   # scan, copy, page text, chunk plan
-│   ├── plan.py                     # deterministic scheduler
-│   ├── progress.py                 # import browser export, examiner log, report and mastery
-│   ├── status.py                   # pipeline state derived from outputs
-│   └── calc.py                     # `studykit calc "<sympy>"` for tutor and examiner
+│   ├── check.py  verify.py  blind.py   # (Phase 5) check-script API, runner + ledger, blind views
+│   ├── pdf.py  cheatsheet.py       # (Phase 4) assemble → pandoc → typst; page-fit loop
+│   ├── ingest.py                   # (Phase 6) scan, copy, page text, chunk plan
+│   ├── plan.py                     # (Phase 5) deterministic scheduler
+│   ├── progress.py                 # (Phase 5) import browser export, examiner log, report and mastery
+│   ├── status.py                   # (Phase 6) pipeline state derived from outputs
+│   └── calc.py                     # (Phase 5) `studykit calc "<sympy>"` for tutor and examiner
 ├── pandoc/
 │   ├── defaults/common.yaml web.yaml typst.yaml json.yaml
-│   └── filters/studykit.lua + lib/{guard,blocks,mcq,math,figures,refs,meta,i18n,solutions}.lua
+│   ├── filters/studykit.lua + lib/{guard,blocks,mcq,math,figures,alttext,refs,meta,i18n,solutions}.lua
+│   └── math-denylist.json          # denied math constructs and their replacements (§2.3), read by math.lua and lint
 ├── typst/
-│   ├── studykit.typ                # house library: doc(kind:), boxes, mcq, exam cover, cheat-sheet layout
+│   ├── studykit.typ                # house library; a Phase 3 stub with the API the filter calls (Phase 4: the real look)
 │   └── pandoc-template.typ         # ~15 lines; imports the house library
 ├── site/                           # Astro (kept out of the repo root so Vite never watches .venv)
 │   ├── package.json  pnpm-workspace.yaml  pnpm-lock.yaml  astro.config.mjs  tsconfig.json
+│   ├── pagefind.yml  playwright.config.ts
 │   ├── src/content.config.ts
-│   ├── src/loaders/pandoc.ts       # custom content loader (~200 lines)
-│   ├── src/lib/{katex,figures,courses,store,score,shuffle,leitner,rng}.ts
-│   ├── src/elements/*.ts           # custom elements (§3.2)
-│   ├── src/layouts/  src/pages/  src/styles/{tokens,base,content,code,print}.css
-│   ├── scripts/check-math.mjs      # KaTeX strict check, called by `studykit lint`
-│   └── tests/unit/*.test.ts  tests/e2e/*.spec.ts
-├── schemas/*.schema.json           # generated from pydantic; committed; drift-checked in CI
+│   ├── src/loaders/pandoc.ts       # custom content loader over `studykit render`
+│   ├── src/lib/{katex,figures,courses,store,scoring,shuffle,leitner,answer,stats,plan,format,html,findings,types}.ts
+│   ├── src/lib/sys.mjs             # the only module with node: imports (the site has no @types/node)
+│   ├── src/elements/*.ts           # custom elements (§3.2), dashboard.ts (fills the shell's placeholders), util.ts, index.ts
+│   ├── src/layouts/  src/pages/  src/components/  src/scripts/site.ts
+│   ├── src/styles/{tokens,base,content,elements,code,print}.css
+│   ├── scripts/check-math.mjs      # KaTeX strict check, called by the Math stage (lint, validate) and `golden`
+│   ├── scripts/pagefind.mjs        # search index after `astro build` (§3.5)
+│   └── tests/unit/*.test.ts  tests/e2e/*.spec.ts  tests/elements/ (harness with its own Playwright config and tsconfig.json)
+├── schemas/*.schema.json           # generated from pydantic; committed; drift-checked by `just test`
 ├── examples/
-│   ├── sample-course/              # self-written German mini course "rc-netzwerke" using every feature (CI fixture)
-│   └── sample-materials/           # self-written Typst sources for fake slides, exercise sheet, exam + one rasterised "scan"
-├── tests/py/  tests/golden/{math.md,blocks.md,mcq.md}  tests/fixtures/bad/*
+│   ├── sample-course/              # self-written German mini course `sample-course` using every feature (CI fixture)
+│   └── sample-materials/           # (Phase 6) self-written Typst sources for fake slides, exercise sheet, exam + one rasterised "scan"
+├── tests/py/  tests/golden/{math.md,math-denied.md,math.typ.snap,blocks.md,mcq.md,figures/}
+├── tests/fixtures/{bad/<SK-CODE>/,courses/mini/,pandoc/{ok,bad}/,figures/gallery/}
 ├── .claude/
 │   ├── settings.json
-│   ├── agents/ingester.md exam-analyst.md author.md verifier.md tutor.md examiner.md
-│   └── skills/                     # §5.2
+│   ├── agents/                     # (Phase 5/6) ingester.md exam-analyst.md author.md verifier.md tutor.md examiner.md
+│   └── skills/                     # (Phase 5) §5.2
 └── courses/README.md               # the only tracked file under courses/
 ```
 
 `.gitignore` entries:
 - `/courses/*` and `!/courses/README.md`
-- `/.tools/`, `/.venv/`, `/.cache/`, `node_modules/`
+- `/.tools` (no trailing slash, so a symlinked `.tools` is ignored too), `/.venv/`, `/.cache/`, `node_modules/`, `__pycache__/`
 - `/site/dist/`, `/site/.astro/`, `**/_build/`
-- `.claude/settings.local.json`, `.claude/agent-memory*/`
+- `.claude/settings.local.json`, `.claude/agent-memory*/`, `.claude/worktrees/`
 - `.DS_Store`
 
-`STUDYKIT_COURSES_DIR` defaults to `courses/` and must be inside the repo. CI points it at `examples/`.
+`site/.gitignore` ignores `/public/pagefind/` (§3.5).
+
+`STUDYKIT_COURSES_DIR` defaults to `courses/`. The justfile makes it absolute, relative to the
+repository root. Without just, a relative value means different things: Python resolves it
+against the working directory, the site (`src/lib/sys.mjs`) against `site/`. CI points it at
+`examples/`; validate's Site stage points it at a temporary directory outside the repository.
 
 ## 2. Content schema
 
