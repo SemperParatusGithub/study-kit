@@ -185,7 +185,8 @@ status: draft                   # draft | ready; /register-new-subject sets read
 
 **Reader:** `commonmark_x-smart-raw_html-raw_attribute-yaml_metadata_block-alerts-emoji`.
 - `studykit.pandoc` blanks the frontmatter (line numbers stay right) before pandoc reads a
-  file; the site renders through `studykit render`, so there is one pandoc call site.
+  file; the site renders through `studykit render`, so the site and the tools build the
+  pandoc argv in one place.
 - Smart quotes are off; write „…“ directly.
 - Raw HTML is an error (SK-BLOCK-RAW). pandoc 3.13 still produces RawBlock/RawInline for
   commonmark_x despite `-raw_html`, so `guard.lua` rejects them; raw Typst needs
