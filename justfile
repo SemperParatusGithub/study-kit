@@ -11,6 +11,8 @@ export ASTRO_TELEMETRY_DISABLED := "1"
 export STUDYKIT_COURSES_DIR := absolute_path(env("STUDYKIT_COURSES_DIR", root / "courses"))
 
 sk := "uv run --frozen studykit"
+# recipes that run other recipes call this very just with this justfile
+just := quote(just_executable()) + " --justfile " + quote(justfile())
 
 # list recipes
 default:
@@ -71,6 +73,14 @@ test:
 e2e *args:
     pnpm -C site exec playwright install chromium
     pnpm -C site run e2e {{args}}
+
+# `test` includes `schema export --check`; the sample course comes from examples/.
+# what CI runs: doctor, tests, strict build and release validation of the sample course
+ci:
+    {{just}} doctor
+    {{just}} test
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} build sample-course
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate sample-course --release
 
 # ruff lint and format check of the python code
 lint-code:
