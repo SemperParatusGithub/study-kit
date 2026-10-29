@@ -19,7 +19,9 @@ cite, `notation.yaml`, the chapters of the prerequisite topics (link, do not rep
   for each common mistake (from the misconception catalogue in [mc.md](mc.md)), `note`
   for side remarks, and one `takeaways` box at the end (3-6 bullets).
 - Link exercises where they fit (`Übung: [Titel](ex:<id>)`) once they exist, prerequisite
-  topics with `topic:`, lecture pages with `src:<doc>#p=<n>`.
+  topics with `topic:`, lecture pages with `src:<doc>#p=<n>`. The PDF appends
+  „(→ Quelle: Dokument, S. n)“ to every `src:` link, so keep it out of parentheses and give
+  it short text (`[Folie 12](src:…)`, not `([Skript, S. 2](src:…))`).
 
 ## Rules
 
