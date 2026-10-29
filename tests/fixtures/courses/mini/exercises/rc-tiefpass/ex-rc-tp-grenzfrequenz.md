@@ -14,7 +14,8 @@ answers:
 
 Gegeben ist der RC-Tiefpass mit $R = 1\,\mathrm{k\Omega}$ und $C = 100\,\mathrm{nF}$.
 
-![Betragsgang des RC-Tiefpasses](fig:rc-bode)
+![Betragsgang des
+RC-Tiefpasses](fig:rc-bode)
 
 **a)** Bestimmen Sie die Grenzfrequenz $f_\mathrm{g}$.
 

@@ -4,8 +4,8 @@ title: Überblick
 
 ## Worum geht es?
 
-Dieser Mini-Kurs behandelt den [Spannungsteiler](topic:spannungsteiler) und den
-[RC-Tiefpass](topic:rc-tiefpass), also Netzwerke aus zwei Bauteilen.
+Dieser Mini-Kurs behandelt den [Spannungsteiler](topic:spannungsteiler) und den [RC-
+Tiefpass](topic:rc-tiefpass), also Netzwerke aus zwei Bauteilen.
 
 ## Themenkarte
 

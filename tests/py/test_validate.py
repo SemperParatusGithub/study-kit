@@ -90,7 +90,21 @@ def test_paths_limit_findings_to_those_files(mini: Path, denylist: Path):
     assert codes(report) == {"SK-MCQ-KEY"}
 
 
+def test_wrapped_titled_and_reference_links_are_checked(mini: Path, denylist: Path):
+    overlay(mini, BAD / "SK-REF-MISSING")
+    report = run(mini, denylist)
+    found = [(f.line, f.col, f.message.split("'")[1]) for f in report.findings]
+    assert found == [
+        (8, 7, "ex:ex-gibt-es-nicht"),
+        (10, 18, "ex:ex-umbruch-fehlt"),
+        (11, 53, "ex:ex-titel-fehlt"),
+        (12, 9, "ex:ex-referenz-fehlt"),
+        (16, 1, "bild-fehlt"),
+    ]
+
+
 def test_release_adds_coverage(mini: Path, denylist: Path):
+    # The mini overview wraps a topic link and an exercise wraps a figure caption.
     report = run(mini, denylist, release=True)
     assert codes(report) == {"SK-COV-EXERCISES", "SK-COV-MC"}
     assert all(f.path.endswith("course.yaml") for f in report.findings)

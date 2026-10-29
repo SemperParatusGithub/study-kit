@@ -151,6 +151,77 @@ def test_links_and_figures():
     assert attr.attrs and attr.alone
 
 
+def test_links_wrap_carry_titles_and_resolve_references():
+    # Every link here is one pandoc 3.13 builds with the project reader.
+    b = body(
+        "Siehe [a\n"  # 1: text wraps onto the next line
+        "b](ex:wrapped).\n"
+        "[t](ex:titled \"Titel\") und [u](<ex:angle> 'x') und [v](ex:paren\n"
+        '"Titel auf der nächsten Zeile")\n'
+        "\n"
+        "[x][R  One] und [r one][] und [r one] und <ex:auto>.\n"  # 6
+        "\n"
+        "[r one]: ex:ref\n"  # 8: definitions can follow their use
+        '  "Titel"\n'
+        "[y]: <ex:second>\n"
+        "\n"
+        "![Ein langer\n"  # 12: a wrapped caption is still alone in its paragraph
+        "Untertitel](fig:wrapped)\n"
+    )
+    assert [(lk.target, lk.line, lk.col) for lk in b.links] == [
+        ("ex:wrapped", 1, 7),
+        ("ex:titled", 3, 1),
+        ("ex:angle", 3, 28),
+        ("ex:paren", 3, 52),
+        ("ex:ref", 6, 1),
+        ("ex:ref", 6, 17),
+        ("ex:ref", 6, 31),
+        ("ex:auto", 6, 43),
+        ("fig:wrapped", 12, 1),
+    ]
+    figure = b.links[-1]
+    assert figure.image and figure.alone and figure.text == "Ein langer\nUntertitel"
+    assert b.link_definitions == {"r one": "ex:ref", "y": "ex:second"}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "`[a](ex:code)` und ``[b](ex:code)``\n",
+        "$f[n](t)$ und $$x[a](b)$$\n",
+        "\\[a](ex:escaped) und [b\\](ex:escaped)\n",
+        "$$\n[a](ex:display)\n$$\n",
+        "[a][undefined] und [shortcut]\n",
+        "```\n[a](ex:fenced)\n```\n",
+        "```\n[b]: ex:fenced\n```\n[b]\n",
+    ],
+)
+def test_text_that_is_no_link(text):
+    assert body(text).links == []
+
+
+def test_links_never_nest_and_titles_hold_no_links():
+    b = body('[a [b](ex:inner)](ex:outer) [c](ex:t "see [d](ex:no)") [![i](fig:s)](ex:img)\n')
+    assert [(lk.image, lk.target) for lk in b.links] == [
+        (False, "ex:inner"),
+        (False, "ex:t"),
+        (False, "ex:img"),
+        (True, "fig:s"),
+    ]
+    assert not b.links[-1].alone
+
+
+def test_figure_is_alone_only_without_other_content():
+    def alone(text: str) -> list[bool]:
+        return [lk.alone for lk in body(text).links]
+
+    assert alone("## Titel\n![C](fig:s)\n") == [True]  # a heading is its own block
+    assert alone("Text\n![C](fig:s)\n") == [False]
+    assert alone("![C](fig:s) `code`\n") == [False]
+    assert alone("![C](fig:s)\n$$\nx\n$$\n") == [False]
+    assert alone("- ![C](fig:s)\n") == [False]
+
+
 def test_shorten_never_cuts_math():
     text = (
         "Ein langer Satz über den Tiefpass mit "

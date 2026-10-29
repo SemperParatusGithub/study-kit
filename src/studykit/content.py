@@ -1,12 +1,14 @@
 """Course content on disk: discovery, frontmatter, the fence-line scanner and the id index.
 
-Everything here is pure Python and line based, so `studykit lint` can check a file in a
-few milliseconds without pandoc (docs/architecture.md §2.1, §2.3, §4.3). The scanners
-skip fenced code; they report positions as file line and column, both 1-based.
+Everything here is pure Python, so `studykit lint` can check a file in a few milliseconds
+without pandoc (docs/architecture.md §2.1, §2.3, §4.3). Fences and math are scanned line by
+line; links are found per paragraph, because their text may wrap. The scanners skip fenced
+code; they report positions as file line and column, both 1-based.
 """
 
 from __future__ import annotations
 
+import bisect
 import os
 import re
 from collections.abc import Iterator
@@ -265,11 +267,273 @@ OPTION_RE = re.compile(r"^- \[(?P<mark>[ xX])\] (?P<text>\S.*)$")
 OPTIONISH_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s*\[.?\]")
 INLINE_CODE_RE = re.compile(r"(`+)(?:(?!\1).)+?\1")
 BLOCK_MARKER_RE = re.compile(r"^\s*(?:[=+\-*#>]|[0-9]+[.)])")
-LINK_RE = re.compile(r"(?P<bang>!?)\[(?P<text>(?:[^\[\]]|\[[^\[\]]*\])*)\]\((?P<target>[^()\s]*)\)")
+HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]|$)")
 
 
 def _mask(text: str, start: int, end: int) -> str:
     return text[:start] + " " * (end - start) + text[end:]
+
+
+# --- inline links -----------------------------------------------------------------------------
+#
+# A small CommonMark subset, enough to find every link pandoc would build: link text may wrap
+# onto the next line, a destination may be <bracketed> and carry a title, and reference links
+# resolve through `[label]: target` definitions. Code spans, math and backslash escapes are
+# masked first, because brackets inside them never start a link.
+
+HIDDEN = "\x00"  # placeholder for masked characters; never whitespace, never a bracket
+ASCII_PUNCT = set("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+ESCAPE_RE = re.compile(r"\\([!-/:-@\[-`{-~])")
+AUTOLINK_RE = re.compile(r"<([A-Za-z][A-Za-z0-9+.\-]{1,31}:[^\s<>\x00]*)>")
+REF_DEF_RE = re.compile(
+    r"[ ]{0,3}\[(?P<label>(?:[^\[\]\\]|\\.)+)\]:"
+    r"[ \t]*\n?[ \t]*(?P<dest><[^<>\n]*>|[^\s<]\S*)"
+    r"(?:(?:[ \t]*\n[ \t]*|[ \t]+)(?P<title>\"[^\"]*\"|'[^']*'|\([^()]*\)))?[ \t]*(?:\n|\Z)"
+)
+TITLE_CLOSE = {'"': '"', "'": "'", "(": ")"}
+
+
+def normalize_label(label: str) -> str:
+    return " ".join(label.split()).casefold()
+
+
+def mask_inline(text: str) -> str:
+    """`text` with escapes, code spans and $…$ math replaced by HIDDEN (same length)."""
+    out = list(text)
+    n = len(text)
+    i = 0
+
+    def hide(a: int, b: int) -> None:
+        for k in range(a, b):
+            if out[k] != "\n":
+                out[k] = HIDDEN
+
+    while i < n:
+        c = text[i]
+        if c == "\\" and i + 1 < n and text[i + 1] in ASCII_PUNCT:
+            hide(i, i + 2)
+            i += 2
+        elif c == "`":
+            run = len(text[i:]) - len(text[i:].lstrip("`"))
+            m = re.compile(rf"(?<!`)`{{{run}}}(?!`)").search(text, i + run)
+            if m is None:
+                i += run
+                continue
+            hide(i, m.end())
+            i = m.end()
+        elif c == "$":
+            if text.startswith("$$", i):
+                end = text.find("$$", i + 2)
+                end = n if end < 0 else end + 2
+                hide(i, end)
+                i = end
+                continue
+            end = _inline_math_end(text, i)
+            if end is None:
+                i += 1
+                continue
+            hide(i, end)
+            i = end
+        else:
+            i += 1
+    return "".join(out)
+
+
+def _inline_math_end(text: str, i: int) -> int | None:
+    """End of $…$ math opening at i (pandoc's rule), or None if this $ is literal."""
+    if i + 1 >= len(text) or text[i + 1].isspace():
+        return None
+    k = i + 1
+    while k < len(text) and text[k] != "\n":
+        if text[k] == "\\":
+            k += 2
+            continue
+        if text[k] == "$" and not text[k - 1].isspace():
+            after = text[k + 1 : k + 2]
+            if not after.isdigit():
+                return k + 1
+        k += 1
+    return None
+
+
+@dataclass
+class FoundLink:
+    start: int  # offset of `!` or `[` (or `<` of an autolink)
+    end: int  # offset after the link, including {attrs}
+    text_start: int
+    text_end: int
+    image: bool
+    text: str
+    target: str
+    attrs: bool
+
+
+def _close_bracket(masked: str, i: int) -> int | None:
+    """Offset of the `]` matching the `[` at i, allowing nested balanced brackets."""
+    depth = 0
+    for k in range(i, len(masked)):
+        if masked[k] == "[":
+            depth += 1
+        elif masked[k] == "]":
+            depth -= 1
+            if depth == 0:
+                return k
+    return None
+
+
+def _skip_space(masked: str, k: int) -> int:
+    """Skip spaces and tabs with at most one line break."""
+    newline = False
+    while k < len(masked) and masked[k] in " \t\n":
+        if masked[k] == "\n":
+            if newline:
+                break
+            newline = True
+        k += 1
+    return k
+
+
+def _inline_destination(masked: str, text: str, k: int) -> tuple[str, int] | None:
+    """Parse `(dest "title")` starting after the `(` at k-1; return (dest, end) or None."""
+    k = _skip_space(masked, k)
+    n = len(masked)
+    if k < n and masked[k] == "<":
+        close = masked.find(">", k + 1)
+        if close < 0 or "\n" in masked[k:close] or "<" in masked[k + 1 : close]:
+            return None
+        dest = text[k + 1 : close]
+        k = close + 1
+    else:
+        start, depth = k, 0
+        while k < n and not masked[k].isspace():
+            if masked[k] == "(":
+                depth += 1
+            elif masked[k] == ")":
+                if depth == 0:
+                    break
+                depth -= 1
+            k += 1
+        if depth:
+            return None
+        dest = text[start:k]
+    gap = _skip_space(masked, k)
+    if gap > k and gap < n and masked[gap] in TITLE_CLOSE:
+        close = masked.find(TITLE_CLOSE[masked[gap]], gap + 1)
+        if close < 0:
+            return None
+        k = _skip_space(masked, close + 1)
+    else:
+        k = gap
+    if k >= n or masked[k] != ")":
+        return None
+    return ESCAPE_RE.sub(r"\1", dest), k + 1
+
+
+def scan_links(masked: str, text: str, defs: dict[str, str]) -> list[FoundLink]:
+    """Every link in one paragraph; `masked` is `text` after mask_inline()."""
+    found: list[FoundLink] = []
+    for i, c in enumerate(masked):
+        if c != "[":
+            continue
+        close = _close_bracket(masked, i)
+        if close is None:
+            continue
+        image = i > 0 and masked[i - 1] == "!"
+        label = text[i + 1 : close]
+        target: str | None = None
+        end = close + 1
+        nxt = masked[close + 1 : close + 2]
+        if nxt == "(":
+            parsed = _inline_destination(masked, text, close + 2)
+            if parsed is not None:
+                target, end = parsed
+        elif nxt == "[":
+            label_end = masked.find("]", close + 2)
+            if label_end >= 0 and "[" not in masked[close + 2 : label_end]:
+                ref = text[close + 2 : label_end] or label
+                if normalize_label(ref) in defs:
+                    target, end = defs[normalize_label(ref)], label_end + 1
+        if target is None and normalize_label(label) in defs:
+            target, end = defs[normalize_label(label)], close + 1
+        if target is None:
+            continue
+        attrs = masked[end : end + 1] == "{"
+        if attrs:
+            brace = masked.find("}", end)
+            end = brace + 1 if brace >= 0 else len(masked)
+        start = i - 1 if image else i
+        found.append(FoundLink(start, end, i + 1, close, image, label, target, attrs))
+    # CommonMark: a link never contains another link (images may), and nothing inside a
+    # destination, title or attribute block is a link.
+    kept = []
+    for f in found:
+        inside_other = any(
+            o is not f
+            and o.start <= f.start
+            and f.end <= o.end
+            and not o.text_start <= f.start < o.text_end
+            for o in found
+        )
+        has_inner_link = not f.image and any(
+            o is not f and not o.image and f.text_start <= o.start < f.text_end for o in found
+        )
+        if not inside_other and not has_inner_link:
+            kept.append(f)
+    for m in AUTOLINK_RE.finditer(masked):
+        if any(f.start <= m.start() < f.end for f in kept):
+            continue
+        kept.append(FoundLink(m.start(), m.end(), m.start(1), m.end(1), False, m[1], m[1], False))
+    kept.sort(key=lambda f: f.start)
+    return kept
+
+
+@dataclass
+class Paragraph:
+    lines: list[Line]
+    display: list[bool]  # line is display math ($$ fences included)
+
+    @cached_property
+    def text(self) -> str:
+        return "\n".join(ln.text for ln in self.lines)
+
+    @cached_property
+    def starts(self) -> list[int]:
+        out, offset = [], 0
+        for ln in self.lines:
+            out.append(offset)
+            offset += len(ln.text) + 1
+        return out
+
+    @cached_property
+    def _without_definitions(self) -> tuple[str, list[tuple[str, str]]]:
+        """Leading `[label]: target` definitions blanked out, and the definitions."""
+        text, defs, pos = self.text, [], 0
+        while (m := REF_DEF_RE.match(text, pos)) is not None:
+            label = normalize_label(m["label"])
+            if not label:
+                break
+            dest = m["dest"][1:-1] if m["dest"].startswith("<") else m["dest"]
+            defs.append((label, ESCAPE_RE.sub(r"\1", dest)))
+            pos = m.end()
+        blanked = re.sub(r"[^\n]", " ", text[:pos]) + text[pos:]
+        return blanked, defs
+
+    @property
+    def definitions(self) -> list[tuple[str, str]]:
+        return self._without_definitions[1]
+
+    @cached_property
+    def masked(self) -> str:
+        """The paragraph with definitions blanked and math, code and escapes hidden."""
+        lines = self._without_definitions[0].split("\n")
+        pairs = zip(lines, self.display, strict=True)
+        lines = [HIDDEN * len(ln) if display else ln for ln, display in pairs]
+        return mask_inline("\n".join(lines))
+
+    def position(self, offset: int) -> tuple[int, int]:
+        """File (line, column) of a character offset, both 1-based."""
+        k = bisect.bisect_right(self.starts, offset) - 1
+        return self.lines[k].no, offset - self.starts[k] + 1
 
 
 class Body:
@@ -481,10 +745,6 @@ class Body:
             "write '::: name' (one space, one known name) or ':::' alone to close",
         )
         return Block("?", colons, 0, known=False)
-
-    def _boundary(self, i: int) -> bool:
-        """Whether line i ends a paragraph: outside the body, blank, or a fence."""
-        return not 0 <= i < len(self.lines) or not self.lines[i].text.strip() or self._is_fence(i)
 
     def _is_fence(self, i: int) -> bool:
         ln = self.lines[i]
@@ -728,24 +988,62 @@ class Body:
     # --- links and figures ---
 
     @cached_property
+    def paragraphs(self) -> list[Paragraph]:
+        """Runs of text lines between blank lines, fences, code and ATX headings."""
+        out: list[Paragraph] = []
+        run: list[Line] = []
+        masks: list[bool] = []
+        display = False
+
+        def flush() -> None:
+            if run:
+                out.append(Paragraph(list(run), list(masks)))
+                run.clear()
+                masks.clear()
+
+        for i, ln in enumerate(self.lines):
+            if ln.in_code or not ln.text.strip() or self._is_fence(i):
+                flush()
+                display = False
+                continue
+            if HEADING_RE.match(ln.text):
+                flush()
+                out.append(Paragraph([ln], [False]))
+                continue
+            is_delim = ln.text.strip() == "$$"
+            run.append(ln)
+            masks.append(display or is_delim)
+            if is_delim:
+                display = not display
+        flush()
+        return out
+
+    @cached_property
+    def link_definitions(self) -> dict[str, str]:
+        """Reference definitions `[label]: target`, keyed by normalized label."""
+        defs: dict[str, str] = {}
+        for para in self.paragraphs:
+            for label, target in para.definitions:
+                defs.setdefault(label, target)
+        return defs
+
+    @cached_property
     def links(self) -> list[Link]:
+        """Inline, reference and autolinks, found per paragraph like CommonMark does."""
         out = []
-        for i, ln in self.text_lines():
-            text = INLINE_CODE_RE.sub(lambda m: " " * len(m.group()), ln.text)
-            for m in LINK_RE.finditer(text):
-                after = text[m.end() :]
-                attrs = after.startswith("{")
-                if attrs and "}" in after:
-                    after = after[after.index("}") + 1 :]
-                alone = (
-                    self._boundary(i - 1)
-                    and self._boundary(i + 1)
-                    and not text[: m.start()].strip()
-                    and not after.strip()
-                )
+        for para in self.paragraphs:
+            for found in scan_links(para.masked, para.text, self.link_definitions):
+                line, col = para.position(found.start)
+                rest = para.masked[: found.start] + para.masked[found.end :]
                 out.append(
                     Link(
-                        bool(m["bang"]), m["text"], m["target"], ln.no, m.start() + 1, alone, attrs
+                        found.image,
+                        found.text,
+                        found.target,
+                        line,
+                        col,
+                        not rest.strip(),
+                        found.attrs,
                     )
                 )
         return out
