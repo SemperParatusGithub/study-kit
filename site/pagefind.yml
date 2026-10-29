@@ -1,0 +1,10 @@
+# Pagefind settings (docs/architecture.md §3.5). `pagefind --site dist` reads this file from
+# site/; scripts/pagefind.mjs adds --force-language so all courses share one index.
+# Only elements with data-pagefind-body are indexed; never index solutions or MC keys.
+exclude_selectors:
+  - ".katex"
+  - "sk-mc [data-correct]"
+  - "sk-mc .sk-why"
+  - "sk-mc .sk-explanation"
+  - ".sk-solution"
+  - ".sk-error-card"

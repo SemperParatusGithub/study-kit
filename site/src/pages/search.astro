@@ -1,0 +1,102 @@
+---
+// Full-text search over course content with Pagefind (docs/architecture.md §3.5). The index
+// is written by `pagefind --site dist` after the build (scripts/pagefind.mjs); `just dev`
+// serves the last built copy from public/pagefind/.
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Search" description="Search all courses">
+  <div class="search-page">
+    <div class="page-head">
+      <h1>Search</h1>
+      <p class="muted">
+        Summaries, exercises, MC questions, exams and cheat sheets of every course. Solutions and
+        answer keys are never indexed.
+      </p>
+    </div>
+
+    <div class="search-ui">
+      <pagefind-config bundle-path="/pagefind/"></pagefind-config>
+      <pagefind-input placeholder="Search course content" autofocus></pagefind-input>
+      <div class="search-cols">
+        <aside class="search-filters" aria-label="Filters">
+          <pagefind-filter-pane open></pagefind-filter-pane>
+        </aside>
+        <div class="search-results">
+          <pagefind-summary></pagefind-summary>
+          <pagefind-results></pagefind-results>
+        </div>
+      </div>
+    </div>
+    <p class="notice notice-warn" data-search-missing hidden>
+      The search index is not built yet. Run <code>just build</code> once; <code>just dev</code> then
+      serves the last index.
+    </p>
+    <noscript><p class="notice">Search needs JavaScript.</p></noscript>
+  </div>
+
+  <link rel="stylesheet" href="/pagefind/pagefind-component-ui.css" />
+  <script is:inline src="/pagefind/pagefind-component-ui.js" defer></script>
+  <script>
+    // Run the query from the header search box (?q=…) once the Pagefind input is ready.
+    function start(): void {
+      const q = new URLSearchParams(location.search).get('q');
+      const missing = document.querySelector<HTMLElement>('[data-search-missing]');
+      if (!('PagefindComponents' in window)) {
+        if (missing) missing.hidden = false;
+        return;
+      }
+      if (!q) return;
+      let tries = 0;
+      const timer = setInterval(() => {
+        const input = document.querySelector<HTMLInputElement>('pagefind-input input');
+        if (input || ++tries > 50) clearInterval(timer);
+        if (!input) return;
+        input.value = q;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }, 50);
+    }
+    if (document.readyState === 'complete') start();
+    else addEventListener('load', start);
+  </script>
+</Base>
+
+<style>
+  .search-page {
+    max-width: 60rem;
+    margin-inline: auto;
+  }
+
+  .search-ui {
+    --pf-text: var(--text);
+    --pf-text-secondary: var(--text-muted);
+    --pf-text-muted: var(--text-muted);
+    --pf-background: var(--surface);
+    --pf-border: var(--border);
+    --pf-border-focus: var(--accent);
+    --pf-hover: var(--surface-2);
+    --pf-skeleton: var(--surface-2);
+    --pf-skeleton-shine: var(--border);
+    --pf-mark: var(--text);
+    --pf-font: var(--font-sans);
+    --pf-outline-focus: var(--focus);
+    --pf-border-radius: var(--radius-sm);
+    --pf-input-height: 42px;
+    --pf-summary-font-size: var(--text-sm);
+    --pf-result-title-font-size: 1rem;
+    --pf-result-excerpt-font-size: var(--text-sm);
+  }
+
+  .search-cols {
+    display: grid;
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: var(--space-5);
+    margin-top: var(--space-4);
+  }
+
+  @media (max-width: 44rem) {
+    .search-cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>
