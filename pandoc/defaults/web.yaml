@@ -1,0 +1,4 @@
+# HTML fragment for the website loader. Code tokens come out as classes that code.css colours.
+to: html5
+standalone: false
+syntax-highlighting: default
