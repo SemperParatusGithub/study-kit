@@ -496,9 +496,12 @@ Beurteilen Sie für den RC-Tiefpass:
   (`max(10, ⌈25 · weight⌉)`, at most 25; SK-COV-MC).
 - The type mix follows the exam profile. Without one it is 60% single, 25% multi and 15% Kprim.
   Validation only warns when a type of `course.exam.mc.types` is missing from a bank.
-- Distractors come from a catalogue of electrical-engineering misconceptions: a forgotten 2π, √2 (amplitude vs. RMS), dB vs. linear, the sign of the phase, series vs. parallel, a wrong power of ten, degrees vs. radians.
+- Distractors come from a catalogue of electrical-engineering misconceptions in
+  `authoring/parts/mc.md` (§5.2): a forgotten 2π, √2 (amplitude vs. RMS), dB vs. linear, the
+  sign of the phase, series vs. parallel, a wrong power of ten, degrees vs. radians, and more.
 
-**Scoring** (`site/src/lib/scoring.ts`; the Phase 5 `progress.py` must mirror it). An option is
+**Scoring** (`site/src/lib/scoring.ts`; `progress.mc_score` mirrors the practice score for
+examiner results, §2.11). An option is
 decided right when it is selected and correct or unselected and wrong; a Kprim statement
 left open is wrong.
 
@@ -861,8 +864,9 @@ title: Überblick
 - "Exam at a glance" is written from `analysis/exam-profile.yaml` (format, duration, points,
   archetypes and their share, MC part, allowed aids).
 - Links to topics use `topic:` references; every topic must be linked at least once.
-- *(Phase 5)* Authored by `author` with `authoring/parts/overview.md`, first in the author
-  wave so other parts can link to it. `/regenerate <course> overview` re-runs it.
+- Written by the `author` agent with `authoring/parts/overview.md` (§5.2):
+  `/regenerate <course> overview` re-runs it, and `/regenerate <course> all` (like the
+  Phase 6 author wave) writes it first so the other parts can link to it.
 - Web: `/c/<c>/` (the Overview tab). PDF: `overview.pdf`, also the first chapter of
   `summary.pdf`.
 - A missing `overview.md` is SK-STRUCT-MISSING (a warning, an error with `--release`); the
