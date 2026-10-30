@@ -1,5 +1,5 @@
 /* Custom elements (docs/architecture.md §3.2): sk-mc, sk-quiz, sk-exam, sk-hints,
- * sk-answer-check, sk-reveal, sk-self-assess, sk-plan, sk-progress, sk-theme, sk-export.
+ * sk-answer-check, sk-reveal, sk-self-assess, sk-plan, sk-progress, sk-theme, sk-pomodoro, sk-export.
  *
  * Colours come from the shell's tokens.css: every --ske-* token below is a tokens.css
  * variable (with the same light-dark() pair as a fallback where tokens.css is absent, as in
@@ -118,7 +118,7 @@
 }
 
 :is(sk-mc, sk-quiz, sk-exam, sk-hints, sk-answer-check, sk-reveal, sk-self-assess, sk-plan,
-  sk-progress, sk-theme, sk-export, .sk-dialog) :focus-visible {
+  sk-progress, sk-theme, sk-pomodoro, sk-export, .sk-dialog) :focus-visible {
   outline: 2px solid var(--ske-focus);
   outline-offset: 2px;
 }
@@ -1497,6 +1497,188 @@ sk-theme {
   display: inline-grid;
 }
 
+/* --- sk-pomodoro -------------------------------------------------------------------- */
+
+sk-pomodoro {
+  position: relative;
+  display: inline-block;
+}
+
+.sk-pomo-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 2.1rem;
+  height: 2.1rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--ske-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ske-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.sk-pomo-toggle:hover,
+.sk-pomo-toggle[aria-expanded='true'] {
+  background: var(--ske-surface-2);
+  color: var(--ske-fg);
+}
+
+.sk-pomo-icon {
+  display: inline-grid;
+}
+
+.sk-pomo-chip:empty {
+  display: none;
+}
+
+.sk-pomo-chip {
+  display: inline-flex;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: var(--ske-fg);
+}
+
+.sk-pomo-chip-phase {
+  font-weight: 500;
+}
+
+/* a running phase: accent ring for focus, the ok colour for a break; paused stays quiet */
+sk-pomodoro[data-running] .sk-pomo-toggle {
+  border-color: var(--ske-accent);
+  background: var(--ske-accent-soft);
+}
+
+sk-pomodoro[data-running]:not([data-phase='focus']) .sk-pomo-toggle {
+  border-color: var(--ske-ok);
+  background: var(--ske-ok-soft);
+}
+
+sk-pomodoro[data-active]:not([data-running]) .sk-pomo-chip {
+  color: var(--ske-muted);
+}
+
+.sk-pomo-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 50;
+  width: min(20rem, calc(100vw - 2rem));
+  padding: 1rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+  box-shadow: var(--ske-shadow);
+  color: var(--ske-fg);
+  font-size: 0.95rem;
+}
+
+.sk-pomo-panel[hidden] {
+  display: none;
+}
+
+.sk-pomo-head {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+}
+
+.sk-pomo-phase {
+  font-weight: 600;
+}
+
+.sk-pomo-time {
+  font-size: 2.4rem;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.sk-pomo-done {
+  font-size: 0.85rem;
+}
+
+.sk-pomo-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-block: 0.8rem 0.6rem;
+}
+
+.sk-pomo-settings {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.75rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--ske-border);
+}
+
+.sk-pomo-settings legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.sk-pomo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.sk-pomo-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.sk-pomo-num {
+  width: 4rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--ske-border-strong);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-raised);
+  color: var(--ske-fg);
+  font: inherit;
+  text-align: right;
+}
+
+.sk-pomo-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sk-pomo-note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* a phone: the time alone (the phase name is in the button's label), and narrower theme
+ * options, so the bar with search, timer and theme fits 320 px */
+@media (max-width: 30rem) {
+  .sk-pomo-chip-phase {
+    display: none;
+  }
+
+  .sk-pomo-toggle {
+    padding: 0 0.4rem;
+  }
+
+  sk-pomodoro[data-active] .sk-pomo-icon {
+    display: none;
+  }
+
+  .sk-theme-opt {
+    width: 1.65rem;
+  }
+}
+
 /* --- sk-export ---------------------------------------------------------------------- */
 
 .sk-export-status {
@@ -1627,7 +1809,8 @@ sk-theme {
   .sk-kprim-choice,
   .sk-mc-conf-choice,
   .sk-check-chip,
-  .sk-theme-opt {
+  .sk-theme-opt,
+  .sk-pomo-toggle {
     transition: background-color 120ms ease, border-color 120ms ease;
   }
 
@@ -1652,6 +1835,7 @@ sk-theme {
   .sk-quiz-nav,
   .sk-quiz-status,
   sk-theme,
+  sk-pomodoro,
   sk-export {
     display: none !important;
   }

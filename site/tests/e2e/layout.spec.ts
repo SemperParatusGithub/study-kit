@@ -61,6 +61,17 @@ test('at 320 px no page scrolls sideways, also with long German titles in the pa
   }
 });
 
+test('at 320 px a running pomodoro timer fits the header', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.addInitScript(() => {
+    const timer = { phase: 'focus', done: 0, endsAt: Date.now() + 25 * 60_000, left: 25 * 60_000 };
+    localStorage.setItem('studykit:pomodoro', JSON.stringify({ v: 1, settings: {}, timer }));
+  });
+  await page.goto(`${C}/summary/spannungsteiler/`);
+  await expect(page.locator('sk-pomodoro .sk-pomo-chip')).toHaveText(/\d+:\d\d/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
+
 test('past and done plan sessions keep their text contrast', async ({ page }) => {
   await freezeDay(page);
   await page.goto(`${C}/plan/`);

@@ -1,5 +1,5 @@
 ---
-// Base layout: document shell, header with search and theme toggle, the course tabs, and
+// Base layout: document shell, header with search, pomodoro timer and theme toggle, the course tabs, and
 // the one processed script that loads the custom elements (docs/architecture.md §3.2).
 import 'katex/dist/katex.min.css';
 import '../styles/tokens.css';
@@ -111,6 +111,7 @@ const mc = course?.data.exam.mc;
           />
           <kbd aria-hidden="true">/</kbd>
         </form>
+        <sk-pomodoro></sk-pomodoro>
         <sk-theme></sk-theme>
       </div>
       {course && <CourseNav course={course} active={tab} />}
