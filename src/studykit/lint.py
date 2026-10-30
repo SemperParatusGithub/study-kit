@@ -4,17 +4,20 @@ Lint is `validate --quick` restricted to the given files: Structure, Schema, Fen
 Math and the Pandoc backstop, each file checked in the context of its course so topic ids,
 retired ids and duplicates are known.
 
-With `--hook` it is the Claude Code PostToolUse hook for Write and Edit: it reads the hook
-JSON from stdin, lints `tool_input.file_path` when that is a file of a course (a
-`course.yaml` above it) under `courses/**` or `examples/**` (or $STUDYKIT_COURSES_DIR), and
-exits 2 with the findings on stderr so Claude fixes them right away. Anything else exits 0
-silently.
+With `--hook` it is the PostToolUse hook for file edits: it reads the hook JSON from stdin
+and lints the files the edit wrote when they are files of a course (a `course.yaml` above
+them) under `courses/**` or `examples/**` (or $STUDYKIT_COURSES_DIR), and exits 2 with the
+findings on stderr so the agent fixes them right away. Anything else exits 0 silently. The
+written files are Claude Code's `tool_input.file_path` (Write, Edit) or, for Codex, the
+`*** Add File:`, `*** Update File:` and `*** Move to:` lines of the `apply_patch` patch in
+`tool_input.command`.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 from studykit import content, tools, validate
@@ -69,18 +72,37 @@ def hook_roots() -> list[Path]:
     return [r.resolve() for r in roots]
 
 
-def hook_target(payload: object) -> Path | None:
-    """The file a PostToolUse payload wrote, if the lint hook should check it."""
+# the files an apply_patch patch (Codex) writes
+PATCH_FILE = re.compile(r"^\*\*\* (?:Add File|Update File|Move to): (.+?)\s*$", re.MULTILINE)
+
+
+def hook_targets(payload: object) -> list[Path]:
+    """The files a PostToolUse payload wrote that the lint hook should check."""
     if not isinstance(payload, dict):
-        return None
+        return []
     tool_input = payload.get("tool_input")
-    raw = tool_input.get("file_path") if isinstance(tool_input, dict) else None
-    if not isinstance(raw, str) or not raw:
+    if not isinstance(tool_input, dict):
+        return []
+    raws: list[str] = []
+    if isinstance(tool_input.get("file_path"), str):
+        raws.append(tool_input["file_path"])
+    elif payload.get("tool_name") == "apply_patch" and isinstance(tool_input.get("command"), str):
+        raws.extend(PATCH_FILE.findall(tool_input["command"]))
+    cwd = payload.get("cwd")
+    targets: list[Path] = []
+    for raw in raws:
+        path = _hook_path(raw, cwd if isinstance(cwd, str) else None)
+        if path is not None and path not in targets:
+            targets.append(path)
+    return targets
+
+
+def _hook_path(raw: str, cwd: str | None) -> Path | None:
+    if not raw:
         return None
     path = Path(raw)
-    if not path.is_absolute():
-        cwd = payload.get("cwd")
-        path = Path(cwd) / path if isinstance(cwd, str) else path
+    if not path.is_absolute() and cwd is not None:
+        path = Path(cwd) / path
     path = path.resolve()
     if path.suffix not in LINTED_SUFFIXES or not path.is_file():
         return None
@@ -99,10 +121,10 @@ def run_hook(stdin_text: str, config: validate.Config | None = None) -> tuple[in
         payload = json.loads(stdin_text or "{}")
     except json.JSONDecodeError:
         return 0, ""
-    path = hook_target(payload)
-    if path is None:
+    paths = hook_targets(payload)
+    if not paths:
         return 0, ""
-    report = lint_files([path], config)
+    report = lint_files(paths, config)
     shown = [f for f in report.findings if f.severity in {"error", "warning"}]
     if not shown:
         return 0, ""

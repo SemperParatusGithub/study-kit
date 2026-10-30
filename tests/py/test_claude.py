@@ -1,10 +1,11 @@
-"""The Claude Code layer (.claude/): skills, agents and settings (docs/architecture.md §5).
+"""The Claude Code layer (.claude/): skills, agents and settings (docs/architecture.md §5),
+and the Codex files that reuse it (AGENTS.md, .agents/, .codex/; §5.5).
 
 Frontmatter follows the Claude Code docs (skills: name, description,
 disable-model-invocation, user-invocable, allowed-tools, argument-hint; subagents: name,
 description, tools, model, effort, maxTurns, skills, hooks). Every file, `studykit`
 command and `just` recipe a skill or agent names must exist, the content-format templates
-must pass lint, and the configured hook commands are run as Claude Code runs them.
+must pass lint, and the configured hook commands are run as Claude Code and Codex run them.
 """
 
 from __future__ import annotations
@@ -16,12 +17,13 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
 
-from studykit import cli, hook, lint, pipeline, validate
+from studykit import cli, codex, hook, lint, pipeline, validate
 from studykit.model import ChunkNotes
 
 REPO = Path(__file__).resolve().parents[2]
@@ -30,6 +32,9 @@ SKILLS = CLAUDE / "skills"
 AGENTS = CLAUDE / "agents"
 SAMPLE = REPO / "examples" / "sample-course"
 ERRORS = REPO / "docs" / "content-format" / "errors.md"
+# the rules every session reads: Claude Code's and Codex's
+RULE_FILES = [REPO / "CLAUDE.md", REPO / "AGENTS.md"]
+CODEX = REPO / ".codex"
 
 INTERNAL = {"content-format", "authoring", "figures", "verify-protocol", "ingest"}
 COMMANDS = {
@@ -327,7 +332,7 @@ def test_linked_files_exist():
 
 
 def test_named_repository_paths_exist():
-    files = [*markdown_files(), REPO / "CLAUDE.md"]
+    files = [*markdown_files(), *RULE_FILES]
     for path in files:
         for ref in REPO_PATH.findall(path.read_text("utf-8")):
             if "<" in ref or "*" in ref:
@@ -386,7 +391,7 @@ def check_command(snippet: str, top: dict[str, argparse.ArgumentParser]) -> list
 def test_studykit_commands_exist():
     top = subparsers(cli.build_parser())
     problems = []
-    for path in [*markdown_files(), REPO / "CLAUDE.md"]:
+    for path in [*markdown_files(), *RULE_FILES]:
         for snippet in code_snippets(path.read_text("utf-8")):
             problems += [f"{path.relative_to(REPO)}: {p}" for p in check_command(snippet, top)]
     assert not problems, "\n".join(problems)
@@ -423,7 +428,7 @@ def test_just_recipes_exist():
     recipes = just_recipes()
     assert {"tutor", "examine", "verify", "status"} <= recipes
     problems = []
-    for path in [*markdown_files(), REPO / "CLAUDE.md"]:
+    for path in [*markdown_files(), *RULE_FILES]:
         for snippet in code_snippets(path.read_text("utf-8")):
             for name in re.findall(r"(?<![\w-])just\s+([a-z][a-z-]*)", snippet):
                 if name not in recipes:
@@ -812,8 +817,9 @@ def test_verifier_guard_hook_keeps_the_verifier_blind(tmp_path: Path):
 # --- CLAUDE.md ----------------------------------------------------------------------------
 
 
-def test_claude_md_states_the_rules():
-    text = (REPO / "CLAUDE.md").read_text("utf-8")
+@pytest.mark.parametrize("path", RULE_FILES, ids=lambda p: p.name)
+def test_rule_files_state_the_rules(path: Path):
+    text = path.read_text("utf-8")
     for needle in (
         "courses/",
         "PDFs",
@@ -825,3 +831,121 @@ def test_claude_md_states_the_rules():
         "studykit ls",
     ):
         assert needle in text, needle
+
+
+def test_rule_files_share_the_hard_rules():
+    def hard_rules(path: Path) -> str:
+        return path.read_text("utf-8").split("## Hard rules", 1)[1].split("\n## ", 1)[0]
+
+    assert hard_rules(REPO / "CLAUDE.md") == hard_rules(REPO / "AGENTS.md")
+
+
+# --- Codex (§5.5) ---------------------------------------------------------------------------
+
+
+def test_codex_finds_the_skills_through_the_link():
+    link = REPO / ".agents" / "skills"
+    assert link.is_symlink() and os.readlink(link) == "../.claude/skills"
+    assert {p.parent.name for p in link.glob("*/SKILL.md")} == INTERNAL | COMMANDS
+
+
+@pytest.mark.parametrize("name", sorted(COMMANDS))
+def test_codex_runs_user_commands_only_when_typed(name: str):
+    policy = yaml.safe_load((SKILLS / name / "agents" / "openai.yaml").read_text("utf-8"))
+    assert policy == {"policy": {"allow_implicit_invocation": False}}
+
+
+def test_codex_agents_are_generated_from_the_claude_agents():
+    assert codex.sync(check=True, root=REPO) == []
+    assert {p.stem for p in (CODEX / "agents").glob("*.toml")} == set(codex.CODEX_AGENTS)
+    for name in codex.CODEX_AGENTS:
+        data = tomllib.loads((CODEX / "agents" / f"{name}.toml").read_text("utf-8"))
+        meta, body = split(AGENTS / f"{name}.md")
+        assert data["name"] == name and data["description"] == meta["description"]
+        assert data["model_reasoning_effort"] == meta["effort"]
+        assert body.strip() in data["developer_instructions"]
+        for skill in meta.get("skills", []):
+            assert f".claude/skills/{skill}/SKILL.md" in data["developer_instructions"]
+    assert (
+        "keep yourself blind"
+        in tomllib.loads((CODEX / "agents" / "verifier.toml").read_text("utf-8"))[
+            "developer_instructions"
+        ]
+    )
+
+
+def test_codex_agents_sync_reports_and_repairs_drift(tmp_path: Path):
+    shutil.copytree(AGENTS, tmp_path / ".claude" / "agents")
+    assert len(codex.sync(check=True, root=tmp_path)) == len(codex.CODEX_AGENTS)
+    stray = tmp_path / ".codex" / "agents" / "old.toml"
+    stray.parent.mkdir(parents=True)
+    stray.write_text("")
+    codex.sync(check=False, root=tmp_path)
+    assert not stray.exists()
+    assert codex.sync(check=True, root=tmp_path) == []
+
+
+def test_codex_config_caps_the_agents():
+    config = tomllib.loads((CODEX / "config.toml").read_text("utf-8"))
+    assert config == {"agents": {"max_concurrent_threads_per_session": 6}}
+
+
+def test_codex_rules_forbid_forced_adds():
+    text = (CODEX / "rules" / "studykit.rules").read_text("utf-8")
+    assert 'pattern = ["git", "add", ["-f", "--force"]]' in text
+    assert 'decision = "forbidden"' in text
+
+
+def codex_hook(event_name: str, matcher: str) -> str:
+    data = json.loads((CODEX / "hooks.json").read_text("utf-8"))
+    assert set(data["hooks"]) == {"PreToolUse", "PostToolUse"}
+    (group,) = [g for g in data["hooks"][event_name] if g["matcher"] == matcher]
+    (handler,) = group["hooks"]
+    assert handler["type"] == "command"
+    return handler["command"]
+
+
+def test_codex_hooks_run_the_same_commands():
+    root = '"$(git rev-parse --show-toplevel)"'
+    assert codex_hook("PostToolUse", "^apply_patch$") == (
+        f"uv run --frozen --project {root} studykit lint --hook"
+    )
+    assert codex_hook("PreToolUse", "^Bash$") == (
+        f"uv run --frozen --project {root} studykit hook pre-git"
+    )
+
+
+def test_codex_lint_hook_reads_apply_patch(tmp_path: Path):
+    courses = tmp_path / "courses"
+    course = courses / "sample-course"
+    shutil.copytree(SAMPLE, course, ignore=shutil.ignore_patterns("_build"))
+    exercise = course / "exercises" / "rc-filter" / "ex-rc-tp-grenzfrequenz.md"
+    exercise.write_text(exercise.read_text("utf-8").replace("::: hint\n", ":::hint\n", 1))
+    rel = os.path.relpath(exercise, course)
+    patch = f"*** Begin Patch\n*** Update File: {rel}\n@@\n-a\n+b\n*** End Patch\n"
+    command = codex_hook("PostToolUse", "^apply_patch$")
+    # Codex runs hooks in the session's directory, somewhere inside the repository
+    done = run_hook(
+        command,
+        event("PostToolUse", "apply_patch", course, command=patch),
+        REPO / "src",
+        STUDYKIT_COURSES_DIR=str(courses),
+    )
+    assert done.returncode == 2, done.stderr
+    assert "SK-BLOCK-" in done.stderr and "ex-rc-tp-grenzfrequenz.md" in done.stderr
+    readme = "*** Begin Patch\n*** Add File: README.md\n+x\n*** End Patch\n"
+    other = run_hook(
+        command,
+        event("PostToolUse", "apply_patch", REPO, command=readme),
+        REPO,
+        STUDYKIT_COURSES_DIR=str(courses),
+    )
+    assert (other.returncode, other.stdout, other.stderr) == (0, "", "")
+
+
+def test_codex_pre_git_hook_denies_forced_adds(tmp_path: Path):
+    command = codex_hook("PreToolUse", "^Bash$")
+    denied = run_hook(command, event("PreToolUse", "Bash", REPO, command="git add -f x"), REPO)
+    assert json.loads(denied.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    allowed = run_hook(command, event("PreToolUse", "Bash", REPO, command="ls"), REPO / "src")
+    assert (allowed.returncode, allowed.stdout) == (0, "")

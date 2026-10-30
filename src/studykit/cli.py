@@ -51,7 +51,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_lint = sub.add_parser("lint", help="fast per-file content check (the edit hook)")
     p_lint.add_argument("files", nargs="*", type=Path, help="course files to check")
     p_lint.add_argument(
-        "--hook", action="store_true", help="read a Claude Code PostToolUse event from stdin"
+        "--hook",
+        action="store_true",
+        help="read a PostToolUse event (Claude Code or Codex) from stdin",
     )
     p_lint.add_argument("--json", action="store_true", help="machine-readable output")
     p_lint.set_defaults(func=cmd_lint)
@@ -224,7 +226,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_hook = sub.add_parser(
         "hook",
-        help="Claude Code PreToolUse hooks: read the event on stdin, print a decision",
+        help="PreToolUse hooks (Claude Code, Codex): read the event on stdin, print a decision",
     )
     p_hook.add_argument(
         "name",
@@ -232,6 +234,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="verifier-guard: keep the verifier blind; pre-git: keep course files out of git",
     )
     p_hook.set_defaults(func=cmd_hook)
+
+    p_codex = sub.add_parser("codex", help="the Codex layer (docs/architecture.md §5.5)")
+    codex_sub = p_codex.add_subparsers(dest="codex_command", metavar="<action>", required=True)
+    p_cag = codex_sub.add_parser(
+        "agents", help="generate .codex/agents/*.toml from .claude/agents/*.md"
+    )
+    p_cag.add_argument(
+        "--check", action="store_true", help="only report missing, stale or extra files"
+    )
+    p_cag.set_defaults(func=cmd_codex_agents)
 
     _add_study_commands(sub)
     _add_ingest_commands(sub)
@@ -1112,6 +1124,18 @@ def cmd_hook(args: argparse.Namespace) -> int:
     from studykit import hook
 
     sys.stdout.write(hook.run(args.name, sys.stdin.read()))
+    return 0
+
+
+def cmd_codex_agents(args: argparse.Namespace) -> int:
+    from studykit import codex
+
+    messages = codex.sync(check=args.check)
+    for m in messages:
+        print(m, file=sys.stderr if args.check else sys.stdout)
+    if args.check and messages:
+        print("run `uv run --frozen studykit codex agents` to regenerate", file=sys.stderr)
+        return 1
     return 0
 
 
