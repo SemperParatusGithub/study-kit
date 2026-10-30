@@ -96,7 +96,7 @@ characters, 2-4 options each; Other is always offered):
 |---|---|---|
 | Exam date | When is the exam? | each date of `exam_dates` (at most two, with document and page), "Unknown yet" |
 | Format | What is the exam format? | Written, Written + MC part, MC only, Oral |
-| Cheat sheet | Is a cheat sheet allowed? | Not allowed, 1 page, 2 pages, 3 pages (Other: up to 10) |
+| Cheat sheet | Is a cheat sheet allowed? (Other: the pages, up to 10) | Not allowed, 1 page, 2 pages, 3 pages |
 | Hours/week | How many hours a week can you study? | 4, 6, 8, 10 |
 
 A second call covers what the inventory left open, at most four questions:
