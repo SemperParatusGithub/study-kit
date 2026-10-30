@@ -60,7 +60,7 @@
         },
         "cheatsheet_pages": {
           "description": "0 = no cheat sheet allowed",
-          "maximum": 3,
+          "maximum": 10,
           "minimum": 0,
           "title": "Cheatsheet Pages",
           "type": "integer"

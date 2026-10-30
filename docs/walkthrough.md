@@ -83,7 +83,7 @@ One question block, with four questions:
 |---|---|
 | Exam date | the dates found in the material, "Unknown yet", or type one |
 | Format | Written, Written + MC part, MC only, Oral |
-| Cheat sheet | Not allowed, 1, 2 or 3 pages |
+| Cheat sheet | Not allowed, 1, 2 or 3 pages; Other accepts up to 10 |
 | Hours/week | 4, 6, 8, 10, or type one |
 
 A second block asks only what is still open: which uncertain documents are past exams or

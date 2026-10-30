@@ -260,7 +260,8 @@ def test_init_is_idempotent(courses: Path, folder: Path):
     assert snapshot(course) == files
 
 
-def test_init_on_an_unknown_exam_date_and_without_cheat_sheet(courses: Path, folder: Path):
+@pytest.mark.parametrize("pages", [0, 10])
+def test_init_on_an_unknown_exam_date_with_cheatsheet_allowance(courses: Path, folder: Path, pages):
     code, data = run_json(
         "ingest",
         "init",
@@ -271,7 +272,7 @@ def test_init_on_an_unknown_exam_date_and_without_cheat_sheet(courses: Path, fol
         "--exam-format",
         "oral",
         "--cheatsheet",
-        "0",
+        str(pages),
         "--hours-per-week",
         "4.5",
         "--lang",
@@ -280,7 +281,10 @@ def test_init_on_an_unknown_exam_date_and_without_cheat_sheet(courses: Path, fol
     assert code == 0, data["findings"]
     c = content.CourseTree(courses / "et2").model
     assert c is not None
-    assert c.exam.date is None and c.exam.format == "oral" and not c.cheatsheet.allowed
+    assert c.exam.date is None and c.exam.format == "oral"
+    assert c.cheatsheet.allowed == bool(pages)
+    if pages:
+        assert c.cheatsheet.max_pages == pages
     assert c.lang == "en" and c.topics[0].title == "Topics follow after reading"
 
 

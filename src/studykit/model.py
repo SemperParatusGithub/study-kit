@@ -33,6 +33,7 @@ from pydantic import (
 from pydantic_core import PydanticCustomError
 
 SCHEMA_VERSION = 1
+CHEATSHEET_MAX_PAGES = 10
 
 KEBAB = r"[a-z0-9]+(?:-[a-z0-9]+)*"
 PATTERNS = {
@@ -248,7 +249,9 @@ class CourseExam(Strict):
 
 class CheatsheetPolicy(Strict):
     allowed: bool
-    max_pages: int = Field(2, ge=1, le=3, description="the validator caps it at 3")
+    max_pages: int = Field(
+        2, ge=1, le=CHEATSHEET_MAX_PAGES, description="the validator caps it at 10"
+    )
 
 
 class Study(Strict):
@@ -532,7 +535,7 @@ class Cheatsheet(Strict):
     """Frontmatter of `cheatsheet.md`."""
 
     title: Text
-    max_pages: int = Field(ge=1, le=3)
+    max_pages: int = Field(ge=1, le=CHEATSHEET_MAX_PAGES)
     priority: list[TopicRef] = []
 
     @field_validator("max_pages")
@@ -1018,7 +1021,9 @@ class Round1(Strict):
 
     exam_date: Literal["unknown"] | IsoDate
     exam_format: Literal["written", "written-mc", "mc", "oral"]
-    cheatsheet_pages: int = Field(ge=0, le=3, description="0 = no cheat sheet allowed")
+    cheatsheet_pages: int = Field(
+        ge=0, le=CHEATSHEET_MAX_PAGES, description="0 = no cheat sheet allowed"
+    )
     hours_per_week: PositiveNumber
     lang: Literal["de", "en"]
     answered: IsoDate

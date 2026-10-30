@@ -3,7 +3,7 @@
 Claude Code and Codex agents and skills plus a locally run website for engineering studies.
 Point it at a folder of lecture material and it builds, per subject, an overview, a study
 plan, a summary, exercises with hints and verified solutions, a multiple-choice bank, a
-cheat sheet of at most three pages and mock exams modelled on past exams, all readable in
+cheat sheet of at most ten pages and mock exams modelled on past exams, all readable in
 the browser and exportable as PDF.
 
 > Status: everything in the design works (Phases 0–6): building a course from a folder of

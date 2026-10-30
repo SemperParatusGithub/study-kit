@@ -360,8 +360,8 @@ def _add_ingest_commands(sub) -> None:
     p_init.add_argument(
         "--cheatsheet",
         type=int,
-        choices=[0, 1, 2, 3],
-        help="round 1: cheat-sheet pages allowed (0: none)",
+        choices=range(11),
+        help="round 1: cheat-sheet pages allowed (0: none, up to 10)",
     )
     p_init.add_argument("--hours-per-week", type=float, help="round 1: study hours per week")
     p_init.add_argument("--exam-minutes", type=int, help="exam duration, if known")

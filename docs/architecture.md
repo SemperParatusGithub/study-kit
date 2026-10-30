@@ -199,7 +199,7 @@ exam:
     types: [single, multi, kprim]
     scoring: all-or-nothing     # all-or-nothing | partial | kprim
     negative_marking: false
-cheatsheet: {allowed: true, max_pages: 2}   # validator caps at 3; the PDF's page limit (§3.3); allowed: false → no cheatsheet.pdf
+cheatsheet: {allowed: true, max_pages: 2}   # validator caps at 10; the PDF's page limit (§3.3); allowed: false → no cheatsheet.pdf
 study: {start: 2026-11-02, hours_per_week: 8, blocked: ['2026-12-21..2027-01-06']}
 topics:                         # the only allowed topic ids; order = teaching order; prerequisites acyclic
   - {id: gleichstrom,  title: Gleichstromnetzwerke,          weight: 0.15, prereq: []}
@@ -609,11 +609,11 @@ mc: {file: mc.md, points_each: 2}        # present only if course.exam.mc.presen
 
 ### 2.8 Cheat sheet (`cheatsheet.md`)
 
-- **Frontmatter:** `title`, `max_pages`, which must be ≤ `course.cheatsheet.max_pages` ≤ 3, and `priority` (topic IDs).
+- **Frontmatter:** `title`, `max_pages`, which must be ≤ `course.cheatsheet.max_pages` ≤ 10, and `priority` (topic IDs).
 - **Body:** a `##` section per topic containing formulas, small tables, definition/note/warning boxes, and small figures.
 - **Not allowed:** exercises and hints.
 - **PDF:** `cheatsheet.pdf` in two columns, set at the first density (9 down to 7 pt) that
-  fits `min(3, course.cheatsheet.max_pages, max_pages)` pages (§3.3).
+  fits `min(10, course.cheatsheet.max_pages, max_pages)` pages (§3.3).
 
 ### 2.9 Study plan (`plan.yaml`)
 
@@ -999,7 +999,7 @@ quarantine re-renders the course on the next sync; the dev watcher ignores `stat
 | `/c/<c>/mc/` | **MC hub:** accuracy and due count per topic bank; modes Practice, Test, Mistakes, Due, Mixed |
 | `/c/<c>/mc/<topic>/` | Every question of the bank in source order with its id as anchor (the target of `mc:` links), plus a practice quiz over the bank |
 | `/c/<c>/mc/<topic>.json` | Static endpoint `{topic, title, questions: [{id, type, difficulty, topic, h, html}]}` with pre-rendered question HTML, loaded by `<sk-quiz>` |
-| `/c/<c>/cheatsheet/` | Web view in CSS columns, plus a "PDF · size" link and a badge with the page count of the built PDF against the manifest's `max_pages` (`min(3, course.cheatsheet.max_pages, frontmatter max_pages)`): "n / max pages", with "· over the limit" when exceeded, and the density's font size as its tooltip; "PDF not built yet · limit max pages" without a manifest entry |
+| `/c/<c>/cheatsheet/` | Web view in CSS columns, plus a "PDF · size" link and a badge with the page count of the built PDF against the manifest's `max_pages` (`min(10, course.cheatsheet.max_pages, frontmatter max_pages)`): "n / max pages", with "· over the limit" when exceeded, and the density's font size as its tooltip; "PDF not built yet · limit max pages" without a manifest entry |
 | `/c/<c>/exams/`, `…/<id>/` | Mock exam list; exam mode |
 | `/c/<c>/progress/` | Mastery ring, topic bars, reviews due, misconceptions, sure/unsure calibration, exam history, export and import (the export is what `/import-progress` reads); the last mastery report's value when `mastery.json` exists |
 | `/search/` | Pagefind search (§3.5) |
@@ -1221,7 +1221,7 @@ course.lang)`.
 
 **Cheat-sheet fit** (`studykit cheatsheet fit <c> [--force] [--no-figures] [--json]`,
 `src/studykit/cheatsheet.py`). `studykit pdf` builds `cheatsheet.pdf` through the same fit.
-The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`.
+The limit is `max = min(10, course.cheatsheet.max_pages, frontmatter max_pages)`.
 1. Compile at densities 0–4 (9, 8.5, 8, 7.5, then 7 pt as the floor, with tighter leading,
    spacing, margins and column gutter) and keep the first with at most `max` pages; the
    manifest records that density.
@@ -1240,7 +1240,7 @@ The limit is `max = min(3, course.cheatsheet.max_pages, frontmatter max_pages)`.
    starting with the largest sections the JSON names and cutting about 20 % more than
    `overflow_pages`. It rebuilds after each round, for at most 3 rounds; if the sheet still
    overflows it returns `fits: false` with the candidates to drop, so the user decides.
-4. More than 3 pages is never allowed (the schema caps both settings at 3).
+4. More than 10 pages is never allowed (the schema caps both settings at 10).
 
 ### 3.4 Figures: `studykit.figures`, Python only, Matplotlib for everything
 
@@ -1866,7 +1866,7 @@ stops the run with the findings and how to continue, and publish gets 3 rounds.
 1. **Ask, round 1** (one AskUserQuestion call with 4 questions, after showing the inventory table):
    - Exam date: the dates found in the materials (with document and page), "Unknown yet", or free text via Other.
    - Exam format: written / written + MC part / MC only / oral.
-   - Cheat sheet: not allowed / 1 / 2 / 3 pages.
+   - Cheat sheet: not allowed / 1 / 2 / 3 pages, or another allowance up to 10 via Other.
    - Hours per week.
 
    A second call covers uncertain document kinds (multi-select "Which of these are past exams or their solutions?", at most four documents per question) and confirms the detected output language.
@@ -1904,7 +1904,7 @@ stops the run with the findings and how to continue, and publish gets 3 rounds.
 ```
 studykit ingest scan <folder> [--dry-run] [--kind DOC=KIND …] [--today D]                    # step 0
 studykit ingest init <folder> <course-id> --exam-date unknown|YYYY-MM-DD                     # steps 1–2
-      --exam-format written|written-mc|mc|oral --cheatsheet 0|1|2|3 --hours-per-week H
+      --exam-format written|written-mc|mc|oral --cheatsheet 0..10 --hours-per-week H
       [--lang de|en] [--title T] [--short S] [--semester S] [--exam-minutes N] [--exam-points P]
       [--start D] [--kind DOC=KIND …] [--today D] [--dry-run]
 studykit ingest extract <course>                                                              # step 3
@@ -2178,7 +2178,7 @@ and after an interrupted reading wave.
 | 2 | The custom pandoc loader is our own code: dev hot reload, speed, error mapping | The loader plus the render bridge (`studykit render`), with digest caching and a thread pool; error cards in dev; `+sourcepos` in lint; e2e tests; fallback is the research's remark path with name-only fences |
 | 3 | LLM arithmetic errors, or wrong MC keys and distractors | `studykit calc` and Python for every number; blind verifier enforced by its guard hook (`verifier-guard`) and blind views; check scripts; `mc_numeric` with named mistakes and a separation check; two-method rule; content-hash ledger; quarantine instead of shipping |
 | 4 | Pandoc may not detect `[x]` in *loose* task-list items (option paragraph plus `why` paragraph) | Covered by the Phase 1 golden corpus. Fallback: a tight list with the `why` as an indented `::: why`-free sub-list item that `mcq.lua` reads |
-| 5 | Cheat sheet over 3 pages, or different page counts on different machines | Embedded Typst fonts only with `--ignore-system-fonts`, no `TYPST_*` environment, `SOURCE_DATE_EPOCH=0`; exact Typst pin; density presets with a 7 pt floor; overflow measured with `typst eval`; SK-PDF-CHEATSHEET in every full `validate`; at most 3 condense rounds by the author, then the user decides; hard failure that keeps the last valid PDF and drops it from the manifest |
+| 5 | Cheat sheet over its course limit (at most 10 pages), or different page counts on different machines | Embedded Typst fonts only with `--ignore-system-fonts`, no `TYPST_*` environment, `SOURCE_DATE_EPOCH=0`; exact Typst pin; density presets with a 7 pt floor; overflow measured with `typst eval`; SK-PDF-CHEATSHEET in every full `validate`; at most 3 condense rounds by the author, then the user decides; hard failure that keeps the last valid PDF and drops it from the manifest |
 | 6 | Figures valid but visually wrong | Templates hide placement; mandatory PNG review; facts JSON is the numeric source; `plot.custom()` is the only raw route |
 | 7 | Course material leaks into the public repo | Gitignore; pre-commit hook; Claude `pre-git` hook and deny rules; CI guard; no agent memory; self-written sample course |
 | 8 | Toolchain drift (pandoc 3.13 is 3 days old; Typst 0.x breaking changes; Astro 7 Markdown churn) | sha256-pinned binaries shared by local and CI; lockfiles with 7-day cooldowns; `doctor`; Astro's Markdown pipeline not used at all; one-line fallback to pandoc 3.12.1 |

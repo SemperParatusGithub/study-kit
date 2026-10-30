@@ -96,7 +96,7 @@ characters, 2-4 options each; Other is always offered):
 |---|---|---|
 | Exam date | When is the exam? | each date of `exam_dates` (at most two, with document and page), "Unknown yet" |
 | Format | What is the exam format? | Written, Written + MC part, MC only, Oral |
-| Cheat sheet | Is a cheat sheet allowed? | Not allowed, 1 page, 2 pages, 3 pages |
+| Cheat sheet | Is a cheat sheet allowed? | Not allowed, 1 page, 2 pages, 3 pages (Other: up to 10) |
 | Hours/week | How many hours a week can you study? | 4, 6, 8, 10 |
 
 A second call covers what the inventory left open, at most four questions:
@@ -108,7 +108,7 @@ A second call covers what the inventory left open, at most four questions:
   of `de`, `en`.
 
 Map the answers to flags: the date as `YYYY-MM-DD` or `unknown` (convert a typed date; ask
-again only if it cannot be read), `written | written-mc | mc | oral`, `0 | 1 | 2 | 3`, the
+again only if it cannot be read), `written | written-mc | mc | oral`, an integer from `0` to `10`, the
 hours as a number.
 
 ## 2. Scaffold
