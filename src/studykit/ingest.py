@@ -17,6 +17,9 @@
 - `add <course> <file|folder>` (/add-material) is init's copy for a course that exists,
   followed by extract: only new or changed documents are copied and read again.
 - `round2 <course>` records the answers of step 6 in the manifest.
+- `page <course> <doc> <pages>` renders PDF pages of `sources/raw/<doc>.pdf` to PNG in
+  `_build/pages/<doc>/pNNNN.png`, for agents that cannot read a PDF page themselves (Codex,
+  docs/architecture.md §5.5).
 
 Everything is idempotent: a document whose sha256 is unchanged is neither copied nor
 extracted again, and its chunks keep their ids. A file with the relative path of a known
@@ -1391,3 +1394,55 @@ def format_result(result: dict[str, Any], what: str) -> str:
     if result.get("next"):
         lines.append(f"next: {result['next']}")
     return "\n".join(lines)
+
+
+# --- page images ------------------------------------------------------------------------------
+
+PAGE_DPI = 150
+MAX_PAGE_IMAGES = 6
+
+
+def page_image(course: Path, doc: str, n: int) -> Path:
+    return course / "_build" / "pages" / doc / f"p{n:04d}.png"
+
+
+def parse_pages(spec: str) -> list[int]:
+    """`5` or `5-6` as a list of page numbers."""
+    m = re.fullmatch(r"\s*(\d+)\s*(?:-\s*(\d+)\s*)?", spec)
+    if not m:
+        raise IngestError(f"pages must be N or N-M, not {spec!r}")
+    first, last = int(m[1]), int(m[2] or m[1])
+    if first < 1 or last < first:
+        raise IngestError(f"bad page range {spec!r}")
+    if last - first + 1 > MAX_PAGE_IMAGES:
+        raise IngestError(f"at most {MAX_PAGE_IMAGES} pages at a time, not {spec!r}")
+    return list(range(first, last + 1))
+
+
+def render_pages(course: Path, doc: str, pages: list[int]) -> list[Path]:
+    """PNG images of pages of `sources/raw/<doc>.pdf` (rendered again only when the PDF is
+    newer than the image)."""
+    import pypdfium2 as pdfium
+
+    m, findings = read_manifest(course)
+    if m is None:
+        raise IngestError("; ".join(f.format() for f in findings) or "no sources/manifest.yaml")
+    entry = next((d for d in m.documents if d.id == doc), None)
+    if entry is None:
+        raise IngestError(f"no document {doc!r} in sources/manifest.yaml")
+    pdf_path = course / "sources" / "raw" / entry.file
+    if pages[-1] > entry.pages:
+        raise IngestError(f"{doc} has {entry.pages} page(s), not {pages[-1]}")
+    out: list[Path] = []
+    pdf = pdfium.PdfDocument(str(pdf_path))
+    try:
+        for n in pages:
+            target = page_image(course, doc, n)
+            if not target.is_file() or target.stat().st_mtime < pdf_path.stat().st_mtime:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                image = pdf[n - 1].render(scale=PAGE_DPI / 72).to_pil()
+                image.save(target)
+            out.append(target)
+    finally:
+        pdf.close()
+    return out

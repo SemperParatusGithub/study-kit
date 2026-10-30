@@ -393,6 +393,15 @@ def _add_ingest_commands(sub) -> None:
     p_r2.add_argument("--json", action="store_true", help="machine-readable output")
     p_r2.set_defaults(func=cmd_ingest_round2)
 
+    p_page = ing_sub.add_parser(
+        "page", help="render PDF pages to PNG in _build/pages for agents without a PDF reader"
+    )
+    p_page.add_argument("course", help="course id or directory")
+    p_page.add_argument("doc", help="document id from sources/manifest.yaml")
+    p_page.add_argument("pages", help="one page or a short range: 5 or 5-6")
+    p_page.add_argument("--json", action="store_true", help="machine-readable output")
+    p_page.set_defaults(func=cmd_ingest_page)
+
 
 def _add_pipeline_commands(sub) -> None:
     p_pipe = sub.add_parser(
@@ -599,6 +608,20 @@ def cmd_ingest_round2(args: argparse.Namespace) -> int:
         )
 
     return _ingest_out(*got, args.json, text)
+
+
+def cmd_ingest_page(args: argparse.Namespace) -> int:
+    from studykit import content, ingest
+
+    try:
+        course = ingest.resolve(args.course)
+        images = ingest.render_pages(course, args.doc, ingest.parse_pages(args.pages))
+    except ingest.IngestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    shown = [content.display_path(p) for p in images]
+    print(json.dumps({"ok": True, "images": shown}) if args.json else "\n".join(shown))
+    return 0
 
 
 def _print_findings(found, as_json: bool) -> None:
