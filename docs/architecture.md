@@ -78,7 +78,7 @@ study-kit/
 │   ├── pagefind.yml  playwright.config.ts
 │   ├── src/content.config.ts
 │   ├── src/loaders/pandoc.ts       # custom content loader over `studykit render`
-│   ├── src/lib/{katex,figures,courses,pdf,store,scoring,shuffle,leitner,answer,stats,plan,format,html,findings,types}.ts
+│   ├── src/lib/{katex,figures,courses,pdf,store,pomodoro,scoring,shuffle,leitner,answer,stats,plan,format,html,findings,types}.ts
 │   ├── src/lib/sys.mjs             # the only module with node: imports (the site has no @types/node)
 │   ├── src/elements/*.ts           # custom elements (§3.2), dashboard.ts (fills the shell's placeholders), util.ts, index.ts
 │   ├── src/layouts/  src/pages/  src/components/  src/scripts/site.ts
@@ -809,10 +809,10 @@ studykit verify <course> [target] [--status | --confirm FILE [--method …] | --
   drop what does not validate, so an export always validates: an attempt needs an ISO 8601
   timestamp (as Python's `datetime.fromisoformat` reads it), and `ms`, `hints` and
   `duration_s` become safe integers. A file that names no course is refused.
-- Two more keys are never exported: `studykit:v1:<course>:session` holds runtime state (a
+- Three more keys are never exported: `studykit:v1:<course>:session` holds runtime state (a
   running exam's start time, MC answers and rubric ticks; `ex:<id>` `{due, hints}` for an
-  exercise review that is not rated yet), and `studykit:theme` holds `light`, `dark` or
-  `system`.
+  exercise review that is not rated yet), `studykit:theme` holds `light`, `dark` or
+  `system`, and `studykit:pomodoro` the header's pomodoro timer (§3.2).
 - The site requests `navigator.storage.persist()`; the progress page says whether the
   browser granted it.
 
@@ -1050,6 +1050,7 @@ layout (`elements/index.ts`). Data arrives through `data-*` attributes; elements
 | `<sk-plan>` | A done checkbox per `li[data-session][data-date]` (into its `[data-sk-plan-slot]`), stored as `plan:<id>`; past sessions not done fill the shell's `[data-sk-behind]` banner. |
 | `<sk-progress>` | `data-topics`, `data-exams`, `data-exam-date`: mastery ring, topic bars, MC reviews and exercises due, misconceptions, calibration, exam history; live across tabs. |
 | `<sk-theme>` `<sk-export>` | Light/dark/system theme, stored as `studykit:theme` (an inline head script applies it before first paint); export and import of the progress document. |
+| `<sk-pomodoro>` | Pomodoro timer at the right of the header, on every page. Its button opens a panel with Start/Pause/Resume, Skip and Reset and the settings: focus, short and long break in minutes (defaults 25, 5, 15), a long break after n focus phases (4), start the next phase by itself, a sound and a desktop notification (asked for when ticked) at the end of a phase. Once a cycle is under way the button shows the phase and the time left (on a phone the time only), and while it runs the page title starts with it. `lib/pomodoro.ts` holds the rules; the state is `studykit:pomodoro` (`{v, settings, timer: {phase, done, endsAt, left}}`) with the time the running phase ends, so the timer runs on across page loads and other tabs follow (storage event); with auto-start, phases that ended while the tab slept are caught up. Hidden in print. |
 
 `<sk-quiz>` modes:
 - **Practice:** instant feedback.
@@ -1086,8 +1087,12 @@ and `data-rubric` `[{criterion, criterion_html, points}]`; the MC part is
 
 **Shared libraries:**
 - `lib/store.ts` owns the progress document and the session key (§2.11): versioned schema,
-  migrations, try/catch on every access, union-merge import. Only the inline theme script
-  of the base layout reads `studykit:theme` itself, before first paint.
+  migrations, try/catch on every access, union-merge import, and the theme and pomodoro
+  keys. Only the inline theme script of the base layout reads `studykit:theme` itself,
+  before first paint.
+- `lib/pomodoro.ts`: the pomodoro timer's state as pure functions (start, pause, skip,
+  reset, advance to a time, new settings) and its parser, which repairs a stored document
+  field by field.
 - `lib/leitner.ts`:
   - Boxes 0–5 with intervals of 0, 1, 3, 7, 14 and 30 days. A new item starts in box 1.
   - A fully right answer (score 1) moves the item up one box, at most to box 5.

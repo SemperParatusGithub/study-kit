@@ -249,6 +249,19 @@ sk-theme {
   min-height: 2rem;
 }
 
+/* holds its place before the element script runs, so the bar does not jump */
+sk-pomodoro {
+  display: inline-flex;
+  min-width: 2.1rem;
+  min-height: 2.1rem;
+}
+
+/* the controls keep their size; the course name gives way (it has an ellipsis) */
+sk-theme,
+sk-pomodoro {
+  flex: none;
+}
+
 /* course tabs */
 
 .course-nav {

@@ -10,6 +10,7 @@ import { SkExport } from './sk-export.ts';
 import { SkHints } from './sk-hints.ts';
 import { SkMc } from './sk-mc.ts';
 import { SkPlan } from './sk-plan.ts';
+import { SkPomodoro } from './sk-pomodoro.ts';
 import { SkProgress } from './sk-progress.ts';
 import { SkQuiz } from './sk-quiz.ts';
 import { SkReveal } from './sk-reveal.ts';
@@ -18,6 +19,7 @@ import { SkTheme } from './sk-theme.ts';
 import { define } from './util.ts';
 
 define('sk-theme', SkTheme);
+define('sk-pomodoro', SkPomodoro);
 define('sk-mc', SkMc);
 define('sk-quiz', SkQuiz);
 define('sk-exam', SkExam);
@@ -38,6 +40,7 @@ export {
   SkHints,
   SkMc,
   SkPlan,
+  SkPomodoro,
   SkProgress,
   SkQuiz,
   SkReveal,

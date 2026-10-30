@@ -89,7 +89,9 @@ circuits into `examples/sample-materials/_build/materials`. The
 | `just lint-code` | ruff lint and format check of the Python code |
 
 The website always runs on port 4321: progress lives in the browser's storage for that
-origin. Search uses the index of the last `just build`.
+origin. Search uses the index of the last `just build`. The timer icon at the top right is a pomodoro
+timer: click it to set the focus and break lengths and start it; the time left stays in
+the header on every page.
 
 ### PDFs
 

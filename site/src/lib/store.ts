@@ -10,6 +10,7 @@
 //                                 start time, its MC answers and rubric ticks; the hints
 //                                 of an exercise review that is not rated yet)
 //   studykit:theme                light | dark | system
+//   studykit:pomodoro             the header's pomodoro timer (lib/pomodoro.ts), never exported
 //
 // The document is exactly the export format that `studykit.model.Progress` validates:
 //   {"schema":"studykit-progress/1","course":"…","exported_at":"…","items":{
@@ -37,6 +38,7 @@ import { dayOf, ENTRY_BOX, isDay, isDue, review, reviewDayOf, type Conf, type Re
 
 export const SCHEMA = 'studykit-progress/1';
 export const THEME_KEY = 'studykit:theme';
+export const POMODORO_KEY = 'studykit:pomodoro';
 export const UNKNOWN_HASH = '00000000';
 export const MAX_ATTEMPTS = 100;
 export const CHANGE_EVENT = 'studykit:progress';
@@ -774,4 +776,15 @@ export function getTheme(): Theme {
 
 export function setTheme(theme: Theme): void {
   browserStorage().set(THEME_KEY, theme);
+}
+
+// --- pomodoro ---------------------------------------------------------------------------
+
+/** The pomodoro document as stored (lib/pomodoro.ts parses it), or null. */
+export function getPomodoro(): string | null {
+  return browserStorage().get(POMODORO_KEY);
+}
+
+export function setPomodoro(text: string): void {
+  browserStorage().set(POMODORO_KEY, text);
 }
