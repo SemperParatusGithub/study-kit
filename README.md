@@ -1,6 +1,6 @@
 # study-kit
 
-Claude Code agents and skills plus a locally run website for engineering studies.
+Claude Code and Codex agents and skills plus a locally run website for engineering studies.
 Point it at a folder of lecture material and it builds, per subject, an overview, a study
 plan, a summary, exercises with hints and verified solutions, a multiple-choice bank, a
 cheat sheet of at most three pages and mock exams modelled on past exams, all readable in
@@ -19,8 +19,9 @@ macOS on Apple silicon or Linux x86_64 with:
 - [uv](https://docs.astral.sh/uv/) ≥ 0.11.30 (manages Python 3.14 itself)
 - Node.js ≥ 24.17 and pnpm ≥ 11.22 (`corepack enable pnpm`)
 - git and curl
-- [Claude Code](https://github.com/anthropics/claude-code) (`claude`) for the commands,
-  agents and skills in `.claude/`; everything else works without it
+- [Claude Code](https://github.com/anthropics/claude-code) (`claude`) or
+  [Codex](https://github.com/openai/codex) (`codex`) for the commands, agents and skills in
+  `.claude/` (see [Using Codex](#using-codex)); everything else works without them
 
 pandoc, Typst and just are **not** installed system-wide: `studykit tools install` downloads
 the exact versions pinned in [toolchain.toml](toolchain.toml), verifies their sha256 and puts
@@ -80,7 +81,7 @@ circuits into `examples/sample-materials/_build/materials`. The
 | `just examine <course> [mode]` | Starts Claude Code as the examiner (`/examine`) |
 | `just figures [course]` | Renders the figure scripts of a course |
 | `just pipeline <course>` | Where `/register-new-subject` stands: each step's status and the step a new run resumes at (`--json`) |
-| `just ingest <action> …` | `studykit ingest scan\|init\|extract\|add\|round2`, the Python side of registering a subject |
+| `just ingest <action> …` | `studykit ingest scan\|init\|extract\|add\|round2\|page`, the Python side of registering a subject |
 | `just sample-materials` | Builds the sample lecture PDFs (`examples/sample-materials`) into its gitignored `_build/materials` |
 | `just test` | Python and Node unit tests, the git hooks, schema drift and the golden math corpus (KaTeX and pandoc → Typst) |
 | `just e2e` | Playwright tests of the built sample course in Chromium (build it first, see below) |
@@ -169,6 +170,24 @@ Inside Claude Code, every edit of a course file is linted at once, git commands 
 commit course files are blocked, and the verifier cannot read keys or solutions
 (docs/architecture.md §5).
 
+## Using Codex
+
+Codex uses the same commands, skills and agents. Open `codex` in the repository and trust
+the project, so it loads `.codex/` (the agents, hooks and rules); `/hooks` asks you to
+trust the lint and git hooks once. Then type the commands with `$` instead of `/`:
+
+```
+$register-new-subject ~/Studium/Elektronik1
+$study-status sample-course
+```
+
+`STUDYKIT_AGENT=codex just tutor sample-course rc-filter` and
+`STUDYKIT_AGENT=codex just examine sample-course diagnostic` start the tutor and the
+examiner in Codex. [AGENTS.md](AGENTS.md) holds the rules Codex follows here and how it
+reads the skills; `.codex/agents/` is generated from `.claude/agents/` (`just codex-agents`).
+One difference: under Codex no hook stops the verifier from reading keys, so it stays blind
+only by its instructions; prefer Claude Code for `/verify` when you have both.
+
 ## Your course data stays local
 
 Everything under `courses/` is gitignored. A pre-commit hook, a CI guard and Claude Code
@@ -178,8 +197,8 @@ repository.
 ## Contributing
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), one
-logical change each; the `commit-msg` hook enforces it. See [CLAUDE.md](CLAUDE.md) for the
-rules Claude Code follows in this repository.
+logical change each; the `commit-msg` hook enforces it. See [CLAUDE.md](CLAUDE.md) and
+[AGENTS.md](AGENTS.md) for the rules Claude Code and Codex follow in this repository.
 
 ## License
 

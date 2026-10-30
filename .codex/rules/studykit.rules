@@ -1,0 +1,9 @@
+# Codex command rules (docs/architecture.md §5.5): courses/ stays local, so git never
+# force-adds. The pre-git hook in hooks.json checks the rest of every git command.
+prefix_rule(
+    pattern = ["git", "add", ["-f", "--force"]],
+    decision = "forbidden",
+    justification = "Never force-add: courses/ is gitignored and must stay local (AGENTS.md).",
+    match = ["git add -f courses/x/course.yaml", "git add --force ."],
+    not_match = ["git add README.md"],
+)

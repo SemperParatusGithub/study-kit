@@ -81,17 +81,17 @@ verify course target="all" *flags:
 status course *flags:
     {{sk}} status "$@"
 
-# The tutor and the examiner run as Claude Code's main thread (`claude --agent`), opened
-# with their command; they need the `claude` CLI.
+# The tutor and the examiner run as the main thread, opened with their command: Claude Code
+# (`claude --agent`) by default, Codex (`codex '$tutor …'`) with STUDYKIT_AGENT=codex.
 # Socratic tutor in the terminal: /tutor <course> [topic|ex-id]
 [positional-arguments]
 tutor course *args:
-    claude --agent tutor "/tutor $*"
+    if [ "${STUDYKIT_AGENT:-claude}" = codex ]; then codex "\$tutor $*"; else claude --agent tutor "/tutor $*"; fi
 
 # examiner in the terminal: /examine <course> [diagnostic|topic <t>|mc|weak|misconceptions|exam <id>|oral]
 [positional-arguments]
 examine course *args:
-    claude --agent examiner "/examine $*"
+    if [ "${STUDYKIT_AGENT:-claude}" = codex ]; then codex "\$examine $*"; else claude --agent examiner "/examine $*"; fi
 
 # every internal link and #anchor of the built site resolves
 check-links dist="site/dist":
@@ -109,12 +109,17 @@ validate course="" *flags:
 schema:
     {{sk}} schema export
 
-# python and node unit tests, the git hooks, schema drift and the golden math corpus
+# regenerate the Codex agents .codex/agents/*.toml from .claude/agents/*.md
+codex-agents:
+    {{sk}} codex agents
+
+# python and node unit tests, the git hooks, schema and Codex agent drift and the golden math corpus
 test:
     uv run --frozen pytest -q
     pnpm -C site run test:unit
     bash .github/scripts/test-hooks.sh
     {{sk}} schema export --check
+    {{sk}} codex agents --check
     {{sk}} golden
 
 # The e2e suite runs against site/dist, so build the sample course first:

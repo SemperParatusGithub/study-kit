@@ -1,0 +1,3 @@
+# Codex: a user command, run only when typed as $register-new-subject (AGENTS.md, section "Codex").
+policy:
+  allow_implicit_invocation: false

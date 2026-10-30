@@ -23,7 +23,7 @@ Everything below exists; the optional Phase 7 (§6) would add to it.
 
 ```
 study-kit/
-├── README.md  LICENSE  CLAUDE.md  .editorconfig  .gitignore
+├── README.md  LICENSE  CLAUDE.md  AGENTS.md  .editorconfig  .gitignore   # AGENTS.md: CLAUDE.md's rules for Codex (§5.5)
 ├── justfile                        # single entry point for humans, Claude and CI (§4.2)
 ├── toolchain.toml                  # pandoc/typst/just: exact version, URL, sha256 per platform; minimum versions of uv, node, pnpm
 ├── .python-version                 # 3.14
@@ -47,7 +47,7 @@ study-kit/
 │   ├── index.py                    # `index`: _build/index.json (ids, topics, exams, sources, figures)
 │   ├── findings.py                 # Finding (path:line:col SK-CODE message (fix: …)) and its parser
 │   ├── pandoc.py                   # run pandoc with the shared defaults and filter metadata (targets: html | typst | json)
-│   ├── lint.py  validate.py        # per-file lint, also the PostToolUse hook `lint --hook` (§5.1) / full validation, findings as SK-codes
+│   ├── lint.py  validate.py        # per-file lint, also the PostToolUse hook `lint --hook` (§5.1, §5.5) / full validation, findings as SK-codes
 │   ├── render.py                   # `render`: the site loader's bridge to pandoc (§3.2)
 │   ├── sitecheck.py                # the Site stage of `validate --release` (§4.3)
 │   ├── checklinks.py               # `check-links`: internal links and anchors of the built site
@@ -56,10 +56,11 @@ study-kit/
 │   │                               # circuit.py block.py graph.py labels.py builtins.py
 │   │                               # finalize.py validate.py child.py runner.py
 │   ├── check.py  verify.py  blind.py   # check-script API; `verify`: runner, ledger, quarantine (§2.10); `blind`: blind views (§5.3)
-│   ├── hook.py                     # `hook verifier-guard|pre-git`: Claude Code PreToolUse hooks (§5.1, §5.3)
+│   ├── hook.py                     # `hook verifier-guard|pre-git`: PreToolUse hooks of Claude Code and Codex (§5.1, §5.3, §5.5)
+│   ├── codex.py                    # `codex agents [--check]`: .codex/agents/*.toml from .claude/agents/*.md (§5.5)
 │   ├── pdf.py                      # `pdf`: assemble → pandoc → typst per document, digest cache, _build/pdf/manifest.json (§3.3)
 │   ├── cheatsheet.py               # `cheatsheet fit`: density loop 0–4, overflow measured with `typst eval` (§3.3)
-│   ├── ingest.py                   # `ingest scan|init|extract|add|round2`: inventory, source copy, manifest, page text, chunk plan (§5.4)
+│   ├── ingest.py                   # `ingest scan|init|extract|add|round2|page`: inventory, source copy, manifest, page text, chunk plan, page images (§5.4)
 │   ├── pipeline.py                 # `pipeline status|report`: the output-derived state of /register-new-subject (§5.4)
 │   ├── plan.py                     # `plan`: deterministic study-plan scheduler (§2.9)
 │   ├── progress.py                 # `progress import|log|report`: browser export, examiner log, mastery (§2.11)
@@ -105,6 +106,10 @@ study-kit/
 │       ├── authoring/              # SKILL.md, parts/{overview,summary,exercises,mc,exam,cheatsheet,plan}.md
 │       ├── figures/                # SKILL.md, reference.md (the studykit.figures API)
 │       └── verify-protocol/        # SKILL.md, recipes.md (check scripts: MNA, phasors, Laplace, margins, MC)
+│                                   # each user command also has agents/openai.yaml (Codex: run only when typed)
+├── .agents/skills -> ../.claude/skills   # Codex finds the same skills here (§5.5)
+├── .codex/                         # Codex (§5.5): config.toml, hooks.json, rules/studykit.rules,
+│                                   # agents/{ingester,exam-analyst,author,verifier}.toml (generated)
 └── courses/README.md               # the only tracked file under courses/
 ```
 
@@ -1386,7 +1391,7 @@ doctor *flags:               # toolchain.toml versions, site packages, Typst fon
 sample-materials *args:      # examples/sample-materials → its gitignored _build/materials (§5.4)
     uv run --frozen python examples/sample-materials/build.py {{args}}
 [positional-arguments]
-ingest *args:                # scan | init | extract | add | round2 (§5.4)
+ingest *args:                # scan | init | extract | add | round2 | page (§5.4, §5.5)
     {{sk}} ingest "$@"
 [positional-arguments]
 pipeline course *flags:      # the pipeline status of /register-new-subject (§5.4); --json
@@ -1409,11 +1414,11 @@ verify course target="all" *flags:   # the ledger (§2.10); flags go to `studyki
 status course *flags:        # the study status (§2.11); --today, --json
     {{sk}} status "$@"
 [positional-arguments]
-tutor course *args:          # Claude Code with the tutor agent as main thread (§5.3)
-    claude --agent tutor "/tutor $*"
+tutor course *args:          # the tutor as main thread (§5.3); Codex with STUDYKIT_AGENT=codex (§5.5)
+    if [ "${STUDYKIT_AGENT:-claude}" = codex ]; then codex "\$tutor $*"; else claude --agent tutor "/tutor $*"; fi
 [positional-arguments]
 examine course *args:        # [diagnostic|topic <t>|mc|weak|misconceptions|exam <id>|oral]
-    claude --agent examiner "/examine $*"
+    if [ "${STUDYKIT_AGENT:-claude}" = codex ]; then codex "\$examine $*"; else claude --agent examiner "/examine $*"; fi
 check-links dist="site/dist":
     {{sk}} check-links {{dist}}
 lint +files:
@@ -1422,11 +1427,14 @@ validate course="" *flags:   # flags: --quick, --release, --paths, --json
     {{sk}} validate {{course}} {{flags}}
 schema:
     {{sk}} schema export
+codex-agents:                # .codex/agents/*.toml from .claude/agents/*.md (§5.5)
+    {{sk}} codex agents
 test:
     uv run --frozen pytest -q
     pnpm -C site run test:unit
     bash .github/scripts/test-hooks.sh
     {{sk}} schema export --check
+    {{sk}} codex agents --check
     {{sk}} golden            # math corpus through KaTeX and pandoc→Typst
 [positional-arguments]
 e2e *args:                   # needs site/dist with the sample course
@@ -1452,7 +1460,8 @@ their arguments to the CLI unchanged (`[positional-arguments]`, so a `--note` wi
 `examine` need the `claude` CLI: they start Claude Code with the `tutor` or `examiner`
 agent as the main thread and its command as the first message (`just tutor get2 rc-filter`
 runs `/tutor get2 rc-filter`), so the persona talks with the student directly and the
-examiner can ask through AskUserQuestion (§5.2, §5.3).
+examiner can ask through AskUserQuestion (§5.2, §5.3). With `STUDYKIT_AGENT=codex` they
+start Codex with `$tutor …` or `$examine …` instead (§5.5).
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
 
@@ -1529,7 +1538,9 @@ validate); each writes nothing while one is an error. The lint hook (`studykit l
     verifier with a hook); every file, repository path, `studykit` command and flag, `just`
     recipe and SK code that a skill or an agent names exists (in `CLAUDE.md` too: paths,
     commands and recipes), and each command's `allowed-tools` cover the shell commands it
-    writes out; the check-script
+    writes out; `AGENTS.md` states the rules with the same hard rules as `CLAUDE.md`, and
+    the Codex files of §5.5 match (the skills link, each command's `agents/openai.yaml`, the
+    generated agents, the config, the rules, and the hooks run on Codex events); the check-script
     recipes run and pass the verifier guard; every content-format template passes lint in a
     copy of the sample course, and the ingest templates (notes, both exam profiles,
     notation) validate in a draft course; `/register-new-subject` has the steps 0–14 of
@@ -1584,7 +1595,7 @@ characters or quotes are caught too.
 
 ## 5. Claude Code layer
 
-Phase 5 built this layer; Phase 6 added the ingest side. What exists:
+Phase 5 built this layer; Phase 6 added the ingest side; Codex reuses it (§5.5). What exists:
 - `.claude/settings.json` with attribution, permissions and hooks, and `CLAUDE.md` (§5.1);
 - the user commands `/register-new-subject`, `/add-material`, `/regenerate`, `/verify`,
   `/tutor`, `/examine`, `/import-progress` and `/study-status`, and the internal skills
@@ -1592,7 +1603,7 @@ Phase 5 built this layer; Phase 6 added the ingest side. What exists:
 - the agents `ingester`, `exam-analyst`, `author`, `verifier`, `tutor` and `examiner` (§5.3);
 - the commands they run: `ls`, `index`, `lint` (and `lint --hook`), `validate`, `fig build`,
   `cheatsheet fit`, `pdf`, `calc`, `blind`, `verify`, `hook verifier-guard|pre-git`,
-  `plan`, `progress import|log|report`, `status`, `ingest scan|init|extract|add|round2`
+  `plan`, `progress import|log|report`, `status`, `ingest scan|init|extract|add|round2|page`
   and `pipeline status|report`, and the recipes `just verify`, `just status`,
   `just tutor`, `just examine`, `just ingest`, `just pipeline` and
   `just sample-materials` (§4.2).
@@ -1894,6 +1905,7 @@ studykit ingest init <folder> <course-id> --exam-date unknown|YYYY-MM-DD        
 studykit ingest extract <course>                                                              # step 3
 studykit ingest round2 <course> --mock-exams 1|2|3 --scope full|core [--no-go] [--today D]    # step 6
 studykit ingest add <course> <file|folder> [--kind DOC=KIND …] [--today D] [--dry-run]        # /add-material
+studykit ingest page <course> <doc> <N|N-M>                                                  # page PNGs for Codex (§5.5)
 studykit pipeline status <course>                                                             # the resume point
 studykit pipeline report <course> [--today D]                                                 # step 14
 ```
@@ -1977,6 +1989,51 @@ topics → mc
 exam-profile + exercises → exams
 any content → figures → verify → pdf
 ```
+
+### 5.5 Codex
+
+Codex uses the layer of §5.1–§5.4 as it is; nothing is written twice except the rules.
+`tests/py/test_claude.py` checks every file below (§4.4).
+
+- **`AGENTS.md`** is Codex's `CLAUDE.md`: the same hard rules (the test compares the
+  sections), how to work, and a section "Codex" with this setup and a table that maps the
+  Claude Code names in skills and agents to Codex: `/name` is `$name` (`$ARGUMENTS`, `$0`,
+  `$1` are the text and words after it), Read/Write/Edit are the shell and `apply_patch`,
+  Glob/Grep are `studykit ls` and `rg --no-ignore`, AskUserQuestion is `request_user_input`
+  or a lettered question in chat, `allowed-tools` is the user's approval policy.
+- **Skills:** Codex scans `.agents/skills` from the working directory up to the repository
+  root and follows symlinks, so `.agents/skills` links to `../.claude/skills`. Codex needs
+  only `name` and `description` and ignores the Claude Code keys. Each user command has
+  `agents/openai.yaml` with `policy.allow_implicit_invocation: false`, Codex's
+  `disable-model-invocation`; the user types `$register-new-subject <folder>`.
+- **Agents:** `.codex/agents/<name>.toml` (`name`, `description`, `model_reasoning_effort`
+  from `effort`, `developer_instructions`) for `ingester`, `exam-analyst`, `author` and
+  `verifier`, generated by `studykit codex agents` (`just codex-agents`; `--check` in
+  `just test`). The instructions are a short preamble and the agent's body verbatim; the
+  preamble names the skills to read first, because Codex cannot preload them, and the
+  tools the Claude Code agent has. The model is not set, so Codex uses the session's.
+  `.codex/config.toml` caps the agents at 6 at a time, as the commands do. The tutor and
+  the examiner are main threads: `STUDYKIT_AGENT=codex just tutor|examine …` starts
+  `codex '$tutor …'` or `codex '$examine …'` (§4.2).
+- **PDF pages:** Codex cannot read a PDF page, so the ingester and the exam analyst run
+  `studykit ingest page <course> <doc> <pages>` (one page or a range of at most 6), which
+  renders the pages of `sources/raw/<doc>.pdf` at 150 dpi to
+  `_build/pages/<doc>/pNNNN.png`, and look at the images.
+- **Hooks** (`.codex/hooks.json`; Codex loads the project's `.codex/` only once the user
+  trusts it, and asks to trust each hook through `/hooks`): `PreToolUse` on `^Bash$` runs
+  `studykit hook pre-git` (§5.1; Codex sends `tool_name: "Bash"` and
+  `tool_input.command` like Claude Code), and `PostToolUse` on `^apply_patch$` runs
+  `studykit lint --hook`, which takes the written files from the patch's
+  `*** Add File:`, `*** Update File:` and `*** Move to:` lines in `tool_input.command`.
+  Exit code 2 replaces the tool result with the findings, so Codex fixes them at once. Each
+  command finds the project with `--project "$(git rev-parse --show-toplevel)"`, because
+  Codex runs hooks in the session's directory and has no `CLAUDE_PROJECT_DIR`.
+- **Rules** (`.codex/rules/studykit.rules`): `git add -f` and `--force` are forbidden, as in
+  `permissions.deny`.
+- **Limits:** Codex has no agent-scoped hooks, so the verifier is blind only by its
+  instructions (the preamble lists what it must never open); prefer Claude Code for
+  `/verify` and the verifier waves. Codex attribution is off unless configured, and the
+  `commit-msg` hook rejects it anyway.
 
 ## 6. Implementation phases
 

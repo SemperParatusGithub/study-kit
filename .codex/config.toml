@@ -1,0 +1,4 @@
+# Codex project configuration (docs/architecture.md §5.5); Codex loads .codex/ only once
+# you trust the project. The commands run at most 6 agents at a time.
+[agents]
+max_concurrent_threads_per_session = 6

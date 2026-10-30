@@ -2,7 +2,8 @@
 
 Claude Code agents and skills plus a locally run website for engineering studies.
 The full specification is `docs/architecture.md`; read the section you are working on
-before changing that area, and keep code and spec in sync.
+before changing that area, and keep code and spec in sync. `AGENTS.md` holds the same rules
+for Codex, which uses these skills and agents too (§5.5); change both together.
 
 ## Hard rules
 
@@ -62,5 +63,7 @@ before changing that area, and keep code and spec in sync.
   texts are written only by `studykit ingest init|extract|add`; notes by the `ingester`,
   `analysis/` by the `exam-analyst`, `sources/outline.md` and the topics by the command's
   main thread.
-- When you change a skill or an agent, run `uv run --frozen pytest -q tests/py/test_claude.py`:
-  it checks frontmatter, referenced files, `studykit` commands and `just` recipes.
+- When you change a skill or an agent, run `uv run --frozen studykit codex agents` (it
+  regenerates `.codex/agents/` from `.claude/agents/`) and
+  `uv run --frozen pytest -q tests/py/test_claude.py`: it checks frontmatter, referenced
+  files, `studykit` commands, `just` recipes and the Codex files.

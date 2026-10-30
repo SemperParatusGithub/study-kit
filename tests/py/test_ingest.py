@@ -542,3 +542,26 @@ def test_the_sample_materials_build_and_scan(tmp_path: Path):
     assert {5, 8, 11} <= set(slides["visual_pages"])  # the three circuit slides
     assert "2027-02-17" in [d["date"] for d in data["exam_dates"]]
     assert data["lang"] == "de"
+
+
+# --- page ------------------------------------------------------------------------------------
+
+
+def test_page_renders_pdf_pages_to_png(courses: Path, folder: Path):
+    init(folder)
+    course = courses / "opv"
+    m, _ = ingest.read_manifest(course)
+    doc = m.documents[0]
+    code, data = run_json("ingest", "page", "opv", doc.id, "1-2" if doc.pages > 1 else "1")
+    assert code == 0
+    images = [REPO / p if not Path(p).is_absolute() else Path(p) for p in data["images"]]
+    assert [p.name for p in images] == [f"p{n:04d}.png" for n in range(1, len(images) + 1)]
+    for p in images:
+        assert p.parent == course / "_build" / "pages" / doc.id
+        assert p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+    code, _, err = run("ingest", "page", "opv", doc.id, str(doc.pages + 1))
+    assert code == 2 and "page" in err
+    code, _, err = run("ingest", "page", "opv", "nope", "1")
+    assert code == 2 and "nope" in err
+    code, _, err = run("ingest", "page", "opv", doc.id, "1-9")
+    assert code == 2 and "at most" in err

@@ -44,7 +44,9 @@ Your assignment names the course directory and one chunk id.
    out as Unicode italics (`𝑈𝑒` is $U_\mathrm{e}$) with fractions split over lines.
 3. **Images only for flagged pages.** For each page in `flagged`, Read the PDF page:
    Read `<course>/sources/raw/<doc>.pdf` with `pages: "<n>"` (one page or a short range
-   such as `"5-6"`, never the whole document). `index.json` says why a page is flagged
+   such as `"5-6"`, never the whole document; an agent that cannot read PDFs, such as
+   Codex, runs `uv run --frozen studykit ingest page <course> <doc> <n>` and looks at the
+   PNG it prints). `index.json` says why a page is flagged
    (little text, garbled glyphs, large images, many drawn shapes): look at the circuit,
    plot or table and describe it in the notes. Do not open pages that are not flagged
    unless the text is unusable (then list them in `visual_pages` too).
