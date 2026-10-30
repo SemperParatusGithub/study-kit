@@ -118,6 +118,7 @@ study-kit/
 - `/.tools` (no trailing slash, so a symlinked `.tools` is ignored too), `/.venv/`, `/.cache/`, `node_modules/`, `__pycache__/`
 - `/site/dist/`, `/site/.astro/`, `**/_build/`
 - `.claude/settings.local.json`, `.claude/agent-memory*/`, `.claude/worktrees/`
+- `/.codex/*` except `agents/`, `config.toml`, `hooks.json` and `rules/`, the tracked project layer (§5.5)
 - `.DS_Store`
 
 `site/.gitignore` ignores `/public/pagefind/` (§3.5).
