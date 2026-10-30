@@ -21,3 +21,6 @@ __pycache__/
 .claude/settings.local.json
 .claude/agent-memory*/
 .claude/worktrees/
+
+# Codex local configuration
+/.codex/
