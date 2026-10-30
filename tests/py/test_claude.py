@@ -885,6 +885,24 @@ def test_codex_agents_sync_reports_and_repairs_drift(tmp_path: Path):
     assert codex.sync(check=True, root=tmp_path) == []
 
 
+def test_gitignore_keeps_the_codex_project_layer_tracked():
+    def ignored(path: str) -> bool:
+        done = subprocess.run(
+            ["git", "check-ignore", "--no-index", "-q", path], cwd=REPO, check=False
+        )
+        assert done.returncode in (0, 1)
+        return done.returncode == 0
+
+    for path in [
+        ".codex/config.toml",
+        ".codex/hooks.json",
+        ".codex/agents/new-agent.toml",
+        ".codex/rules/new.rules",
+    ]:
+        assert not ignored(path), path
+    assert ignored(".codex/local-state.json")
+
+
 def test_codex_config_caps_the_agents():
     config = tomllib.loads((CODEX / "config.toml").read_text("utf-8"))
     assert config == {"agents": {"max_concurrent_threads_per_session": 6}}

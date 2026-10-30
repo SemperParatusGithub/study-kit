@@ -22,5 +22,9 @@ __pycache__/
 .claude/agent-memory*/
 .claude/worktrees/
 
-# Codex local configuration
-/.codex/
+# Codex local state: the project layer below is tracked (docs/architecture.md §5.5)
+/.codex/*
+!/.codex/agents/
+!/.codex/config.toml
+!/.codex/hooks.json
+!/.codex/rules/
