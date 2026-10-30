@@ -10,8 +10,8 @@
         },
         "max_pages": {
           "default": 2,
-          "description": "the validator caps it at 3",
-          "maximum": 3,
+          "description": "the validator caps it at 10",
+          "maximum": 10,
           "minimum": 1,
           "title": "Max Pages",
           "type": "integer"

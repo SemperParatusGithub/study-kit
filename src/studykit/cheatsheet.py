@@ -1,6 +1,6 @@
 """`studykit cheatsheet fit <course>`: the cheat sheet within its page limit (§3.3).
 
-The limit is `max = min(3, course.yaml cheatsheet.max_pages, frontmatter max_pages)`.
+The limit is `max = min(10, course.yaml cheatsheet.max_pages, frontmatter max_pages)`.
 `studykit pdf` compiles cheatsheet.pdf at densities 0 to 4 (9, 8.5, 8, 7.5 and 7 pt as the
 floor, with tighter leading and margins; typst/studykit.typ) and keeps the first density
 with at most `max` pages; the manifest entry records that density and the page count.
@@ -18,8 +18,8 @@ column); `overflow_pages` is `used_pages - max`. A section's height runs from it
 the next heading (or to the end), in pages, and `line` is its heading in cheatsheet.md.
 
 A cheat sheet over its limit is a failed document: it leaves the manifest and the previous
-valid cheatsheet.pdf stays in place. More than 3 pages is never allowed, whatever the
-course says (the schema caps both settings at 3 as well).
+valid cheatsheet.pdf stays in place. More than 10 pages is never allowed, whatever the
+course says (the schema caps both settings at 10 as well).
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from typing import Any
 
 from studykit import content, model, pdf
 
-HARD_LIMIT = 3
+HARD_LIMIT = model.CHEATSHEET_MAX_PAGES
 DENSITIES = (0, 1, 2, 3, 4)
 FONT_PT = (9, 8.5, 8, 7.5, 7)  # the body size at each density (typst/studykit.typ)
 EXIT_OVERFLOW = 3
@@ -58,7 +58,7 @@ MEASURE = """{
 
 
 def limit(course: model.Course, frontmatter: dict[str, Any]) -> int:
-    """max = min(3, course.cheatsheet.max_pages, frontmatter max_pages) (§3.3)."""
+    """max = min(10, course.cheatsheet.max_pages, frontmatter max_pages) (§3.3)."""
     value = min(HARD_LIMIT, course.cheatsheet.max_pages)
     own = frontmatter.get("max_pages")
     if isinstance(own, int) and not isinstance(own, bool) and own >= 1:

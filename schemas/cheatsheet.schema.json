@@ -10,7 +10,7 @@
       "type": "string"
     },
     "max_pages": {
-      "maximum": 3,
+      "maximum": 10,
       "minimum": 1,
       "title": "Max Pages",
       "type": "integer"

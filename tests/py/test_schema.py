@@ -222,6 +222,17 @@ def test_cheatsheet_pages_capped_by_course():
     assert errors(model.Cheatsheet, data, context) == [("SK-SCHEMA-VALUE", ("max_pages",))]
 
 
+@pytest.mark.parametrize("pages", [1, 3, 10])
+def test_cheatsheets_support_up_to_ten_pages(pages):
+    assert model.CheatsheetPolicy(allowed=True, max_pages=pages).max_pages == pages
+    assert model.Cheatsheet(title="Formelblatt", max_pages=pages).max_pages == pages
+
+
+def test_cheatsheets_reject_more_than_ten_pages():
+    assert errors(model.CheatsheetPolicy, {"allowed": True, "max_pages": 11})
+    assert errors(model.Cheatsheet, {"title": "Formelblatt", "max_pages": 11})
+
+
 @pytest.mark.parametrize(
     "answer",
     [

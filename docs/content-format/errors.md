@@ -590,7 +590,7 @@ Fix: change the construct the warning names; pandoc's messages are in
 
 ### `SK-PDF-CHEATSHEET`
 **error.** The cheat sheet has more pages than its limit even at density 4 (7 pt). The limit
-is `min(3, course.yaml cheatsheet.max_pages, max_pages)`, so more than 3 pages is never
+is `min(10, course.yaml cheatsheet.max_pages, max_pages)`, so more than 10 pages is never
 allowed. Reported at the `max_pages` line of `cheatsheet.md`, with how far it overflows and
 its largest sections; the previous `cheatsheet.pdf` stays in place.
 Fix: condense it, in this order: derivations, duplicate examples, prose, then the

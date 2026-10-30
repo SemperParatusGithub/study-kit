@@ -70,12 +70,14 @@ def course_with(max_pages: int) -> SimpleNamespace:
         (2, {"max_pages": 1}, 1),
         (1, {"max_pages": 3}, 1),
         (3, {}, 3),
-        (5, {"max_pages": 4}, 3),  # never more than 3, whatever the files say
+        (5, {"max_pages": 4}, 4),
+        (10, {"max_pages": 10}, 10),
+        (12, {"max_pages": 11}, 10),  # never more than 10, whatever the files say
         (3, {"max_pages": True}, 3),  # not a number
         (3, {"max_pages": 0}, 3),  # out of range: the schema reports it
     ],
 )
-def test_the_limit_is_the_smallest_of_three_the_course_and_the_sheet(course, own, expected):
+def test_the_limit_is_the_smallest_of_ten_the_course_and_the_sheet(course, own, expected):
     assert cheatsheet.limit(course_with(course), own) == expected
 
 
@@ -146,7 +148,7 @@ def test_the_overflow_names_the_largest_sections_by_their_source_lines():
     # headings the source does not match one to one keep the titles Typst read
     titles = [s["title"] for s in cheatsheet.overflow(layout, 1, 2, lines[:2])["largest_sections"]]
     assert titles == ["D", "C", "B", "A"]
-    assert "more than 3 pages" in cheatsheet.overflow_message({**over, "pages": 4})
+    assert "more than 10 pages" in cheatsheet.overflow_message({**over, "pages": 11})
 
 
 # --- real builds --------------------------------------------------------------------------
@@ -222,21 +224,28 @@ def test_a_too_long_sheet_exits_3_with_the_overflow_and_keeps_the_previous_pdf(m
     assert row["errors"][0].startswith("the cheat sheet has ")
 
 
-def test_more_than_three_pages_is_always_a_hard_failure(mini: Path, capsys):
+@pytest.mark.parametrize("max_pages", [3, 10])
+def test_long_sheet_respects_the_course_limit(mini: Path, capsys, max_pages: int):
     course_yaml = mini / "course.yaml"
     text = course_yaml.read_text()
     assert "max_pages: 2" in text
-    course_yaml.write_text(text.replace("max_pages: 2", "max_pages: 3"))
+    course_yaml.write_text(text.replace("max_pages: 2", f"max_pages: {max_pages}"))
     head, body = (FIXTURES / "too-long.md").read_text().split("---\n", 2)[1:]
-    head = head.replace("max_pages: 1", "max_pages: 3")
+    head = head.replace("max_pages: 1", f"max_pages: {max_pages}")
     parts = [body.replace("\n## ", f"\n## Teil {n}: ") for n in (1, 2, 3)]
     (mini / "cheatsheet.md").write_text(f"---\n{head}---\n" + "\n".join(parts))
     code, result = fit(mini, capsys)
-    assert code == 3 and result["max_pages"] == 3
+    assert result["max_pages"] == max_pages
+    if max_pages == 10:
+        assert code == 0 and result["fits"] is True
+        assert 3 < result["pages"] <= 10
+        assert manifest_entry(mini)["max_pages"] == 10
+        return
+    assert code == 3
     assert result["pages"] > 3 and result["overflow_pages"] > 0
     assert result["kept"] is None and not (mini / "_build" / "pdf" / "cheatsheet.pdf").exists()
     row = pdf.build(mini, ["cheatsheet"], figures=False)["docs"][0]
-    assert "more than 3 pages is never allowed" in row["errors"][0]
+    assert "over its limit of 3" in row["errors"][0]
 
 
 def test_a_course_without_a_cheat_sheet_has_nothing_to_fit(mini: Path, capsys):

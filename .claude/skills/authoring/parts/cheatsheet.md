@@ -1,7 +1,7 @@
 # Part: cheatsheet (`cheatsheet.md`)
 
 The formula sheet a student may take into the exam, within `max_pages` (the smallest of
-3, `course.cheatsheet.max_pages` and the frontmatter's `max_pages`). Only when
+10, `course.cheatsheet.max_pages` and the frontmatter's `max_pages`). Only when
 `course.cheatsheet.allowed` is true.
 
 ## Writing it

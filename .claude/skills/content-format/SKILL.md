@@ -68,7 +68,7 @@ Any other file in the course is SK-STRUCT-PATH.
 | exam task | the exercise fields with **kind: exam-task**, **points**, **archetype**, **rubric** `[{points, criterion}]` summing to points; difficulty and minutes optional |
 | MC bank | **topic**, **title** |
 | exam MC | **title**, topic optional |
-| cheat sheet | **title**, **max_pages** (≤ course limit ≤ 3), priority (topic ids) |
+| cheat sheet | **title**, **max_pages** (≤ course limit ≤ 10), priority (topic ids) |
 | exam.yaml | **schema: 1**, **id**, **title**, **duration_min**, **points**, **pass_points**, aids (`inherit`), modeled_on, **tasks** (file names), mc `{file: mc.md, points_each}` |
 
 **Answers** (the machine-checkable key, read by the site's answer check and by

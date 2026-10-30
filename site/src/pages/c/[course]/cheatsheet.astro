@@ -1,6 +1,6 @@
 ---
 // Cheat sheet in CSS columns, with the page count of the built PDF against its limit
-// (min(3, course.cheatsheet.max_pages, frontmatter max_pages), docs/architecture.md §3.3):
+// (min(10, course.cheatsheet.max_pages, frontmatter max_pages), docs/architecture.md §3.3):
 // both come from _build/pdf/manifest.json once the PDF is built.
 import Base from '../../../layouts/Base.astro';
 import Html from '../../../components/Html.astro';
@@ -19,7 +19,7 @@ const en = course.lang === 'en' ? undefined : 'en';
 const doc = course.cheatsheet;
 const fm = (doc?.data.fm ?? {}) as Partial<CheatsheetFm>;
 const pdf = doc ? findPdf(course.pdfs, 'cheatsheet') : null;
-const max = pdf?.maxPages ?? Math.min(3, course.data.cheatsheet.max_pages, fm.max_pages ?? 3);
+const max = pdf?.maxPages ?? Math.min(10, course.data.cheatsheet.max_pages, fm.max_pages ?? 10);
 const over = pdf !== null && pdf.pages > max;
 const pt = densityPt(pdf?.density);
 ---
