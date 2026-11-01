@@ -372,7 +372,7 @@ Setzen Sie $R = \frac{1}{2\pi f_\mathrm{g} C}$ und lösen Sie nach $f_\mathrm{g}
 ```
 
 - Answer `label`, and the rubric text in exam tasks, are plain text plus inline `$…$` math only. They are linted for that and rendered by a 20-line splitter, the same way on the web and in the PDF.
-- Symbolic answers are written `{key: H, expr: '1/(1+s*R*C)', symbols: [s, R, C]}`. The website's answer check (`lib/answer.ts`) evaluates input and reference at random positive sample points with complex arithmetic; `verify.py` compares with SymPy simplification, then at sample points. Both parsers know `coth` and the inverse hyperbolic functions (`asinh`, `acosh`, `atanh`, `acoth`, also as `arsinh`, `arcosh`, `artanh`, `arcoth`).
+- Symbolic answers are written `{key: H, expr: '1/(1+s*R*C)', symbols: [s, R, C]}`. The website's answer check (`lib/answer.ts`) evaluates input and reference at random positive sample points with complex arithmetic; `verify.py` compares with SymPy simplification, then at sample points. `verify.py` reads a key with `calc.parse`; lint rejects a key it cannot read or one with a free name that `symbols` does not list (SK-SCHEMA-ANSWER), so its author learns this at once and not at verify time. Both parsers know `coth` and the inverse hyperbolic functions (`asinh`, `acosh`, `atanh`, `acoth`, also as `arsinh`, `arcosh`, `artanh`, `arcoth`).
 - The website reads numbers in German or English notation with an SI prefix and unit (`1,59 kHz`) and accepts them within `atol + rtol·|value|` in the answer's unit; `rad/s` and `1/s` count as the same unit.
 - The hint-leak lint (warning SK-MATH-HINT-LEAK) flags a number in a hint that matches an `answers` value within its tolerance.
 

@@ -78,7 +78,10 @@ Any other file in the course is SK-STRUCT-PATH.
   `µs`, `Ω`, `°`, `dB`); a dimensionless value (a gain $V$) has no `unit` key, since an
   empty one is SK-SCHEMA-VALUE; use `rtol: 5.0e-3` for computed values, `atol` for dB and
   degrees.
-- symbolic: `{key, label, expr: 'U0*R2/(R1 + R2)', symbols: [U0, R1, R2]}` in SymPy syntax.
+- symbolic: `{key, label, expr: 'U0*R2/(R1 + R2)', symbols: [U0, R1, R2]}` in SymPy syntax,
+  with the functions of `studykit calc` (also `asinh`, `acosh`, `atanh`, `acoth`, `coth`) and
+  every free name under `symbols`; lint rejects a key `studykit verify` cannot read
+  (SK-SCHEMA-ANSWER).
 - Every number a student is asked for gets an answer key; a derivation without a number
   gets none.
 

@@ -48,6 +48,50 @@ def test_lint_reports_a_duplicate_in_the_edited_file(mini: Path, denylist: Path)
     ]
 
 
+GRENZ = Path("exercises") / "rc-tiefpass" / "ex-rc-tp-grenzfrequenz.md"
+KEY = "expr: '1/(1+s*R*C)', symbols: [s, R, C]"
+
+
+@pytest.mark.parametrize(
+    ("key", "message"),
+    [
+        ("expr: 'foo(s)', symbols: [s]", "unknown function 'foo'"),
+        ("expr: 'arcsinh(s)', symbols: [s]", "unknown function 'arcsinh'"),
+        ("expr: 'R(s + 1)', symbols: [s, R]", "unknown function 'R'"),
+        ("expr: '1/(1 + s', symbols: [s]", "cannot read the expression"),
+        ("expr: 'lambda*s', symbols: [s]", "'lambda' is not allowed"),
+        ("expr: 's.real', symbols: [s]", "'.' is not allowed"),
+        ("expr: '1/(1+s*R*C)', symbols: [s, R]", "uses C, which its symbols do not list"),
+    ],
+)
+def test_lint_rejects_a_key_verify_cannot_read(mini: Path, denylist: Path, key: str, message: str):
+    path = mini / GRENZ
+    text = path.read_text()
+    assert KEY in text
+    path.write_text(text.replace(KEY, key))
+    report = lint.lint_files([path], config(denylist))
+    (finding,) = report.findings
+    assert (finding.code, finding.line) == ("SK-SCHEMA-ANSWER", 12)
+    assert message in finding.message and "'H'" in finding.message
+    assert not report.ok
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "expr: 'asinh(s) + acosh(R) + atanh(C) + acoth(R) + coth(s)', symbols: [s, R, C]",
+        "expr: 'arsinh(s)/arcosh(R)*artanh(C)*arcoth(R)', symbols: [s, R, C]",
+        "expr: 's^2*pi*j + I*oo', symbols: [s]",
+        "expr: '2pi s', symbols: [s]",
+        "expr: 're*im', symbols: [re, im]",  # a symbol may have a function's name
+    ],
+)
+def test_lint_accepts_a_key_verify_can_read(mini: Path, denylist: Path, key: str):
+    path = mini / GRENZ
+    path.write_text(path.read_text().replace(KEY, key))
+    assert lint.lint_files([path], config(denylist)).findings == []
+
+
 def test_lint_is_quick(mini: Path, denylist: Path):
     """Lint stops after Math: a broken reference is a validate (References) finding."""
     (written,) = overlay(mini, BAD / "SK-REF-MISSING")

@@ -150,8 +150,11 @@ up to 1.
 ### `SK-SCHEMA-ANSWER`
 **error.** An entry in `answers` is neither numeric with a tolerance
 (`value` plus `rtol` or `atol`) nor symbolic (`expr` plus `symbols`, no tolerance), or two
-answers share a `key`.
-Fix:
+answers share a `key`, or `studykit verify` could never read a symbolic key: `expr` uses a
+function `studykit calc` does not know or is not valid syntax, or holds a free name that
+`symbols` does not list (only `pi`, `j`, `I` and `oo` are constants).
+Fix: `studykit calc "<expr>"` shows how a key is read; rewrite it with known functions
+(`log(x + sqrt(x**2 + 1))` or `asinh(x)`) and list every free name:
 ```yaml
 - {key: fg, label: '$f_\mathrm{g}$', value: 1591.55, unit: Hz, rtol: 1.0e-3}
 - {key: H, label: '$\underline{H}(s)$', expr: '1/(1+s*R*C)', symbols: [s, R, C]}
