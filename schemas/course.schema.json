@@ -216,7 +216,7 @@
         },
         "mock_exams": {
           "default": 2,
-          "maximum": 3,
+          "maximum": 6,
           "minimum": 0,
           "title": "Mock Exams",
           "type": "integer"

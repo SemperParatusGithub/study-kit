@@ -100,7 +100,7 @@
       "description": "The answers of §5.4 step 6, recorded by `studykit ingest round2`.",
       "properties": {
         "mock_exams": {
-          "maximum": 3,
+          "maximum": 6,
           "minimum": 1,
           "title": "Mock Exams",
           "type": "integer"

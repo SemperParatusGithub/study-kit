@@ -444,20 +444,35 @@ def test_add_dry_run_writes_nothing(courses: Path, folder: Path, tmp_path: Path)
 # --- round 2 -----------------------------------------------------------------------------------
 
 
-def test_round2_records_the_answers(courses: Path, folder: Path):
+@pytest.mark.parametrize("count", [3, 4, model.MAX_MOCK_EXAMS])
+def test_round2_records_the_answers(courses: Path, folder: Path, count: int):
     init(folder)
-    code, data = run_json("ingest", "round2", "opv", "--mock-exams", "3", "--scope", "core")
+    code, data = run_json("ingest", "round2", "opv", "--mock-exams", str(count), "--scope", "core")
     assert code == 0 and data["course_yaml_updated"]
     course = courses / "opv"
     m = ingest.read_manifest(course)[0]
     assert m is not None and m.answers.round2 is not None
     assert (m.answers.round2.mock_exams, m.answers.round2.scope, m.answers.round2.go) == (
-        3,
+        count,
         "core",
         True,
     )
     c = content.CourseTree(course).model
-    assert c is not None and c.targets.mock_exams == 3
+    assert c is not None and c.targets.mock_exams == count
+
+
+def test_round2_refuses_more_mock_exams_than_the_model(courses: Path, folder: Path):
+    init(folder)
+    with pytest.raises(SystemExit):
+        run(
+            "ingest",
+            "round2",
+            "opv",
+            "--mock-exams",
+            str(model.MAX_MOCK_EXAMS + 1),
+            "--scope",
+            "core",
+        )
 
 
 # --- validate on the ingest files ----------------------------------------------------------
