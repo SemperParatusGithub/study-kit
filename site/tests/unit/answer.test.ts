@@ -210,6 +210,86 @@ test('expression parser: precedence, implicit multiplication and read-back', () 
   assert.ok(Math.abs(evaluate(parseExpr('0,5·s', sym), env).re - 1) < 1e-12);
 });
 
+test('expression parser: log with a base, as in SymPy', () => {
+  const value = (source: string, env: Record<string, number> = {}, decimalComma = true) =>
+    evaluate(parseExpr(source, Object.keys(env), decimalComma), env).re;
+  const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-12, `${a} vs ${b}`);
+  near(value('log(8, 2)'), 3);
+  near(value('ln(8, 2)'), 3);
+  near(value('log(1000, 10)'), 3);
+  near(value('log(x, 2)', { x: 8 }), 3);
+  near(value('log(x+1, x)', { x: 3 }), Math.log(4) / Math.log(3));
+  near(value('2*log(x, 2)^2', { x: 8 }), 18);
+  assert.equal(formatExpr(parseExpr('log(x, 2)', ['x'])), 'log(x)/log(2)');
+  // after a name or ")" the comma separates, not x·0,2
+  near(value('log(x,2)', { x: 8 }), 3);
+  near(value('log((x),2)', { x: 8 }), 3);
+  // between digits it stays a student's decimal comma, and in a key it never is one
+  near(value('log(2,8)'), Math.log(2.8));
+  near(value('log(8,2)', {}, false), 3);
+  near(value('2,5*x', { x: 2 }), 5);
+  assert.throws(() => parseExpr('2,5*x', ['x'], false), /Unbalanced/);
+  // nothing else takes a comma
+  assert.throws(() => parseExpr('sin(x, 2)', ['x']), /sin\(…\) takes one argument/);
+  assert.throws(() => parseExpr('log(x, 2, 3)', ['x']), /closing parenthesis/);
+  assert.throws(() => parseExpr('(x, 2)', ['x']), /closing parenthesis/);
+  assert.throws(() => parseExpr('x, 2', ['x']), /Unbalanced/);
+  assert.throws(() => parseExpr('log(, 2)', []), /Unexpected/);
+});
+
+test('expression answers: a key with a base accepts every way to write it', () => {
+  const capacity = { key: 'C', label: 'C', expr: '1 + p*log(p, 2) + (1 - p)*log(1 - p, 2)', symbols: ['p'] };
+  for (const ok of [
+    '1 + p*log(p, 2) + (1 - p)*log(1 - p, 2)',
+    '1 + p*log(p,2) + (1-p)*log(1-p,2)',
+    '1 + (p ln(p) + (1 - p) ln(1 - p))/ln(2)',
+  ]) {
+    assert.equal(checkExpr(ok, capacity).ok, true, ok);
+  }
+  assert.equal(checkExpr('1 + p*ln(p) + (1 - p)*ln(1 - p)', capacity).ok, false); // the base forgotten
+  // a key written without the space reads the way `studykit calc` reads it: 3·x
+  const key = { key: 'y', label: 'y', expr: 'x*log(8,2)', symbols: ['x'] };
+  assert.equal(checkExpr('3x', key).ok, true);
+  assert.equal(checkExpr('x*ln(8.2)', key).ok, false);
+});
+
+test('expression parser: cot, also of a complex argument', () => {
+  const value = (source: string) => evaluate(parseExpr(source, []), {});
+  assert.ok(Math.abs(value('cot(1)').re - 1 / Math.tan(1)) < 1e-12);
+  assert.ok(Math.abs(value('cot(1)').im) < 1e-12);
+  // cot(j) = −j·coth(1)
+  assert.ok(Math.abs(value('cot(j)').re) < 1e-12);
+  assert.ok(Math.abs(value('cot(j)').im + 1 / Math.tanh(1)) < 1e-12);
+  const key = { key: 'c', label: 'c', expr: 'cot(x)', symbols: ['x'] };
+  assert.equal(checkExpr('cos(x)/sin(x)', key).ok, true);
+  assert.equal(checkExpr('1/tan(x)', key).ok, true);
+  assert.equal(checkExpr('tan(x)', key).ok, false);
+});
+
+test('expression parser: coth and the inverse hyperbolic functions match SymPy', () => {
+  const value = (source: string) => evaluate(parseExpr(source, []), {});
+  for (const [source, re] of [
+    ['asinh(1)', Math.asinh(1)],
+    ['arsinh(1)', Math.asinh(1)],
+    ['acosh(2)', Math.acosh(2)],
+    ['arcosh(2)', Math.acosh(2)],
+    ['atanh(0.5)', Math.atanh(0.5)],
+    ['artanh(0.5)', Math.atanh(0.5)],
+    ['acoth(2)', Math.atanh(0.5)],
+    ['arcoth(2)', Math.atanh(0.5)],
+    ['coth(1)', 1 / Math.tanh(1)],
+  ] as const) {
+    assert.ok(Math.abs(value(source).re - re) < 1e-12, source);
+    assert.ok(Math.abs(value(source).im) < 1e-12, source);
+  }
+  // SymPy's principal branch outside the real domain: acosh(1/2) = iπ/3
+  assert.ok(Math.abs(value('acosh(0.5)').im - Math.PI / 3) < 1e-12);
+  // a key written with asinh accepts its logarithmic form
+  const key = { key: 'u', label: 'u', expr: 'asinh(x)', symbols: ['x'] };
+  assert.equal(checkExpr('ln(x + sqrt(x^2 + 1))', key).ok, true);
+  assert.equal(checkExpr('ln(x + sqrt(x^2 - 1))', key).ok, false);
+});
+
 test('expression parser: errors are reported, never evaluated', () => {
   assert.throws(() => parseExpr('1/(1+s*R*C', ['s', 'R', 'C']), /closing parenthesis/);
   assert.throws(() => parseExpr('x + 1', ['s']), /Unknown name “x”/);

@@ -28,9 +28,15 @@ written with [exam.md](exam.md), never copied into a bank.
 - Numeric distractors are produced by applying the mistake to the same data, computed in
   Python, so the verifier can reproduce each one (`mc_numeric`); every distractor differs
   from the correct value by more than 5 %, and no two options coincide. Write each numeric
-  option as the bare value with its unit (`$4.82\,\mathrm{kHz}$`, `$-4.68$`), never
-  `$V \approx …$` or `$U_a = …$`: only then does studykit treat the question as numeric
-  and ask for its `mc_numeric` check (SK-VER-CHECK).
+  option as the bare value with its unit upright, all of it in one formula
+  (`$4.82\,\mathrm{kHz}$`, `$31.83\,\mathrm{mm}$`, `$-4.68$`), never `$V \approx …$`,
+  `$U_a = …$` or `$80$ cycles`: only then does studykit treat the question as numeric and
+  ask for its `mc_numeric` check (SK-VER-CHECK). A bare `$2m$` is a variable, not a length.
+- A question about what a course document contains ("Was steht in der Formelsammlung?")
+  cites that document with `source="<doc>:<page>"` and names it in the stem or an option by
+  its `title` in `sources/manifest.yaml`: only then does `studykit blind` hand the document
+  to the verifier. A question that a solution alone can decide cannot be verified, because
+  solutions are never handed over.
 - Kprim: four independent statements about one situation, about half true; each statement
   decidable on its own.
 - multi: 4-6 options, at least one right and one wrong; a final "Keine der Aussagen ist

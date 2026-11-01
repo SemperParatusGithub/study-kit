@@ -14,8 +14,8 @@ and §5.3 (verifier); the check API is `src/studykit/check.py`; recipes are in
 ## Blindness
 
 A guard hook (`studykit hook verifier-guard`) denies the verifier every path that holds a
-key: the course's `exercises/`, `mc/`, `exams/`, `state/`, `_history/`, `_build/` (except
-`_build/blind/` and the figure images), figure facts, the built site and `.cache/`; Grep
+key: the course's `exercises/`, `mc/`, `exams/`, `sources/`, `state/`, `_history/`, `_build/`
+(except `_build/blind/` and the figure images), figure facts, the built site and `.cache/`; Grep
 and Glob over a tree with a course; Bash that names those paths or searches a course
 (globs, `grep -r`, `find` and links included) unless it is `studykit`
 (`blind`, `calc`, `verify` without `--json`/`--show-key`, `ls`, `lint`, `validate`, `fig`,
@@ -23,13 +23,34 @@ and Glob over a tree with a course; Bash that names those paths or searches a co
 is the protocol working: never look for another way to the file. Everything you need is in
 the blind view.
 
+`sources/` is closed because it holds past solutions and solved exercise sheets, which can
+be the item's key in other words.
+
+## Questions about a course document
+
+Some MC questions ask what a course document contains, for example which formulas the
+official Formelsammlung prints. Reasoning cannot decide that. When a question cites a
+document and names it by its title, its blind view has a section "Course document" with a
+copy of that document under `_build/blind/docs/<doc>/`.
+
+- If the question asks what the document contains, Read every page the section lists, not
+  only those you expect to matter. The page text can garble formulas; Read the PDF's page
+  then.
+- Judge what the document prints, not what would be correct physics: a statement is
+  contained only if a page prints it. Name the page in your `reason`.
+- If the question is about something else, the section changes nothing: work it out
+  yourself and do not take the result from the document.
+- A question about a document whose view has no such section cannot be decided: mark it
+  `ambiguous` and name the document in `reason`. The author then cites it (a solution is
+  never handed over, so a question must not depend on one).
+
 ## Procedure for one item
 
 1. **Blind view:** `uv run --frozen studykit blind <course> <id>`, then Read
    `<course>/_build/blind/<id>.md`. It has the statement, the results to compute (key,
-   label, unit or symbols) or the MC options in source order A-F, and the figure PNGs
+   label, unit or symbols) or the MC options in source order A-F, the figure PNGs
    (build a missing one with `uv run --frozen studykit fig build <course> --only <slug>`,
-   then Read the PNG).
+   then Read the PNG) and, for a question about a course document, that document (below).
 2. **Compute in Python.** Never compute in your head. Quick values:
    `uv run --frozen studykit calc "1/(2*pi*R*C)" --subs R=2.2e3 C=47e-9`
    (`--units` for unit arithmetic); anything longer goes into the check script.
@@ -38,7 +59,8 @@ the blind view.
    - `answers(key=value, …)`: an exercise or exam task, one value per key, in the key's
      unit (or `quantity(x, "kHz")`), SymPy expressions for symbolic keys;
    - `mc_numeric(correct=…, options={…}, mistakes={…})`: an MC question whose options are
-     all numbers (the blind view says so; a JSON answer does not count there, SK-VER-CHECK);
+     all numbers, in whatever unit (the blind view says so; a JSON answer does not count
+     there, SK-VER-CHECK);
    - `mc_answer([...], reason=…)` or `checks/<id>.json` `{"answer": […], "confidence":
      "high", "ambiguous": false, "reason": "…"}`: a conceptual MC question;
    - `review(agree, reason)`: an item without keys (see recipes).

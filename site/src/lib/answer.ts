@@ -14,7 +14,9 @@
 // ** or ^, I for the imaginary unit, E, pi, sqrt, exp, log …) are parsed by a small
 // recursive-descent parser (no eval) and evaluated with complex arithmetic at random
 // positive values of the symbols; they must agree at every sample point. "√x" and "√(…)"
-// are sqrt.
+// are sqrt, log(x, b) is the logarithm to the base b. A comma between digits is a decimal
+// comma in the input ("log(2,8)" is ln 2.8); in the reference, SymPy syntax, it only
+// separates arguments ("log(8,2)" is 3).
 
 import { fnv1a, mulberry32 } from './shuffle.ts';
 
@@ -451,6 +453,12 @@ const cosh = (a: Cx): Cx => div(add(exp(a), exp(cx(-a.re, -a.im))), cx(2));
 const asin = (a: Cx): Cx => mul(cx(0, -1), log(add(mul(I, a), sqrt(sub(ONE, mul(a, a))))));
 const atan = (a: Cx): Cx =>
   mul(cx(0, 0.5), sub(log(sub(ONE, mul(I, a))), log(add(ONE, mul(I, a)))));
+// The principal branches SymPy uses: asinh z = log(z + √(z² + 1)),
+// acosh z = log(z + √(z + 1)·√(z − 1)), atanh z = ½·(log(1 + z) − log(1 − z)), acoth z = atanh(1/z)
+const asinh = (a: Cx): Cx => log(add(a, sqrt(add(mul(a, a), ONE))));
+const acosh = (a: Cx): Cx => log(add(a, mul(sqrt(add(a, ONE)), sqrt(sub(a, ONE)))));
+const atanh = (a: Cx): Cx => div(sub(log(add(ONE, a)), log(sub(ONE, a))), cx(2));
+const acoth = (a: Cx): Cx => atanh(div(ONE, a));
 
 const FUNCTIONS = new Map<string, (a: Cx) => Cx>(Object.entries({
   sqrt,
@@ -462,6 +470,7 @@ const FUNCTIONS = new Map<string, (a: Cx) => Cx>(Object.entries({
   sin,
   cos,
   tan: (a: Cx) => div(sin(a), cos(a)),
+  cot: (a: Cx) => div(cos(a), sin(a)),
   asin,
   arcsin: asin,
   acos: (a: Cx) => sub(cx(Math.PI / 2), asin(a)),
@@ -471,6 +480,15 @@ const FUNCTIONS = new Map<string, (a: Cx) => Cx>(Object.entries({
   sinh,
   cosh,
   tanh: (a: Cx) => div(sinh(a), cosh(a)),
+  coth: (a: Cx) => div(cosh(a), sinh(a)),
+  asinh,
+  arsinh: asinh,
+  acosh,
+  arcosh: acosh,
+  atanh,
+  artanh: atanh,
+  acoth,
+  arcoth: acoth,
   abs: (a: Cx) => cx(abs(a)),
   Abs: (a: Cx) => cx(abs(a)),
   arg: (a: Cx) => cx(Math.atan2(a.im, a.re)),
@@ -491,7 +509,7 @@ const GREEK = new Map(Object.entries({
 
 type Tok = { t: 'num'; v: number } | { t: 'id'; s: string } | { t: 'op'; s: string };
 
-function tokenize(source: string): Tok[] {
+function tokenize(source: string, decimalComma: boolean): Tok[] {
   const s = normalize(source)
     .replace(/\*\*/g, '^')
     .replace(/[·⋅×]/g, '*')
@@ -504,13 +522,22 @@ function tokenize(source: string): Tok[] {
       return name ? ` ${name} ` : c;
     });
   const out: Tok[] = [];
-  const re = /\s*(?:(\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?|[.,]\d+)|([A-Za-z_][A-Za-z0-9_]*)|([-+*/^()√]))/y;
+  const re = decimalComma
+    ? /\s*(?:(\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?|[.,]\d+)|([A-Za-z_][A-Za-z0-9_]*)|([-+*/^()√,]))/y
+    : /\s*(?:(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\.\d+)|([A-Za-z_][A-Za-z0-9_]*)|([-+*/^()√,]))/y;
   let i = 0;
   while (i < s.length) {
     if (/^\s*$/.test(s.slice(i))) break;
     re.lastIndex = i;
     const m = re.exec(s);
     if (!m) throw new ExprError('syntax', `Unexpected “${s.slice(i).trim().slice(0, 12)}”.`);
+    // After a name or ")" a comma separates arguments, even right before a digit: log(x,2)
+    const last = out[out.length - 1];
+    if (m[1]?.startsWith(',') && last && (last.t === 'id' || (last.t === 'op' && last.s === ')'))) {
+      out.push({ t: 'op', s: ',' });
+      i += m[0].indexOf(',') + 1;
+      continue;
+    }
     if (m[1] !== undefined) out.push({ t: 'num', v: Number(m[1].replace(',', '.')) });
     else if (m[2] !== undefined) out.push({ t: 'id', s: m[2] });
     else if (m[3] !== undefined) out.push({ t: 'op', s: m[3] });
@@ -640,9 +667,18 @@ class Parser {
       if (!this.isOp('(')) throw new ExprError('syntax', `Write ${name}(…) with parentheses.`);
       this.pos++;
       const a = this.sum();
+      let base: Expr | undefined;
+      if (this.isOp(',')) {
+        if (name !== 'log' && name !== 'ln') {
+          throw new ExprError('syntax', `${name}(…) takes one argument.`);
+        }
+        this.pos++;
+        base = this.sum();
+      }
       if (!this.isOp(')')) throw new ExprError('syntax', 'A closing parenthesis is missing.');
       this.pos++;
-      return { k: 'call', fn: name, a };
+      const call: Expr = { k: 'call', fn: name, a };
+      return base ? { k: 'bin', op: '/', a: call, b: { k: 'call', fn: name, a: base } } : call;
     }
     const c = CONSTANTS.get(name);
     if (c) return { k: 'const', name: c };
@@ -650,8 +686,8 @@ class Parser {
   }
 }
 
-export function parseExpr(source: string, symbols: readonly string[]): Expr {
-  return new Parser(tokenize(source), new Set(symbols)).parse();
+export function parseExpr(source: string, symbols: readonly string[], decimalComma = true): Expr {
+  return new Parser(tokenize(source, decimalComma), new Set(symbols)).parse();
 }
 
 export function evaluate(e: Expr, env: Readonly<Record<string, number>>): Cx {
@@ -748,7 +784,7 @@ export function checkExpr(input: string, spec: AnswerSpec): Verdict {
   const read = formatExpr(user);
   let reference: Expr;
   try {
-    reference = parseExpr(spec.expr ?? '', symbols);
+    reference = parseExpr(spec.expr ?? '', symbols, false);
   } catch {
     return { ok: false, reason: 'syntax', read, message: 'The reference answer cannot be read.' };
   }

@@ -78,7 +78,10 @@ Any other file in the course is SK-STRUCT-PATH.
   `µs`, `Ω`, `°`, `dB`); a dimensionless value (a gain $V$) has no `unit` key, since an
   empty one is SK-SCHEMA-VALUE; use `rtol: 5.0e-3` for computed values, `atol` for dB and
   degrees.
-- symbolic: `{key, label, expr: 'U0*R2/(R1 + R2)', symbols: [U0, R1, R2]}` in SymPy syntax.
+- symbolic: `{key, label, expr: 'U0*R2/(R1 + R2)', symbols: [U0, R1, R2]}` in SymPy syntax,
+  with the functions of `studykit calc` (also `asinh`, `acosh`, `atanh`, `acoth`, `coth`) and
+  every free name under `symbols`; lint rejects a key `studykit verify` cannot read
+  (SK-SCHEMA-ANSWER).
 - Every number a student is asked for gets an answer key; a derivation without a number
   gets none.
 
@@ -120,7 +123,9 @@ Short worked reasoning. Never refer to an option by letter (options are shuffled
 - `single`: 3-5 options, exactly one `[x]`. `multi`: 4-6 options, at least one `[x]` and one
   `[ ]`. `kprim`: exactly 4 statements, `[x]` = true.
 - Optional attributes: `tags="a,b"`, `source="doc:page"`, `pin-last="true"` (only for a
-  final "none of these" option). Never "all of the above" (SK-MCQ-ALL-ABOVE).
+  final "none of these" option). Never "all of the above" (SK-MCQ-ALL-ABOVE). A question
+  that names the document it cites by its title gets that document in its blind view,
+  unless it is a solution (`authoring/parts/mc.md`).
 
 **Math** (the subset KaTeX and pandoc → Typst both render):
 

@@ -7,6 +7,7 @@ would write, computed from the statement (never copied from the key).
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import textwrap
 from pathlib import Path
@@ -483,11 +484,186 @@ def test_targets_and_cli_usage(course: Path, capsys):
         ("$0{,}5$", 0.5),
         ("$1/\\sqrt{2}$", None),
         ("Der Strom eilt vor", None),
+        # lengths and the units built from them
+        ("$31.83\\,\\mathrm{mm}$", 31.83e-3),
+        ("$2\\,\\mathrm{m}$", 2.0),
+        ("$5\\,\\mathrm{cm}$", 0.05),
+        ("$3\\,\\mathrm{dm}$", 0.3),
+        ("$4\\,\\mathrm{km}$", 4e3),
+        ("$7\\,\\mathrm{\\mu m}$", 7e-6),
+        ("$7\\,\\mu\\mathrm{m}$", 7e-6),
+        ("$8\\,\\mathrm{nm}$", 8e-9),
+        ("5 mm", 5e-3),
+        ("5 m", 5.0),
+        ("$-2.824\\,\\mathrm{kV/m}$", -2824.0),
+        ("$3\\,\\mathrm{kV/cm}$", 3e5),
+        ("$-1.859\\times 10^{-6}\\,\\mathrm{C/m^2}$", -1.859e-6),
+        ("$2\\,\\mathrm{C}/\\mathrm{m}^{2}$", 2.0),
+        ("$2\\,\\mathrm{A/mm^2}$", 2e6),
+        ("$2\\,\\mathrm{mm}^2$", 2e-6),
+        ("$2\\,\\mathrm{m^3}$", 2.0),
+        ("$2\\,\\mathrm{m}^{-1}$", 2.0),
+        ("$2\\,\\mathrm{1/mm}$", 2e3),
+        ("$5\\,\\mathrm{mT}$", 5e-3),
+        ("$5\\,\\mathrm{kN}$", 5e3),
+        ("$5\\,\\mathrm{MPa}$", 5e6),
+        ("$5\\,\\mathrm{mWb}$", 5e-3),
+        ("$5\\,\\Omega\\cdot\\mathrm{m}$", 5.0),
+        ("$5\\,\\mathrm{mA}\\cdot\\mathrm{m}^2$", 5e-3),
+        ("$5\\,\\mathrm{V\\,s/m}$", 5.0),
+        # a bare letter in a formula is a variable, not a unit
+        ("$2m$", None),
+        ("$2\\,m$", None),
+        ("$2m^2$", None),
+        ("$2kT$", None),
+        ("$2N$", None),
+        ("$2\\cdot\\mathrm{m}$", None),
+        # no SI value for these: the question counts as numeric, its value stays unread
+        ("$4\\,\\mathrm{MiB}$", None),
+        ("$5.256\\,\\mathrm{min}$", None),
+        ("$3\\,\\mathrm{kg}$", None),
     ],
 )
 def test_option_values(text: str, value: float | None):
     got = verify.option_value(text)
     assert got == (pytest.approx(value) if value is not None else None)
+
+
+@pytest.mark.parametrize(
+    ("text", "numeric"),
+    [
+        ("$31.83\\,\\mathrm{mm}$", True),
+        ("$4\\,\\mathrm{MiB}$", True),
+        ("$1.401 \\cdot 10^{9}\\,\\mathrm{B/s}$", True),
+        ("$8.00\\,\\mathrm{bit/s/Hz}$", True),
+        ("$24\\,\\mathrm{Mbit/s}$", True),
+        ("$5.256\\,\\mathrm{min}$", True),
+        ("$56.58\\,\\mathrm{g}$", True),
+        ("$3{,}14\\,\\mathrm{rad}$", True),
+        ("$2\\,\\text{Elemente}$", True),
+        ("$-45^\\circ$", True),
+        ("$0{,}5$", True),
+        ("$2m$", False),
+        ("$2N$", False),
+        ("$2\\,\\mathrm{e}^{x}$", False),
+        ("$2\\,\\mathrm{rot}\\,\\mathbf{E}$", False),
+        ("$2\\pi\\left(\\rho_2A_2-\\rho_1A_1\\right)$", False),
+        ("$1/r^2$", False),
+        ("3 Knoten", False),  # plain words stay words
+        ("$80$ cycles", False),
+        ("$-90^\\circ$ bei allen Frequenzen", False),
+        ("Der Strom eilt vor", False),
+    ],
+)
+def test_options_that_state_a_number(text: str, numeric: bool):
+    assert verify.states_number(text) is numeric
+
+
+MM_QUESTION = """
+:::: {.mcq #mc-rc-filter-090 type="single" difficulty="1"}
+Wie groß ist die Eindringtiefe?
+
+- [x] $31.83\\,\\mathrm{mm}$
+
+  Richtig.
+
+- [ ] $3.183\\,\\mathrm{mm}$
+
+  Faktor 10.
+
+- [ ] $318.3\\,\\mathrm{mm}$
+
+  Faktor 10.
+
+Die Erklärung.
+::::
+"""
+
+
+def test_a_question_in_millimetres_needs_mc_numeric(course: Path):
+    bank = course / "mc" / "rc-filter.md"
+    bank.write_text(bank.read_text() + MM_QUESTION)
+    item = "mc-rc-filter-090"
+    assert verify.numeric_question(verify.find(tree(course), item).question)
+    # a letter is not enough
+    write_check(course, f"{item}.json", '{"answer": ["A"], "ambiguous": false, "reason": "r"}')
+    row = run_one(course, item)
+    assert (row["outcome"], row["status"]) == ("error", "unverified")
+    assert any("mc_numeric(...)" in p for p in row["problems"])
+    (course / "checks" / f"{item}.json").unlink()
+    # values in SI units pass, and the distractors are checked
+    check = """\
+    from studykit.check import mc_numeric
+    mc_numeric(correct=31.83e-3, options={"A": 31.83e-3, "B": 3.183e-3, "C": 318.3e-3},
+               mistakes={"B": 3.183e-3, "C": 318.3e-3})
+    """
+    write_check(course, f"{item}.py", check)
+    row = run_one(course, item)
+    assert row["status"] == "verified" and not row["warnings"], row
+    # the same numbers in mm misread the options: the check is wrong, not the question
+    write_check(course, f"{item}.py", check.replace("e-3", ""))
+    row = run_one(course, item)
+    assert (row["outcome"], row["status"]) == ("error", "unverified")
+    assert any("option A reads 0.03183" in p for p in row["problems"]), row["problems"]
+    # a wrong distractor mistake is a dispute, which the letter answer could not find
+    write_check(
+        course,
+        f"{item}.py",
+        check.replace('mistakes={"B": 3.183e-3', 'mistakes={"B": 1e-3'),
+    )
+    row = run_one(course, item)
+    assert row["status"] == "disputed"
+    assert any("distractor B" in p and "why is wrong" in p for p in row["problems"])
+
+
+def test_a_unit_without_si_value_warns_and_leaves_the_values_to_the_check(course: Path):
+    bank = course / "mc" / "rc-filter.md"
+    text = MM_QUESTION.replace("\\mathrm{mm}", "\\mathrm{MiB}")
+    bank.write_text(bank.read_text() + text)
+    item = "mc-rc-filter-090"
+    write_check(
+        course,
+        f"{item}.py",
+        """\
+        from studykit.check import mc_numeric
+        mc_numeric(correct=31.83, options={"A": 31.83, "B": 3.183, "C": 318.3},
+                   mistakes={"B": 3.183, "C": 318.3})
+        """,
+    )
+    row = run_one(course, item)
+    assert row["status"] == "verified"
+    assert any("cannot read a value" in w for w in row["warnings"])
+
+
+ASINH_KEY = "{key: u, label: '$u$', expr: 'asinh(R/s)', symbols: [R, s]}"
+
+
+def test_a_key_with_an_inverse_hyperbolic_function_verifies(course: Path):
+    rel = "exercises/rc-filter/ex-rc-tp-belastet.md"
+    text = (course / rel).read_text()
+    (course / rel).write_text(re.sub(r"(answers:\n)", rf"\1  - {ASINH_KEY}\n", text, count=1))
+    check = """\
+    import sympy as sp
+    from math import log10, pi
+    from studykit.check import answers
+    s, R, RL, C = sp.symbols("s R RL C")
+    answers(u=sp.log(R / s + sp.sqrt((R / s) ** 2 + 1)),
+            H=RL / (R + RL + s * R * RL * C),
+            H0db=20 * log10(0.5), fg=(1e4 + 1e4) / (2 * pi * 1e4 * 1e4 * 10e-9))
+    """
+    write_check(course, "ex-rc-tp-belastet.py", check)
+    row = run_one(course, "ex-rc-tp-belastet")
+    assert (row["outcome"], row["status"]) == ("pass", "verified"), row
+    # the same function in the check's own printed result
+    write_check(
+        course,
+        "ex-rc-tp-belastet.py",
+        check.replace("sp.log(R / s + sp.sqrt((R / s) ** 2 + 1))", "sp.asinh(R / s)"),
+    )
+    assert run_one(course, "ex-rc-tp-belastet")["status"] == "verified"
+    # a wrong result is a dispute, not a parser failure
+    write_check(course, "ex-rc-tp-belastet.py", check.replace("** 2 + 1", "** 2 + 2"))
+    assert run_one(course, "ex-rc-tp-belastet")["status"] == "disputed"
 
 
 def test_units():
@@ -498,5 +674,18 @@ def test_units():
     assert verify.convert(103.4, "µs", "s") == pytest.approx(103.4e-6)
     assert verify.convert(0.5, "V/ms", "V/s") == pytest.approx(500)
     assert verify.convert(3, "mA/V", "A/V") == pytest.approx(3e-3)
+    assert verify.convert(31.83, "mm", "m") == pytest.approx(31.83e-3)
+    assert verify.convert(5, "cm", "mm") == pytest.approx(50)
+    assert verify.convert(2, "kV/cm", "V/m") == pytest.approx(2e5)
+    assert verify.convert(2, "A/mm^2", "A/m²") == pytest.approx(2e6)
+    assert verify.convert(5, "1/ms", "1/s") == pytest.approx(5e3)
+    assert verify.convert(5, "kΩ·mm", "Ω·m") == pytest.approx(5)
+    with pytest.raises(ValueError, match="different quantities"):
+        verify.convert(1, "mm", "mm^2")
+    assert verify.parse_unit("rad·m") is None
+    assert verify.parse_unit("rad^2") is None
+    assert verify.parse_unit("·m") is None
+    assert verify.parse_unit("min") is None
+    assert verify.parse_unit("cV") is None
     with pytest.raises(ValueError):
         verify.convert(1, "V", "A")

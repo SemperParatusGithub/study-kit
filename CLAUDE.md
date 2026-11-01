@@ -44,7 +44,7 @@ for Codex, which uses these skills and agents too (§5.5); change both together.
   `verify-protocol`.
 - Agents: `ingester`, `exam-analyst`, `author`, `verifier`, `tutor`, `examiner`
   (`.claude/agents/`). No agent has the Agent tool, none has memory. The verifier works blind: its hook
-  (`studykit hook verifier-guard`) denies it item files, keys and solutions; it works from
+  (`studykit hook verifier-guard`) denies it item files, keys, solutions and `sources/`; it works from
   `studykit blind`.
 - `just tutor <course>` and `just examine <course> [mode]` start the tutor and the examiner
   as the main thread; `just verify` and `just status` wrap the CLI.

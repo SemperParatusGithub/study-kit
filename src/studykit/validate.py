@@ -518,6 +518,45 @@ def check_schema(ctx: Context) -> None:
         if doc.yaml is not None:
             ctx.extend(doc.yaml.findings)
             ctx.extend(doc.validated[1])
+            _check_answer_exprs(ctx, doc)
+
+
+def _check_answer_exprs(ctx: Context, doc: Doc) -> None:
+    """A symbolic key must read the way `studykit verify` reads it (§2.5), so its author
+    finds out on the first lint and not at verify time."""
+    if doc.kind not in ("exercise", "exam-task") or doc.model is None:
+        return
+    answers = doc.model.answers
+    if all(a.expr is None for a in answers):
+        return
+    from studykit import calc  # imports SymPy, which only symbolic keys need
+
+    for i, answer in enumerate(answers):
+        if answer.expr is None:
+            continue
+        loc = ["answers", i, "expr"]
+        try:
+            expr = calc.parse(str(answer.expr), symbols=answer.symbols)
+        except calc.CalcError as exc:
+            ctx.at_yaml(
+                doc,
+                loc,
+                "SK-SCHEMA-ANSWER",
+                f"studykit verify cannot read the key of answer '{answer.key}': {exc}",
+                'write it in the syntax of `studykit calc "<expr>"`, for example '
+                "log(x + sqrt(x**2 + 1)) or asinh(x)",
+            )
+            continue
+        unknown = sorted({str(s) for s in expr.free_symbols} - set(answer.symbols))
+        if unknown:
+            ctx.at_yaml(
+                doc,
+                loc,
+                "SK-SCHEMA-ANSWER",
+                f"the key of answer '{answer.key}' uses {', '.join(unknown)}, which its symbols "
+                "do not list",
+                "list every free name under symbols; only pi, j, I and oo are constants",
+            )
 
 
 # --- Fences (SK-BLOCK) --------------------------------------------------------------------

@@ -6,6 +6,7 @@ import json
 import math
 
 import pytest
+import sympy
 
 from studykit import calc, cli
 
@@ -52,6 +53,32 @@ def test_units():
     assert hz["unit"] == "1/s" and hz["eng"] == "1.53922 k (1/s)"
     # without --units the names are plain symbols
     assert calc.evaluate("kohm")["free_symbols"] == ["kohm"]
+
+
+@pytest.mark.parametrize(
+    ("expr", "value"),
+    [
+        ("asinh(1)", math.asinh(1)),
+        ("acosh(2)", math.acosh(2)),
+        ("atanh(1/2)", math.atanh(0.5)),
+        ("acoth(2)", math.atanh(0.5)),
+        ("coth(1)", 1 / math.tanh(1)),
+        ("arsinh(1)", math.asinh(1)),
+        ("arcosh(2)", math.acosh(2)),
+        ("artanh(1/2)", math.atanh(0.5)),
+        ("arcoth(2)", math.atanh(0.5)),
+    ],
+)
+def test_hyperbolic_functions(expr: str, value: float):
+    assert calc.evaluate(expr)["numeric"] == pytest.approx(value)
+
+
+@pytest.mark.parametrize("name", ["asinh", "acosh", "atanh", "acoth", "coth"])
+def test_sympy_output_reads_back(name: str):
+    # a check script's SymPy result reaches `verify` as its printed form
+    x = sympy.Symbol("x")
+    expr = getattr(sympy, name)(x)
+    assert calc.parse(calc.show(expr), symbols=["x"]) == expr
 
 
 def test_lists_from_solve():
