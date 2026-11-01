@@ -198,10 +198,12 @@ answers(
 ## Numeric MC questions
 
 The blind view lists the options in source order A, B, …. Give each option's stated value
-in SI units, the correct value, and for each distractor the value of the mistake you think
-produced it (the misconception catalogue: a forgotten 2π, √2, dB vs. linear, a power of
-ten, series vs. parallel, degrees vs. radians). A distractor you cannot explain stays out
-of `mistakes` (that is a warning, not a dispute).
+in SI units (`31.83 mm` is `31.83e-3`, `2.8 kV/m` is `2.8e3`), the correct value, and for
+each distractor the value of the mistake you think produced it (the misconception
+catalogue: a forgotten 2π, √2, dB vs. linear, a power of ten, series vs. parallel, degrees
+vs. radians). A distractor you cannot explain stays out of `mistakes` (that is a warning,
+not a dispute). A unit with no SI conversion (`MiB`, `bit/s`, `min`) gets a warning that the
+option's value cannot be read; give every value in one unit of your choice.
 
 ```python
 from math import pi

@@ -572,6 +572,14 @@ so the item stays unverified until the check is fixed. A question whose every op
 a number needs this check: a letter answer to it (`mc_answer` or a JSON answer) is a check
 error.
 
+An option states a number when all of it is one number with an optional unit. `option_value`
+gives the SI value of the electrical units, lengths (`mm`, `cm`, `km`), `T`, `N`, `Pa`, `Wb`
+and `K` with their prefixes, and powers, products and quotients of these (`C/m^2`, `Ω·m`,
+`kV/m`). Any other unit written upright (`$4\,\mathrm{MiB}$`, `$24\,\mathrm{Mbit/s}$`)
+still makes the option a number; only its value stays unread, which is the warning of
+assertion 4. A bare letter in a formula is a variable: `$2m$` is no length, and plain text
+such as `3 Knoten` or `$80$ cycles` is no number.
+
 **Conceptual questions**: the verifier answers blind into `checks/<id>.json` (or a script ending with `mc_answer(...)`; Kprim takes `{"A": true, …}` or the list of true statements):
 
 ```json

@@ -536,8 +536,8 @@ then `studykit verify <course> <id>`.
 
 ### `SK-VER-CHECK`
 **warning, `--release` only.** A numeric MC question (single or multi, every option a
-number with an optional unit) has no `checks/<id>.py`. Numeric questions are checked with
-`mc_numeric` (§2.6), which also proves that every distractor follows from its mistake.
+number with an optional unit, §2.6) has no `checks/<id>.py`. Numeric questions are checked
+with `mc_numeric` (§2.6), which also proves that every distractor follows from its mistake.
 Fix: the verifier writes `checks/<id>.py` ending with `mc_numeric(correct=…, options=…,
 mistakes=…)`.
 

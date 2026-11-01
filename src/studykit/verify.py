@@ -317,7 +317,10 @@ def run_check(path: Path, root: Path, timeout: float = DEFAULT_TIMEOUT) -> dict[
 # --- units and numbers ------------------------------------------------------------------------
 
 UNIT_ALIASES = {"Ohm": "Ω", "ohm": "Ω", "Ω": "Ω", "rad/s": "1/s", "1/s": "1/s", "s^-1": "1/s"}
+# Also common variables: `$2m$` is twice a mass, only `$2\,\mathrm{m}$` is a length.
+SYMBOL_UNITS = {"m", "T", "N", "K"}
 PREFIXED = {"V", "A", "W", "Hz", "s", "F", "H", "Ω", "J", "C", "S", "VA", "var", "Wh", "1/s"}
+PREFIXED |= SYMBOL_UNITS | {"Pa", "Wb"}
 PREFIX = {
     "p": 1e-12,
     "n": 1e-9,
@@ -330,21 +333,51 @@ PREFIX = {
     "G": 1e9,
 }
 ANGLES = {"°": math.pi / 180, "deg": math.pi / 180, "rad": 1.0}
+LENGTHS = {"cm": 1e-2, "dm": 1e-1}  # centi and deci are used with the metre only
+SUPERSCRIPTS = str.maketrans({"²": "^2", "³": "^3", "\u2212": "-"})
+PRODUCT_RE = re.compile(r"\s*[·*]\s*|\s+")
+POWER_RE = re.compile(r"(.+)\^(-?\d+)")
+
+
+def _factor(unit: str) -> tuple[float, str] | None:
+    """`parse_unit` for one factor of a product or the base of a power: not an angle or a
+    quotient."""
+    parsed = parse_unit(unit)
+    return None if parsed is None or parsed[1] == "rad" or "/" in parsed[1] else parsed
 
 
 def parse_unit(unit: str) -> tuple[float, str] | None:
-    """(scale to the base unit, base unit) for 'kΩ', 'µs', 'mA', 'Hz', '°' and a quotient
-    of two such units ('V/s', 'mV/µs' -> 1e3, 'V/s'); None if unknown."""
-    unit = unit.strip()
+    """(scale to the base unit, base unit) for 'kΩ', 'µs', 'mm', 'Hz', '°', a power
+    ('mm^2' -> 1e-6, 'm^2'), a product ('Ω·m') and a quotient of two such units ('V/s',
+    'mV/µs' -> 1e3, 'V/s', 'C/m^2', '1/ms'); None if unknown."""
+    unit = unit.strip().translate(SUPERSCRIPTS)
     if unit in ANGLES:
         return ANGLES[unit], "rad"
     if unit in UNIT_ALIASES:
         return 1.0, UNIT_ALIASES[unit]
     if unit.count("/") == 1:
-        num, den = (parse_unit(part) for part in unit.split("/"))
+        top, bottom = unit.split("/")
+        num = (1.0, "1") if top.strip() == "1" else parse_unit(top)
+        den = parse_unit(bottom)
         if num is None or den is None or "rad" in (num[1], den[1]) or "/" in num[1] + den[1]:
             return None
         return num[0] / den[0], f"{num[1]}/{den[1]}"
+    factors = PRODUCT_RE.split(unit)
+    if len(factors) > 1:
+        scale, bases = 1.0, []
+        for factor in factors:
+            parsed = _factor(factor)
+            if parsed is None:
+                return None
+            scale *= parsed[0]
+            bases.append(parsed[1])
+        return scale, "·".join(bases)
+    power = POWER_RE.fullmatch(unit)
+    if power:
+        parsed = _factor(power[1])
+        return None if parsed is None else (parsed[0] ** int(power[2]), f"{parsed[1]}^{power[2]}")
+    if unit in LENGTHS:
+        return LENGTHS[unit], "m"
     if unit in PREFIXED:
         return 1.0, unit
     if unit == "Hz":
@@ -373,26 +406,41 @@ def convert(value: float, unit: str, to: str) -> float:
 TEX_REPLACEMENTS = [
     (r"\{,\}", "."),
     (r"\\[,;:! ]|~", " "),
-    (r"\\(?:mathrm|text|mathit)\{([^{}]*)\}", r"\1"),
     (r"\\(?:mu|micro)\b\s*", "µ"),
+    (r"\\(?:mathrm|text|mathit)\{([^{}]*)\}", r"\1"),
     (r"\\Omega\b", "Ω"),
     (r"\^\{?\\circ\}?|\\circ|\\degree", "°"),
     (r"\\(?:cdot|times)\s*10\^\{?([+\-\u2212]?\d+)\}?", r"e\1"),
+    (r"\\cdot\s*", "·"),
     (r"\\%", "%"),
 ]
 NUMBER_RE = re.compile(
     r"^\s*([+\-\u2212]?\s*\d+(?:[.,]\d+)?)(?:\s*e\s*([+\-\u2212]?\d+))?\s*(.*?)\s*$"
 )
+UPRIGHT_RE = re.compile(r"\\(?:mathrm|text)\{")
+# A unit `option_value` has no SI value for (`MiB`, `Mbit/s`, `bit/s/Hz`, `min`, `kg`).
+UNIT_WORD = r"[^\W\d_]+(?:\^-?\d+)?"
+UNIT_RE = re.compile(rf"{UNIT_WORD}(?:[/·]{UNIT_WORD})*")
 
 
-def option_value(text: str) -> float | None:
-    """The SI value an option's text states (`$4{,}82\\,\\mathrm{kHz}$` -> 4820.0), or None
-    when the text is not a plain number with an optional unit."""
+@dataclass
+class OptionText:
+    """What an option's text says when it is a plain number with an optional unit."""
+
+    number: float
+    unit: str
+    in_math: bool  # the whole option is one formula
+    upright: bool  # that formula writes its unit with \mathrm or \text
+
+
+def read_option(text: str) -> OptionText | None:
     s = text.strip()
-    if s.count("$") == 2 and s.startswith("$") and s.endswith("$"):
+    in_math = s.count("$") == 2 and s.startswith("$") and s.endswith("$")
+    if in_math:
         s = s[1:-1]
     elif "$" in s:
         return None
+    upright = in_math and UPRIGHT_RE.search(s) is not None
     for pattern, repl in TEX_REPLACEMENTS:
         s = re.sub(pattern, repl, s)
     s = s.replace("{", "").replace("}", "")
@@ -402,19 +450,34 @@ def option_value(text: str) -> float | None:
     number = float(m[1].replace(" ", "").replace("\u2212", "-").replace(",", "."))
     if m[2]:
         number *= 10 ** int(m[2].replace("\u2212", "-"))
-    unit = m[3].strip()
-    if not unit:
-        return number
-    if unit == "°":
-        return number
-    if unit == "%":
-        return number / 100
-    if unit == "dB":
-        return number
-    parsed = parse_unit(unit)
+    return OptionText(number, m[3].strip(), in_math, upright)
+
+
+def option_value(text: str) -> float | None:
+    """The SI value an option's text states (`$4{,}82\\,\\mathrm{kHz}$` -> 4820.0), or None
+    when the text is not a plain number with a unit that converts."""
+    read = read_option(text)
+    if read is None:
+        return None
+    if read.unit in ("", "°", "dB"):
+        return read.number
+    if read.unit == "%":
+        return read.number / 100
+    parsed = parse_unit(read.unit)
     if parsed is None or parsed[1] == "rad":
         return None
-    return number * parsed[0]
+    if read.in_math and not read.upright and parsed[1].split("^")[0] in SYMBOL_UNITS:
+        return None
+    return read.number * parsed[0]
+
+
+def states_number(text: str) -> bool:
+    """True for an option `option_value` reads, or a number with an upright unit it has no
+    SI value for (`$4\\,\\mathrm{MiB}$`), whose reading is left to the check."""
+    if option_value(text) is not None:
+        return True
+    read = read_option(text)
+    return read is not None and read.upright and UNIT_RE.fullmatch(read.unit) is not None
 
 
 def numeric_question(question: Any) -> bool:
@@ -422,7 +485,7 @@ def numeric_question(question: Any) -> bool:
     is an `mc_numeric` script (SK-VER-CHECK)."""
     if question is None or question.type not in ("single", "multi") or not question.options:
         return False
-    return all(option_value(o.text) is not None for o in question.options)
+    return all(states_number(o.text) for o in question.options)
 
 
 def close(a: float, b: float, rtol: float, atol: float = 0.0) -> bool:
