@@ -451,6 +451,12 @@ const cosh = (a: Cx): Cx => div(add(exp(a), exp(cx(-a.re, -a.im))), cx(2));
 const asin = (a: Cx): Cx => mul(cx(0, -1), log(add(mul(I, a), sqrt(sub(ONE, mul(a, a))))));
 const atan = (a: Cx): Cx =>
   mul(cx(0, 0.5), sub(log(sub(ONE, mul(I, a))), log(add(ONE, mul(I, a)))));
+// The principal branches SymPy uses: asinh z = log(z + √(z² + 1)),
+// acosh z = log(z + √(z + 1)·√(z − 1)), atanh z = ½·(log(1 + z) − log(1 − z)), acoth z = atanh(1/z)
+const asinh = (a: Cx): Cx => log(add(a, sqrt(add(mul(a, a), ONE))));
+const acosh = (a: Cx): Cx => log(add(a, mul(sqrt(add(a, ONE)), sqrt(sub(a, ONE)))));
+const atanh = (a: Cx): Cx => div(sub(log(add(ONE, a)), log(sub(ONE, a))), cx(2));
+const acoth = (a: Cx): Cx => atanh(div(ONE, a));
 
 const FUNCTIONS = new Map<string, (a: Cx) => Cx>(Object.entries({
   sqrt,
@@ -471,6 +477,15 @@ const FUNCTIONS = new Map<string, (a: Cx) => Cx>(Object.entries({
   sinh,
   cosh,
   tanh: (a: Cx) => div(sinh(a), cosh(a)),
+  coth: (a: Cx) => div(cosh(a), sinh(a)),
+  asinh,
+  arsinh: asinh,
+  acosh,
+  arcosh: acosh,
+  atanh,
+  artanh: atanh,
+  acoth,
+  arcoth: acoth,
   abs: (a: Cx) => cx(abs(a)),
   Abs: (a: Cx) => cx(abs(a)),
   arg: (a: Cx) => cx(Math.atan2(a.im, a.re)),

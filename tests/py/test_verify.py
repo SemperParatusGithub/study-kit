@@ -7,6 +7,7 @@ would write, computed from the statement (never copied from the key).
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import textwrap
 from pathlib import Path
@@ -488,6 +489,37 @@ def test_targets_and_cli_usage(course: Path, capsys):
 def test_option_values(text: str, value: float | None):
     got = verify.option_value(text)
     assert got == (pytest.approx(value) if value is not None else None)
+
+
+ASINH_KEY = "{key: u, label: '$u$', expr: 'asinh(R/s)', symbols: [R, s]}"
+
+
+def test_a_key_with_an_inverse_hyperbolic_function_verifies(course: Path):
+    rel = "exercises/rc-filter/ex-rc-tp-belastet.md"
+    text = (course / rel).read_text()
+    (course / rel).write_text(re.sub(r"(answers:\n)", rf"\1  - {ASINH_KEY}\n", text, count=1))
+    check = """\
+    import sympy as sp
+    from math import log10, pi
+    from studykit.check import answers
+    s, R, RL, C = sp.symbols("s R RL C")
+    answers(u=sp.log(R / s + sp.sqrt((R / s) ** 2 + 1)),
+            H=RL / (R + RL + s * R * RL * C),
+            H0db=20 * log10(0.5), fg=(1e4 + 1e4) / (2 * pi * 1e4 * 1e4 * 10e-9))
+    """
+    write_check(course, "ex-rc-tp-belastet.py", check)
+    row = run_one(course, "ex-rc-tp-belastet")
+    assert (row["outcome"], row["status"]) == ("pass", "verified"), row
+    # the same function in the check's own printed result
+    write_check(
+        course,
+        "ex-rc-tp-belastet.py",
+        check.replace("sp.log(R / s + sp.sqrt((R / s) ** 2 + 1))", "sp.asinh(R / s)"),
+    )
+    assert run_one(course, "ex-rc-tp-belastet")["status"] == "verified"
+    # a wrong result is a dispute, not a parser failure
+    write_check(course, "ex-rc-tp-belastet.py", check.replace("** 2 + 1", "** 2 + 2"))
+    assert run_one(course, "ex-rc-tp-belastet")["status"] == "disputed"
 
 
 def test_units():

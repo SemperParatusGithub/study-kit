@@ -210,6 +210,30 @@ test('expression parser: precedence, implicit multiplication and read-back', () 
   assert.ok(Math.abs(evaluate(parseExpr('0,5·s', sym), env).re - 1) < 1e-12);
 });
 
+test('expression parser: coth and the inverse hyperbolic functions match SymPy', () => {
+  const value = (source: string) => evaluate(parseExpr(source, []), {});
+  for (const [source, re] of [
+    ['asinh(1)', Math.asinh(1)],
+    ['arsinh(1)', Math.asinh(1)],
+    ['acosh(2)', Math.acosh(2)],
+    ['arcosh(2)', Math.acosh(2)],
+    ['atanh(0.5)', Math.atanh(0.5)],
+    ['artanh(0.5)', Math.atanh(0.5)],
+    ['acoth(2)', Math.atanh(0.5)],
+    ['arcoth(2)', Math.atanh(0.5)],
+    ['coth(1)', 1 / Math.tanh(1)],
+  ] as const) {
+    assert.ok(Math.abs(value(source).re - re) < 1e-12, source);
+    assert.ok(Math.abs(value(source).im) < 1e-12, source);
+  }
+  // SymPy's principal branch outside the real domain: acosh(1/2) = iπ/3
+  assert.ok(Math.abs(value('acosh(0.5)').im - Math.PI / 3) < 1e-12);
+  // a key written with asinh accepts its logarithmic form
+  const key = { key: 'u', label: 'u', expr: 'asinh(x)', symbols: ['x'] };
+  assert.equal(checkExpr('ln(x + sqrt(x^2 + 1))', key).ok, true);
+  assert.equal(checkExpr('ln(x + sqrt(x^2 - 1))', key).ok, false);
+});
+
 test('expression parser: errors are reported, never evaluated', () => {
   assert.throws(() => parseExpr('1/(1+s*R*C', ['s', 'R', 'C']), /closing parenthesis/);
   assert.throws(() => parseExpr('x + 1', ['s']), /Unknown name “x”/);
