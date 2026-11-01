@@ -673,9 +673,14 @@ How the scheduler places sessions:
 - The last day is for the cheat sheet (a review of every topic when none is allowed). Mock
   exams (`targets.mock_exams`, at most those the course has and that were not taken) take
   the exam's duration + 30 minutes and are spread over the last 14 days, the last at least
-  4 days before the exam; the next session reviews each. The session before the last day
-  is a final MC round over every topic; the last session before the final 14 days is a
-  buffer when at least four sessions lie before them.
+  4 days before the exam; the next session reviews each. A week takes a mock exam only if it
+  stays within the budget with 45 minutes left for each review and the last day in it. When
+  they do not all fit this way, they go as late as they do, each after the previous one's
+  review, and SK-PLAN-BUDGET names those before the 14 days. A 120-minute exam fits four
+  times from 9 hours a week and five times from 11; six never fit, since the 14 days do not
+  have enough sessions. The session before the last day is a final MC round over every
+  topic; the last session before the final 14 days is a buffer when at least four sessions
+  lie before them.
 - Learning takes 60 % of the sessions before the final 14 days, at least one per topic and
   never more than a topic has exercises: topics in prerequisite order (teaching order among
   free ones), shared in proportion to weight × mean exercise difficulty, × 1.5 for focus

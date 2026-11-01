@@ -764,7 +764,8 @@ Fix: plan from an earlier day (`--from YYYY-MM-DD`), set `exam.date`, or shorten
 
 ### `SK-PLAN-BUDGET`
 **warning.** The time does not cover the plan: too few sessions to learn every topic, a mock
-exam longer than the weekly budget, no session left for a mock exam, fewer mock exams than
+exam longer than the weekly budget, no session left for a mock exam or its review, mock exams
+that do not fit in the last 14 days and come earlier, fewer mock exams than
 `targets.mock_exams`, or done sessions that already fill a week.
-Fix: start earlier, raise `study.hours_per_week`, skip topics, or write the missing mock
-exams; then plan again.
+Fix: start earlier, raise `study.hours_per_week`, skip topics, lower `targets.mock_exams`
+(six never fit in the last 14 days), or write the missing mock exams; then plan again.

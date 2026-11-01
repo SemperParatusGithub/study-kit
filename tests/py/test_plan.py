@@ -209,6 +209,143 @@ def test_mock_exam_longer_than_budget_warns(course: Path):
     assert mock["minutes"] == 120
 
 
+def add_mock_exams(course: Path, count: int) -> None:
+    """`count` mock exams: copies of the sample's with new ids, and the target to match."""
+    original = course / "exams" / "probeklausur-1"
+    for n in range(2, count + 1):
+        copy = course / "exams" / f"probeklausur-{n}"
+        shutil.copytree(original, copy)
+        for path in copy.iterdir():
+            text = path.read_text().replace("probeklausur-1", f"probeklausur-{n}")
+            text = re.sub(r"pk1-t(\d)", rf"pk{n}-t\1", text)
+            path.write_text(re.sub(r"(mc-[a-z-]+-)1(\d\d)", rf"\g<1>{n}\2", text))
+            path.rename(path.with_name(path.name.replace("pk1-", f"pk{n}-")))
+    path = course / "course.yaml"
+    path.write_text(re.sub(r"mock_exams: \d+", f"mock_exams: {count}", path.read_text()))
+
+
+def set_exam(course: Path, day: date) -> None:
+    path = course / "course.yaml"
+    path.write_text(path.read_text().replace("date: 2027-02-15", f"date: {day.isoformat()}"))
+
+
+def check_mock_exams(p: model.Plan, count: int) -> list[model.Session]:
+    """All of them, in order, each directly followed by its review, none in the last 4 days."""
+    mocks = [s for s in p.sessions if s.kind == "mock-exam"]
+    assert [s.tasks[0].ref for s in mocks] == [f"exam:probeklausur-{n + 1}" for n in range(count)]
+    for i, s in enumerate(p.sessions):
+        if s.kind == "mock-exam":
+            assert p.exam_date is not None and (p.exam_date - s.date).days >= 4
+            assert p.sessions[i + 1].kind == "review"
+            assert p.sessions[i + 1].tasks[0].refs == [s.tasks[0].ref]
+            assert p.sessions[i + 1].minutes >= plan.MIN_MINUTES
+    return mocks
+
+
+def exam_days() -> list[date]:
+    return [date(2027, 2, 15 + offset) for offset in range(7)]
+
+
+@pytest.mark.parametrize("hours", [9, 12, 20])
+@pytest.mark.parametrize("day", exam_days(), ids=lambda d: d.strftime("%a"))
+def test_four_mock_exams_fit_the_last_14_days(course: Path, hours: int, day: date):
+    add_mock_exams(course, 4)
+    set_exam(course, day)
+    set_study(course, f"study: {{start: 2026-11-02, hours_per_week: {hours}, blocked: []}}")
+    result, found = plan.run(course, start="2026-10-29")
+    assert [f.format() for f in found] == []
+    assert [m["exam"] for m in result["mock_exams"]] == [f"probeklausur-{n}" for n in range(1, 5)]
+    p = check_constraints(course, "2026-10-29")
+    check_mock_exams(p, 4)
+
+
+@pytest.mark.parametrize(
+    ("count", "hours"),
+    [(2, 3), (3, 6), (4, 2), (4, 4), (4, 6), (4, 8), (5, 10), (6, 12), (6, 30)],
+)
+@pytest.mark.parametrize("day", exam_days(), ids=lambda d: d.strftime("%a"))
+def test_mock_exams_that_do_not_fit_come_earlier_and_warn(
+    course: Path, count: int, hours: int, day: date
+):
+    add_mock_exams(course, count)
+    set_exam(course, day)
+    set_study(course, f"study: {{start: 2026-11-02, hours_per_week: {hours}, blocked: []}}")
+    _, found = plan.run(course, start="2026-10-29")
+    assert {f.code for f in found} <= {"SK-PLAN-BUDGET"}
+    p = load(course)
+    mocks = check_mock_exams(p, count)
+    per_week: dict[date, int] = {}
+    for s in p.sessions:
+        per_week[week(s.date)] = per_week.get(week(s.date), 0) + s.minutes
+    assert max(per_week.values()) <= hours * 60, per_week
+    assert p.sessions[-1].kind == "cheatsheet"
+    early = [s for s in mocks if (day - s.date).days > 14]
+    warned = [f.message for f in found if "last 14 days" in f.message]
+    if early:
+        assert len(warned) == 1
+        for s in early:
+            assert f"{s.tasks[0].ref[5:]} on {s.date.isoformat()}" in warned[0]
+    else:
+        assert not warned
+
+
+def test_six_mock_exams_never_fit_the_last_14_days(course: Path):
+    add_mock_exams(course, 6)
+    set_study(course, "study: {start: 2026-11-02, hours_per_week: 40, blocked: []}")
+    _, found = plan.run(course, start="2026-10-29")
+    assert ["last 14 days" in f.message for f in found] == [True]
+    check_mock_exams(load(course), 6)
+
+
+@pytest.mark.parametrize("day", exam_days(), ids=lambda d: d.strftime("%a"))
+def test_a_small_budget_keeps_the_review_of_a_mock_exam(course: Path, day: date):
+    set_exam(course, day)
+    set_study(course, "study: {start: 2026-11-02, hours_per_week: 3, blocked: []}")
+    make(course)
+    check_constraints(course, "2026-10-29")
+
+
+def test_a_late_start_warns_about_the_mock_exams_left_out(course: Path):
+    add_mock_exams(course, 4)
+    set_study(course, "study: {start: 2026-11-02, hours_per_week: 6, blocked: []}")
+    result, found = plan.run(course, start="2027-02-05")
+    assert [m["exam"] for m in result["mock_exams"]] == ["probeklausur-1", "probeklausur-2"]
+    assert [f.message for f in found if "no session is left" in f.message] == [
+        "no session is left for mock exam probeklausur-3 before the exam",
+        "no session is left for mock exam probeklausur-4 before the exam",
+    ]
+
+
+def test_a_mock_exam_without_a_later_session_warns_about_its_review(course: Path):
+    set_exam(course, date(2027, 2, 18))
+    set_study(course, "study: {start: 2026-11-02, hours_per_week: 2, blocked: []}")
+    result, found = plan.run(course, start="2027-02-12")
+    assert result["mock_exams"] == [{"exam": "probeklausur-1", "date": "2027-02-13"}]
+    assert any("probeklausur-1 on 2027-02-13 has no review" in f.message for f in found)
+
+
+def test_replanning_schedules_the_mock_exams_not_taken_yet(course: Path):
+    add_mock_exams(course, 4)
+    set_study(course, "study: {start: 2026-11-02, hours_per_week: 12, blocked: []}")
+    make(course)
+    first = next(s for s in load(course).sessions if s.kind == "mock-exam")
+    done(course, [first.id])
+    day = date.fromordinal(first.date.toordinal() + 1).isoformat()
+    result = make(course, start=day)
+    assert first.id in result["kept"]
+    assert [m["exam"] for m in result["mock_exams"]] == [f"probeklausur-{n}" for n in (2, 3, 4)]
+    assert all(m["date"] > first.date.isoformat() for m in result["mock_exams"])
+
+
+def test_four_mock_exams_pass_validate(course: Path, denylist: Path):
+    add_mock_exams(course, 4)
+    set_study(course, "study: {start: 2026-11-02, hours_per_week: 12, blocked: []}")
+    make(course)
+    config = validate.Config(denylist=denylist, katex=False, figures=False, pdf=False, site=False)
+    report = validate.validate([course], config=config)
+    assert not [f.format() for f in report.findings if f.is_error]
+
+
 def test_focus_and_weight_share_the_learning(course: Path):
     result = make(course)
     learn = result["learn"]

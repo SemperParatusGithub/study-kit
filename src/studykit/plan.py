@@ -16,8 +16,11 @@ How sessions are placed:
    topic when the exam allows none). Mock exams (`targets.mock_exams`, at most the mock
    exams the course has and that were not taken yet) take exam duration + 30 minutes and are
    spread over the last 14 days, the last one at least 4 days before the exam; the session
-   after each one reviews it. The session before the cheat-sheet day is a final MC round
-   over every topic. The last session before these 14 days is a buffer.
+   after each one reviews it. A week takes a mock exam only if it stays within the budget
+   with 45 minutes left for each review and the cheat-sheet day in it. When they do not all
+   fit this way, they go as late as they do, each after the previous one's review, and may
+   start before the 14 days (a warning names them). The session before the cheat-sheet day
+   is a final MC round over every topic. The last session before these 14 days is a buffer.
 3. **Budget.** No calendar week (Monday to Sunday) has more minutes than the weekly budget:
    in a week with a mock exam, a done session or the extra cheat-sheet day the other
    sessions get shorter, down to 45 minutes; below that the least important one is dropped
@@ -214,6 +217,59 @@ class RoundRobin:
         return best
 
 
+Placed = tuple[progress.ExamInfo, Slot, Slot | None]
+
+
+def _fit_mocks(
+    exams: list[progress.ExamInfo],
+    days: list[str],
+    free: list[Slot],
+    load: dict[str, int],
+    budget: int,
+    last_mock: str,
+    *,
+    reviewed: bool,
+) -> list[Placed]:
+    """In date order, each exam in the first session on or after its day whose week has room
+    for it, then its review in the next session whose week has room for the shortest session.
+    Stops at the first exam that does not fit; with `reviewed`, one without a review does not
+    fit either."""
+    used = dict(load)
+    placed: list[Placed] = []
+    floor = ""
+
+    def has_room(s: Slot, minutes: int) -> bool:
+        return used.get(_week(s.date), 0) + minutes <= budget
+
+    def take(s: Slot, minutes: int) -> None:
+        used[_week(s.date)] = used.get(_week(s.date), 0) + minutes
+
+    for exam, day in zip(exams, days, strict=True):
+        minutes = min(exam.duration_min + MOCK_EXTRA, budget)
+        slot = next(
+            (
+                s
+                for s in free
+                if s.date >= day and floor < s.date <= last_mock and has_room(s, minutes)
+            ),
+            None,
+        )
+        if slot is None:
+            break
+        take(slot, minutes)
+        review = next(
+            (s for s in free if s.date > slot.date and has_room(s, MIN_MINUTES)),
+            None,
+        )
+        if review is None and reviewed:
+            break
+        if review is not None:
+            take(review, MIN_MINUTES)
+        placed.append((exam, slot, review))
+        floor = (review or slot).date
+    return placed
+
+
 def _session_dict(s: model.Session) -> dict:
     tasks = []
     for t in s.tasks:
@@ -306,24 +362,40 @@ def schedule(inp: Inputs) -> tuple[list[dict], dict, list[Finding]]:
             )
         )
     k = min(max(0, wanted - len(taken)), len(available))
+    exams = available[:k]
     last_mock = progress.add_days(end, -MOCK_LAST)
     span = max(0, progress.days_between(final_start, last_mock))
+    spread = [progress.add_days(final_start, (i + 1) * span // (k + 1)) for i in range(k)]
+    kept_minutes: dict[str, int] = {}
+    for s in inp.kept:
+        kept_minutes[_week(s["date"])] = kept_minutes.get(_week(s["date"]), 0) + s["minutes"]
+    # what a week already has to hold: done sessions and the shortest cheat-sheet day
+    load = dict(kept_minutes)
+    load[_week(slots[-1].date)] = load.get(_week(slots[-1].date), 0) + MIN_MINUTES
+    free = slots[:-1]
+
+    def fit(days: list[str], reviewed: bool = True) -> list[Placed]:
+        return _fit_mocks(exams, days, free, load, budget, last_mock, reviewed=reviewed)
+
+    # spread out if they fit that way, else as late as they fit, else without every review
+    latest_first = [s.date for s in reversed(free) if s.date <= last_mock]
+    tries = [(spread, True)]
+    tries += [([day] * k, True) for day in latest_first]
+    tries += [([day] * k, False) for day in latest_first]
+    placed = next(
+        (p for p in (fit(days, reviewed) for days, reviewed in tries) if len(p) == k),
+        fit([start] * k, False),
+    )
     mocks: list[dict] = []
-    for i in range(k):
-        exam = available[i]
-        target = progress.add_days(final_start, (i + 1) * span // (k + 1))
-        free = [s for s in slots if s.role == "regular" and s.date <= last_mock]
-        after = [s for s in free if s.date >= target]
-        slot = after[0] if after else (free[-1] if free else None)
-        if slot is None:
-            warn.append(
-                (
-                    ["exam", "date"],
-                    f"no session is left for mock exam {exam.id} before the exam",
-                    "start earlier (--from) or raise study.hours_per_week",
-                )
+    for exam in exams[len(placed) :]:
+        warn.append(
+            (
+                ["exam", "date"],
+                f"no session is left for mock exam {exam.id} before the exam",
+                "start earlier (--from), raise study.hours_per_week or lower targets.mock_exams",
             )
-            continue
+        )
+    for exam, slot, review in placed:
         slot.role, slot.exam = "mock", exam.id
         minutes = exam.duration_min + MOCK_EXTRA
         if minutes > budget:
@@ -338,9 +410,29 @@ def schedule(inp: Inputs) -> tuple[list[dict], dict, list[Finding]]:
             minutes = budget
         slot.minutes = minutes
         mocks.append({"exam": exam.id, "date": slot.date})
-        later = [s for s in slots if s.date > slot.date and s.role == "regular"]
-        if later:
-            later[0].role, later[0].exam = "mock-review", exam.id
+        if review is not None:
+            review.role, review.exam = "mock-review", exam.id
+        else:
+            warn.append(
+                (
+                    ["study", "hours_per_week"],
+                    f"mock exam {exam.id} on {slot.date} has no review: no later session has "
+                    "room for one",
+                    "start earlier (--from), raise study.hours_per_week or lower "
+                    "targets.mock_exams",
+                )
+            )
+    early = [(exam.id, slot.date) for exam, slot, _ in placed if slot.date < final_start]
+    if early:
+        warn.append(
+            (
+                ["targets", "mock_exams"],
+                f"the last {FINAL_DAYS} days have no room for {k} mock exams and their reviews "
+                "within the weekly budget; earlier: "
+                + ", ".join(f"{exam} on {day}" for exam, day in early),
+                "raise study.hours_per_week or lower targets.mock_exams",
+            )
+        )
     if len(slots) > 1 and slots[-2].role == "regular" and slots[-2].date >= final_start:
         slots[-2].role = "final-mc"
     before_final = [s for s in slots if s.role == "regular" and s.date < final_start]
@@ -348,9 +440,6 @@ def schedule(inp: Inputs) -> tuple[list[dict], dict, list[Finding]]:
         before_final[-1].role = "buffer"
 
     # weekly budget
-    kept_minutes: dict[str, int] = {}
-    for s in inp.kept:
-        kept_minutes[_week(s["date"])] = kept_minutes.get(_week(s["date"]), 0) + s["minutes"]
     weeks: dict[str, list[Slot]] = {}
     for s in slots:
         weeks.setdefault(_week(s.date), []).append(s)
