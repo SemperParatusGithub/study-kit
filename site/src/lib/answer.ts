@@ -468,6 +468,7 @@ const FUNCTIONS = new Map<string, (a: Cx) => Cx>(Object.entries({
   sin,
   cos,
   tan: (a: Cx) => div(sin(a), cos(a)),
+  cot: (a: Cx) => div(cos(a), sin(a)),
   asin,
   arcsin: asin,
   acos: (a: Cx) => sub(cx(Math.PI / 2), asin(a)),

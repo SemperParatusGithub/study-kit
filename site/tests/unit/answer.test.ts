@@ -210,6 +210,19 @@ test('expression parser: precedence, implicit multiplication and read-back', () 
   assert.ok(Math.abs(evaluate(parseExpr('0,5·s', sym), env).re - 1) < 1e-12);
 });
 
+test('expression parser: cot, also of a complex argument', () => {
+  const value = (source: string) => evaluate(parseExpr(source, []), {});
+  assert.ok(Math.abs(value('cot(1)').re - 1 / Math.tan(1)) < 1e-12);
+  assert.ok(Math.abs(value('cot(1)').im) < 1e-12);
+  // cot(j) = −j·coth(1)
+  assert.ok(Math.abs(value('cot(j)').re) < 1e-12);
+  assert.ok(Math.abs(value('cot(j)').im + 1 / Math.tanh(1)) < 1e-12);
+  const key = { key: 'c', label: 'c', expr: 'cot(x)', symbols: ['x'] };
+  assert.equal(checkExpr('cos(x)/sin(x)', key).ok, true);
+  assert.equal(checkExpr('1/tan(x)', key).ok, true);
+  assert.equal(checkExpr('tan(x)', key).ok, false);
+});
+
 test('expression parser: coth and the inverse hyperbolic functions match SymPy', () => {
   const value = (source: string) => evaluate(parseExpr(source, []), {});
   for (const [source, re] of [
