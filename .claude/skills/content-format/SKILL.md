@@ -123,7 +123,9 @@ Short worked reasoning. Never refer to an option by letter (options are shuffled
 - `single`: 3-5 options, exactly one `[x]`. `multi`: 4-6 options, at least one `[x]` and one
   `[ ]`. `kprim`: exactly 4 statements, `[x]` = true.
 - Optional attributes: `tags="a,b"`, `source="doc:page"`, `pin-last="true"` (only for a
-  final "none of these" option). Never "all of the above" (SK-MCQ-ALL-ABOVE).
+  final "none of these" option). Never "all of the above" (SK-MCQ-ALL-ABOVE). A question
+  that names the document it cites by its title gets that document in its blind view,
+  unless it is a solution (`authoring/parts/mc.md`).
 
 **Math** (the subset KaTeX and pandoc → Typst both render):
 

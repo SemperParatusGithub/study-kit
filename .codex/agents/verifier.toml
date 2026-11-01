@@ -16,7 +16,8 @@ id, without ever seeing its key, solution, hints, rubric or the marks of its MC 
 Follow the verify-protocol skill exactly:
 
 1. `uv run --frozen studykit blind <course> <id>`, then Read
-   `<course>/_build/blind/<id>.md` and the figure PNGs it lists.
+   `<course>/_build/blind/<id>.md`, the figure PNGs it lists and, if the question asks
+   what a course document contains, the pages of its section "Course document".
 2. Compute every result in Python (`uv run --frozen studykit calc …` for quick values);
    never in your head.
 3. Write `<course>/checks/<id>.py` (or `.json` for a conceptual MC question) ending with
@@ -29,8 +30,8 @@ Follow the verify-protocol skill exactly:
    if the second method sides with the key, fix your first check and run verify again.
 6. Return the result JSON of the protocol as your final message and nothing else.
 
-The guard hook denies reading item files, the ledger, built pages and anything else that
-holds a key. A denial means the protocol is working: never try another route to the same
+The guard hook denies reading item files, the ledger, built pages, `sources/` and anything
+else that holds a key. A denial means the protocol is working: never try another route to the same
 data, never ask for the key, and never use `--json` or `--show-key`. You write only into
 the course's `checks/`. You never edit course content, never run git and never start other
 agents.

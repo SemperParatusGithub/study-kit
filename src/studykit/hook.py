@@ -12,11 +12,11 @@ reasons say what to do instead.
 
 - `verifier-guard` (agent-scoped, the verifier only): keeps the verifier blind. It denies
   Read, Grep and Glob on a course's `exercises/`, `mc/` and `exams/` and on everything
-  else that holds keys or solutions (`state/`, `_history/`, `_build/` except `blind/` and
-  the figure images, the built site), Grep and Glob over a tree that contains a course,
-  writes outside a course's `checks/`, and Bash commands that mention those paths (also
-  through `cd`, globs, braces or symlinks), name or recursively search a tree holding a
-  course, or make links, unless they are `studykit` (blind, calc, verify, ls, lint,
+  else that holds keys or solutions (`sources/`, `state/`, `_history/`, `_build/` except
+  `blind/` and the figure images, the built site), Grep and Glob over a tree that contains
+  a course, writes outside a course's `checks/`, and Bash commands that mention those paths
+  (also through `cd`, globs, braces or symlinks), name or recursively search a tree holding
+  a course, or make links, unless they are `studykit` (blind, calc, verify, ls, lint,
   validate, fig, index, doctor) or `python checks/…`. `studykit render`, `pdf` and the
   key-revealing `verify --json` and `--show-key` (or a prefix of either) are denied even
   without a path.
@@ -39,7 +39,7 @@ from itertools import islice
 from pathlib import Path
 from typing import Any
 
-BLOCKED_DIRS = {"exercises", "mc", "exams", "_history", "state"}
+BLOCKED_DIRS = {"exercises", "mc", "exams", "sources", "_history", "state"}
 BUILD_OK = {"blind", "figures"}
 SITE_PARTS = [("site", "dist"), ("site", ".astro")]
 VERIFIER_STUDYKIT = {"blind", "calc", "verify", "ls", "lint", "validate", "fig", "index", "doctor"}
@@ -48,15 +48,15 @@ OPERATORS = {";", "&&", "||", "|", "&", "|&", "\n", "(", ")"}
 SUBSTITUTION = re.compile(r"\$\(|`|<\(|>\(")
 # a path mention: one of the blocked names as a whole path segment
 MENTION = re.compile(
-    r"(?:^|[\s'\"=/:])(?:exercises|mc|exams|_history|state)(?=/|\s|$|['\"])"
+    r"(?:^|[\s'\"=/:])(?:exercises|mc|exams|sources|_history|state)(?=/|\s|$|['\"])"
     r"|_build/(?!blind\b|figures/[^\s'\"]*\.(?:png|svg)\b)"
     r"|\.facts\.json|site/dist|site/\.astro|(?:^|[\s'\"=/])\.cache/"
 )
 # the same in check code, where only a path counts: a blocked name between '/' or quotes, or
 # before a '/' ("../exercises/x.md", / "mc"), not a word of a comment ("steady state")
 CODE_MENTION = re.compile(
-    r"(?<=[/'\"])(?:exercises|mc|exams|_history|state)(?=[/'\"]|$)"
-    r"|(?<![\w.-])(?:exercises|mc|exams|_history|state)/"
+    r"(?<=[/'\"])(?:exercises|mc|exams|sources|_history|state)(?=[/'\"]|$)"
+    r"|(?<![\w.-])(?:exercises|mc|exams|sources|_history|state)/"
     r"|_build/(?!blind\b|figures/[^\s'\"]*\.(?:png|svg)\b)"
     r"|\.facts\.json|site/dist|site/\.astro|(?:^|[\s'\"=/])\.cache/",
     re.MULTILINE,
@@ -89,6 +89,15 @@ def course_root(path: Path) -> Path | None:
     return None
 
 
+def _blocked_dir(name: str) -> str:
+    if name == "sources":
+        return (
+            "sources/ holds solutions and solved sheets; the blind view hands over the document "
+            "a question is about"
+        )
+    return f"{name}/ holds the items and their keys"
+
+
 def blocked_path(path: Path) -> str | None:
     """Why the verifier may not look at `path`, or None. A symlink is judged by its own
     path and by the path it resolves to (`checks/up -> ..` must not open the items)."""
@@ -112,14 +121,14 @@ def _blocked_lexically(path: Path) -> str | None:
     if root is not None and root != path:
         rel = path.relative_to(root).parts
         if rel[0] in BLOCKED_DIRS:
-            return f"{rel[0]}/ holds the items and their keys"
+            return _blocked_dir(rel[0])
         if rel[0] == "_build" and (len(rel) < 2 or rel[1] not in BUILD_OK):
             return "_build/ holds rendered items with their solutions"
         return None
     # a path that does not exist (yet): judge it by its segments
     for i, part in enumerate(parts):
         if part in BLOCKED_DIRS and i >= 2 and parts[i - 2] in ("courses", "examples"):
-            return f"{part}/ holds the items and their keys"
+            return _blocked_dir(part)
     return None
 
 

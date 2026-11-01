@@ -468,7 +468,7 @@ Beurteilen Sie für den RC-Tiefpass:
   | `type` | `single` / `multi` / `kprim` |
   | `difficulty` | 1–4 |
   | `tags` | optional, comma-separated |
-  | `source` | optional, `doc:page` |
+  | `source` | optional, `doc:page`; a question that also names that document by its title gets it in its blind view, unless it is a solution (§5.3) |
   | `pin-last` | optional; keeps the last option last after shuffling, only for a "none of these" option |
 
 **How pandoc reads it** (verified in Phase 3 with pandoc 3.13, pinned by `tests/py/test_filters.py`):
@@ -1780,7 +1780,9 @@ the `just` recipes start them. No agent has memory, and only the verifier has a 
 (matcher `Read|Write|Edit|MultiEdit|NotebookEdit|Grep|Glob|Bash`),
 `studykit hook verifier-guard`:
 - It denies Read, Grep and Glob on `exercises/`, `mc/` and `exams/`, and on what else holds
-  keys or solutions: `state/`, `_history/`, `_build/` except `blind/` and the figure images,
+  keys or solutions: `sources/` (past solutions and solved exercise sheets can be an item's
+  key in other words; `other` documents can hold them too, so a document's kind cannot open
+  it), `state/`, `_history/`, `_build/` except `blind/` and the figure images,
   figure facts, the built site and `.cache/`; Grep and Glob over a tree that contains a
   course, and Glob patterns or Grep globs that name those paths. A path is judged as written
   and as it resolves, so a symlink into those directories is denied too.
@@ -1799,6 +1801,14 @@ the `just` recipes start them. No agent has memory, and only the verifier has a 
   keys to compute (key, label, unit or symbols), and MC options in source order labelled A–F
   without their `why` or the explanation; figures point at their PNG, course links keep
   their text only.
+- An MC question can be about what a course document contains ("was steht in der
+  Formelsammlung?"), which no reasoning decides. When its `source` cites a document, the
+  stem or an option names that document by its `title` in `sources/manifest.yaml`, and the
+  document's kind is not `solutions` or `exam-solutions`, the view has a section "Course
+  document" and `blind` copies the document's page texts and PDF to
+  `_build/blind/docs/<doc>/`. The verifier then reads every page; the view does not say which
+  page the question cites. A question about a document without that section is marked
+  `ambiguous`, and the author fixes the citation.
 
 **Verifier protocol** (the `verify-protocol` skill):
 1. `studykit blind <c> <id>`, then read the view and the figure PNGs it lists.

@@ -28,10 +28,14 @@ def repo(tmp_path: Path) -> Path:
         "_build/figures",
         "_build/typ",
         "_history/x",
+        "sources/raw",
+        "sources/text/losung",
+        "sources/notes",
     ):
         (course / rel).mkdir(parents=True)
     (course / "course.yaml").write_text("id: get2\n")
     (course / "exercises" / "rc" / "ex-a.md").write_text("---\n")
+    (course / "sources" / "raw" / "losung.pdf").write_text("a solution\n")
     (root / "courses" / "README.md").write_text("readme\n")
     subprocess.run(["git", "init", "-q", str(root)], check=True)
     return root
@@ -73,6 +77,12 @@ C = "courses/get2"
         f"{C}/_build/index.json",
         f"{C}/_build/figures/rc.facts.json",
         f"{C}/exercises",
+        f"{C}/sources",
+        f"{C}/sources/manifest.yaml",
+        f"{C}/sources/raw/losung.pdf",
+        f"{C}/sources/raw/formelsammlung.pdf",
+        f"{C}/sources/text/losung/p0001.txt",
+        f"{C}/sources/notes/losung-c01.md",
         "site/dist/c/get2/exercises/ex-a/index.html",
         "courses/new/exercises/ex-b.md",  # not there yet: judged by its segments
     ],
@@ -88,6 +98,8 @@ def test_guard_denies_reading_items(repo: Path, path: str):
     "path",
     [
         f"{C}/_build/blind/ex-a.md",
+        f"{C}/_build/blind/docs/formelsammlung/p0001.txt",
+        f"{C}/_build/blind/docs/formelsammlung/formelsammlung.pdf",
         f"{C}/_build/figures/rc.png",
         f"{C}/checks/ex-a.py",
         f"{C}/summary/01-rc.md",
@@ -190,6 +202,12 @@ def test_guard_denies_paths_in_check_code(repo: Path, code: str):
         f"head $(ls {C}/mc/*.md)",
         f"cat {C}/state/verify/ex-a.json",
         f"cat {C}/_build/typ/exercises.md",
+        f"cat {C}/sources/raw/losung.pdf",
+        f"grep -r key {C}/sources",
+        f"pdftotext {C}/sour*/raw/losung.pdf -",
+        f"cd {C} && cat sources/text/losung/p0001.txt",
+        f"cd {C}/sources && cat raw/losung.pdf",
+        f"python -c \"print(open('{C}/sources/raw/losung.pdf').read())\"",
         "uv run --frozen studykit render get2 --json",
         "studykit verify get2 ex-a --json",
         "uv run --frozen studykit verify get2 ex-a --show-key",
@@ -227,6 +245,7 @@ def test_guard_denies_bash_that_reads_items(repo: Path, command: str):
         f"uv run --frozen python {C}/checks/ex-a.py",
         "python checks/ex-a.py | tail -1",
         f"cat {C}/_build/blind/ex-a.md",
+        f"cat {C}/_build/blind/docs/formelsammlung/p0001.txt",
         "python -c 'import sympy; print(sympy.sqrt(2))'",
         "python -c 'from studykit.check import mc_numeric'",
         "ls",

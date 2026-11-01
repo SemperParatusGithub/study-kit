@@ -61,7 +61,7 @@ uses the same files:
   prints at once), `studykit hook pre-git` blocks git commands that would commit course
   files, and `git add -f` is forbidden.
 - **The verifier is blind only by its instructions under Codex:** no hook stops it from
-  reading keys. Prefer Claude Code for `$verify` and the verifier waves of
+  reading keys or `sources/`. Prefer Claude Code for `$verify` and the verifier waves of
   `$register-new-subject` and `$regenerate` when you can.
 
 Reading skills and agents written for Claude Code:
