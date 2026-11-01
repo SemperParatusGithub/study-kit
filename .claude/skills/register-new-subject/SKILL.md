@@ -203,9 +203,11 @@ error (the References stage now checks the profile's topics).
    time ≈ authors / 6 × 15 min and items / 6 × 5 min. The estimate comes before the
    mock-exam answer, so count the default number of mock exams (next item) and say so.
    Give each as a range (× 0.7 to × 1.5) and say it is an estimate.
-4. One AskUserQuestion call with three questions: "How many mock exams?" (1, 2, 3; the
-   default, marked in its description: the number of past exams in the profile, at most
-   3, else 2), "Which scope?" (Full: everything now; Core first: summary, MC and plan,
+4. One AskUserQuestion call with three questions: "How many mock exams?" (1, 2, 3, 4; up
+   to 6 through Other; the default, marked in its description: the number of past exams in
+   the profile, at most 3, else 2; with several partial exams, say that two per part is
+   the matching count, and that four take about 9 hours a week to fit in the last 14
+   days), "Which scope?" (Full: everything now; Core first: summary, MC and plan,
    the exercises, mock exams and cheat sheet later), "Start the generation?" (Go, with the
    estimate in the option's description; Not now).
 5. Record the answers (`--no-go` for Not now); with no-go, stop: running the command

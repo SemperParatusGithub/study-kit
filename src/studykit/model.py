@@ -34,6 +34,7 @@ from pydantic_core import PydanticCustomError
 
 SCHEMA_VERSION = 1
 CHEATSHEET_MAX_PAGES = 10
+MAX_MOCK_EXAMS = 6
 
 KEBAB = r"[a-z0-9]+(?:-[a-z0-9]+)*"
 PATTERNS = {
@@ -270,7 +271,7 @@ class Topic(Strict):
 class Targets(Strict):
     exercises_per_topic: Literal["auto"] | PositiveInt = "auto"
     mc_per_topic: Literal["auto"] | PositiveInt = "auto"
-    mock_exams: int = Field(2, ge=0, le=3)
+    mock_exams: int = Field(2, ge=0, le=MAX_MOCK_EXAMS)
 
 
 def _cycle(topics: list[Topic]) -> list[str] | None:
@@ -1032,7 +1033,7 @@ class Round1(Strict):
 class Round2(Strict):
     """The answers of §5.4 step 6, recorded by `studykit ingest round2`."""
 
-    mock_exams: int = Field(ge=1, le=3)
+    mock_exams: int = Field(ge=1, le=MAX_MOCK_EXAMS)
     scope: Literal["full", "core"] = Field(
         description="core: summary, MC and plan first; exercises, mock exams and the cheat "
         "sheet later"

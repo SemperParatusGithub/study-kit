@@ -208,7 +208,7 @@ topics:                         # the only allowed topic ids; order = teaching o
   - {id: rc-filter,    title: RC-Filter und Bode-Diagramm,   weight: 0.25, prereq: [wechselstrom]}
 focus: [wechselstrom]
 skip: []
-targets: {exercises_per_topic: auto, mc_per_topic: auto, mock_exams: 2}   # auto = f(weight)
+targets: {exercises_per_topic: auto, mc_per_topic: auto, mock_exams: 2}   # auto = f(weight); mock_exams 0-6
 retired_ids: []
 status: draft                   # draft | ready; /register-new-subject sets ready when publish is green
                                 # (`ingest init` writes a draft with one placeholder topic `draft`, which a ready course may not keep: SK-STRUCT-DRAFT)
@@ -1885,7 +1885,7 @@ stops the run with the findings and how to continue, and publish gets 3 rounds.
 6. **Ask, round 2:**
    - Show a numbered topic table (weight, sources, past-exam frequency) and the exam as `course.yaml` now has it. The user replies in one line, for example `focus 3,5; skip 9; merge 6+7; ok` (also `weight <n>=<w>` and `exam <minutes> min <points> pts`), repeated until `ok`.
    - An estimate for both scopes (authors, items, opus agent runs, time, each as a range) computed with `studykit calc`.
-   - Then AskUserQuestion: number of mock exams (1/2/3, default the number of past exams, at most 3, else 2), scope (full / core first: summary + MC + plan), and go/no-go with the estimate. `ingest round2` records the answers; no-go stops, and the next run resumes here.
+   - Then AskUserQuestion: number of mock exams (1/2/3/4, up to 6 through Other, default the number of past exams, at most 3, else 2; two per part for a course with several partial exams), scope (full / core first: summary + MC + plan), and go/no-go with the estimate. `ingest round2` records the answers; no-go stops, and the next run resumes here.
 7. **Author wave** (at most 6 parallel): first one `author` for `overview.md` (§2.12), then one per topic for the summary, then one per (topic, part) for the MC bank and, unless the scope is core, the exercises, each told to follow `notation.yaml` and the chunk notes `outline.md` lists for its topic (mode `add <n>` when a resumed part falls short). The hook lints every write. Gate: `validate --quick` over the new files and the step's Coverage counts.
 8. **Figures:** `just figures <c>` and a look at every new PNG. Failures, and PNGs with problems, go back to the owning author (at most 2 rounds). Then a validate of step 7's files without `--quick` checks the references and figures the quick gate skipped.
 9. **Verify wave** (at most 6 parallel): the `/verify` procedure per topic, one `verifier` per item (§5.3: one item per call), with the dispute loop described in §5.3.
@@ -1909,7 +1909,7 @@ studykit ingest init <folder> <course-id> --exam-date unknown|YYYY-MM-DD        
       [--lang de|en] [--title T] [--short S] [--semester S] [--exam-minutes N] [--exam-points P]
       [--start D] [--kind DOC=KIND …] [--today D] [--dry-run]
 studykit ingest extract <course>                                                              # step 3
-studykit ingest round2 <course> --mock-exams 1|2|3 --scope full|core [--no-go] [--today D]    # step 6
+studykit ingest round2 <course> --mock-exams 1..6 --scope full|core [--no-go] [--today D]    # step 6
 studykit ingest add <course> <file|folder> [--kind DOC=KIND …] [--today D] [--dry-run]        # /add-material
 studykit ingest page <course> <doc> <N|N-M>                                                  # page PNGs for Codex (§5.5)
 studykit pipeline status <course>                                                             # the resume point

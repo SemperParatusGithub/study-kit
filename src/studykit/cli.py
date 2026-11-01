@@ -393,7 +393,7 @@ def _add_ingest_commands(sub) -> None:
 
     p_r2 = ing_sub.add_parser("round2", help="record the answers of ask round 2 (§5.4 step 6)")
     p_r2.add_argument("course", help="course id or directory")
-    p_r2.add_argument("--mock-exams", type=int, choices=[1, 2, 3], required=True)
+    p_r2.add_argument("--mock-exams", type=int, choices=range(1, 7), required=True)
     p_r2.add_argument(
         "--scope",
         choices=["full", "core"],

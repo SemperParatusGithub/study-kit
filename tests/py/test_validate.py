@@ -8,13 +8,15 @@ course and expects exactly that code, with a fix hint.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from conftest import BAD, REPO, overlay
-from studykit import cli, content, findings, tools, validate
+from studykit import cli, content, findings, model, tools, validate
 
 CASES = sorted(p.name for p in BAD.iterdir() if p.is_dir())
 NEEDS_KATEX = {"SK-MATH-KATEX"}
@@ -392,6 +394,28 @@ Darum.
     (finding,) = run(mini, denylist, quick=True).findings
     assert finding.code == "SK-MCQ-BIAS" and finding.severity == "warning"
     assert "correct answer is (A) in 3 of 4" in finding.message
+
+
+def test_the_mock_exam_target_has_a_limit(mini: Path, denylist: Path):
+    course = mini / "course.yaml"
+    text = course.read_text()
+    limit = model.MAX_MOCK_EXAMS
+    assert model.Targets(mock_exams=limit).mock_exams == limit
+    with pytest.raises(ValidationError):
+        model.Targets(mock_exams=limit + 1)
+    for name in ("course", "manifest"):
+        schema = json.loads((tools.repo_root() / "schemas" / f"{name}.schema.json").read_text())
+        defs = schema["$defs"]["Targets" if name == "course" else "Round2"]
+        assert defs["properties"]["mock_exams"]["maximum"] == limit
+    course.write_text(re.sub(r"mock_exams: \d+", "mock_exams: 4", text))
+    found = run(mini, denylist, release=True).findings
+    assert [f.message for f in found if "the target is 4" in f.message]
+    assert not [
+        f for f in found if f.path.endswith("course.yaml") and f.code.startswith("SK-SCHEMA")
+    ]
+    course.write_text(re.sub(r"mock_exams: \d+", f"mock_exams: {limit + 1}", text))
+    found = run(mini, denylist).findings
+    assert [f for f in found if f.path.endswith("course.yaml") and f.is_error]
 
 
 def test_mock_exam_size_follows_the_real_exam(mini: Path, denylist: Path):

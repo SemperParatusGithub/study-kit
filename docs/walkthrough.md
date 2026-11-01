@@ -147,7 +147,7 @@ line, as often as you like:
 focus 3,5; skip 9; merge 6+7; weight 2=0.3; exam 120 min 100 pts; ok
 ```
 
-Then one more question block: how many mock exams (1–3), the scope, and whether to start.
+Then one more question block: how many mock exams (1–6), the scope, and whether to start.
 With the start question comes an estimate of the agent runs and time for both scopes.
 
 - **Full** builds everything now.
