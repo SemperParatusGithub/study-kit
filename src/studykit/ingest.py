@@ -104,8 +104,11 @@ def sha256_file(path: Path) -> str:
 
 
 def ascii_fold(text: str) -> str:
-    """Lower case ASCII with German umlauts spelled out (ä -> ae, ß -> ss)."""
-    text = text.lower()
+    """Lower case ASCII with German umlauts spelled out (ä -> ae, ß -> ss).
+
+    Composed first: file names on macOS arrive in NFD, where "ö" is "o" and a combining mark.
+    """
+    text = unicodedata.normalize("NFC", text).lower()
     for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
         text = text.replace(a, b)
     text = unicodedata.normalize("NFKD", text)
