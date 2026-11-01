@@ -9,6 +9,7 @@ import json
 import shutil
 import subprocess
 import sys
+import unicodedata
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
@@ -109,6 +110,41 @@ def test_doc_ids_are_kebab_case_unique_and_cut_at_a_word():
     long = ingest.doc_id("Skript_Kapitel4_Operationsverstaerker_Grundschaltungen_Teil2.pdf")
     assert len(long) <= ingest.MAX_ID and not long.endswith("-")
     assert long == "skript-kapitel4-operationsverstaerker"
+
+
+# macOS hands out file names in NFD, so "ö" arrives as "o" and a combining diaeresis.
+@pytest.mark.parametrize("form", ["NFC", "NFD"])
+def test_ascii_fold_spells_out_umlauts_in_either_unicode_form(form: str):
+    text = unicodedata.normalize(form, "Lösung ÄÖÜ äöü ß Café")
+    assert ingest.ascii_fold(text) == "loesung aeoeue aeoeue ss cafe"
+
+
+@pytest.mark.parametrize("form", ["NFC", "NFD"])
+@pytest.mark.parametrize(
+    ("name", "kind"),
+    [
+        ("Klausur_2024_Lösungen.pdf", "exam-solutions"),
+        ("Prüfung_2024_Lösungen.pdf", "exam-solutions"),
+        ("Musterlösung Klausur SS24.pdf", "exam-solutions"),
+        ("Übung_3_Lösungen.pdf", "solutions"),
+        ("Übung_3.pdf", "exercises"),
+    ],
+)
+def test_kind_from_the_file_name_in_either_unicode_form(name: str, kind: str, form: str):
+    assert ingest.guess_kind(unicodedata.normalize(form, name), "", False) == (kind, "filename")
+
+
+@pytest.mark.parametrize("form", ["NFC", "NFD"])
+def test_scan_detects_solutions_in_either_unicode_form(tmp_path: Path, form: str):
+    materials.text_pdf(tmp_path / unicodedata.normalize(form, "Klausur_2024_Lösungen.pdf"), ["x"])
+    code, data = run_json("ingest", "scan", str(tmp_path), "--dry-run", "--today", TODAY)
+    assert code == 0 and data["ok"]
+    [doc] = data["documents"]
+    assert (doc["id"], doc["kind"], doc["kind_from"]) == (
+        "klausur-2024-loesungen",
+        "exam-solutions",
+        "filename",
+    )
 
 
 @pytest.mark.parametrize(
