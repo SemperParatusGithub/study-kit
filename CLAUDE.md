@@ -9,7 +9,8 @@ for Codex, which uses these skills and agents too (§5.5); change both together.
 
 - **Never commit anything under `courses/`** (except `courses/README.md`). The repository
   is public; course material and generated course content stay local. Never use
-  `git add -f`.
+  `git add -f`. One commit added the two starter courses once (`.github/scripts/starter-courses.txt`);
+  they may be removed, but nothing joins them and they take no further commits.
 - **Never commit PDFs** outside `tests/fixtures/`. Course PDFs are built into
   `<course>/_build/pdf` (`just pdf`), and tests generate theirs; the pre-commit hook and the
   guard workflow reject the rest.

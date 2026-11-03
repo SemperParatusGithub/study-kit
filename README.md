@@ -136,8 +136,7 @@ artifact on every run.
 
 `examples/` also holds what real runs built with the same commands: `opamp-grundlagen`, a course
 from `examples/sample-materials`, and the topic `how-bitcoin-works`, both without their source
-PDFs. `STUDYKIT_COURSES_DIR=examples just dev` shows them all on one home page. A fresh clone's
-`courses/` is empty, so plain `just dev` shows none of them.
+PDFs. `STUDYKIT_COURSES_DIR=examples just dev` shows them all on one home page.
 
 There are two sets of browser tests, both in Chromium through Playwright:
 
@@ -213,7 +212,10 @@ only by its instructions; prefer Claude Code for `/verify` when you have both.
 
 ## Your course data stays local
 
-Everything under `courses/` is gitignored. A pre-commit hook, a CI guard and Claude Code
+Everything under `courses/` is gitignored, apart from its README and two starter courses, which
+a fresh clone's `just dev` shows and which you can delete with `git rm -r`: the course
+`opamp-grundlagen` and the topic `how-bitcoin-works`, built from self-written and public material.
+One commit added them; a course you register stays local like any other. A pre-commit hook, a CI guard and Claude Code
 hooks make sure lecture material and generated content are never committed to this public
 repository.
 
