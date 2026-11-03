@@ -1,0 +1,1 @@
+{"answer": ["B"], "confidence": "high", "ambiguous": false, "reason": "virtual ground: Un = Up = 0 by the feedback, but no connection to ground and no input current, so the R1 current goes on through R2"}

@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "item": "ex-vg-nichtinvertierer-dimensionieren",
+  "kind": "exercise",
+  "path": "exercises/verstaerker-grundschaltungen/ex-vg-nichtinvertierer-dimensionieren.md",
+  "content_sha256": "a6c416ff17917da20b4b6e54e2c6d4b1f62c3cf1f54b1d1f816845bb6ab0dbb7",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-vg-nichtinvertierer-dimensionieren.py",
+  "check_sha256": "9ebccecb3a70d47991ad8d0043789f056b6df8396b02a06ac0983ae2965e41cf",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "R2",
+      "expected": 16.5,
+      "computed": 16.5,
+      "unit": "kΩ",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.0825,
+      "ok": true
+    },
+    {
+      "key": "Ua",
+      "expected": 3.825,
+      "computed": 3.825,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.019125,
+      "ok": true
+    },
+    {
+      "key": "I1",
+      "expected": 204.55,
+      "computed": 204.54545454545453,
+      "unit": "µA",
+      "abs_err": 0.004545454545478833,
+      "rel_err": 2.2221728406154156e-05,
+      "tol": 1.02275,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

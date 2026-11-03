@@ -1,0 +1,1 @@
+{"answer": ["A", "C", "E"], "confidence": "high", "ambiguous": false, "reason": "V = 1 + R2/R1 >= 1, Un = Up = Ue, positive real gain: in phase; Rein infinite, not R1; V is not R2/R1"}

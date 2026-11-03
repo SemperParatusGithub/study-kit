@@ -2,7 +2,7 @@
 // checkboxes, and the per-course numbers the shell leaves to the elements (due counts,
 // weakest topics, MC accuracy, exercise status, last exam attempt).
 import { expect, test, type Page } from '@playwright/test';
-import { answer, C, elementsReady, freezeDay, pageDay, progress } from './helpers.ts';
+import { answer, C, COURSE, elementsReady, freezeDay, pageDay, progress } from './helpers.ts';
 
 test.beforeEach(async ({ page }) => {
   await freezeDay(page);
@@ -60,7 +60,7 @@ test('the course overview and the home page show reviews due and the weakest top
   await expect(page.locator('[data-sk-weakest-empty]').first()).toBeHidden();
   await page.goto('/');
   await elementsReady(page);
-  await expect(page.locator('[data-sk-due-count]').first()).toHaveText('1', { timeout: 2_000 });
+  await expect(page.locator(`[data-sk-due-count][data-course="${COURSE}"]`).first()).toHaveText('1', { timeout: 2_000 });
 });
 
 test('"Start due reviews" on the course overview opens the Due mode', async ({ page }) => {

@@ -1,0 +1,1 @@
+{"answer": ["B"], "confidence": "high", "ambiguous": false, "reason": "the parallel resistor limits the DC gain to -Rp/R, so offsets cannot drive the output into saturation"}

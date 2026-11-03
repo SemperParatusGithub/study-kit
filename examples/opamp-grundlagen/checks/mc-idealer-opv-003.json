@@ -1,0 +1,1 @@
+{"answer": ["D"], "confidence": "high", "ambiguous": false, "reason": "negative feedback returns the output to the inverting input; to the + input it is positive feedback"}

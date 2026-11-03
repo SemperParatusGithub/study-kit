@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "item": "ex-int-sprung-saettigung",
+  "kind": "exercise",
+  "path": "exercises/integrierer/ex-int-sprung-saettigung.md",
+  "content_sha256": "3f09e67579f764f6e823e0084680a628c1cb209154e0cfd68e4589df7e178f71",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-int-sprung-saettigung.py",
+  "check_sha256": "9c8a51a0d5c80671d87d27b4b01e7c715b8971c63d8543fb98b4bcbb23187def",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "slope",
+      "expected": 78.431,
+      "computed": 78.43137254901961,
+      "unit": "V/s",
+      "abs_err": 0.0003725490196160308,
+      "rel_err": 4.750022562711566e-06,
+      "tol": 0.392155,
+      "ok": true
+    },
+    {
+      "key": "tsat",
+      "expected": 140.25,
+      "computed": 140.25,
+      "unit": "ms",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.70125,
+      "ok": true
+    },
+    {
+      "key": "f1",
+      "expected": 15.603,
+      "computed": 15.603425793323074,
+      "unit": "Hz",
+      "abs_err": 0.00042579332307468576,
+      "rel_err": 2.7289195864557184e-05,
+      "tol": 0.078015,
+      "ok": true
+    },
+    {
+      "key": "H50",
+      "expected": 0.31207,
+      "computed": 0.3120685158664615,
+      "abs_err": 1.4841335385096244e-06,
+      "rel_err": 4.755771264490737e-06,
+      "tol": 0.00156035,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

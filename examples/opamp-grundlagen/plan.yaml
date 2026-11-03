@@ -1,0 +1,474 @@
+# yaml-language-server: $schema=../../schemas/plan.schema.json
+schema: 1
+generated: 2026-10-29
+exam_date: 2027-02-20
+sessions:
+  - id: s-2026-10-31-a
+    date: 2026-10-31
+    minutes: 120
+    kind: learn
+    topics: [idealer-opv]
+    goal: 'Regeln des idealen OPV und Gegenkopplung sicher anwenden'
+    tasks:
+      - {do: read, ref: 'topic:idealer-opv'}
+      - {do: exercises, refs: ['ex:ex-iopv-offener-betrieb', 'ex:ex-iopv-endliche-leerlaufverstaerkung', 'ex:ex-iopv-virtuelle-masse-saettigung', 'ex:ex-iopv-invertierer-endlich', 'ex:ex-iopv-mindest-leerlaufverstaerkung']}
+      - {do: mc, topic: idealer-opv, count: 5}
+  - id: s-2026-11-02-a
+    date: 2026-11-02
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen, idealer-opv]
+    goal: 'Grundschaltungen kennenlernen: Kennwerte des Invertierers'
+    tasks:
+      - {do: read, ref: 'topic:verstaerker-grundschaltungen'}
+      - {do: exercises, refs: ['ex:ex-vg-invertierer-kennwerte']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 5}
+      - {do: review, topic: idealer-opv}
+  - id: s-2026-11-04-a
+    date: 2026-11-04
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen, idealer-opv]
+    goal: 'Nichtinvertierer dimensionieren sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-nichtinvertierer-dimensionieren']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: idealer-opv}
+  - id: s-2026-11-07-a
+    date: 2026-11-07
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen, idealer-opv]
+    goal: 'Spannungsfolger an Sensor sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-impedanzwandler-sensor']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: idealer-opv}
+  - id: s-2026-11-09-a
+    date: 2026-11-09
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen]
+    goal: 'Kennlinie mit Sättigung skizzieren sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-kennlinie-saettigung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+  - id: s-2026-11-11-a
+    date: 2026-11-11
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen]
+    goal: 'Summierer über die Knotenströme sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-summierer-drei-eingaenge']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+  - id: s-2026-11-14-a
+    date: 2026-11-14
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen]
+    goal: 'Quellen-Innenwiderstand sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-innenwiderstand-herleitung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+  - id: s-2026-11-16-a
+    date: 2026-11-16
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen]
+    goal: 'Summierer dimensionieren sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-summierer-dimensionieren']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+  - id: s-2026-11-18-a
+    date: 2026-11-18
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen]
+    goal: 'Invertierer mit Sättigung sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-invertierer-saettigung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+  - id: s-2026-11-21-a
+    date: 2026-11-21
+    minutes: 120
+    kind: learn
+    topics: [verstaerker-grundschaltungen]
+    goal: 'Impedanzwandler sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-nichtinvertierer-impedanzwandler']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+  - id: s-2026-11-23-a
+    date: 2026-11-23
+    minutes: 120
+    kind: learn
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Integrierer kennenlernen: RC und f1 des Integrierers'
+    tasks:
+      - {do: read, ref: 'topic:integrierer'}
+      - {do: exercises, refs: ['ex:ex-int-grenzfrequenz']}
+      - {do: mc, topic: integrierer, count: 5}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2026-11-25-a
+    date: 2026-11-25
+    minutes: 120
+    kind: learn
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Betrag und Phase des Integrierers sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-betrag-phase']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2026-11-28-a
+    date: 2026-11-28
+    minutes: 120
+    kind: learn
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Ua(t) des Integrierers herleiten sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-herleitung']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2026-11-30-a
+    date: 2026-11-30
+    minutes: 120
+    kind: learn
+    topics: [integrierer]
+    goal: 'Rampe und Sättigungszeit sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-rampe']}
+      - {do: mc, topic: integrierer, count: 10}
+  - id: s-2026-12-02-a
+    date: 2026-12-02
+    minutes: 120
+    kind: learn
+    topics: [integrierer]
+    goal: 'Sinus am Integrierer sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-sinus']}
+      - {do: mc, topic: integrierer, count: 10}
+  - id: s-2026-12-05-a
+    date: 2026-12-05
+    minutes: 120
+    kind: learn
+    topics: [integrierer]
+    goal: 'stückweise konstantes Ue sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-zwei-abschnitte']}
+      - {do: mc, topic: integrierer, count: 10}
+  - id: s-2026-12-07-a
+    date: 2026-12-07
+    minutes: 120
+    kind: learn
+    topics: [integrierer]
+    goal: 'Sprung bis zur Sättigung sicher rechnen'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-sprung-saettigung']}
+      - {do: mc, topic: integrierer, count: 10}
+  - id: s-2026-12-09-a
+    date: 2026-12-09
+    minutes: 120
+    kind: review
+    topics: [integrierer]
+    goal: 'Wiederholung Integrierer: Rampe und Sättigung'
+    tasks:
+      - {do: review, topic: integrierer}
+      - {do: mc, topic: integrierer, count: 10}
+  - id: s-2026-12-12-a
+    date: 2026-12-12
+    minutes: 120
+    kind: review
+    topics: [integrierer]
+    goal: 'Wiederholung Integrierer: Frequenzgang und f1'
+    tasks:
+      - {do: review, topic: integrierer}
+      - {do: mc, topic: integrierer, count: 10}
+  - id: s-2026-12-14-a
+    date: 2026-12-14
+    minutes: 120
+    kind: review
+    topics: [integrierer]
+    goal: 'Wiederholung Integrierer: stückweise Eingänge'
+    tasks:
+      - {do: review, topic: integrierer}
+      - {do: mc, topic: integrierer, count: 10}
+  - id: s-2026-12-16-a
+    date: 2026-12-16
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Invertierer mit Sättigung; Impedanzwandler'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-invertierer-saettigung', 'ex:ex-vg-nichtinvertierer-impedanzwandler']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2026-12-19-a
+    date: 2026-12-19
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: Sprung bis zur Sättigung; Sinus am Integrierer'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-sprung-saettigung', 'ex:ex-int-sinus']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2026-12-21-a
+    date: 2026-12-21
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Quellen-Innenwiderstand; Summierer dimensionieren'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-innenwiderstand-herleitung', 'ex:ex-vg-summierer-dimensionieren']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2026-12-23-a
+    date: 2026-12-23
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Spannungsfolger an Sensor; Kennlinie mit Sättigung skizzieren'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-impedanzwandler-sensor', 'ex:ex-vg-kennlinie-saettigung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2026-12-26-a
+    date: 2026-12-26
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: stückweise konstantes Ue; Betrag und Phase des Integrierers'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-zwei-abschnitte', 'ex:ex-int-betrag-phase']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2026-12-28-a
+    date: 2026-12-28
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, idealer-opv]
+    goal: 'Gemischt: Summierer über die Knotenströme; Kennwerte des Invertierers'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-summierer-drei-eingaenge', 'ex:ex-vg-invertierer-kennwerte']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: idealer-opv}
+  - id: s-2026-12-30-a
+    date: 2026-12-30
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: Ua(t) des Integrierers herleiten; Rampe und Sättigungszeit'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-herleitung', 'ex:ex-int-rampe']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2027-01-02-a
+    date: 2027-01-02
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Nichtinvertierer dimensionieren; Invertierer mit Sättigung'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-nichtinvertierer-dimensionieren', 'ex:ex-vg-invertierer-saettigung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2027-01-04-a
+    date: 2027-01-04
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Impedanzwandler; Quellen-Innenwiderstand'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-nichtinvertierer-impedanzwandler', 'ex:ex-vg-innenwiderstand-herleitung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2027-01-06-a
+    date: 2027-01-06
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: RC und f1 des Integrierers; Sprung bis zur Sättigung'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-grenzfrequenz', 'ex:ex-int-sprung-saettigung']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2027-01-09-a
+    date: 2027-01-09
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, idealer-opv]
+    goal: 'Gemischt: Summierer dimensionieren; Spannungsfolger an Sensor'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-summierer-dimensionieren', 'ex:ex-vg-impedanzwandler-sensor']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: idealer-opv}
+  - id: s-2027-01-11-a
+    date: 2027-01-11
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: Sinus am Integrierer; stückweise konstantes Ue'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-sinus', 'ex:ex-int-zwei-abschnitte']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2027-01-13-a
+    date: 2027-01-13
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Kennlinie mit Sättigung skizzieren; Summierer über die Knotenströme'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-kennlinie-saettigung', 'ex:ex-vg-summierer-drei-eingaenge']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2027-01-16-a
+    date: 2027-01-16
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Kennwerte des Invertierers; Nichtinvertierer dimensionieren'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-invertierer-kennwerte', 'ex:ex-vg-nichtinvertierer-dimensionieren']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2027-01-18-a
+    date: 2027-01-18
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: Betrag und Phase des Integrierers; Ua(t) des Integrierers herleiten'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-betrag-phase', 'ex:ex-int-herleitung']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2027-01-20-a
+    date: 2027-01-20
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Invertierer mit Sättigung; Impedanzwandler'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-invertierer-saettigung', 'ex:ex-vg-nichtinvertierer-impedanzwandler']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2027-01-23-a
+    date: 2027-01-23
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Quellen-Innenwiderstand; Summierer dimensionieren'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-innenwiderstand-herleitung', 'ex:ex-vg-summierer-dimensionieren']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2027-01-25-a
+    date: 2027-01-25
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: Rampe und Sättigungszeit; RC und f1 des Integrierers'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-rampe', 'ex:ex-int-grenzfrequenz']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2027-01-27-a
+    date: 2027-01-27
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, idealer-opv]
+    goal: 'Gemischt: Spannungsfolger an Sensor; Kennlinie mit Sättigung skizzieren'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-impedanzwandler-sensor', 'ex:ex-vg-kennlinie-saettigung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: idealer-opv}
+  - id: s-2027-01-30-a
+    date: 2027-01-30
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: Sprung bis zur Sättigung; Sinus am Integrierer'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-sprung-saettigung', 'ex:ex-int-sinus']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2027-02-01-a
+    date: 2027-02-01
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Summierer über die Knotenströme; Kennwerte des Invertierers'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-summierer-drei-eingaenge', 'ex:ex-vg-invertierer-kennwerte']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2027-02-03-a
+    date: 2027-02-03
+    minutes: 120
+    kind: buffer
+    goal: 'Puffer: liegengebliebene Aufgaben nachholen'
+    tasks: []
+  - id: s-2027-02-06-a
+    date: 2027-02-06
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Gemischt: Nichtinvertierer dimensionieren; Invertierer mit Sättigung'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-nichtinvertierer-dimensionieren', 'ex:ex-vg-invertierer-saettigung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: integrierer}
+  - id: s-2027-02-08-a
+    date: 2027-02-08
+    minutes: 120
+    kind: mixed
+    topics: [integrierer, verstaerker-grundschaltungen]
+    goal: 'Gemischt: stückweise konstantes Ue; Betrag und Phase des Integrierers'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-int-zwei-abschnitte', 'ex:ex-int-betrag-phase']}
+      - {do: mc, topic: integrierer, count: 10}
+      - {do: review, topic: verstaerker-grundschaltungen}
+  - id: s-2027-02-10-a
+    date: 2027-02-10
+    minutes: 120
+    kind: mixed
+    topics: [verstaerker-grundschaltungen, idealer-opv]
+    goal: 'Gemischt: Impedanzwandler; Quellen-Innenwiderstand'
+    tasks:
+      - {do: exercises, refs: ['ex:ex-vg-nichtinvertierer-impedanzwandler', 'ex:ex-vg-innenwiderstand-herleitung']}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: review, topic: idealer-opv}
+  - id: s-2027-02-13-a
+    date: 2027-02-13
+    minutes: 120
+    kind: mock-exam
+    goal: 'Probeklausur in 90 Minuten unter Prüfungsbedingungen schreiben'
+    tasks:
+      - {do: exam, ref: 'exam:probeklausur-1'}
+  - id: s-2027-02-15-a
+    date: 2027-02-15
+    minutes: 120
+    kind: review
+    topics: [verstaerker-grundschaltungen, integrierer]
+    goal: 'Fehler der Probeklausur aufarbeiten und Lücken schließen'
+    tasks:
+      - {do: review, refs: ['exam:probeklausur-1']}
+      - {do: review, topic: verstaerker-grundschaltungen}
+      - {do: review, topic: integrierer}
+  - id: s-2027-02-17-a
+    date: 2027-02-17
+    minutes: 120
+    kind: review
+    topics: [idealer-opv, verstaerker-grundschaltungen, integrierer]
+    goal: 'Alle Themen mit MC-Fragen abschließend wiederholen'
+    tasks:
+      - {do: mc, topic: idealer-opv, count: 10}
+      - {do: mc, topic: verstaerker-grundschaltungen, count: 10}
+      - {do: mc, topic: integrierer, count: 10}
+  - id: s-2027-02-19-a
+    date: 2027-02-19
+    minutes: 120
+    kind: cheatsheet
+    goal: 'Formelblatt fertigstellen und mit der Probeklausur abgleichen'
+    tasks:
+      - {do: cheatsheet}

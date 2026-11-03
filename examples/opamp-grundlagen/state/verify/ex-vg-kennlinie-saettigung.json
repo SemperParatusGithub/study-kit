@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "item": "ex-vg-kennlinie-saettigung",
+  "kind": "exercise",
+  "path": "exercises/verstaerker-grundschaltungen/ex-vg-kennlinie-saettigung.md",
+  "content_sha256": "3dfc37e5b4d2edea0e11f49866a893de9c02f6cf0b9fcf563b39539981b5116b",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-vg-kennlinie-saettigung.py",
+  "check_sha256": "30efa7d4d95ea83eecfecdc4bef43cbc6c1aefd061e196b33a6dc4369bf3726d",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "V",
+      "expected": 4.8462,
+      "computed": 4.846153846153847,
+      "abs_err": 4.615384615291873e-05,
+      "rel_err": 9.523718821534138e-06,
+      "tol": 0.024231,
+      "ok": true
+    },
+    {
+      "key": "Uemax",
+      "expected": 2.4762,
+      "computed": 2.476190476190476,
+      "unit": "V",
+      "abs_err": 9.523809524125681e-06,
+      "rel_err": 3.846139053439012e-06,
+      "tol": 0.012381,
+      "ok": true
+    },
+    {
+      "key": "Ua3",
+      "expected": 12.0,
+      "computed": 12.0,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.06,
+      "ok": true
+    },
+    {
+      "key": "Uapeak",
+      "expected": 9.6923,
+      "computed": 9.692307692307693,
+      "unit": "V",
+      "abs_err": 7.692307693929479e-06,
+      "rel_err": 7.936514237002032e-07,
+      "tol": 0.0484615,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

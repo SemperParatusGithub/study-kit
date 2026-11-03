@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "item": "ex-vg-nichtinvertierer-impedanzwandler",
+  "kind": "exercise",
+  "path": "exercises/verstaerker-grundschaltungen/ex-vg-nichtinvertierer-impedanzwandler.md",
+  "content_sha256": "9047c6dbf9157522f69a198441808e5822f43637ab9710269dc2fa1265b88850",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-vg-nichtinvertierer-impedanzwandler.py",
+  "check_sha256": "ad54481eb5394f3c1287f391c958d2ac09e443caded49d9015125a5ca9e34155",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "R2",
+      "expected": 17.55,
+      "computed": 17.55,
+      "unit": "kΩ",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.08775000000000001,
+      "ok": true
+    },
+    {
+      "key": "Ua",
+      "expected": 4.875,
+      "computed": 4.875,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.024375,
+      "ok": true
+    },
+    {
+      "key": "UL1",
+      "expected": 0.07032,
+      "computed": 0.07031963470319635,
+      "unit": "V",
+      "abs_err": 3.652968036393922e-07,
+      "rel_err": 5.194778208751312e-06,
+      "tol": 0.0003516,
+      "ok": true
+    },
+    {
+      "key": "UL2",
+      "expected": 1.1,
+      "computed": 1.1,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.0055000000000000005,
+      "ok": true
+    },
+    {
+      "key": "Ua0",
+      "expected": 8.25,
+      "computed": 8.25,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.04125,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:20Z",
+  "verified_at": "2026-10-29T18:16:20Z"
+}

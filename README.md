@@ -134,6 +134,11 @@ Its PDFs land in `examples/sample-course/_build/pdf/`; `STUDYKIT_COURSES_DIR=exa
 pdf sample-course` rebuilds them on their own. CI uploads them as the `sample-course-pdfs`
 artifact on every run.
 
+`examples/` also holds what real runs built with the same commands: `opamp-grundlagen`, a course
+from `examples/sample-materials`, and the topic `how-bitcoin-works`, both without their source
+PDFs. `STUDYKIT_COURSES_DIR=examples just dev` shows them all on one home page. A fresh clone's
+`courses/` is empty, so plain `just dev` shows none of them.
+
 There are two sets of browser tests, both in Chromium through Playwright:
 
 ```bash

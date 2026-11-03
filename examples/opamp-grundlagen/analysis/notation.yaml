@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=../../../schemas/notation.schema.json
+# Notation of the lecture material, which every author follows. A rule the material does
+# not show stays out (the authors then use the content-format defaults).
+schema: 1
+imaginary_unit: j
+phasor: underline
+decimal: point
+symbols:
+  - {symbol: '$U_e$', meaning: Eingangsspannung}
+  - {symbol: '$U_a$', meaning: Ausgangsspannung}
+  - {symbol: '$U_p$', meaning: Spannung am nichtinvertierenden Eingang}
+  - {symbol: '$U_n$', meaning: Spannung am invertierenden Eingang}
+  - {symbol: '$U_d$', meaning: 'Differenzspannung U_p - U_n'}
+  - {symbol: '$V$', meaning: Spannungsverstärkung (nicht in dB)}
+  - {symbol: '$V_0$', meaning: Leerlaufverstärkung des OPV}
+  - {symbol: '$U_\mathrm{sat}$', meaning: Sättigungsspannung des Ausgangs}
+  - {symbol: '$U_B$', meaning: Versorgungsspannung}
+  - {symbol: '$R_F$', meaning: Rückkopplungswiderstand des Summierers}
+  - {symbol: '$k$', meaning: Rückkopplungsfaktor}
+  - {symbol: '$\underline{H}(j\omega)$', meaning: komplexer Frequenzgang}
+notes:
+  - 'Voltages in capitals with an italic index in formulas ($U_e$, $U_a$); the circuit diagrams set the index upright ($U_\mathrm{e}$).'
+  - 'Time-dependent voltages are capitals too: $U_a(t)$, $U_e(\tau)$.'
+  - 'Decimal point, not comma, although the material is German ($4.7\,\mathrm{k\Omega}$).'
+  - 'The script underlines the frequency response $\underline{H}$; slides, exam and solutions write it plain.'

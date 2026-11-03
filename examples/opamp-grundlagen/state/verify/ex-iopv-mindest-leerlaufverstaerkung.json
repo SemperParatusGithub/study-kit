@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "item": "ex-iopv-mindest-leerlaufverstaerkung",
+  "kind": "exercise",
+  "path": "exercises/idealer-opv/ex-iopv-mindest-leerlaufverstaerkung.md",
+  "content_sha256": "36bd07071b565ebf2002e034c823ccaa24bd2b0aec2ad9aee8db13640f3782c5",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-iopv-mindest-leerlaufverstaerkung.py",
+  "check_sha256": "82d2d618cf8feba5419542c358b970848e417c62e4af157f44c9ce044932ccf4",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "V0min",
+      "expected": 12475.0,
+      "computed": 12475.0,
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 62.375,
+      "ok": true
+    },
+    {
+      "key": "F",
+      "expected": 0.024994,
+      "computed": 0.024993751562107924,
+      "unit": "%",
+      "abs_err": 2.484378920745989e-07,
+      "rel_err": 9.939901259286184e-06,
+      "tol": 0.00012497,
+      "ok": true
+    },
+    {
+      "key": "dV",
+      "expected": -0.024988,
+      "computed": -0.024987506246872234,
+      "unit": "%",
+      "abs_err": 4.937531277657281e-07,
+      "rel_err": 1.9759609723296305e-05,
+      "tol": 0.00012494,
+      "ok": true
+    },
+    {
+      "key": "fac",
+      "expected": 2001.0,
+      "computed": 2001.0000000003465,
+      "abs_err": 3.4651748137548566e-10,
+      "rel_err": 1.7317215461043762e-13,
+      "tol": 10.005,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

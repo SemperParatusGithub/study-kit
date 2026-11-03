@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../schemas/course.schema.json
+# Draft written by `studykit ingest init`: the topics follow in the synthesis step
+# of /register-new-subject (docs/architecture.md §5.4); status turns ready at the end.
+schema: 1
+id: opamp-grundlagen
+title: 'Elektronik 1 – Operationsverstärker-Grundschaltungen'
+short: E1-OPV
+lang: de
+semester: WS 2026/27
+status: ready
+exam:
+  date: 2027-02-20
+  duration_min: 90
+  points: 60
+  format: mixed
+  aids: ['Nicht programmierbarer Taschenrechner', 'Ein handgeschriebenes DIN-A4-Blatt (beidseitig)']
+  mc: {present: true, types: [single, multi], scoring: all-or-nothing, negative_marking: false}
+cheatsheet: {allowed: true, max_pages: 2}
+study: {start: 2026-10-29, hours_per_week: 6.0, blocked: []}
+topics:
+  - {id: idealer-opv, title: Idealer Operationsverstärker und Gegenkopplung, weight: 0.03, prereq: []}
+  - {id: verstaerker-grundschaltungen, title: 'Invertierender und nichtinvertierender Verstärker, Spannungsfolger und Summierer', weight: 0.63, prereq: [idealer-opv]}
+  - {id: integrierer, title: Integrierer, weight: 0.34, prereq: [verstaerker-grundschaltungen]}
+focus: []
+skip: []
+targets: {exercises_per_topic: auto, mc_per_topic: auto, mock_exams: 1}
+retired_ids: []
