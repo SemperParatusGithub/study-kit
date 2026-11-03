@@ -64,6 +64,21 @@ your own material, `just sample-materials` builds a set of German lecture PDFs o
 circuits into `examples/sample-materials/_build/materials`. The
 [walkthrough](docs/walkthrough.md) explains every step.
 
+## Quick start: learn a single topic
+
+No exam, just something you want to understand? In Claude Code:
+
+```
+/register-new-topic ~/Notes/Kryptographie notes.txt skizze.png
+```
+
+Give it folders and files (PDF, `.txt`, `.md`, PNG, JPG, GIF, WebP) and text pasted in the chat. It
+asks what the topic should have besides its explanation (flash cards, a glossary, a concept map)
+and builds a slim page without MC, exams or a plan. `examples/how-bitcoin-works` is such a topic:
+`cp -R examples/how-bitcoin-works courses/`, then `just dev`. Flash cards you rate come back on a
+review schedule; they are not blind-verified like a course's MC questions and exercises
+([details](docs/architecture.md#56-topics-register-new-topic-path---id-id)).
+
 ## Everyday commands
 
 | Command | What it does |
@@ -151,6 +166,7 @@ cp -R examples/sample-course courses/
 | Command | What it does |
 |---|---|
 | `/register-new-subject <folder> [course-id]` | Builds a course from a folder of lecture PDFs (see the quick start above); resumes where it stopped. |
+| `/register-new-topic <path…> [--id <id>]` | Builds a single topic without an exam from folders, files and pasted text: an explanation and, as you choose, flash cards, a glossary and a concept map. |
 | `/add-material <course> <file\|folder>` | Copies and reads new or changed PDFs, proposes how the topics change (applied after you confirm) and lists the `/regenerate` runs that bring the content up to date. |
 | `/study-status <course>` | Where you stand: days to the exam, plan adherence, weakest topics, reviews due, the last mock exam, and one recommended next step. Read-only. |
 | `/tutor <course> [topic\|ex-id]` | Socratic tutoring: works through a topic or one exercise by asking rather than lecturing, checks every number with `studykit calc` and writes nothing. |

@@ -60,7 +60,7 @@ study-kit/
 │   ├── codex.py                    # `codex agents [--check]`: .codex/agents/*.toml from .claude/agents/*.md (§5.5)
 │   ├── pdf.py                      # `pdf`: assemble → pandoc → typst per document, digest cache, _build/pdf/manifest.json (§3.3)
 │   ├── cheatsheet.py               # `cheatsheet fit`: density loop 0–4, overflow measured with `typst eval` (§3.3)
-│   ├── ingest.py                   # `ingest scan|init|extract|add|round2|page`: inventory, source copy, manifest, page text, chunk plan, page images (§5.4)
+│   ├── ingest.py                   # `ingest scan|init|topic|extract|add|round2|page`: inventory, source copy, manifest, page text, chunk plan, page images (§5.4, §5.6)
 │   ├── pipeline.py                 # `pipeline status|report`: the output-derived state of /register-new-subject (§5.4)
 │   ├── plan.py                     # `plan`: deterministic study-plan scheduler (§2.9)
 │   ├── progress.py                 # `progress import|log|report`: browser export, examiner log, mastery (§2.11)
@@ -78,7 +78,7 @@ study-kit/
 │   ├── pagefind.yml  playwright.config.ts
 │   ├── src/content.config.ts
 │   ├── src/loaders/pandoc.ts       # custom content loader over `studykit render`
-│   ├── src/lib/{katex,figures,courses,pdf,store,pomodoro,scoring,shuffle,leitner,answer,stats,plan,format,html,findings,types}.ts
+│   ├── src/lib/{katex,figures,courses,pdf,store,pomodoro,scoring,shuffle,leitner,cards,glossary,answer,stats,plan,format,html,findings,types}.ts
 │   ├── src/lib/sys.mjs             # the only module with node: imports (the site has no @types/node)
 │   ├── src/elements/*.ts           # custom elements (§3.2), dashboard.ts (fills the shell's placeholders), util.ts, index.ts
 │   ├── src/layouts/  src/pages/  src/components/  src/scripts/site.ts
@@ -90,6 +90,7 @@ study-kit/
 ├── schemas/*.schema.json           # generated from pydantic; committed; drift-checked by `just test`
 ├── examples/
 │   ├── sample-course/              # self-written German mini course `sample-course` using every feature (CI fixture)
+│   ├── how-bitcoin-works/          # self-written English topic (§5.6): explanation, flash cards, glossary, concept map (CI fixture)
 │   └── sample-materials/           # self-written Typst sources (op-amp circuits) for fake slides, script, exercise sheet, past exam
 │                                   # and one rasterised "scan"; `just sample-materials` builds the PDFs into its gitignored _build/
 ├── tests/py/                       # pytest (§4.4); test_claude.py checks the .claude/ layer; materials.py makes lecture PDFs at test time
@@ -99,11 +100,11 @@ study-kit/
 │   ├── settings.json               # attribution, permissions, the lint and pre-git hooks (§5.1)
 │   ├── agents/                     # ingester.md exam-analyst.md author.md verifier.md tutor.md examiner.md (§5.3)
 │   └── skills/                     # §5.2: <name>/SKILL.md per skill
-│       ├── register-new-subject/  add-material/   # user commands that build and extend a course (§5.4)
+│       ├── register-new-subject/  register-new-topic/  add-material/   # user commands that build and extend a course or topic (§5.4, §5.6)
 │       ├── regenerate/  verify/  tutor/  examine/  import-progress/  study-status/   # user commands
 │       ├── ingest/                 # SKILL.md, exam-analysis.md, templates/ (notes, exam profile with and without past exams, notation, outline)
-│       ├── content-format/         # SKILL.md, templates/ (course.yaml, overview, summary, exercises, MC bank, exam/, cheat sheet, plan, exam profile, figure)
-│       ├── authoring/              # SKILL.md, parts/{overview,summary,exercises,mc,exam,cheatsheet,plan}.md
+│       ├── content-format/         # SKILL.md, templates/ (course.yaml, course-topic.yaml, overview, summary, exercises, MC bank, cards, exam/, cheat sheet, plan, exam profile, figure)
+│       ├── authoring/              # SKILL.md, parts/{overview,summary,exercises,mc,cards,exam,cheatsheet,plan}.md
 │       ├── figures/                # SKILL.md, reference.md (the studykit.figures API)
 │       └── verify-protocol/        # SKILL.md, recipes.md (check scripts: MNA, phasors, Laplace, margins, MC)
 │                                   # each user command also has agents/openai.yaml (Codex: run only when typed)
@@ -139,6 +140,7 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ├── summary/<nn>-<topic>.md         # one chapter per topic, ordered by nn
 ├── exercises/<topic>/<ex-id>.md    # one exercise per file
 ├── mc/<topic>.md                   # one MC bank per topic  ← MC section
+├── cards/<topic>.md                # a topic's flash cards, one file per chapter (§5.6); only with kind: topic
 ├── exams/<exam-id>/exam.yaml  NN-<task-id>.md  mc.md?
 ├── cheatsheet.md
 ├── plan.yaml                       # written by `studykit plan` (§2.9); Claude writes only each session's goal and note
@@ -161,7 +163,7 @@ courses/<id>/                       # id: ^[a-z0-9][a-z0-9-]{1,39}$
 ```
 
 Discovery (`content.py`) knows the content kinds above (course, overview, summary, exercise,
-mc, exam, exam task, exam MC, cheat sheet, plan, figure scripts, exam profile, notation,
+mc, cards, exam, exam task, exam MC, cheat sheet, plan, figure scripts, exam profile, notation,
 manifest, chunk plan, outline, chunk notes). It never enters `_build`, `_history`, `state`,
 `progress`, `checks`, `sources/raw` and `sources/text` (so page texts and transcriptions are
 neither validated nor linted); any other file in the course is SK-STRUCT-PATH. Chunk notes are Markdown like the content files (the Fences, Math and
@@ -823,6 +825,8 @@ studykit verify <course> [target] [--status | --confirm FILE [--method …] | --
   drop what does not validate, so an export always validates: an attempt needs an ISO 8601
   timestamp (as Python's `datetime.fromisoformat` reads it), and `ms`, `hints` and
   `duration_s` become safe integers. A file that names no course is refused.
+- A topic's flash cards (§5.6) are `card:<id>` items `{h, box, due, reviews}` in the same
+  document; a merge keeps the entry with more reviews.
 - Three more keys are never exported: `studykit:v1:<course>:session` holds runtime state (a
   running exam's start time, MC answers and rubric ticks; `ex:<id>` `{due, hints}` for an
   exercise review that is not rated yet), `studykit:theme` holds `light`, `dark` or
@@ -1064,6 +1068,7 @@ layout (`elements/index.ts`). Data arrives through `data-*` attributes; elements
 | `<sk-plan>` | A done checkbox per `li[data-session][data-date]` (into its `[data-sk-plan-slot]`), stored as `plan:<id>`; past sessions not done fill the shell's `[data-sk-behind]` banner. |
 | `<sk-progress>` | `data-topics`, `data-exams`, `data-exam-date`: mastery ring, topic bars, MC reviews and exercises due, misconceptions, calibration, exam history; live across tabs. |
 | `<sk-theme>` `<sk-export>` | Light/dark/system theme, stored as `studykit:theme` (an inline head script applies it before first paint); export and import of the progress document. |
+| `<sk-cards>` | A topic's flash cards, one at a time (§5.6): think, turn, say whether you knew it; Leitner schedule without an exam clamp, stored as `card:<id>`. Holds the cards as a list, which stays readable without JavaScript and on paper. |
 | `<sk-pomodoro>` | Pomodoro timer at the right of the header, on every page. Its button opens a panel with Start/Pause/Resume, Skip and Reset and the settings: focus, short and long break in minutes (defaults 25, 5, 15), a long break after n focus phases (4), start the next phase by itself, a sound and a desktop notification (asked for when ticked) at the end of a phase. Once a cycle is under way the button shows the phase and the time left (on a phone the time only), and while it runs the page title starts with it. `lib/pomodoro.ts` holds the rules; the state is `studykit:pomodoro` (`{v, settings, timer: {phase, done, endsAt, left}}`) with the time the running phase ends, so the timer runs on across page loads and other tabs follow (storage event); with auto-start, phases that ended while the tab slept are caught up. Hidden in print. |
 
 `<sk-quiz>` modes:
@@ -1462,8 +1467,10 @@ e2e *args:                   # needs site/dist with the sample course
 ci:
     {{just}} doctor
     {{just}} test
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} figures how-bitcoin-works
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} build sample-course
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate sample-course --release
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate how-bitcoin-works --release
 lint-code:
     uv run --frozen ruff check src tests
     uv run --frozen ruff format --check src tests
@@ -1484,14 +1491,15 @@ start Codex with `$tutor …` or `$examine …` instead (§5.5).
 
 ### 4.3 Validation (`studykit validate [course] [--paths …] [--quick] [--release] [--json]`)
 
-Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is the stage family from the table plus a rule (`SK-MCQ-COUNT`, `SK-YAML-ESCAPE`); warnings keep the shape and start the message with `warning:`. Each code is documented in `content-format/errors.md` with a fix recipe and the pipeline step that owns it. Stages run in the order of the table. `--quick` runs Structure, Schema, Fences, MC, Math and the Pandoc backstop (with `sk-scope=file`), for one file in about 1 s; `studykit lint` is `--quick` restricted to the given files and is what the hook runs. `--release` adds Site and Coverage. `--paths` takes files or directories, relative to the working directory or to the course (`--paths mc/rc-filter.md`); a path that is no file of the course is a usage error (exit 2). A stage whose tools are not there yet is skipped with an `info:` note.
+Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is the stage family from the table plus a rule (`SK-MCQ-COUNT`, `SK-YAML-ESCAPE`); warnings keep the shape and start the message with `warning:`. Each code is documented in `content-format/errors.md` with a fix recipe and the pipeline step that owns it. Stages run in the order of the table. `--quick` runs Structure, Schema, Fences, MC, Cards, Math and the Pandoc backstop (with `sk-scope=file`), for one file in about 1 s; `studykit lint` is `--quick` restricted to the given files and is what the hook runs. `--release` adds Site and Coverage. `--paths` takes files or directories, relative to the working directory or to the course (`--paths mc/rc-filter.md`); a path that is no file of the course is a usage error (exit 2). A stage whose tools are not there yet is skipped with an `info:` note.
 
 | Stage | Checks | Code |
 |---|---|---|
-| Structure | required files (`overview.md`, `plan.yaml` and an allowed `cheatsheet.md` are warnings until `--release`), known file paths, ID patterns and file names, unique and non-retired IDs, acyclic prerequisites, topics ⊆ course topics, the six overview sections, exam points add up, a ready course without the placeholder topic `draft` | SK-STRUCT |
+| Structure | required files (`overview.md`, `plan.yaml` and an allowed `cheatsheet.md` are warnings until `--release`; a topic needs only the overview), known file paths, ID patterns and file names, unique and non-retired IDs, acyclic prerequisites, topics ⊆ course topics, the six overview sections (a topic's own, §5.6), files and fields that fit `kind` (SK-STRUCT-KIND), exam points add up, a ready course without the placeholder topic `draft` | SK-STRUCT |
 | Schema | pydantic validation of YAML and frontmatter (the ingest files too); scalar-style lint; control characters; label and rubric fields are text plus inline math only; the exam profile's shares add up to 1 | SK-SCHEMA, SK-YAML |
 | Fences | line scan outside code: exact fence forms, allowed placement, depth, blank lines, hint and solution count, code languages; `\|` on pipe-table rows; line-end hyphens (warning) | SK-BLOCK |
 | MC | option counts per type, `[x]` invariants, a `why` on every option, one explanation, `pin-last` rule, no "all of the above", no option letters, bank-bias warnings | SK-MCQ |
+| Cards | only in a topic's `cards/<topic>.md` (§5.6): ids `card-<topic>-NNN`, a front, exactly one non-empty back, nothing outside a card | SK-CARD |
 | Math | denylist and environment allowlist; KaTeX strict via `check-math.mjs` (skipped with a note without `site/node_modules`); inline and display form; block markers; space commands between digits; hint-leak warning | SK-MATH |
 | References | `ex: mc: topic: exam: src: fig:` targets, plan refs, exam task files and MC file, `modeled_on` and frontmatter source documents, archetypes, `src:` pages; chunk notes against `sources/chunks.yaml` and the chunk plan against the manifest, the profile's exams and topics | SK-REF |
 | Pandoc | the Lua filter set with the json target, on files the stages above left without errors; also with `--quick`, then at file scope (targets missing from the index are not reported). The filter reports family-plus-rule codes: the code validate uses for a rule both check (e.g. SK-REF-FIGURE), and SK-BLOCK-RAW, SK-BLOCK-MARKDOWN, SK-REF-LINK and SK-MATH-TYPST for rules only it checks; a failure without a finding is SK-PANDOC-FAIL | SK-* |
@@ -1503,9 +1511,9 @@ Every finding has the form `path:line:col SK-CODE message (fix: …)`. A code is
 
 Three families are not stages: `studykit progress` reports SK-PROGRESS (an export, the merged
 state or an examiner result that does not validate), `studykit plan` SK-PLAN (§2.9,
-§2.11) and `studykit ingest scan|init|add` SK-INGEST (§5.4: a folder without PDFs, office
-files and images, duplicates, unreadable PDFs, a draft `course.yaml` that would not
-validate); each writes nothing while one is an error. The lint hook (`studykit lint --hook`,
+§2.11) and `studykit ingest scan|init|topic|add` SK-INGEST (§5.4, §5.6: a folder without PDFs,
+office files and images, duplicates, unreadable PDFs, a topic's text or image that cannot become
+a PDF, a draft `course.yaml` that would not validate); each writes nothing while one is an error. The lint hook (`studykit lint --hook`,
 §5.1) shows errors and warnings of the quick stages on every Write or Edit of a course file.
 
 ### 4.4 Tests
@@ -1551,6 +1559,7 @@ validate); each writes nothing while one is an error. The lint hook (`studykit l
     focus, skip, an unknown exam date, replanning that keeps done sessions and goals, weak
     topics first, quarantined items left out, the written plan passes validate) and
     `status` (`test_status.py`: the same figures as the report)
+  - topics (`test_topic.py`, §5.6): what `kind` allows, the SK-CARD codes, coverage by `contents`, text and images as material, several sources, the `n/a` pipeline steps
   - the Claude Code layer (`test_claude.py`): the skills and agents of §5.2 and §5.3 exist
     with valid frontmatter (internal skills hidden and under 500 lines, user commands only
     when typed, the agents' model, effort, turns, tools and preloaded skills, only the
@@ -1622,7 +1631,7 @@ Phase 5 built this layer; Phase 6 added the ingest side; Codex reuses it (§5.5)
 - the agents `ingester`, `exam-analyst`, `author`, `verifier`, `tutor` and `examiner` (§5.3);
 - the commands they run: `ls`, `index`, `lint` (and `lint --hook`), `validate`, `fig build`,
   `cheatsheet fit`, `pdf`, `calc`, `blind`, `verify`, `hook verifier-guard|pre-git`,
-  `plan`, `progress import|log|report`, `status`, `ingest scan|init|extract|add|round2|page`
+  `plan`, `progress import|log|report`, `status`, `ingest scan|init|topic|extract|add|round2|page`
   and `pipeline status|report`, and the recipes `just verify`, `just status`,
   `just tutor`, `just examine`, `just ingest`, `just pipeline` and
   `just sample-materials` (§4.2).
@@ -1935,6 +1944,7 @@ studykit ingest extract <course>                                                
 studykit ingest round2 <course> --mock-exams 1..6 --scope full|core [--no-go] [--today D]    # step 6
 studykit ingest add <course> <file|folder> [--kind DOC=KIND …] [--today D] [--dry-run]        # /add-material
 studykit ingest page <course> <doc> <N|N-M>                                                  # page PNGs for Codex (§5.5)
+studykit ingest topic <id> <path>… [--title T] [--lang de|en] [--contents …] [--dry-run]     # a topic (§5.6)
 studykit pipeline status <course>                                                             # the resume point
 studykit pipeline report <course> [--today D]                                                 # step 14
 ```
@@ -2063,6 +2073,103 @@ Codex uses the layer of §5.1–§5.4 as it is; nothing is written twice except 
   instructions (the preamble lists what it must never open); prefer Claude Code for
   `/verify` and the verifier waves. Codex attribution is off unless configured, and the
   `commit-msg` hook rejects it anyway.
+
+### 5.6 Topics: `/register-new-topic <path…> [--id <id>]`
+
+A **topic** is one subject to understand, without an exam: a folder, single files or text
+pasted in the chat become a slim learning page. There is no second system: a topic is a course
+directory in `courses/<id>/` with `kind: topic` in `course.yaml`, so discovery, ingesters, authors,
+figures, search, PDFs and the website stay the same, with switches on `kind`.
+
+```yaml
+schema: 1
+kind: topic
+id: how-bitcoin-works
+title: How Bitcoin works
+lang: en
+status: ready
+contents: {cards: true, glossary: true, concept_map: true}   # chosen when it is registered
+topics:                                                      # its chapters
+  - {id: why-bitcoin, title: Why Bitcoin exists, weight: 0.2, prereq: []}
+  - {id: blocks-and-mining, title: Blocks and mining, weight: 0.8, prereq: [why-bitcoin]}
+retired_ids: []
+```
+
+**Model.** `Course.kind` is `course` by default, so existing courses are unchanged. A course
+needs `exam` and has no `contents`. A topic has `contents` (all on by default) and no `exam`,
+`study` or allowed cheat sheet. `exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `plan.yaml` and
+`analysis/` in a topic and `cards/` in a course are SK-STRUCT-KIND.
+
+**What a topic shows:**
+
+| Tab | Route | What | From |
+|---|---|---|---|
+| Overview | `/c/<id>/` | the chapters, the cards to review, the overview with the concept map | `overview.md`, `fig:topic-map` |
+| Explanation | `/c/<id>/summary/…` | the chapters, with definitions, examples and warnings | `summary/<nn>-<topic>.md`, the summary pages |
+| Cards | `/c/<id>/cards/` | flash cards, `?topic=<chapter>` for one chapter | `cards/<topic>.md`, `<sk-cards>` (`contents.cards`) |
+| Glossary | `/c/<id>/glossary/` | every term, A to Z, linked to where it is explained | the titled `::: definition` boxes of the chapters, `lib/glossary.ts` (`contents.glossary`) |
+
+The pages only a course has (plan, exercises, MC, cheat sheet, mock exams, progress) are not
+generated for a topic. The home page lists topics in their own section, "Your topics".
+
+**The overview** has its own sections, in this order: Big picture, Concept map (only `fig:topic-map`,
+and only with `contents.concept_map`), How the parts connect, How to study this.
+
+**Flash cards** are `cards/<topic>.md` with the frontmatter `CardBank` (`topic`, `title`) and only
+
+```markdown
+:::: {.flashcard #card-blocks-and-mining-001}
+How often does the mining difficulty adjust?
+
+::: back
+Every 2016 blocks, which aims at about two weeks.
+:::
+::::
+```
+
+The Cards stage checks them (SK-CARD), `flashcards.lua` renders `<sk-card data-id data-topic>`
+with `.sk-card-front` and `.sk-card-back`, and the loader adds the content hash `data-h` as for
+`<sk-mc>`. They are web only: no PDF holds them. `<sk-cards>` (§3.2) drills the round of
+`lib/cards.ts`: the reviews due, shuffled, then the new cards in teaching order, or all of them. "Knew
+it" moves a card up a Leitner box and "Didn't know" sends it to box 1; a card not known comes back
+at the end of the round without a second rating. Cards count as known from box 3. **They are not
+checked by the blind verifier**, which is built for MC questions and exercises; authors compute
+their numbers with `studykit calc`.
+
+**Coverage** (`--release`) asks for what `contents` chose: a summary per chapter, at least 5 cards
+per chapter (SK-COV-CARDS), a titled definition per chapter (SK-COV-GLOSSARY), two chapters for
+a concept map (SK-COV-CONCEPT-MAP).
+
+**Material.** `studykit ingest topic <id> <path>…` is `init` for a topic: any number of folders and
+files, no exam answers. For a topic, `scan` and `add` take text files (`.txt`, `.md`, UTF-8) and
+the images the pinned Typst can place (PNG, JPG, GIF, WebP) as well as PDFs. Each becomes a PDF in
+`sources/raw/`, compiled by Typst as in §3.3 (embedded fonts, `SOURCE_DATE_EPOCH=0`, its own
+temporary root), so page text, chunks, `src:` links and the transcription of scanned pages work
+unchanged. A text's characters are set literally, one image makes one page cut to its shape,
+`source_sha256` keeps the original's hash for telling known from changed material, and a page
+from a text file is never flagged as visual. A file that cannot be converted is skipped with
+SK-INGEST-CONVERT, and so reported are characters the embedded fonts lack (emoji, CJK). HEIC, TIFF
+and BMP stay SK-INGEST-UNSUPPORTED. With several sources an origin keeps the source's own name
+(`a/notes.txt`) and `folder` stays empty. Every document's kind is `other`. Text pasted in the chat
+is Written by the command to `<course>/_build/inbox/pasted-<n>.txt` and passed like any file, so a
+topic needs no file of the user's at all. One document per image means one ingester per image.
+
+**The command** (`.claude/skills/register-new-topic/SKILL.md`) follows the rules of §5.4 with fewer
+steps: inventory; one round of questions (contents; name and language only when unclear); `ingest
+topic` and `extract`; an `ingester` wave; 2 to 6 chapters in `sources/outline.md` and `course.yaml`
+(one only for very small material, then without a concept map); an `author` wave (overview, then
+summaries, then cards, at most 6 at a time); figures; `validate --release`, `status: ready`, `just
+build`; `pipeline report`.
+
+**Pipeline.** The step numbers stay. For a topic `ask-1`, `ask-2`, `verify`, `mock-exams`, `cheatsheet`
+and `plan` have the status `n/a`, which counts as finished; `read` needs no exam profile, `author`
+asks for what Coverage asks, and the report counts chapters, cards and terms.
+
+**The other commands.** `/add-material` takes the same material and suggests `summary`, `cards` and
+`overview` runs. `/regenerate` has the parts `overview`, `summary`, `cards`, `figures` and `all`. `/tutor`
+works through the chapters and cards. `/verify`, `/examine`, `/study-status` and `/import-progress`
+say that a topic has none of that and stop; `studykit status` and `plan` refuse a topic. A topic's
+progress stays in the browser: there is no Progress tab.
 
 ## 6. Implementation phases
 
