@@ -61,6 +61,18 @@ test('at 320 px no page scrolls sideways, also with long German titles in the pa
   }
 });
 
+test('at 320 px the header fits without a course name, however wide the font', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  for (const path of ['/', '/search/']) {
+    await page.goto(path);
+    // CI's Linux fonts are wider than a Mac's: this makes the difference visible on either
+    await page.addStyleTag({ content: 'body, body * { letter-spacing: 0.08em; }' });
+    await elementsReady(page);
+    const right = await page.locator('sk-theme').evaluate((el) => el.getBoundingClientRect().right);
+    expect(right, path).toBeLessThanOrEqual(320);
+  }
+});
+
 test('at 320 px a running pomodoro timer fits the header', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await page.addInitScript(() => {
