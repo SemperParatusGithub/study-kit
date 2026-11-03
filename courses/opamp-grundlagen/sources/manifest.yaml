@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=../../../schemas/manifest.schema.json
+# Written by `studykit ingest`; the source PDFs are in sources/raw/ (§5.4).
+schema: 1
+course: opamp-grundlagen
+answers:
+  round1: {exam_date: 2027-02-20, exam_format: written-mc, cheatsheet_pages: 2, hours_per_week: 6.0, lang: de, answered: 2026-10-29}
+  round2: {mock_exams: 1, scope: full, go: true, answered: 2026-10-29}
+documents:
+  - id: altes-uebungsblatt02-scan
+    title: 'Altes Uebungsblatt02 Scan'
+    file: 'altes-uebungsblatt02-scan.pdf'
+    origin: 'Altes_Uebungsblatt02_Scan.pdf'
+    sha256: 'e53146fc60f4128c2eb1a5407dd9b407d1b9a884083a1401952912dd02f56018'
+    bytes: 208197
+    pages: 1
+    kind: exercises
+    kind_from: filename
+    text_share: 0.0
+    added: 2026-10-29
+  - id: klausur-ws2025-26
+    title: 'Klausur WS2025-26'
+    file: 'klausur-ws2025-26.pdf'
+    origin: 'Klausur_WS2025-26.pdf'
+    sha256: '6b7c80e6360c82d2178289e01a550819b63dae5cd10d0af842476cd46f4e1aa7'
+    bytes: 78641
+    pages: 2
+    kind: exam
+    kind_from: filename
+    text_share: 1.0
+    added: 2026-10-29
+  - id: klausur-ws2025-26-loesung
+    title: 'Klausur WS2025-26 Loesung'
+    file: 'klausur-ws2025-26-loesung.pdf'
+    origin: 'Klausur_WS2025-26_Loesung.pdf'
+    sha256: 'a405851d4b4526456c8021adad69b286d0f9877f67e8a827eab60c6dd2d0e2c0'
+    bytes: 57834
+    pages: 1
+    kind: exam-solutions
+    kind_from: filename
+    text_share: 1.0
+    added: 2026-10-29
+  - id: skript-kapitel4-operationsverstaerker
+    title: 'Skript Kapitel4 Operationsverstaerker'
+    file: 'skript-kapitel4-operationsverstaerker.pdf'
+    origin: 'Skript_Kapitel4_Operationsverstaerker.pdf'
+    sha256: '151701530a97f19f2ebc562bfbae03602dc24f4e1e8bf5fcf1545f4758d103d3'
+    bytes: 69270
+    pages: 2
+    kind: script
+    kind_from: filename
+    text_share: 1.0
+    added: 2026-10-29
+  - id: uebung03-opv-grundschaltungen
+    title: 'Uebung03 OPV Grundschaltungen'
+    file: 'uebung03-opv-grundschaltungen.pdf'
+    origin: 'Uebung03_OPV_Grundschaltungen.pdf'
+    sha256: '3f27dda6f29046a98b81ce29f54d37eb3d6676b2ed63876fdfb9978302078c94'
+    bytes: 47144
+    pages: 1
+    kind: exercises
+    kind_from: filename
+    text_share: 1.0
+    added: 2026-10-29
+  - id: uebung03-opv-grundschaltungen-loesung
+    title: 'Uebung03 OPV Grundschaltungen Loesung'
+    file: 'uebung03-opv-grundschaltungen-loesung.pdf'
+    origin: 'Uebung03_OPV_Grundschaltungen_Loesung.pdf'
+    sha256: 'f82f68f8222f6f8fd8f4efc4e9ee7283716f18c495f74684fbb8e8752b935764'
+    bytes: 45225
+    pages: 1
+    kind: solutions
+    kind_from: filename
+    text_share: 1.0
+    added: 2026-10-29
+  - id: vl03-operationsverstaerker-grundschaltungen
+    title: 'VL03 Operationsverstaerker Grundschaltungen'
+    file: 'vl03-operationsverstaerker-grundschaltungen.pdf'
+    origin: 'VL03_Operationsverstaerker_Grundschaltungen.pdf'
+    sha256: '28a6dea27cba0cb7e0840ee22272531e70254785e3732084721ee3a49ca98202'
+    bytes: 122312
+    pages: 14
+    kind: slides
+    kind_from: filename
+    text_share: 1.0
+    added: 2026-10-29

@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "item": "ex-vg-impedanzwandler-sensor",
+  "kind": "exercise",
+  "path": "exercises/verstaerker-grundschaltungen/ex-vg-impedanzwandler-sensor.md",
+  "content_sha256": "70f44322dd30b5b63bd902de6d680df1f600c8ae437f2625f51009f4cb77fd57",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-vg-impedanzwandler-sensor.py",
+  "check_sha256": "6cee0bd0d1c1d53d0a5dec0194ba186406c2d61e20769f95da2ab8b089d13bc2",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "UL",
+      "expected": 0.041655,
+      "computed": 0.041654978962131835,
+      "unit": "V",
+      "abs_err": 2.103786816282094e-08,
+      "rel_err": 5.050502499776963e-07,
+      "tol": 0.00020827499999999998,
+      "ok": true
+    },
+    {
+      "key": "anteil",
+      "expected": 4.6283,
+      "computed": 4.628330995792426,
+      "unit": "%",
+      "abs_err": 3.099579242604733e-05,
+      "rel_err": 6.697014546604008e-06,
+      "tol": 0.023141500000000002,
+      "ok": true
+    },
+    {
+      "key": "IL",
+      "expected": 272.73,
+      "computed": 272.72727272727275,
+      "unit": "µA",
+      "abs_err": 0.002727272727270247,
+      "rel_err": 9.999900000990895e-06,
+      "tol": 1.36365,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

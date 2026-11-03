@@ -1,0 +1,1 @@
+{"answer": ["A", "C"], "confidence": "high", "ambiguous": false, "reason": "virtual ground decouples the inputs and each input sees Ri; Ua = -(RF/R1 U1 + ...) only equals -(U1+U2+U3) for Ri = RF; RF scales every weight"}

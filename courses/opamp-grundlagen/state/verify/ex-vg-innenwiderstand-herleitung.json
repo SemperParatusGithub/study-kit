@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "item": "ex-vg-innenwiderstand-herleitung",
+  "kind": "exercise",
+  "path": "exercises/verstaerker-grundschaltungen/ex-vg-innenwiderstand-herleitung.md",
+  "content_sha256": "44a88a2fb2e0a39581c6fce70fa31a8304d40b8478e83a44f6aaa65d1cb45c29",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-vg-innenwiderstand-herleitung.py",
+  "check_sha256": "84b9619bfa81dc65042e52851b56f9b8fab9b81545842f4596e9767d38ab869b",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "VU0",
+      "expected": "-R2/(R1 + Ri)",
+      "computed": "-R2/(R1 + Ri)",
+      "ok": true
+    },
+    {
+      "key": "R1min",
+      "expected": 73.5,
+      "computed": 73.5,
+      "unit": "kΩ",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.3675,
+      "ok": true
+    },
+    {
+      "key": "R2",
+      "expected": 367.5,
+      "computed": 367.5,
+      "unit": "kΩ",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 1.8375000000000001,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

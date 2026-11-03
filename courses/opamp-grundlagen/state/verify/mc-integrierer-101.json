@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "item": "mc-integrierer-101",
+  "kind": "mc",
+  "path": "exams/probeklausur-1/mc.md",
+  "content_sha256": "1a58e078113dd04a6755452243d7663155ec2561151fdab3b2ca9ce6b65366b4",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/mc-integrierer-101.py",
+  "check_sha256": "1179175f3e2e669e3f9e5de99da6fdece0bbb0b59dbcee8dfc1fd2b053152315",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "key",
+      "expected": [
+        "B"
+      ],
+      "computed": [
+        "B"
+      ],
+      "ok": true
+    },
+    {
+      "key": "mistake-A",
+      "expected": 6.283,
+      "computed": 6.283185307179585,
+      "ok": true
+    },
+    {
+      "key": "mistake-C",
+      "expected": 1.592,
+      "computed": 1.5915494309189535,
+      "ok": true
+    },
+    {
+      "key": "mistake-D",
+      "expected": 0.1125,
+      "computed": 0.11253953951963827,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:19:48Z",
+  "verified_at": "2026-10-29T18:19:48Z"
+}

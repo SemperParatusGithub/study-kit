@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "item": "ex-iopv-endliche-leerlaufverstaerkung",
+  "kind": "exercise",
+  "path": "exercises/idealer-opv/ex-iopv-endliche-leerlaufverstaerkung.md",
+  "content_sha256": "d6b8c7386f3bab80a5e001dc61fad6d914182a0f9d85a0d8216362e667631ce1",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-iopv-endliche-leerlaufverstaerkung.py",
+  "check_sha256": "b6797d9126c3dabea4c62e71fe44b5ecf0d61c5ab2c46cb128008a92f1c49a80",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "k",
+      "expected": 0.042254,
+      "computed": 0.04225352112676056,
+      "abs_err": 4.788732394372941e-07,
+      "rel_err": 1.1333204890360537e-05,
+      "tol": 0.00021127,
+      "ok": true
+    },
+    {
+      "key": "Vid",
+      "expected": 23.667,
+      "computed": 23.666666666666668,
+      "abs_err": 0.0003333333333337407,
+      "rel_err": 1.408430867172606e-05,
+      "tol": 0.11833500000000001,
+      "ok": true
+    },
+    {
+      "key": "V",
+      "expected": 22.597,
+      "computed": 22.59707192870783,
+      "abs_err": 7.19287078290165e-05,
+      "rel_err": 3.1831087236808646e-06,
+      "tol": 0.112985,
+      "ok": true
+    },
+    {
+      "key": "F",
+      "expected": 4.5194,
+      "computed": 4.519414385741567,
+      "unit": "%",
+      "abs_err": 1.4385741566869115e-05,
+      "rel_err": 3.1831087239166955e-06,
+      "tol": 0.022597000000000003,
+      "ok": true
+    },
+    {
+      "key": "Ua",
+      "expected": 3.3896,
+      "computed": 3.3895607893061745,
+      "unit": "V",
+      "abs_err": 3.9210693825619813e-05,
+      "rel_err": 1.1567941298566146e-05,
+      "tol": 0.016948,
+      "ok": true
+    },
+    {
+      "key": "Ud",
+      "expected": 6.7791,
+      "computed": 6.779121578612349,
+      "unit": "mV",
+      "abs_err": 2.1578612349415494e-05,
+      "rel_err": 3.1831087237856786e-06,
+      "tol": 0.0338955,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

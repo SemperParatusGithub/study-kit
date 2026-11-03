@@ -1,0 +1,1 @@
+{"answer": ["B", "D"], "confidence": "high", "ambiguous": false, "reason": "signal at the + input (non-inverting, follower) draws no current; inverting amplifier and summer inputs see R1 or Ri to virtual ground"}

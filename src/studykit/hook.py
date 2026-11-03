@@ -457,7 +457,7 @@ def course_path(arg: str, where: Path) -> bool:
 def _staged_courses(where: Path) -> list[str]:
     try:
         proc = subprocess.run(
-            ["git", "diff", "--cached", "--name-only", "-z"],
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"],
             cwd=where,
             capture_output=True,
             text=True,
@@ -494,8 +494,8 @@ COMMIT_OPTS_WITH_VALUE = {
 SHORT_WITH_VALUE = set("mFCctS")
 NO_VERIFY = "pre-git: `git commit --no-verify` would skip the course guard of the pre-commit hook."
 GIT_HINT = (
-    " Course material stays local: courses/ is gitignored and only courses/README.md is "
-    "tracked (CLAUDE.md)."
+    " Course material stays local: courses/ is gitignored and nothing joins what is tracked "
+    "there (CLAUDE.md)."
 )
 
 

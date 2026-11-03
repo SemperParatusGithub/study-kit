@@ -13,7 +13,7 @@ them in the same change.
 | Unverified items | Quarantined: hidden on the site and in PDFs, listed in the report. As built, an item is quarantined when it is still disputed or unverified after two author fix rounds (§2.10, §5.3); an item no verifier has checked yet stays visible, and `validate --release` warns about it |
 | MC defaults (no past exams) | 10–25 questions per topic by weight; 60% single, 25% multi, 15% Kprim; multi all-or-nothing; no negative marking. Past exams override. |
 | Search | Pagefind in v1 (§3.5) |
-| Course data | `courses/` inside the repo, gitignored; never committed |
+| Course data | `courses/` inside the repo, gitignored; never committed. One exception, made once: one commit added the starter courses `opamp-grundlagen` and `how-bitcoin-works`, with the `.gitignore` unchanged, so a fresh clone's `just dev` has something to show. They may be removed; nothing joins them (`guard.sh courses`, `.github/scripts/starter-courses.txt`) and the hooks refuse further commits to them |
 | Language | Skills, agents, UI and code in English; generated content follows `course.lang` |
 | Commits | Conventional Commits, one logical change each, never a Co-Authored-By trailer |
 
@@ -112,7 +112,7 @@ study-kit/
 ├── .agents/skills -> ../.claude/skills   # Codex finds the same skills here (§5.5)
 ├── .codex/                         # Codex (§5.5): config.toml, hooks.json, rules/studykit.rules,
 │                                   # agents/{ingester,exam-analyst,author,verifier}.toml (generated)
-└── courses/README.md               # the only tracked file under courses/
+└── courses/                        # gitignored; tracked: README.md and the starter courses, as .github/scripts/starter-courses.txt lists them
 ```
 
 `.gitignore` entries:
@@ -1614,7 +1614,7 @@ Both Playwright configs stop their web server on SIGTERM as well as SIGINT.
   7. on failure only: upload `site/dist` and the Playwright reports and results (`site/node_modules/.cache/sk-e2e/`, `sk-elements/results/`), kept 14 days
 - **`guard.yml`** (push, PR; full history) runs `bash .github/scripts/guard.sh commits|courses|pdfs`:
   - `commits`: every non-merge commit in the range passes `.githooks/commit-msg` (a Conventional Commit, no `Co-Authored-By`). The range is base..head for a pull request and before..HEAD for a push. When the before commit is missing (a new branch, or a force push), a branch is checked as `origin/<default>..HEAD`; creating the default branch checks its whole history; a rewrite of the default branch fails and has to be checked by hand; a range git cannot list fails the check.
-  - `courses`: `git ls-files courses` returns only `courses/README.md`.
+  - `courses`: `git ls-files courses` returns only files of `.github/scripts/starter-courses.txt`: the README and the starter courses (§0). They may be gone; nothing else may be there.
   - `pdfs`: no tracked `*.pdf`, in any letter case, outside `tests/fixtures/`.
 
 `commit-msg` rejects a `Co-Authored-By` trailer on every commit; subjects git writes itself

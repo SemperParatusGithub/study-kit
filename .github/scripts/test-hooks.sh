@@ -137,6 +137,7 @@ expect fail "course file" commit_file "courses/et1/overview.md"
 # git quotes names with non-ASCII characters or quotes in its path output
 expect fail "course file with an umlaut and a space" commit_file "courses/et1/sources/Übung 3.md"
 expect fail "course file with a double quote" commit_file 'courses/et1/sources/"draft".md'
+expect fail "a starter course stays closed to commits" commit_file "courses/how-bitcoin-works/course.yaml"
 expect pass "courses/README.md" commit_file "courses/README.md"
 expect pass "ordinary file" commit_file "docs/notes.md"
 expect pass "ordinary file with an umlaut" commit_file "docs/Übersicht.md"
@@ -252,6 +253,11 @@ expect pass "only courses/README.md" guard_in "$(tracked courses/README.md docs/
 expect fail "course file" guard_in "$(tracked courses/README.md courses/et1/a.md)" courses
 expect fail "course file with an umlaut" \
   guard_in "$(tracked courses/README.md "courses/et1/Übung 3.md")" courses
+expect pass "a listed file of a starter course" \
+  guard_in "$(tracked courses/README.md courses/how-bitcoin-works/course.yaml)" courses
+expect pass "a starter course removed" guard_in "$(tracked docs/a.md)" courses
+expect fail "a new file in a starter course" \
+  guard_in "$(tracked courses/how-bitcoin-works/cards/new.md)" courses
 
 echo "guard: pdfs"
 expect pass "pdf under tests/fixtures" guard_in "$(tracked tests/fixtures/a.pdf)" pdfs

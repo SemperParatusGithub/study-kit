@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "item": "ex-int-sinus",
+  "kind": "exercise",
+  "path": "exercises/integrierer/ex-int-sinus.md",
+  "content_sha256": "bc42766b9f623fc9e33c1bdbc6196a8e4e36aebe18d355ec977a3521b06f6d32",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-int-sinus.py",
+  "check_sha256": "385d41d88c9f5a6d7cc04c7d448adeae52573217d26265620a2753f123b8d175",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "Uahat",
+      "expected": 0.84657,
+      "computed": 0.8465688462334858,
+      "unit": "V",
+      "abs_err": 1.1537665142169473e-06,
+      "rel_err": 1.3628719588657137e-06,
+      "tol": 0.004232850000000001,
+      "ok": true
+    },
+    {
+      "key": "fmin",
+      "expected": 16.931,
+      "computed": 16.931376924669717,
+      "unit": "Hz",
+      "abs_err": 0.0003769246697160611,
+      "rel_err": 2.226239854208618e-05,
+      "tol": 0.08465500000000001,
+      "ok": true
+    },
+    {
+      "key": "Ua12",
+      "expected": 14.109,
+      "computed": 14.109480770558099,
+      "unit": "V",
+      "abs_err": 0.0004807705580986976,
+      "rel_err": 3.407545241326087e-05,
+      "tol": 0.070545,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

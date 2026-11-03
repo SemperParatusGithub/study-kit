@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "item": "pk1-t3",
+  "kind": "exam-task",
+  "path": "exams/probeklausur-1/03-pk1-t3.md",
+  "content_sha256": "5f344b409210acd36c0db98fc22a645a84499e9deec13cd574e6f67840d9f1f4",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/pk1-t3.py",
+  "check_sha256": "460e65f480c9c2a026e142f5ccb34185610407b4742448274c5d1b2697829575",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "slope",
+      "expected": -46.62,
+      "computed": -46.62004662004662,
+      "unit": "V/s",
+      "abs_err": 4.662004662492336e-05,
+      "rel_err": 1.0000010001056064e-06,
+      "tol": 0.2331,
+      "ok": true
+    },
+    {
+      "key": "tsat",
+      "expected": 235.95,
+      "computed": 235.95000000000866,
+      "unit": "ms",
+      "abs_err": 8.668621376273222e-12,
+      "rel_err": 3.673923024485367e-14,
+      "tol": 1.17975,
+      "ok": true
+    },
+    {
+      "key": "f1",
+      "expected": 12.366,
+      "computed": 12.36635144650516,
+      "unit": "Hz",
+      "abs_err": 0.00035144650516016895,
+      "rel_err": 2.842038696103582e-05,
+      "tol": 0.06183,
+      "ok": true
+    },
+    {
+      "key": "H40",
+      "expected": 0.30916,
+      "computed": 0.3091587861147928,
+      "abs_err": 1.213885207185239e-06,
+      "rel_err": 3.926398004868803e-06,
+      "tol": 0.0015458,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:19:48Z",
+  "verified_at": "2026-10-29T18:19:48Z"
+}

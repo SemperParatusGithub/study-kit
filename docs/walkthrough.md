@@ -9,7 +9,8 @@ the website and Claude Code. The examples come from a real run on the sample mat
 For one subject without an exam, `/register-new-topic` is the shorter way: see
 [A single topic](#a-single-topic) at the end.
 
-Your course stays on your machine: everything under `courses/` is gitignored, and the
+Your course stays on your machine: everything under `courses/` but the two starter courses
+is gitignored, and the
 hooks refuse to commit it (see the README).
 
 ## Before you start

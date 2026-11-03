@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=../../../schemas/exam-profile.schema.json
+# Exam profile from one past exam (klausur-ws2025-26: 90 min, 60 points, MC part of 6
+# questions at 2 points, three tasks with 48 points). Shares computed with `studykit calc`,
+# rounded to two decimals, the remainder on the largest. Topics are candidate slugs until synthesis.
+schema: 1
+confidence: medium
+basis: past-exams
+exams: [klausur-ws2025-26]
+format: mixed
+duration_min: 90
+points: 60
+pass_points: 30
+minutes_per_point: 1.5
+aids: ['Nicht programmierbarer Taschenrechner', 'Ein handgeschriebenes DIN-A4-Blatt (beidseitig)']
+mc:
+  present: true
+  share: 0.2
+  count: 6
+  types: [single, multi]
+  type_mix: {single: 0.83, multi: 0.17}
+  scoring: all-or-nothing
+  negative_marking: false
+archetypes:
+  - id: invertierer-saettigung-innenwiderstand
+    title: Invertierender Verstärker mit Sättigung und Quellen-Innenwiderstand
+    topic: verstaerker-grundschaltungen
+    share: 0.33
+    frequency: 1
+    points: 16
+    minutes: 24
+    description: Herleitung von V über die virtuelle Masse, V und U_a mit Zahlen, Sättigung bei zu großer Eingangsspannung, Verstärkung mit Innenwiderstand der Quelle
+    sources: [{doc: klausur-ws2025-26, pages: '2'}, {doc: klausur-ws2025-26-loesung, pages: '1'}]
+  - id: nichtinvertierer-impedanzwandler
+    title: Nichtinvertierender Verstärker dimensionieren und Impedanzwandler
+    topic: verstaerker-grundschaltungen
+    share: 0.29
+    frequency: 1
+    points: 14
+    minutes: 21
+    description: R_2 für eine Zielverstärkung, U_a, Lastspannung einer hochohmigen Quelle ohne und mit Spannungsfolger, Begründung des Eingangswiderstands
+    sources: [{doc: klausur-ws2025-26, pages: '2'}, {doc: klausur-ws2025-26-loesung, pages: '1'}]
+  - id: integrierer-sprung-saettigung
+    title: Integrierer mit Sprungeingang bis zur Sättigung und Frequenzgang
+    topic: integrierer
+    share: 0.38
+    frequency: 1
+    points: 18
+    minutes: 27
+    description: U_a(t) allgemein und mit Zahlen, Zeit bis zur Sättigung, Skizze von U_e(t) und U_a(t), f_1 mit Betrag 1 und Betrag bei einer gegebenen Frequenz
+    sources: [{doc: klausur-ws2025-26, pages: '2'}, {doc: klausur-ws2025-26-loesung, pages: '1'}]
+topic_weights: {idealer-opv: 0.03, verstaerker-grundschaltungen: 0.63, integrierer: 0.34}
+notation: {imaginary_unit: j, phasor: underline, decimal: point}
+notes:
+  - 'Archetype shares are shares of the task points (48); the MC part is mc.share of all points.'
+  - 'Only one past exam: confidence medium; frequencies are 1 by construction.'
+  - 'Topic weights count each MC question (2 points) for its topic: 1.1 idealer-opv, 1.2 invertierender-verstaerker, 1.3 and 1.6 nichtinvertierender-verstaerker, 1.4 summierer, 1.5 integrierer.'
+  - 'The output is limited to plus or minus 11 V in the past exam; the exam date of the coming exam is 17.02.2027 on the slides (the user gave 2027-02-20).'

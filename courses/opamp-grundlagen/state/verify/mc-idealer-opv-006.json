@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "item": "mc-idealer-opv-006",
+  "kind": "mc",
+  "path": "mc/idealer-opv.md",
+  "content_sha256": "744be6ff0096be222ce5ae59fb989eec8932c6d31ce32a9bf802aa00c33de69d",
+  "status": "verified",
+  "method": "blind",
+  "check": "checks/mc-idealer-opv-006.json",
+  "check_sha256": "382b5129a05ed26e54ab415f134b5fc6d0708e928eac68aedd08f99eb0f187ee",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "key",
+      "expected": [
+        "B"
+      ],
+      "computed": [
+        "B"
+      ],
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:20Z",
+  "verified_at": "2026-10-29T18:16:20Z"
+}
