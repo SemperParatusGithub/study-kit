@@ -1,0 +1,1 @@
+{"answer": ["A", "C", "E"], "confidence": "high", "ambiguous": false, "reason": "virtual ground, Ue/R flows into C, |H| = 1/(w RC) falls 20 dB per decade; constant Ue gives a ramp; f1 = 1/(2 pi RC) is independent of amplitude"}

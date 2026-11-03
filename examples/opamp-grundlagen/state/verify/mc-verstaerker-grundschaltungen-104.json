@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "item": "mc-verstaerker-grundschaltungen-104",
+  "kind": "mc",
+  "path": "exams/probeklausur-1/mc.md",
+  "content_sha256": "43d974139bd6f793a0a48f74a375a6913a21357db34f576cb4d7129bd70d3dcf",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/mc-verstaerker-grundschaltungen-104.py",
+  "check_sha256": "ce31c6556c93d46cc631218eb50a1810bbe8cdb0c0c364368f06b642f49cd397",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "key",
+      "expected": [
+        "D"
+      ],
+      "computed": [
+        "D"
+      ],
+      "ok": true
+    },
+    {
+      "key": "mistake-A",
+      "expected": 5.0,
+      "computed": 5.0,
+      "ok": true
+    },
+    {
+      "key": "mistake-B",
+      "expected": -5.0,
+      "computed": -5.0,
+      "ok": true
+    },
+    {
+      "key": "mistake-C",
+      "expected": 0.1667,
+      "computed": 0.16666666666666666,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:19:48Z",
+  "verified_at": "2026-10-29T18:19:48Z"
+}

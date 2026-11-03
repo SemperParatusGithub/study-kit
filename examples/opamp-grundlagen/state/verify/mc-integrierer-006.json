@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "item": "mc-integrierer-006",
+  "kind": "mc",
+  "path": "mc/integrierer.md",
+  "content_sha256": "2178f8141d1465629472215c6245eb453a60b5f97f5751b55de00914f9af1db3",
+  "status": "verified",
+  "method": "blind",
+  "check": "checks/mc-integrierer-006.json",
+  "check_sha256": "a31eb35b7ff5542844d30c2dc6a1917f802f6b9e737e058b3103310b50470453",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "key",
+      "expected": [
+        "C"
+      ],
+      "computed": [
+        "C"
+      ],
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:20Z",
+  "verified_at": "2026-10-29T18:16:20Z"
+}

@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "item": "ex-int-betrag-phase",
+  "kind": "exercise",
+  "path": "exercises/integrierer/ex-int-betrag-phase.md",
+  "content_sha256": "7ef6ddac1a8354d092e5ee614a6878ee8006f44ce54a8cec822b0a749892691d",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-int-betrag-phase.py",
+  "check_sha256": "c454b6c59f3bdabb9dab13afd46b6aebdc052057c09339c5018ac8a1d4b45e75",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "f1",
+      "expected": 3386.3,
+      "computed": 3386.2753849339438,
+      "unit": "Hz",
+      "abs_err": 0.024615066056412616,
+      "rel_err": 7.269015165937045e-06,
+      "tol": 16.9315,
+      "ok": true
+    },
+    {
+      "key": "Hdb",
+      "expected": 10.594,
+      "computed": 10.594445474123352,
+      "unit": "dB",
+      "abs_err": 0.00044547412335305125,
+      "rel_err": 4.204966238937618e-05,
+      "tol": 0.05,
+      "ok": true
+    },
+    {
+      "key": "phi",
+      "expected": 90.0,
+      "computed": 90.0,
+      "unit": "°",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.5,
+      "ok": true
+    },
+    {
+      "key": "f20",
+      "expected": 33.863,
+      "computed": 33.86275384933944,
+      "unit": "kHz",
+      "abs_err": 0.0002461506605584418,
+      "rel_err": 7.269015165769182e-06,
+      "tol": 0.169315,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

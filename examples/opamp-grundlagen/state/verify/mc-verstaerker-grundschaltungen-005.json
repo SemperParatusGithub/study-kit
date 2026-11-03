@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "item": "mc-verstaerker-grundschaltungen-005",
+  "kind": "mc",
+  "path": "mc/verstaerker-grundschaltungen.md",
+  "content_sha256": "43ef8c73474173eae384c82e4db11824c620501b60fcb5ae315c8c5b08d7f959",
+  "status": "verified",
+  "method": "blind",
+  "check": "checks/mc-verstaerker-grundschaltungen-005.json",
+  "check_sha256": "09fec8d95892733ec4667409ef62f1a0f2f7ec421646b4ea3c0834c20a119103",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "key",
+      "expected": [
+        "A"
+      ],
+      "computed": [
+        "A"
+      ],
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:20Z",
+  "verified_at": "2026-10-29T18:16:20Z"
+}

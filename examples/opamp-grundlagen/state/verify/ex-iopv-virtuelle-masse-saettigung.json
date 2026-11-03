@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "item": "ex-iopv-virtuelle-masse-saettigung",
+  "kind": "exercise",
+  "path": "exercises/idealer-opv/ex-iopv-virtuelle-masse-saettigung.md",
+  "content_sha256": "29ac8c8bd8ff205a95f99edcef3c9ac2d48c9e246905d688500b54642aaad443",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-iopv-virtuelle-masse-saettigung.py",
+  "check_sha256": "260f27f15d07ee576a750012680df2dcccfd01c1bec7bd9bacf5eb8d2ec45447",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "Ua1",
+      "expected": -7.3333,
+      "computed": -7.333333333333333,
+      "unit": "V",
+      "abs_err": 3.333333333266353e-05,
+      "rel_err": 4.545475206614147e-06,
+      "tol": 0.036666500000000005,
+      "ok": true
+    },
+    {
+      "key": "Uemax",
+      "expected": 0.81818,
+      "computed": 0.8181818181818182,
+      "unit": "V",
+      "abs_err": 1.8181818182139153e-06,
+      "rel_err": 2.222227160544031e-06,
+      "tol": 0.0040909,
+      "ok": true
+    },
+    {
+      "key": "Ua2",
+      "expected": -12.0,
+      "computed": -12.0,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.06,
+      "ok": true
+    },
+    {
+      "key": "Un",
+      "expected": 0.17021,
+      "computed": 0.17021276595744683,
+      "unit": "V",
+      "abs_err": 2.765957446831946e-06,
+      "rel_err": 1.625026406692877e-05,
+      "tol": 0.00085105,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

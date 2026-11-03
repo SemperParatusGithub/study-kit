@@ -3,7 +3,7 @@
 This guide follows one subject from a folder of lecture PDFs to a course you study with
 the website and Claude Code. The examples come from a real run on the sample materials in
 `examples/sample-materials` (op-amp basic circuits, in German), which produced the course
-`opamp-grundlagen`. The specification behind every step is
+`opamp-grundlagen`, kept in `examples/opamp-grundlagen` without its source PDFs. The specification behind every step is
 [architecture.md §5.4](architecture.md#54-register-new-subject-folder-course-id).
 
 For one subject without an exam, `/register-new-topic` is the shorter way: see

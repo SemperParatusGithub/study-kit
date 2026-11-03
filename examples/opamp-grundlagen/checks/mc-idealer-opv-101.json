@@ -1,0 +1,1 @@
+{"answer": ["C"], "confidence": "high", "ambiguous": false, "reason": "virtual short: Ud = Ua/V0 -> 0, and the ideal inputs draw no current; they are not conductively connected"}

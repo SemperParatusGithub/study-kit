@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "item": "mc-integrierer-003",
+  "kind": "mc",
+  "path": "mc/integrierer.md",
+  "content_sha256": "bddfc9cbc85585a5aed95a37e4ffd8bbc27f0933c7628007600af768e23b8c57",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/mc-integrierer-003.py",
+  "check_sha256": "dbf265cc267d14d73abc2ae89da7c63ad58919e408e3748ddf757c75af41c9f3",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "key",
+      "expected": [
+        "C"
+      ],
+      "computed": [
+        "C"
+      ],
+      "ok": true
+    },
+    {
+      "key": "mistake-A",
+      "expected": 425.5,
+      "computed": 425.53191489361706,
+      "ok": true
+    },
+    {
+      "key": "mistake-B",
+      "expected": -42.55,
+      "computed": -42.55319148936171,
+      "ok": true
+    },
+    {
+      "key": "mistake-D",
+      "expected": -2674.0,
+      "computed": -2673.6958753955687,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:20Z",
+  "verified_at": "2026-10-29T18:16:20Z"
+}

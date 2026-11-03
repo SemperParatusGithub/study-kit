@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "item": "ex-vg-invertierer-kennwerte",
+  "kind": "exercise",
+  "path": "exercises/verstaerker-grundschaltungen/ex-vg-invertierer-kennwerte.md",
+  "content_sha256": "e17a374f53f321b2b199663a623a79445144fe74df6a3cfea70515a01bb71d7b",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-vg-invertierer-kennwerte.py",
+  "check_sha256": "cf72c189092ba3ba7177c488ae04cc67a824989b37c15d3b2d6e484f0ccc6982",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "V",
+      "expected": -3.9706,
+      "computed": -3.9705882352941178,
+      "abs_err": 1.1764705882377768e-05,
+      "rel_err": 2.962954183845708e-06,
+      "tol": 0.019853000000000003,
+      "ok": true
+    },
+    {
+      "key": "Ua",
+      "expected": -1.3897,
+      "computed": -1.3897058823529411,
+      "unit": "V",
+      "abs_err": 5.882352941188884e-06,
+      "rel_err": 4.232822149520676e-06,
+      "tol": 0.0069485,
+      "ok": true
+    },
+    {
+      "key": "Rein",
+      "expected": 6.8,
+      "computed": 6.8,
+      "unit": "kΩ",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.034,
+      "ok": true
+    },
+    {
+      "key": "Ie",
+      "expected": 51.471,
+      "computed": 51.470588235294116,
+      "unit": "µA",
+      "abs_err": 0.00041176470588055736,
+      "rel_err": 7.999936000477111e-06,
+      "tol": 0.257355,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "item": "mc-idealer-opv-101",
+  "kind": "mc",
+  "path": "exams/probeklausur-1/mc.md",
+  "content_sha256": "cfcc3e68f26325ae168335928a88d6061d2bfd7092aff0e1f0acb44ab1a37f71",
+  "status": "verified",
+  "method": "blind",
+  "check": "checks/mc-idealer-opv-101.json",
+  "check_sha256": "966777aab2033cf96924be158126bcc2e1a7d198549a57bdb07bfe96ed967aec",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "key",
+      "expected": [
+        "C"
+      ],
+      "computed": [
+        "C"
+      ],
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:19:48Z",
+  "verified_at": "2026-10-29T18:19:48Z"
+}

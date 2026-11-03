@@ -91,6 +91,7 @@ study-kit/
 ├── examples/
 │   ├── sample-course/              # self-written German mini course `sample-course` using every feature (CI fixture)
 │   ├── how-bitcoin-works/          # self-written English topic (§5.6): explanation, flash cards, glossary, concept map (CI fixture)
+│   ├── opamp-grundlagen/           # the course a real /register-new-subject run built from sample-materials, verified; source links as text, no PDFs
 │   └── sample-materials/           # self-written Typst sources (op-amp circuits) for fake slides, script, exercise sheet, past exam
 │                                   # and one rasterised "scan"; `just sample-materials` builds the PDFs into its gitignored _build/
 ├── tests/py/                       # pytest (§4.4); test_claude.py checks the .claude/ layer; materials.py makes lecture PDFs at test time
@@ -1468,6 +1469,7 @@ ci:
     {{just}} doctor
     {{just}} test
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} figures how-bitcoin-works
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} figures opamp-grundlagen
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} build sample-course
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate sample-course --release
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate how-bitcoin-works --release

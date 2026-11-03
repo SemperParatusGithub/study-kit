@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "item": "pk1-t2",
+  "kind": "exam-task",
+  "path": "exams/probeklausur-1/02-pk1-t2.md",
+  "content_sha256": "86804316359ce36206647f6cea98e28c954206ec3a58850d3adeb90586a94ed6",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/pk1-t2.py",
+  "check_sha256": "8c9a60e9f891c7e4bf0fce902ada5ef7830f5c9f146b9ce4832a8443e6f19d53",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "R2",
+      "expected": 12.0,
+      "computed": 12.0,
+      "unit": "kΩ",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.06,
+      "ok": true
+    },
+    {
+      "key": "Ua",
+      "expected": 4.95,
+      "computed": 4.95,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.02475,
+      "ok": true
+    },
+    {
+      "key": "UL1",
+      "expected": 28.351,
+      "computed": 28.350515463917525,
+      "unit": "mV",
+      "abs_err": 0.0004845360824745626,
+      "rel_err": 1.7090616996739538e-05,
+      "tol": 0.141755,
+      "ok": true
+    },
+    {
+      "key": "UL2",
+      "expected": 0.75,
+      "computed": 0.75,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.00375,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:19:48Z",
+  "verified_at": "2026-10-29T18:19:48Z"
+}

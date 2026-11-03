@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "item": "ex-vg-summierer-drei-eingaenge",
+  "kind": "exercise",
+  "path": "exercises/verstaerker-grundschaltungen/ex-vg-summierer-drei-eingaenge.md",
+  "content_sha256": "166fffe0d390fd4b0daec95d195c49f7a0e938f7c74b96da933d19626610ec4b",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-vg-summierer-drei-eingaenge.py",
+  "check_sha256": "85173d4e74e592467a05fa7a9aadb7470444bc7052d12be752d4ef6ba62e66e4",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "I1",
+      "expected": 31.25,
+      "computed": 31.25,
+      "unit": "µA",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.15625,
+      "ok": true
+    },
+    {
+      "key": "I2",
+      "expected": -50.0,
+      "computed": -49.99999999999999,
+      "unit": "µA",
+      "abs_err": 7.105427357601002e-15,
+      "rel_err": 1.4210854715202004e-16,
+      "tol": 0.25,
+      "ok": true
+    },
+    {
+      "key": "I3",
+      "expected": 31.25,
+      "computed": 31.25,
+      "unit": "µA",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.15625,
+      "ok": true
+    },
+    {
+      "key": "Ua",
+      "expected": -0.3,
+      "computed": -0.30000000000000016,
+      "unit": "V",
+      "abs_err": 1.6653345369377348e-16,
+      "rel_err": 5.551115123125783e-16,
+      "tol": 0.0015,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:20Z",
+  "verified_at": "2026-10-29T18:16:20Z"
+}

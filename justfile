@@ -138,6 +138,7 @@ ci:
     {{just}} doctor
     {{just}} test
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} figures how-bitcoin-works
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} figures opamp-grundlagen
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} build sample-course
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate sample-course --release
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate how-bitcoin-works --release
