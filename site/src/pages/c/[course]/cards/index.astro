@@ -1,0 +1,44 @@
+---
+// Flash cards of a topic (docs/architecture.md §5.6): the element drills them one at a time;
+// without JavaScript, and on paper, they are a list with their answers.
+import Base from '../../../../layouts/Base.astro';
+import Html from '../../../../components/Html.astro';
+import SearchTags from '../../../../components/SearchTags.astro';
+import { topicPathsWith, type Course } from '../../../../lib/courses';
+import { plural } from '../../../../lib/format';
+
+export const getStaticPaths = () => topicPathsWith('cards');
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const total = course.cards.reduce((n, b) => n + b.data.cards.length, 0);
+---
+
+<Base title="Flash cards" course={course} tab="cards" description={`Flash cards of ${course.title}`}>
+  <div class="page-head" lang={en}>
+    <h1>Flash cards</h1>
+    <p class="muted">
+      {plural(total, 'card')}. Think of the answer, turn the card and say whether you knew it; cards you
+      know come back less often.
+    </p>
+  </div>
+
+  {
+    total === 0 ? (
+      <div class="empty" lang={en}>
+        No flash cards yet.
+      </div>
+    ) : (
+      <sk-cards data-course={c}>
+        {course.cards.map((bank) => (
+          <section class="sk-cards-chapter" data-topic={bank.data.topic} data-title={course.topicTitle(bank.data.topic)} data-pagefind-body>
+            <SearchTags course={course} type="cards" topic={bank.data.topic} />
+            <h2>{course.topicTitle(bank.data.topic)}</h2>
+            <Html html={bank.rendered?.html} course={c} />
+          </section>
+        ))}
+      </sk-cards>
+    )
+  }
+</Base>

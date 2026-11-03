@@ -5,6 +5,7 @@ import Html from '../../../components/Html.astro';
 import NextSession from '../../../components/NextSession.astro';
 import PdfLinks from '../../../components/PdfLinks.astro';
 import SearchTags from '../../../components/SearchTags.astro';
+import TopicToday from '../../../components/TopicToday.astro';
 import { coursePaths, route, type Course } from '../../../lib/courses';
 import {
   daysBetween,
@@ -38,6 +39,9 @@ const firstSummary = course.summaries[0];
     <PdfLinks course={course} items={[{ doc: findPdf(course.pdfs, 'overview') }]} />
   </div>
 
+  {course.isTopic && <TopicToday course={course} />}
+
+  {!course.isTopic && (
   <section class="today" aria-labelledby="today-title" lang={en}>
     <h2 id="today-title" class="visually-hidden">Today</h2>
 
@@ -89,7 +93,9 @@ const firstSummary = course.summaries[0];
       <a class="small" href={route.progress(c)}>Progress →</a>
     </div>
   </section>
+  )}
 
+  {!course.isTopic && (
   <section class="topics" aria-labelledby="topics-title">
     <h2 id="topics-title" lang={en}>Topics</h2>
     <ul class="topic-chips" role="list">
@@ -118,6 +124,7 @@ const firstSummary = course.summaries[0];
       }
     </ul>
   </section>
+  )}
 
   {
     overview ? (
@@ -129,7 +136,7 @@ const firstSummary = course.summaries[0];
       </article>
     ) : (
       <div class="empty" lang={en}>
-        <p>This course has no overview yet.</p>
+        <p>{course.isTopic ? 'This topic' : 'This course'} has no overview yet.</p>
         {firstSummary && (
           <p>
             <a href={route.summary(c, firstSummary.data.topic ?? '')}>Start with the first chapter</a>

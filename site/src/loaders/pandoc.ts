@@ -9,7 +9,7 @@
 //      digest is prefixed with a STAMP of this loader's own inputs (its version, KaTeX, and
 //      the sources in SHAPING_SOURCES), so editing those rebuilds every entry too;
 //   2. removes the trailing sk-meta script and keeps its headings;
-//   3. hashes each <sk-mc> and each exercise or exam-task fragment as the filter wrote it
+//   3. hashes each <sk-mc>, each <sk-card> and each exercise or exam-task fragment as the filter wrote it
 //      (first 8 hex of sha256) for the progress content hash `h` (§2.11);
 //   4. renders every <sk-math> with KaTeX (lib/katex.ts), and the inline math of the
 //      frontmatter labels (answer labels, rubric criteria, objectives) into `labels`;
@@ -21,7 +21,7 @@
 import type { Loader, LoaderContext } from 'astro/loaders';
 import katex from 'katex';
 import { errorCard, StrictError, type Finding } from '../lib/findings';
-import { addMcHashes, extractMeta, hash8, lineOf, mcElements } from '../lib/html';
+import { addCardHashes, addMcHashes, cardElements, extractMeta, hash8, lineOf, mcElements } from '../lib/html';
 import { renderLabel, renderMath, type MathError } from '../lib/katex';
 import {
   displayPath,
@@ -41,7 +41,7 @@ import {
 import type { DocData, DocKind } from '../lib/types';
 
 // Bump when this file changes what it stores, so cached entries are rebuilt.
-const LOADER_VERSION = 4;
+const LOADER_VERSION = 5;
 // The sources that shape a stored entry; editing any of them rebuilds every entry.
 const SHAPING_SOURCES = ['src/loaders/pandoc.ts', 'src/lib/katex.ts', 'src/lib/html.ts', 'src/lib/findings.ts'];
 const STAMP = `sk${LOADER_VERSION}-katex${katex.version}-${sourcesHash()}:`;
@@ -191,6 +191,7 @@ const PARTS: [DocKind, RegExp][] = [
   ['summary', /^summary\/(?<nn>\d{2})-(?<topic>[a-z0-9-]+)\.md$/],
   ['exercise', /^exercises\/(?<topic>[a-z0-9-]+)\/(?<id>ex-[a-z0-9-]+)\.md$/],
   ['mc', /^mc\/(?<topic>[a-z0-9-]+)\.md$/],
+  ['cards', /^cards\/(?<topic>[a-z0-9-]+)\.md$/],
   ['exam', /^exams\/(?<exam>[a-z0-9-]+)\/exam\.yaml$/],
   ['exam-mc', /^exams\/(?<exam>[a-z0-9-]+)\/mc\.md$/],
   ['exam-task', /^exams\/(?<exam>[a-z0-9-]+)\/(?<nn>\d{2})-(?<id>[a-z0-9-]+)\.md$/],
@@ -254,10 +255,11 @@ function buildEntry(course: string, courseDir: string, file: BridgeFile) {
       mathFinding(err, frontmatterPosition(source, err.tex), ' in a frontmatter label'),
     );
   }
-  let html = renderMath(addMcHashes(fragment), (err) =>
+  let html = renderMath(addCardHashes(addMcHashes(fragment)), (err) =>
     mathFinding(err, { line: lineOf(source, err.tex), col: 1 }, ''),
   );
   const questions = MC_KINDS.includes(file.kind) ? mcElements(html) : [];
+  const cards = file.kind === 'cards' ? cardElements(html) : [];
   const errors = findings.filter((f) => f.severity === 'error');
   if (errors.length) html = errorCard(errors) + html;
   const id = str(fm.id) ?? groups.id ?? null;
@@ -275,6 +277,7 @@ function buildEntry(course: string, courseDir: string, file: BridgeFile) {
     h,
     headings: meta.headings,
     questions,
+    cards,
     findings,
   };
   return { data, html, headings: meta.headings.map((x) => ({ depth: x.level, slug: x.id, text: x.text })) };

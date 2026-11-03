@@ -2,9 +2,9 @@
 // Progress (docs/architecture.md §2.11, §3.2): <sk-progress> draws topic bars, sure/unsure
 // calibration and exam history from browser progress; <sk-export> exports and imports it.
 import Base from '../../../layouts/Base.astro';
-import { clientInfo, coursePaths, overallMastery, type Course } from '../../../lib/courses';
+import { clientInfo, examCoursePaths, overallMastery, type Course } from '../../../lib/courses';
 
-export const getStaticPaths = coursePaths;
+export const getStaticPaths = examCoursePaths;
 
 const { course } = Astro.props as { course: Course };
 const c = course.id;

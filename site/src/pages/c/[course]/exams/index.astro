@@ -2,11 +2,11 @@
 // Mock exams of the course.
 import Base from '../../../../layouts/Base.astro';
 import PdfLink from '../../../../components/PdfLink.astro';
-import { coursePaths, route, type Course } from '../../../../lib/courses';
+import { examCoursePaths, route, type Course } from '../../../../lib/courses';
 import { formatMinutes, formatNumber, plural } from '../../../../lib/format';
 import { findPdf } from '../../../../lib/pdf';
 
-export const getStaticPaths = coursePaths;
+export const getStaticPaths = examCoursePaths;
 
 const { course } = Astro.props as { course: Course };
 const c = course.id;

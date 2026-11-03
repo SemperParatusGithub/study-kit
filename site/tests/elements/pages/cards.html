@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--#include partials/head.html-->
+<title>Flash cards</title>
+</head>
+<body data-course="mini" data-exam-date="">
+<!--#include partials/header.html-->
+<main>
+<h1>Flash cards</h1>
+<sk-cards data-course="mini">
+  <section class="sk-cards-chapter" data-topic="one" data-title="Chapter one">
+    <h2>Chapter one</h2>
+    <sk-card data-h="aaaaaaaa" data-id="card-one-001" data-topic="one"><div class="sk-card-front"><p>Front one</p></div><div class="sk-card-back"><p>Back one</p></div></sk-card>
+    <sk-card data-h="bbbbbbbb" data-id="card-one-002" data-topic="one"><div class="sk-card-front"><p>Front two</p></div><div class="sk-card-back"><p>Back two</p></div></sk-card>
+  </section>
+  <section class="sk-cards-chapter" data-topic="two" data-title="Chapter two">
+    <h2>Chapter two</h2>
+    <sk-card data-h="cccccccc" data-id="card-two-001" data-topic="two"><div class="sk-card-front"><p>Front three</p></div><div class="sk-card-back"><p>Back three</p></div></sk-card>
+  </section>
+</sk-cards>
+</main>
+</body>
+</html>

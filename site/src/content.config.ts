@@ -30,21 +30,32 @@ const courses = defineCollection({
     lang: z.enum(['de', 'en']),
     semester: z.string().nullish(),
     status: z.enum(['draft', 'ready']).default('draft'),
-    exam: z.looseObject({
-      date: isoDate.nullish(),
-      duration_min: z.number().nullish(),
-      points: z.number().nullish(),
-      format: z.string(),
-      aids: z.array(z.string()).default([]),
-      mc: z
-        .looseObject({
-          present: z.boolean(),
-          types: z.array(z.string()).default([]),
-          scoring: z.enum(['all-or-nothing', 'partial', 'kprim']).default('all-or-nothing'),
-          negative_marking: z.boolean().default(false),
-        })
-        .nullish(),
-    }),
+    kind: z.enum(['course', 'topic']).default('course'),
+    // a topic has none (§5.6); the stand-in keeps the type of the pages only a course has
+    exam: z
+      .looseObject({
+        date: isoDate.nullish(),
+        duration_min: z.number().nullish(),
+        points: z.number().nullish(),
+        format: z.string(),
+        aids: z.array(z.string()).default([]),
+        mc: z
+          .looseObject({
+            present: z.boolean(),
+            types: z.array(z.string()).default([]),
+            scoring: z.enum(['all-or-nothing', 'partial', 'kprim']).default('all-or-nothing'),
+            negative_marking: z.boolean().default(false),
+          })
+          .nullish(),
+      })
+      .default({ format: 'none', aids: [] }),
+    contents: z
+      .object({
+        cards: z.boolean().default(true),
+        glossary: z.boolean().default(true),
+        concept_map: z.boolean().default(true),
+      })
+      .default({ cards: true, glossary: true, concept_map: true }),
     cheatsheet: z
       .object({ allowed: z.boolean(), max_pages: z.number().default(2) })
       .default({ allowed: false, max_pages: 2 }),
@@ -69,7 +80,7 @@ const docs = defineCollection({
   schema: z.object({
     course: z.string(),
     rel: z.string(),
-    kind: z.enum(['overview', 'summary', 'exercise', 'mc', 'exam-mc', 'exam-task', 'cheatsheet', 'exam']),
+    kind: z.enum(['overview', 'summary', 'exercise', 'mc', 'exam-mc', 'exam-task', 'cards', 'cheatsheet', 'exam']),
     title: z.string(),
     id: z.string().nullable(),
     topic: z.string().nullable(),
@@ -87,6 +98,13 @@ const docs = defineCollection({
         topic: z.string().nullable(),
         h: z.string(),
         html: z.string(),
+      }),
+    ),
+    cards: z.array(
+      z.object({
+        id: z.string(),
+        topic: z.string().nullable(),
+        h: z.string(),
       }),
     ),
     findings: z.array(finding),

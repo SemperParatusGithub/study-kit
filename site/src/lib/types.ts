@@ -1,7 +1,7 @@
 // Shapes of the content collections (src/content.config.ts) and of course frontmatter as
 // the render bridge returns it (pydantic models in src/studykit/model.py, dumped as JSON).
 import type { Finding } from './findings';
-import type { McElement, MetaHeading } from './html';
+import type { CardElement, McElement, MetaHeading } from './html';
 
 export type DocKind =
   | 'overview'
@@ -10,6 +10,7 @@ export type DocKind =
   | 'mc'
   | 'exam-mc'
   | 'exam-task'
+  | 'cards'
   | 'cheatsheet'
   | 'exam';
 
@@ -34,6 +35,8 @@ export interface DocData {
   h: string | null;
   headings: MetaHeading[];
   questions: McElement[];
+  /** the flash cards of a card file (§5.6) */
+  cards: CardElement[];
   findings: Finding[];
 }
 

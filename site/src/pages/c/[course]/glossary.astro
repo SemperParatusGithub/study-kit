@@ -1,0 +1,111 @@
+---
+// Glossary of a topic (docs/architecture.md §5.6): the titled definitions of its chapters,
+// from A to Z, each with a link to where it is explained.
+import Base from '../../../layouts/Base.astro';
+import Html from '../../../components/Html.astro';
+import SearchTags from '../../../components/SearchTags.astro';
+import { route, topicPathsWith, type Course } from '../../../lib/courses';
+import { plural } from '../../../lib/format';
+import { byLetter, definitions, termSlug, uniqueTerms } from '../../../lib/glossary';
+
+export const getStaticPaths = () => topicPathsWith('glossary');
+
+const { course } = Astro.props as { course: Course };
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const entries = uniqueTerms(
+  course.summaries.flatMap((doc) =>
+    definitions(doc.rendered?.html ?? '').map((entry) => ({
+      ...entry,
+      chapter: doc.data.title,
+      href: `${route.summary(c, doc.data.topic ?? '')}${entry.heading ? `#${entry.heading}` : ''}`,
+    })),
+  ),
+);
+const groups = byLetter(entries, course.lang);
+---
+
+<Base title="Glossary" course={course} tab="glossary" description={`Glossary of ${course.title}`}>
+  <div class="page-head" lang={en}>
+    <h1>Glossary</h1>
+    <p class="muted">{plural(entries.length, 'term')} from the chapters, from A to Z.</p>
+    {
+      groups.length > 1 && (
+        <nav class="glossary-letters no-print" aria-label="Letters">
+          {groups.map(([letter]) => (
+            <a href={`#letter-${letter === '#' ? 'other' : letter}`}>{letter}</a>
+          ))}
+        </nav>
+      )
+    }
+  </div>
+
+  {
+    entries.length === 0 ? (
+      <div class="empty" lang={en}>
+        No terms yet.
+      </div>
+    ) : (
+      <article class="glossary" data-pagefind-body>
+        <SearchTags course={course} type="glossary" />
+        <span data-pagefind-meta="title[data-value]" data-value={`Glossary · ${course.title}`} />
+        {groups.map(([letter, items]) => (
+          <section aria-labelledby={`letter-${letter === '#' ? 'other' : letter}`}>
+            <h2 id={`letter-${letter === '#' ? 'other' : letter}`}>{letter}</h2>
+            <dl>
+              {items.map((item) => (
+                <div class="glossary-entry" id={termSlug(item.term)}>
+                  <dt set:html={item.termHtml} />
+                  <dd class="prose">
+                    <Html html={item.html} course={c} />
+                    <p class="small muted" lang={en}>
+                      <a href={item.href}>
+                        In <span lang={course.lang}>{item.chapter}</span> →
+                      </a>
+                    </p>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
+      </article>
+    )
+  }
+</Base>
+
+<style>
+  .glossary-letters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    font-weight: 600;
+  }
+
+  .glossary h2 {
+    margin-block: var(--space-5) var(--space-2);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 1.1rem;
+  }
+
+  .glossary dl {
+    margin: 0;
+  }
+
+  .glossary-entry {
+    margin-bottom: var(--space-4);
+    break-inside: avoid;
+  }
+
+  .glossary dt {
+    font-weight: 700;
+  }
+
+  /* a long formula scrolls inside its entry, not the page */
+  .glossary dd {
+    margin: var(--space-1) 0 0;
+    overflow-x: auto;
+  }
+</style>

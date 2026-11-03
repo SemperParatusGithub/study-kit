@@ -12,6 +12,7 @@ export const getStaticPaths = coursePaths;
 const { course } = Astro.props as { course: Course };
 const c = course.id;
 const en = course.lang === 'en' ? undefined : 'en';
+const name = course.isTopic ? 'Explanation' : 'Summary';
 const hasBank = (topic: string | null) => course.banks.some((b) => b.data.topic === topic);
 const tested = course.summaries.filter((s) => hasBank(s.data.topic)).length;
 const selfTest =
@@ -24,11 +25,11 @@ const selfTest =
         : ` ${tested} of them, marked below, end with a short self-test.`;
 ---
 
-<Base title="Summary" course={course} tab="summary">
+<Base title={name} course={course} tab="summary">
   <div class="page-head" lang={en}>
-    <h1>Summary</h1>
+    <h1>{name}</h1>
     <p class="muted">
-      {plural(course.summaries.length, 'chapter')}, one per topic, in teaching order.{selfTest}
+      {plural(course.summaries.length, 'chapter')}{course.isTopic ? '' : ', one per topic'}, in teaching order.{selfTest}
     </p>
     <PdfLinks course={course} items={[{ doc: findPdf(course.pdfs, 'summary') }]} />
   </div>
