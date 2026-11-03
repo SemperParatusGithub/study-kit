@@ -17,7 +17,8 @@
 //     "mc:<id>":   {h, box, due, attempts:[{t, chosen, score, conf, ms}]},
 //     "ex:<id>":   {h, hints, answer_ok, rating, box, due},
 //     "exam:<id>": {attempts:[{started, duration_s, points, total}]},
-//     "plan:<id>": {done}}}
+//     "plan:<id>": {done},
+//     "card:<id>": {h, box, due, reviews}}}
 // Misconceptions are not stored: an MC item whose last attempt was sure and not fully
 // right is one (scoring.isMisconception), and Leitner has put it in box 0.
 //
@@ -81,7 +82,14 @@ export interface ExamEntry {
 export interface PlanEntry {
   done: boolean;
 }
-export type Entry = McEntry | ExEntry | ExamEntry | PlanEntry;
+/** A flash card of a topic (§5.6): its Leitner box, due day and how often it was rated. */
+export interface CardEntry {
+  h: string;
+  box: number | null;
+  due: string | null;
+  reviews: number;
+}
+export type Entry = McEntry | ExEntry | ExamEntry | PlanEntry | CardEntry;
 
 export interface ProgressDoc {
   schema: typeof SCHEMA;
@@ -98,7 +106,7 @@ export interface Backend {
 
 // --- validation and migration ---------------------------------------------------------
 
-const KEY_RE = /^(mc|ex|exam|plan):[a-z0-9][a-z0-9-]*$/;
+const KEY_RE = /^(mc|ex|exam|plan|card):[a-z0-9][a-z0-9-]*$/;
 const HASH_RE = /^[0-9a-f]{8,64}$/;
 const CHOICE_RE = /^[A-F]$/;
 const RATINGS: readonly Rating[] = ['solved', 'partial', 'not-yet'];
@@ -121,9 +129,9 @@ function count(v: unknown, round: (x: number) => number = Math.round): number | 
   return Number.isSafeInteger(n) ? n : null;
 }
 
-export function kindOf(key: string): 'mc' | 'ex' | 'exam' | 'plan' | null {
+export function kindOf(key: string): 'mc' | 'ex' | 'exam' | 'plan' | 'card' | null {
   const m = KEY_RE.exec(key);
-  return m ? (m[1] as 'mc' | 'ex' | 'exam' | 'plan') : null;
+  return m ? (m[1] as 'mc' | 'ex' | 'exam' | 'plan' | 'card') : null;
 }
 
 function hash(v: unknown): string {
@@ -197,6 +205,8 @@ export function sanitizeEntry(key: string, v: unknown, version = 1): Entry | nul
     }
     case 'plan':
       return typeof v.done === 'boolean' ? { done: v.done } : null;
+    case 'card':
+      return { h: hash(v.h), box: box(v.box), due: day(v.due), reviews: count(v.reviews, Math.trunc) ?? 0 };
     default:
       return null;
   }
@@ -309,6 +319,12 @@ export interface MergeResult {
   merged: number;
 }
 
+/** The entry with more reviews; a tie keeps the later due day. */
+function mergeCard(a: CardEntry, b: CardEntry): CardEntry {
+  if (b.reviews !== a.reviews) return b.reviews > a.reviews ? b : a;
+  return (b.due ?? '') > (a.due ?? '') ? b : a;
+}
+
 /**
  * Union of two documents of the same course: attempts are combined (duplicates dropped),
  * schedules come from the side with the latest attempt, hint counts take the maximum, a
@@ -338,6 +354,9 @@ export function merge(local: ProgressDoc, incoming: ProgressDoc): MergeResult {
         break;
       case 'plan':
         doc.items[key] = { done: (mine as PlanEntry).done || (entry as PlanEntry).done };
+        break;
+      case 'card':
+        doc.items[key] = mergeCard(mine as CardEntry, entry as CardEntry);
         break;
       default:
         break;
@@ -556,6 +575,18 @@ export class ProgressStore {
       };
     }) as McEntry;
     return { entry, review: result };
+  }
+
+  /** Rate a flash card (§5.6): known moves it up a Leitner box, not known sends it to box 1. */
+  recordCard(id: string, h: string | undefined, knew: boolean, when: When = {}): CardEntry {
+    const key = `card:${id}`;
+    const result = review(this.get<CardEntry>(key)?.box, knew ? 1 : 0, knew ? 'sure' : 'unsure', when.today ?? dayOf());
+    return this.update<CardEntry>(key, (prev) => ({
+      h: h && HASH_RE.test(h) ? h : (prev?.h ?? UNKNOWN_HASH),
+      box: result.box,
+      due: result.due,
+      reviews: (prev?.reviews ?? 0) + 1,
+    })) as CardEntry;
   }
 
   /** Patch an exercise entry, creating it with hash `h` when it is new. */

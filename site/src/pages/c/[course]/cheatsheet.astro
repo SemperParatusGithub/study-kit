@@ -6,12 +6,12 @@ import Base from '../../../layouts/Base.astro';
 import Html from '../../../components/Html.astro';
 import PdfLink from '../../../components/PdfLink.astro';
 import SearchTags from '../../../components/SearchTags.astro';
-import { coursePaths, type Course } from '../../../lib/courses';
+import { examCoursePaths, type Course } from '../../../lib/courses';
 import { sectionize } from '../../../lib/html';
 import { densityPt, findPdf } from '../../../lib/pdf';
 import type { CheatsheetFm } from '../../../lib/types';
 
-export const getStaticPaths = coursePaths;
+export const getStaticPaths = examCoursePaths;
 
 const { course } = Astro.props as { course: Course };
 const c = course.id;

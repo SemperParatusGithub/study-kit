@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../../../schemas/course.schema.json
+schema: 1
+kind: topic
+id: mini-topic
+title: Mini topic
+lang: en
+status: draft
+contents: {cards: true, glossary: true, concept_map: true}
+topics:
+  - {id: basics, title: Basics, weight: 0.5, prereq: []}
+  - {id: details, title: Details, weight: 0.5, prereq: [basics]}
+retired_ids: []

@@ -16,6 +16,8 @@ a topic, an exam id or `all` (the default when it is missing).
 You are the orchestrator. You may read keys and solutions; the verifier agents must not.
 Never put a key value, a solution or an item file path into a verifier's prompt.
 
+If `course.yaml` says `kind: topic`, say that a topic has no items to verify: its flash cards are not checked blind (docs/architecture.md §5.6) and stop.
+
 ## 1. Run what exists
 
 1. `uv run --frozen studykit ls $0` must find the course; otherwise stop and say where

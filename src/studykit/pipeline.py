@@ -5,7 +5,9 @@ the source manifest and its hashes, the files each step writes, the verification
 and the PDF digests. A step is `done`, `pending` (nothing of it yet), `partial` (begun,
 or its gate fails) or `stale` (its output is older than what it was made from); the first
 step that is not done is where a run resumes. With `scope: core` (round 2) the exercises,
-mock exams and the cheat sheet are deferred: reported, but not a resume point.
+mock exams and the cheat sheet are deferred: reported, but not a resume point. A topic
+(`kind: topic`, §5.6) has the same step numbers: what only a course has is `n/a`, which counts
+as done, and its author step asks for what `contents` chose.
 
 What proves each step:
 
@@ -47,6 +49,7 @@ import hashlib
 import json
 import re
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -99,6 +102,11 @@ class Step:
         }
 
 
+# What only a course has; these steps are `n/a` for a topic (§5.6).
+NOT_FOR_TOPICS = {"ask-1", "ask-2", "verify", "mock-exams", "cheatsheet", "plan"}
+FINISHED = {"done", "n/a"}
+
+
 def _combine(done: bool, started: bool, stale: bool) -> str:
     if stale:
         return "stale"
@@ -121,6 +129,7 @@ class Inputs:
         self.course = self.tree.model if self.tree else None
         r2 = self.manifest.answers.round2 if self.manifest else None
         self.core = bool(r2 and r2.scope == "core")
+        self.is_topic = self.course is not None and self.course.is_topic
 
     def doc(self, rel: str):
         return self.tree.get(rel) if self.tree else None
@@ -171,19 +180,22 @@ def step_ask1(inp: Inputs, s: Step) -> None:
         s.details.append("the round-1 answers are not recorded (`studykit ingest init` flags)")
 
 
-def _folder_changes(m: model.SourceManifest) -> tuple[list[str], list[str]]:
-    """(changed, new) PDFs of the ingested folder, compared by sha256."""
+def _folder_changes(
+    m: model.SourceManifest, suffixes: Iterable[str] = (".pdf",)
+) -> tuple[list[str], list[str]]:
+    """(changed, new) material of the ingested folder, compared by sha256: PDFs, and for a
+    topic its text files and images too."""
     if not m.folder:
         return [], []
     folder = Path(m.folder)
     if not folder.is_dir():
         return [], []
-    known = {d.sha256 for d in m.documents}
+    known = {d.source_sha256 or d.sha256 for d in m.documents}
     by_origin = {d.origin: d for d in m.documents}
     skipped = {s.origin for s in m.skipped}
     changed, new = [], []
     for path in sorted(folder.rglob("*")):
-        if not path.is_file() or path.suffix.lower() != ".pdf":
+        if not path.is_file() or path.suffix.lower() not in suffixes:
             continue
         rel = path.relative_to(folder)
         if any(part.startswith(".") for part in rel.parts):
@@ -213,7 +225,8 @@ def step_scaffold(inp: Inputs, s: Step) -> None:
             missing.append(d.id)
         elif ingest.sha256_file(raw) != d.sha256:
             edited.append(d.id)
-    changed, new = _folder_changes(m) if m else ([], [])
+    suffixes = ingest.TOPIC_FILES if inp.is_topic else (".pdf",)
+    changed, new = _folder_changes(m, suffixes) if m else ([], [])
     if problems:
         s.todo["problems"] = problems
         s.details += problems[:3]
@@ -294,8 +307,12 @@ def step_read(inp: Inputs, s: Step) -> None:
             invalid.append(c.id)
         elif notes.source_sha256 != c.sha256:
             stale.append(c.id)
-    profile_ok, profile_problems = inp.valid("analysis/exam-profile.yaml")
-    notation_ok, notation_problems = inp.valid("analysis/notation.yaml")
+    if inp.is_topic:
+        s.proof = ["sources/notes/<chunk>.md"]
+        profile_ok, profile_problems, notation_ok, notation_problems = True, [], True, []
+    else:
+        profile_ok, profile_problems = inp.valid("analysis/exam-profile.yaml")
+        notation_ok, notation_problems = inp.valid("analysis/notation.yaml")
     lint = _lint(inp, ["sources/notes", "analysis"])
     transcribe = [
         f"{c.doc} p. {n}"
@@ -377,7 +394,7 @@ def step_synthesize(inp: Inputs, s: Step) -> None:
             f"{len(unnamed_chunks)} chunk(s) not in outline.md (new material): "
             "merge their notes into the topics"
         )
-    if topics and not 6 <= len(topics) <= 15:
+    if topics and not inp.is_topic and not 6 <= len(topics) <= 15:
         s.details.append(f"{len(topics)} topics (§5.4 aims at 6 to 15)")
     weights = sum(t.weight for t in topics)
     if topics and abs(weights - 1) > model.SHARE_TOLERANCE:
@@ -426,7 +443,16 @@ def _topic_of(finding: Any) -> str | None:
 
 
 def step_author(inp: Inputs, s: Step, cov: list[Any]) -> None:
-    s.proof = ["overview.md", "summary/", "exercises/", "mc/"]
+    s.proof = (
+        ["overview.md", "summary/", "cards/"]
+        if inp.is_topic
+        else [
+            "overview.md",
+            "summary/",
+            "exercises/",
+            "mc/",
+        ]
+    )
     if inp.tree is None or not inp.taught:
         return
     todo: dict[str, list[str]] = {}
@@ -436,6 +462,9 @@ def step_author(inp: Inputs, s: Step, cov: list[Any]) -> None:
             "SK-COV-EXERCISES": "exercises",
             "SK-COV-MC": "mc",
             "SK-COV-OVERVIEW": "overview_links",
+            "SK-COV-CARDS": "cards",
+            "SK-COV-GLOSSARY": "glossary",
+            "SK-COV-CONCEPT-MAP": "concept_map",
         }.get(f.code)
         if part == "exercises" and inp.core:
             continue
@@ -448,14 +477,14 @@ def step_author(inp: Inputs, s: Step, cov: list[Any]) -> None:
     schema = [
         f.format()
         for d in inp.tree
-        if d.kind in ("overview", "summary", "exercise", "mc")
+        if d.kind in ("overview", "summary", "exercise", "mc", "cards")
         for f in d.validated[1]
     ]
     if schema:
         todo["schema_errors"] = schema
         s.details.append(f"{len(schema)} schema error(s) in authored files")
     s.todo = todo
-    started = any(inp.tree.of_kind("overview", "summary", "exercise", "mc"))
+    started = any(inp.tree.of_kind("overview", "summary", "exercise", "mc", "cards"))
     if inp.core:
         s.details.append("scope core: exercises deferred")
     s.status = _combine(not todo, started, False)
@@ -749,34 +778,44 @@ def status(root: Path) -> dict[str, Any]:
     """Every step's status and the resume point."""
     inp = Inputs(root.resolve())
     steps = [Step(n, name) for n, name in enumerate(STEPS)]
-    step_preflight(inp, steps[0])
-    step_ask1(inp, steps[1])
-    step_scaffold(inp, steps[2])
-    step_extract(inp, steps[3])
-    step_read(inp, steps[4])
-    step_synthesize(inp, steps[5])
-    step_ask2(inp, steps[6])
+    if inp.is_topic:
+        for step in steps:
+            if step.name in NOT_FOR_TOPICS:
+                step.status = "n/a"
+
+    def run(fn, step: Step, *args) -> None:
+        if step.status != "n/a":
+            fn(inp, step, *args)
+
+    run(step_preflight, steps[0])
+    run(step_ask1, steps[1])
+    run(step_scaffold, steps[2])
+    run(step_extract, steps[3])
+    run(step_read, steps[4])
+    run(step_synthesize, steps[5])
+    run(step_ask2, steps[6])
     if inp.tree is not None and inp.course is not None and inp.real_topics:
         cov = _coverage(inp)
         fresh = _freshness(inp)
     else:
         cov, fresh = [], None
-    step_author(inp, steps[7], cov)
-    step_figures(inp, steps[8])
-    step_verify(inp, steps[9])
-    step_mock_exams(inp, steps[10], cov)
-    step_cheatsheet(inp, steps[11], fresh)
-    step_plan(inp, steps[12])
-    step_publish(inp, steps[13], fresh)
-    step_report(inp, steps[14])
+    run(step_author, steps[7], cov)
+    run(step_figures, steps[8])
+    run(step_verify, steps[9])
+    run(step_mock_exams, steps[10], cov)
+    run(step_cheatsheet, steps[11], fresh)
+    run(step_plan, steps[12])
+    run(step_publish, steps[13], fresh)
+    run(step_report, steps[14])
     if inp.core:
         steps[10].deferred = steps[11].deferred = True
-    resume = next((x for x in steps if x.status != "done" and not x.deferred), None)
-    deferred = [x.name for x in steps if x.deferred and x.status != "done"]
+    resume = next((x for x in steps if x.status not in FINISHED and not x.deferred), None)
+    deferred = [x.name for x in steps if x.deferred and x.status not in FINISHED]
     return {
         "course": root.name,
         "dir": str(root.resolve()),
         "exists": inp.exists,
+        "kind": inp.course.kind if inp.course else None,
         "course_status": inp.course.status if inp.course else None,
         "scope": "core" if inp.core else "full",
         "resume": {"step": resume.n, "name": resume.name} if resume else None,
@@ -817,6 +856,8 @@ def report(root: Path, today: dt.date | None = None) -> tuple[Path, dict[str, An
     course = tree.model
     if course is None:
         raise ValueError(f"{display_path(root / 'course.yaml')} does not validate")
+    if course.is_topic:
+        return _topic_report(root, tree, course, today)
     exercises = tree.of_kind("exercise")
     difficulty = Counter(d.get("difficulty") for d in exercises)
     mc_types: Counter[str] = Counter()
@@ -919,6 +960,68 @@ def report(root: Path, today: dt.date | None = None) -> tuple[Path, dict[str, An
         f"- `just dev`, then http://localhost:4321/c/{course.id}/",
         f"- `/examine {course.id} diagnostic`: 15 MC questions seed the Leitner boxes and the plan",
         f"- `/tutor {course.id}` for a topic or an exercise",
+        "",
+    ]
+    path = root / REPORT
+    ingest._write(path, "\n".join(lines))
+    return path, data
+
+
+def _topic_report(
+    root: Path, tree: CourseTree, course: model.Course, today: dt.date
+) -> tuple[Path, dict[str, Any]]:
+    """state/pipeline/report.md of a topic: what it has, from its `contents` (§5.6)."""
+    from studykit import validate
+
+    contents = course.contents
+    cards = sum(len(d.body.flashcards) for d in tree.of_kind("cards") if d.body)
+    # as the glossary counts them: a term defined in two chapters is one entry
+    terms = len(
+        {t.lower() for d in tree.of_kind("summary") for t in validate._titled_definitions(d)}
+    )
+    figures = sorted(p.stem for p in (root / "figures").glob("*.py"))
+    manifest = ingest.read_manifest(root)[0]
+    documents = len(manifest.documents) if manifest else 0
+    data = {
+        "course": course.id,
+        "kind": course.kind,
+        "generated": today.isoformat(),
+        "overview": tree.get("overview.md") is not None,
+        "chapters": len(tree.of_kind("summary")),
+        "cards": cards if contents.cards else None,
+        "glossary_terms": terms if contents.glossary else None,
+        "concept_map": contents.concept_map,
+        "figures": len(figures),
+        "documents": documents,
+    }
+
+    def chosen(value: Any, on: bool) -> str:
+        return str(value) if on else "not chosen"
+
+    lines = [
+        f"# Pipeline report: {course.title} ({course.id})",
+        "",
+        f"<!-- studykit-pipeline fingerprint {fingerprint(root)} -->",
+        f"Written by `studykit pipeline report` on {today.isoformat()}.",
+        "",
+        "## Content",
+        "",
+        "| Part | Count |",
+        "|---|---|",
+        f"| Source documents | {documents} |",
+        f"| Overview | {'yes' if data['overview'] else 'no'} |",
+        f"| Chapters | {data['chapters']} |",
+        f"| Flash cards | {chosen(cards, contents.cards)} |",
+        f"| Glossary terms | {chosen(terms, contents.glossary)} |",
+        f"| Concept map | {'yes' if contents.concept_map else 'not chosen'} |",
+        f"| Figure scripts | {len(figures)} |",
+        "",
+        "Flash cards are not checked by the blind verifier (§5.6).",
+        "",
+        "## Next steps",
+        "",
+        f"- `just dev`, then http://localhost:4321/c/{course.id}/",
+        f"- `/tutor {course.id}` to work through a chapter",
         "",
     ]
     path = root / REPORT

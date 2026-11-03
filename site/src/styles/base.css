@@ -358,6 +358,19 @@ sk-pomodoro {
   }
 }
 
+/* Without a course name nothing in the bar gives way, and how wide the name study-kit is depends
+ * on the system's font: on a narrow phone the mark stands alone on these pages too. */
+@media (max-width: 24rem) {
+  .brand span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 /* --- footer -------------------------------------------------------------------------- */
 
 .site-footer {

@@ -1,6 +1,6 @@
 ---
 name: authoring
-description: How study-kit writes course content - the shared quality rules for every part, id handling, the fix round after a verifier dispute, and the result JSON an author returns. Each part (overview, summary, exercises, mc, exam, cheatsheet, plan) has its own procedure under parts/; read the one you were given. Use when writing, extending, replacing or fixing course content.
+description: How study-kit writes course content - the shared quality rules for every part, id handling, the fix round after a verifier dispute, and the result JSON an author returns. Each part (overview, summary, exercises, mc, cards, exam, cheatsheet, plan) has its own procedure under parts/; read the one you were given. Use when writing, extending, replacing or fixing course content.
 user-invocable: false
 ---
 
@@ -15,11 +15,16 @@ the plan. Read the procedure of your part before writing anything:
 | summary | [parts/summary.md](parts/summary.md) | `summary/<nn>-<topic>.md` and its figures |
 | exercises | [parts/exercises.md](parts/exercises.md) | `exercises/<topic>/*.md` and their figures |
 | mc | [parts/mc.md](parts/mc.md) | `mc/<topic>.md` |
+| cards | [parts/cards.md](parts/cards.md) | `cards/<topic>.md`, only in a topic |
 | exam | [parts/exam.md](parts/exam.md) | `exams/<exam-id>/` |
 | cheatsheet | [parts/cheatsheet.md](parts/cheatsheet.md) | `cheatsheet.md` |
 | plan | [parts/plan.md](parts/plan.md) | `plan.yaml` (goals and notes only) |
 
 The file format is in the content-format skill; figures follow the figures skill.
+
+**A topic** (`kind: topic` in `course.yaml`, docs/architecture.md §5.6) is one subject to
+understand, without an exam: its "topics" are chapters, and it has only the parts overview,
+summary and cards. Read the section "In a topic" of your part; `analysis/` does not exist.
 
 ## Before writing
 

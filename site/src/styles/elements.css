@@ -1,5 +1,6 @@
 /* Custom elements (docs/architecture.md §3.2): sk-mc, sk-quiz, sk-exam, sk-hints,
- * sk-answer-check, sk-reveal, sk-self-assess, sk-plan, sk-progress, sk-theme, sk-pomodoro, sk-export.
+ * sk-answer-check, sk-reveal, sk-self-assess, sk-plan, sk-progress, sk-theme, sk-pomodoro, sk-export,
+ * sk-cards.
  *
  * Colours come from the shell's tokens.css: every --ske-* token below is a tokens.css
  * variable (with the same light-dark() pair as a fallback where tokens.css is absent, as in
@@ -118,7 +119,7 @@
 }
 
 :is(sk-mc, sk-quiz, sk-exam, sk-hints, sk-answer-check, sk-reveal, sk-self-assess, sk-plan,
-  sk-progress, sk-theme, sk-pomodoro, sk-export, .sk-dialog) :focus-visible {
+  sk-progress, sk-theme, sk-pomodoro, sk-export, sk-cards, .sk-dialog) :focus-visible {
   outline: 2px solid var(--ske-focus);
   outline-offset: 2px;
 }
@@ -1679,6 +1680,153 @@ sk-pomodoro[data-active]:not([data-running]) .sk-pomo-chip {
   }
 }
 
+/* --- sk-cards ----------------------------------------------------------------------- */
+
+sk-cards {
+  display: block;
+}
+
+/* the list: what the page is without JavaScript and on paper */
+sk-card {
+  display: block;
+  margin-block: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+  break-inside: avoid;
+}
+
+.sk-card-front {
+  font-weight: 600;
+}
+
+.sk-card-back {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--ske-border);
+}
+
+.sk-card-front > :first-child,
+.sk-card-back > :first-child,
+.sk-card-face > :first-child {
+  margin-top: 0;
+}
+
+.sk-card-front > :last-child,
+.sk-card-back > :last-child,
+.sk-card-face > :last-child {
+  margin-bottom: 0;
+}
+
+.sk-cards-list[hidden] {
+  display: none;
+}
+
+.sk-cards-list {
+  margin-top: 1.5rem;
+}
+
+.sk-cards-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.sk-cards-modes {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.sk-cards-modes .sk-btn[aria-pressed='true'] {
+  border-color: var(--ske-accent);
+  background: var(--ske-accent-soft);
+  font-weight: 600;
+}
+
+.sk-cards-chapter-select {
+  min-height: 2.25rem;
+  max-width: 100%;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--ske-border-strong);
+  border-radius: var(--ske-radius-small);
+  background: var(--ske-raised);
+  color: var(--ske-fg);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.sk-cards-browse {
+  margin-inline-start: auto;
+}
+
+.sk-cards-counts {
+  margin-block: 0.6rem 1rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sk-cards-stage:focus {
+  outline: none;
+}
+
+.sk-card-panel {
+  max-width: 44rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--ske-border);
+  border-radius: var(--ske-radius);
+  background: var(--ske-raised);
+  box-shadow: var(--ske-shadow);
+}
+
+.sk-card-progress {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.sk-card-face-front {
+  min-height: 4rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.sk-card-face-back {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ske-border);
+}
+
+.sk-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.sk-card-actions kbd {
+  font-size: 0.75em;
+  opacity: 0.75;
+}
+
+.sk-card-done h2 {
+  margin-top: 0;
+}
+
+@media (max-width: 30rem) {
+  .sk-card-panel {
+    padding: 1rem;
+  }
+
+  .sk-card-actions .sk-btn {
+    flex: 1 1 auto;
+  }
+
+  .sk-card-actions kbd {
+    display: none;
+  }
+}
+
 /* --- sk-export ---------------------------------------------------------------------- */
 
 .sk-export-status {
@@ -1821,6 +1969,10 @@ sk-pomodoro[data-active]:not([data-running]) .sk-pomo-chip {
 }
 
 @media print {
+  .sk-cards-list[hidden] {
+    display: block !important;
+  }
+
   .sk-mc-actions,
   .sk-mc-conf,
   .sk-mc-status,
@@ -1836,7 +1988,10 @@ sk-pomodoro[data-active]:not([data-running]) .sk-pomo-chip {
   .sk-quiz-status,
   sk-theme,
   sk-pomodoro,
-  sk-export {
+  sk-export,
+  .sk-cards-bar,
+  .sk-cards-counts,
+  .sk-cards-stage {
     display: none !important;
   }
 

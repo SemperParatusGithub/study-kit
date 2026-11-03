@@ -5,6 +5,7 @@
 
 import { startDashboard } from './dashboard.ts';
 import { SkAnswerCheck } from './sk-answer-check.ts';
+import { SkCards } from './sk-cards.ts';
 import { SkExam } from './sk-exam.ts';
 import { SkExport } from './sk-export.ts';
 import { SkHints } from './sk-hints.ts';
@@ -30,11 +31,13 @@ define('sk-self-assess', SkSelfAssess);
 define('sk-plan', SkPlan);
 define('sk-progress', SkProgress);
 define('sk-export', SkExport);
+define('sk-cards', SkCards);
 
 if (typeof document !== 'undefined') startDashboard();
 
 export {
   SkAnswerCheck,
+  SkCards,
   SkExam,
   SkExport,
   SkHints,

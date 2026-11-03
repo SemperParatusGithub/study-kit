@@ -12,10 +12,14 @@ page text and cut them into chunks; you turn one chunk into notes (the `ingester
 past exams into the exam profile (the `exam-analyst`). The main thread merges the notes into topics
 afterwards, so notes are faithful digests, not course content.
 
+`/register-new-topic` (§5.6) does the same for a single topic, whose material may also be text
+files and images; they arrive here as PDFs. A page from a text file is never flagged, an image
+is a scanned page. There is no exam profile, and "Course facts" stay empty.
+
 ## What is there
 
 ```
-<course>/sources/manifest.yaml               documents: id, title, kind, pages, sha256; answers.round1
+<course>/sources/manifest.yaml               documents: id, title, kind, pages, sha256; answers (a course only)
 <course>/sources/chunks.yaml                 chunks: id, doc, kind, first, last, flagged, scanned, sha256
 <course>/sources/raw/<doc>.pdf               the PDF (page n of the chunk = page n of the PDF)
 <course>/sources/text/<doc>/p0001.txt        page text from the PDF's text layer (4-digit page number)
@@ -38,7 +42,7 @@ Your assignment names the course directory and one chunk id.
 
 1. **Find the chunk** in `sources/chunks.yaml`: `doc`, `kind`, `first`-`last`, `flagged`,
    `scanned`, `sha256`. Read the document's entry in `sources/manifest.yaml` (title, kind)
-   and `answers.round1.lang` (the course language).
+   and `lang` in `course.yaml` (the course language).
 2. **Text first.** Read `sources/text/<doc>/pNNNN.txt` for every page of the chunk, in
    order. Most pages need nothing more: the text layer has the words, and formulas come
    out as Unicode italics (`𝑈𝑒` is $U_\mathrm{e}$) with fractions split over lines.

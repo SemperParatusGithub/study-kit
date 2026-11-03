@@ -95,6 +95,27 @@ export function mcElements(html: string): McElement[] {
   });
 }
 
+const SK_CARD = /<sk-card\b[^>]*>[\s\S]*?<\/sk-card>/g;
+
+/** Add data-h (hash of the element as the filter wrote it) to every <sk-card>. */
+export function addCardHashes(html: string): string {
+  return html.replace(SK_CARD, (outer) => outer.replace(/^<sk-card\b/, `<sk-card data-h="${hash8(outer)}"`));
+}
+
+export interface CardElement {
+  id: string;
+  topic: string | null;
+  h: string;
+}
+
+/** Every <sk-card> element of a fragment with its attributes. */
+export function cardElements(html: string): CardElement[] {
+  return [...html.matchAll(SK_CARD)].map((m) => {
+    const a = attributes(m[0].slice(0, m[0].indexOf('>') + 1));
+    return { id: a['data-id'] ?? '', topic: a['data-topic'] || null, h: a['data-h'] ?? '' };
+  });
+}
+
 const HINT = /<details class="sk-hint"[^>]*>[\s\S]*?<\/details>\s*/g;
 const SOLUTION = /<details class="sk-solution"[^>]*>[\s\S]*?<\/details>\s*/g;
 

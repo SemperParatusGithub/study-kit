@@ -32,6 +32,7 @@ const prev = course.summaries[index - 1];
 const next = course.summaries[index + 1];
 const exercises = course.exercises.filter((e) => e.data.topic === topicId);
 const hasBank = course.banks.some((b) => b.data.topic === topicId);
+const hasCards = course.cards.some((b) => b.data.topic === topicId && b.data.cards.length > 0);
 const objectives = (fm.objectives ?? []).map((o) => labelHtml(doc, o));
 // Each source names its pages and, when the document is served, opens it at the first one.
 const served = new Set(course.sources.map((d) => d.id));
@@ -81,7 +82,7 @@ const extra = [
         <SearchTags course={course} type="summary" topic={topicId} />
         <header class="page-head">
           <p class="eyebrow" lang={en} data-pagefind-ignore>
-            <a href={route.summaries(c)}>Summary</a> · Chapter {index + 1} of {course.summaries.length}
+            <a href={route.summaries(c)}>{course.isTopic ? 'Explanation' : 'Summary'}</a> · Chapter {index + 1} of {course.summaries.length}
             {topic?.focus && <span class="badge badge-accent">Focus</span>}
           </p>
           <h1>{doc.data.title}</h1>
@@ -128,6 +129,18 @@ const extra = [
           <Html html={doc.rendered?.html} course={c} />
         </div>
       </article>
+
+      {
+        hasCards && (
+          <section class="chapter-extra no-print" lang={en}>
+            <p>
+              <a class="button button-quiet" href={`${route.cards(c)}?topic=${topicId}`}>
+                Flash cards for this chapter →
+              </a>
+            </p>
+          </section>
+        )
+      }
 
       {
         hasBank && (

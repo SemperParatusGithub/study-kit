@@ -5,7 +5,7 @@
 // data-date; without JavaScript every session looks upcoming.
 import Base from '../../../layouts/Base.astro';
 import PdfLinks from '../../../components/PdfLinks.astro';
-import { coursePaths, route, type Course } from '../../../lib/courses';
+import { examCoursePaths, route, type Course } from '../../../lib/courses';
 import {
   formatDate,
   formatDay,
@@ -17,7 +17,7 @@ import {
 import { findPdf } from '../../../lib/pdf';
 import { sessionStart, taskView, weeks } from '../../../lib/plan';
 
-export const getStaticPaths = coursePaths;
+export const getStaticPaths = examCoursePaths;
 
 const { course } = Astro.props as { course: Course };
 const c = course.id;

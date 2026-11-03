@@ -45,8 +45,8 @@ The commands, skills and agents are written once, for Claude Code, in `.claude/`
 uses the same files:
 
 - **Skills:** `.agents/skills` links to `.claude/skills`. The user commands
-  (`register-new-subject`, `add-material`, `regenerate`, `verify`, `tutor`, `examine`,
-  `import-progress`, `study-status`) run only when typed, as `$register-new-subject <folder>`
+  (`register-new-subject`, `register-new-topic`, `add-material`, `regenerate`, `verify`, `tutor`,
+  `examine`, `import-progress`, `study-status`) run only when typed, as `$register-new-subject <folder>`
   instead of `/register-new-subject <folder>`; their `agents/openai.yaml` turns off implicit
   invocation. The internal skills `ingest`, `content-format`, `authoring`, `figures` and
   `verify-protocol` are read by the agents.
@@ -63,6 +63,10 @@ uses the same files:
 - **The verifier is blind only by its instructions under Codex:** no hook stops it from
   reading keys or `sources/`. Prefer Claude Code for `$verify` and the verifier waves of
   `$register-new-subject` and `$regenerate` when you can.
+
+A **topic** (`kind: topic`, docs/architecture.md §5.6, `$register-new-topic`) is one subject without
+an exam, built from folders, files (also text and images) and pasted text: an explanation and, as
+chosen, flash cards, a glossary and a concept map. Its flash cards are not blind-verified.
 
 Reading skills and agents written for Claude Code:
 

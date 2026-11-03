@@ -13,6 +13,11 @@ themselves: you ask, they think. You never hand over a solution they could still
 
 ## Prepare (quietly, before the first message)
 
+A topic (`kind: topic` in `course.yaml`, docs/architecture.md §5.6) has no exam, plan or
+exercises: skip `studykit status`, work from the chapter's summary and its flash cards in
+`cards/`, ask the student to explain the ideas back, and offer the chapters instead of the
+weakest topic.
+
 1. `uv run --frozen studykit status $0 --json`: days to the exam, weakest topics, reviews
    due, next session. `uv run --frozen studykit index $0 --json`: topics, item ids and
    files, and `quarantined` ids, which you never use.

@@ -262,15 +262,47 @@
       ],
       "title": "Topic",
       "type": "object"
+    },
+    "TopicContents": {
+      "additionalProperties": false,
+      "description": "What a topic has besides its explanation; chosen when it is registered (§5.6).",
+      "properties": {
+        "cards": {
+          "default": true,
+          "title": "Cards",
+          "type": "boolean"
+        },
+        "glossary": {
+          "default": true,
+          "title": "Glossary",
+          "type": "boolean"
+        },
+        "concept_map": {
+          "default": true,
+          "title": "Concept Map",
+          "type": "boolean"
+        }
+      },
+      "title": "TopicContents",
+      "type": "object"
     }
   },
   "additionalProperties": false,
-  "description": "`course.yaml`: one per course directory.",
+  "description": "`course.yaml`: one per course directory. `kind: topic` is a single subject to\nunderstand, without an exam: its `topics` are chapters (§5.6).",
   "properties": {
     "schema": {
       "const": 1,
       "title": "Schema",
       "type": "integer"
+    },
+    "kind": {
+      "default": "course",
+      "enum": [
+        "course",
+        "topic"
+      ],
+      "title": "Kind",
+      "type": "string"
     },
     "id": {
       "pattern": "^[a-z0-9][a-z0-9-]{1,39}$",
@@ -330,7 +362,28 @@
       "type": "string"
     },
     "exam": {
-      "$ref": "#/$defs/CourseExam"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CourseExam"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "required unless kind is topic"
+    },
+    "contents": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TopicContents"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "only with kind: topic"
     },
     "cheatsheet": {
       "$ref": "#/$defs/CheatsheetPolicy",
@@ -399,7 +452,6 @@
     "id",
     "title",
     "lang",
-    "exam",
     "topics"
   ],
   "title": "Course",

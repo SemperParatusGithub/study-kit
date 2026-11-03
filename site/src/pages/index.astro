@@ -7,13 +7,15 @@ import { listCourses, overallMastery, route } from '../lib/courses';
 import { daysBetween, EXAM_FORMAT, formatDate, plural, todayIso } from '../lib/format';
 import { coursesDir, displayPath } from '../lib/sys.mjs';
 
-const courses = await listCourses();
+const all = await listCourses();
+const courses = all.filter((c) => !c.isTopic);
+const topics = all.filter((c) => c.isTopic);
 const today = todayIso();
 ---
 
 <Base title="Courses" description="Your study-kit courses">
   <div class="page-head">
-    <h1>Your courses</h1>
+    <h1>{courses.length === 0 && topics.length > 0 ? 'Your topics' : 'Your courses'}</h1>
     <p class="muted">
       Pick up where you left off. Everything runs on this machine; your answers and progress
       are kept in this browser.
@@ -21,17 +23,18 @@ const today = todayIso();
   </div>
 
   {
-    courses.length === 0 ? (
+    all.length === 0 ? (
       <div class="empty">
         <p>
-          No courses in <code>{displayPath(coursesDir())}</code>.
+          No courses or topics in <code>{displayPath(coursesDir())}</code>.
         </p>
         <p>
-          Register a subject in Claude Code with <code>/register-new-subject &lt;folder&gt;</code>, or
-          point <code>STUDYKIT_COURSES_DIR</code> at a courses directory.
+          Register a subject in Claude Code with <code>/register-new-subject &lt;folder&gt;</code>, a
+          single topic with <code>/register-new-topic &lt;path&gt;</code>, or point
+          <code>STUDYKIT_COURSES_DIR</code> at a courses directory.
         </p>
       </div>
-    ) : (
+    ) : courses.length === 0 ? null : (
       <ul class="course-cards" role="list">
         {courses.map((course) => (
           <li class="card course-card">
@@ -98,6 +101,56 @@ const today = todayIso();
       </ul>
     )
   }
+
+  {
+    topics.length > 0 && (
+      <section class="topic-section" aria-labelledby={courses.length ? 'topics-title' : undefined}>
+        {courses.length > 0 && <h2 id="topics-title">Your topics</h2>}
+        <ul class="course-cards" role="list">
+          {topics.map((topic) => (
+            <li class="card course-card topic-card">
+              <div>
+                <p class="eyebrow">
+                  Topic
+                  {topic.data.status === 'draft' && <span class="badge badge-warn">Draft</span>}
+                </p>
+                <h3 lang={topic.lang}>
+                  <a href={route.course(topic.id)}>{topic.title}</a>
+                </h3>
+              </div>
+              <dl class="stats">
+                <div>
+                  <dt>Chapters</dt>
+                  <dd>
+                    <strong>{topic.summaries.length}</strong>
+                  </dd>
+                </div>
+                {topic.data.contents.cards && (
+                  <div>
+                    <dt>Cards to review</dt>
+                    <dd>
+                      <strong data-sk-fill data-sk-cards-due data-course={topic.id}></strong>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              <p class="card-actions">
+                <a class="button button-quiet" href={route.summaries(topic.id)}>
+                  Explanation
+                </a>
+                {topic.data.contents.cards && (
+                  <a class="button button-quiet" href={route.cards(topic.id)}>
+                    Flash cards
+                  </a>
+                )}
+              </p>
+              <CourseData course={topic} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 </Base>
 
 <style>
@@ -122,12 +175,24 @@ const today = todayIso();
     gap: var(--space-4);
   }
 
-  .course-card h2 {
+  /* a long title breaks instead of pushing the mastery ring off a phone */
+  .course-card-head > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .course-card h2,
+  .course-card h3 {
     margin: 0;
     font-size: 1.3rem;
   }
 
-  .course-card h2 a {
+  .topic-section {
+    margin-top: var(--space-6);
+  }
+
+  .course-card h2 a,
+  .course-card h3 a {
     color: var(--text);
     text-decoration: none;
   }

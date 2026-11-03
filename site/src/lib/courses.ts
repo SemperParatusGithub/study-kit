@@ -25,6 +25,8 @@ export const route = {
   mcTopic: (c: string, topic: string) => `/c/${c}/mc/${topic}/`,
   mcPool: (c: string, topic: string) => `/c/${c}/mc/${topic}.json`,
   cheatsheet: (c: string) => `/c/${c}/cheatsheet/`,
+  cards: (c: string) => `/c/${c}/cards/`,
+  glossary: (c: string) => `/c/${c}/glossary/`,
   exams: (c: string) => `/c/${c}/exams/`,
   exam: (c: string, id: string) => `/c/${c}/exams/${id}/`,
   progress: (c: string) => `/c/${c}/progress/`,
@@ -57,6 +59,8 @@ export interface Course {
   title: string;
   short: string;
   lang: 'de' | 'en';
+  /** A single subject without an exam (§5.6): its topics are chapters. */
+  isTopic: boolean;
   examDate: string | null;
   topics: Topic[];
   topicTitle: (id: string | null | undefined) => string;
@@ -66,6 +70,8 @@ export interface Course {
   summaries: Doc[];
   exercises: Doc[];
   banks: Doc[];
+  /** A topic's flash cards, one file per chapter. */
+  cards: Doc[];
   exams: Exam[];
   plan: PlanData | null;
   mastery: Record<string, unknown> | null;
@@ -95,10 +101,20 @@ export function loadCourse(id: string): Promise<Course> {
   return hit;
 }
 
-/** getStaticPaths for /c/[course]/… pages. */
+/** getStaticPaths for the /c/[course]/… pages every course and topic has. */
 export async function coursePaths() {
   const courses = await listCourses();
   return courses.map((course) => ({ params: { course: course.id }, props: { course } }));
+}
+
+/** getStaticPaths for the pages only a course with an exam has. */
+export async function examCoursePaths() {
+  return (await coursePaths()).filter((p) => !p.props.course.isTopic);
+}
+
+/** getStaticPaths for the pages of a topic that chose this content (§5.6). */
+export async function topicPathsWith(content: 'cards' | 'glossary') {
+  return (await coursePaths()).filter((p) => p.props.course.isTopic && p.props.course.data.contents[content]);
 }
 
 async function build(id: string): Promise<Course> {
@@ -130,6 +146,7 @@ async function build(id: string): Promise<Course> {
       a.data.title.localeCompare(b.data.title),
   );
   const banks = kind('mc').sort(byTopic);
+  const cards = kind('cards').sort(byTopic);
   const exams: Exam[] = kind('exam')
     .map((doc) => {
       const fm = doc.data.fm as unknown as ExamFm;
@@ -162,6 +179,7 @@ async function build(id: string): Promise<Course> {
     title: data.title,
     short: data.short ?? data.title,
     lang: data.lang,
+    isTopic: data.kind === 'topic',
     examDate: data.exam.date ?? plan?.exam_date ?? null,
     topics,
     topicTitle: (t) => (t ? (titles.get(t) ?? t) : ''),
@@ -171,6 +189,7 @@ async function build(id: string): Promise<Course> {
     summaries,
     exercises,
     banks,
+    cards,
     exams,
     plan,
     mastery,
@@ -269,6 +288,7 @@ export function clientInfo(course: Course): CourseInfo {
         href: summary ? route.summary(c, t.id) : banks.length ? route.mcTopic(c, t.id) : null,
         mc: banks.flatMap((b) => b.data.questions.map((q) => q.id)),
         ex: course.exercises.filter((e) => e.data.topic === t.id && e.data.id).map((e) => e.data.id as string),
+        cards: course.cards.filter((b) => b.data.topic === t.id).flatMap((b) => b.data.cards.map((x) => x.id)),
       };
     }),
     exams: course.exams.map((e) => ({ id: e.id, title: e.doc.data.title, points: e.fm.points })),

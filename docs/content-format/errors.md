@@ -118,6 +118,12 @@ that `studykit ingest init` writes into a draft course.
 Fix: write the real topics (the synthesis step of `/register-new-subject`), or keep
 `status: draft` until the course is complete.
 
+### `SK-STRUCT-KIND`
+**error.** The file or field does not fit `kind` in `course.yaml`: a topic (§5.6) with
+`exercises/`, `mc/`, `exams/`, `cheatsheet.md`, `plan.yaml` or `analysis/`, or with `exam`,
+`study` or an allowed cheat sheet; a course with `cards/` or `contents`.
+Fix: remove it, or choose the other kind: a course has an exam, a topic does not.
+
 ## Schema (SK-SCHEMA, SK-YAML)
 
 ### `SK-SCHEMA-FRONTMATTER`
@@ -350,6 +356,32 @@ the deterministic PDF shuffle (seeded by the question id, as in `mcq.lua`), one 
 the correct answer in more than half of them.
 Fix: make distractors as long and as specific as the correct option; for a skewed letter,
 move the correct option to another place in the source of some of the listed questions.
+
+## Cards (SK-CARD)
+
+The flash cards of a topic's chapter, `cards/<topic>.md` (§5.6). Owner: the `author` of that
+chapter, part `cards`.
+
+### `SK-CARD-ATTR`
+**error.** A flash card's fence has attributes besides its id.
+Fix: write `:::: {.flashcard #card-<topic>-NNN}`.
+
+### `SK-CARD-ID`
+**error.** The id is missing, does not match `card-<topic>-NNN` with three digits, or names
+another chapter than the file.
+Fix: use the next free number of this chapter; ids are never renamed once used.
+
+### `SK-CARD-FRONT`
+**error.** A flash card has nothing before its `::: back`.
+Fix: write the question or the term as the front.
+
+### `SK-CARD-BACK`
+**error.** A flash card has no `::: back` block, more than one, or an empty one.
+Fix: end the card with exactly one `::: back` block that holds the answer.
+
+### `SK-CARD-FORMAT`
+**error.** Text outside a `flashcard` block in a card file, or text after a card's back.
+Fix: a card file holds only `:::: {.flashcard …}` blocks, each ending with its back.
 
 ## Math (SK-MATH)
 
@@ -669,6 +701,21 @@ Fix: `/regenerate <course> mc --topic <topic> --add <n>`.
 Fix: `/regenerate <course> exams`, or lower the target; scale the mock exam's tasks to the
 real exam's points and time.
 
+### `SK-COV-CARDS`
+**error.** A topic with `contents.cards` has a chapter with fewer than 5 flash cards.
+Fix: `/regenerate <topic> cards --topic <chapter>`.
+
+### `SK-COV-GLOSSARY`
+**error.** A topic with `contents.glossary` has a chapter without a `::: definition` box
+whose first paragraph is the bold term, so the chapter adds nothing to the glossary.
+Fix: give each new term such a box, or set `contents.glossary: false`.
+
+### `SK-COV-CONCEPT-MAP`
+**error.** A topic with `contents.concept_map` has fewer than two chapters, so the map has
+nothing to connect.
+Fix: split the topic into chapters, or set `contents.concept_map: false` and remove the
+overview's concept-map section.
+
 ## Progress (SK-PROGRESS, `studykit progress`)
 
 These codes are not validate stages: `studykit progress import` reports them for a browser
@@ -722,15 +769,17 @@ a left-out `score` is computed.
 warnings name files that are left out.
 
 ### `SK-INGEST-FOLDER`
-**error.** The folder does not exist, or it (or the file given) holds no PDF at all.
+**error.** The folder does not exist, or it (or the file given) holds no PDF at all; for a
+topic, a given path does not exist, or none of them holds a PDF, text file or image.
 Fix: give the folder with the lecture material; export slides, scripts, sheets and exams
 as PDF first.
 
 ### `SK-INGEST-UNSUPPORTED`
 **warning.** An office file (`.pptx`, `.docx`, `.odp`, `.key`, …) or an image (`.png`,
-`.jpg`, `.heic`, …) is not read.
-Fix: export the document as PDF (photos and scans: combine them into one PDF) and run
-`studykit ingest add <course> <file>`.
+`.jpg`, `.heic`, …) is not read. A topic (§5.6) reads `.txt` and `.md` files and PNG, JPG,
+GIF and WebP images too, so there this means an office file or another image format.
+Fix: export the document as PDF (photos and scans: combine them into one PDF; for a topic,
+export an image as PNG or JPG) and run `studykit ingest add <course> <file>`.
 
 ### `SK-INGEST-DUPLICATE`
 **warning.** The PDF has the same content (sha256) as another one in the folder or a
@@ -741,11 +790,18 @@ Fix: nothing to do; delete the copy from the folder if it is not needed.
 **warning.** pypdfium2 cannot open the PDF: it is encrypted, damaged or not a PDF.
 Fix: remove the password or print the document to a new PDF, then add it again.
 
+### `SK-INGEST-CONVERT`
+**warning.** Only for a topic (§5.6): a text file or image could not be turned into a PDF
+and is left out (not UTF-8, empty, a damaged image), or its PDF lost characters the embedded
+fonts do not have (emoji, CJK); the rest of that document is read.
+Fix: save text as UTF-8 and export a damaged image again; when lost characters matter, add
+the text as an image, which the ingester transcribes.
+
 ### `SK-INGEST-COURSE`
-**error.** The draft `course.yaml` that `ingest init` would write does not validate, for
-example because of an empty title or a non-positive exam duration.
+**error.** The draft `course.yaml` that `ingest init` or `ingest topic` would write does not
+validate, for example because of an empty title or a non-positive exam duration.
 Fix: correct the flag that feeds it (`--title`, `--exam-minutes`, `--exam-points`,
-`--hours-per-week`) and run `ingest init` again.
+`--hours-per-week`) and run the command again.
 
 ## Plan (SK-PLAN, `studykit plan`)
 

@@ -133,12 +133,14 @@ e2e *args:
 
 # `test` includes `schema export --check`; the sample course comes from examples/. CI then
 # runs the browser suites too: `pnpm -C site run test:elements` and `just e2e`.
-# CI checks before the browser tests: doctor, tests, sample-course build and validation
+# CI checks before the browser tests: doctor, tests, build and validation of the sample course and topic
 ci:
     {{just}} doctor
     {{just}} test
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} figures how-bitcoin-works
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} build sample-course
     STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate sample-course --release
+    STUDYKIT_COURSES_DIR={{quote(root / "examples")}} {{just}} validate how-bitcoin-works --release
 
 # ruff lint and format check of the python code
 lint-code:

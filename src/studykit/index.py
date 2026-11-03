@@ -5,7 +5,7 @@ The shape is a contract with `pandoc/filters` (refs.lua, mcq.lua, meta.lua):
 
     {"schema": 1, "course": "<id>", "lang": "de", "title": "…",
      "topics": {"<topic-id>": {"title": "…", "order": 1}},
-     "items": {"<id>": {"kind": "exercise|mc|exam-task|summary|overview|cheatsheet",
+     "items": {"<id>": {"kind": "exercise|mc|card|exam-task|summary|overview|cheatsheet",
                         "title": "…", "topic": "<topic-id>|null", "path": "<course-relative>"}},
      "exams": {"<exam-id>": {"title": "…"}},
      "figures": ["<slug>", "topic-map"],
@@ -35,7 +35,7 @@ from studykit import verify
 from studykit.content import CourseTree
 
 INDEX_SCHEMA = 1
-ITEM_KINDS = ("exercise", "mc", "exam-task", "summary", "overview", "cheatsheet")
+ITEM_KINDS = ("exercise", "mc", "card", "exam-task", "summary", "overview", "cheatsheet")
 LANGS = ("de", "en")
 
 

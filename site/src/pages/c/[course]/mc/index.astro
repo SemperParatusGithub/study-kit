@@ -4,11 +4,11 @@
 import Base from '../../../../layouts/Base.astro';
 import PdfLinks from '../../../../components/PdfLinks.astro';
 import QuizSlot, { type QuizMode } from '../../../../components/QuizSlot.astro';
-import { coursePaths, route, type Course } from '../../../../lib/courses';
+import { examCoursePaths, route, type Course } from '../../../../lib/courses';
 import { MC_TYPE, plural } from '../../../../lib/format';
 import { findPdf } from '../../../../lib/pdf';
 
-export const getStaticPaths = coursePaths;
+export const getStaticPaths = examCoursePaths;
 
 const { course } = Astro.props as { course: Course };
 const c = course.id;

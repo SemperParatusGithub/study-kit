@@ -31,6 +31,8 @@ export interface TopicInfo {
   mc?: string[];
   /** Exercise ids of the topic. */
   ex?: string[];
+  /** Flash card ids of a topic's chapter (§5.6). */
+  cards?: string[];
 }
 
 export interface ExamInfo {

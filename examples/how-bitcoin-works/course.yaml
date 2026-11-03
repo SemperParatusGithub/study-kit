@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../schemas/course.schema.json
+# Draft written by `studykit ingest topic`: the chapters follow in the synthesis step
+# of /register-new-topic (docs/architecture.md §5.6); status turns ready at the end.
+schema: 1
+kind: topic
+id: how-bitcoin-works
+title: 'How Bitcoin works'
+lang: en
+status: ready
+contents: {cards: true, glossary: true, concept_map: true}
+topics:
+  - {id: why-bitcoin, title: Why Bitcoin exists, weight: 0.13, prereq: []}
+  - {id: keys-and-transactions, title: Keys and transactions, weight: 0.23, prereq: [why-bitcoin]}
+  - {id: blocks-and-mining, title: Blocks and mining, weight: 0.31, prereq: [keys-and-transactions]}
+  - {id: network-and-consensus, title: The network and consensus, weight: 0.23, prereq: [blocks-and-mining]}
+  - {id: scaling-and-limits, title: 'Upgrades, scaling and limits', weight: 0.10, prereq: [keys-and-transactions, network-and-consensus]}
+retired_ids: []

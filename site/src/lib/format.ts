@@ -109,6 +109,8 @@ export const SEARCH_TYPE = {
   mc: 'MC question',
   exam: 'Mock exam',
   cheatsheet: 'Cheat sheet',
+  cards: 'Flash cards',
+  glossary: 'Glossary',
 } as const;
 
 export type SearchType = keyof typeof SEARCH_TYPE;

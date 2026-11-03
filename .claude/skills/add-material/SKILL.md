@@ -20,6 +20,13 @@ yourself.
 This command changes the sources, the notes and the topic map; it regenerates no content
 itself but says which `/regenerate` runs bring the course up to date.
 
+**A topic** (`kind: topic` in `course.yaml`, docs/architecture.md §5.6) takes this procedure with
+four differences: the material may also be text files or images, and text pasted in the chat
+is first Written to `<course>/_build/inbox/pasted-<n>.txt` and added like a file; there are no
+document kinds to ask about and no exam analysis; the topic-map diff is about chapters, with
+weights from the pages of material; and the runs to suggest are `/regenerate $0 summary
+--topic <chapter>`, `cards --topic <chapter>` and `overview`.
+
 Judge every step from files and `studykit` commands, not from agents' reports; start at
 most 6 agents at a time; compute every number with `uv run --frozen studykit calc`. Grep
 and Glob may skip the gitignored `courses/`: read course files by explicit path.

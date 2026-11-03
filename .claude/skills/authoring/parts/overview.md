@@ -11,9 +11,24 @@ an author wave so other parts can link to it; `/regenerate <course> overview` re
 `sources/notes/` (exam date, format and aids as the material states them) and the summary
 chapters when they exist.
 
+## In a topic
+
+In a topic (`kind: topic`, docs/architecture.md §5.6) there is no exam, no plan and no
+`analysis/`, so the sections and inputs differ; the rules below still hold. Exactly these H2
+sections, in this order (titles in the course language; German: Worum geht es?, Konzeptkarte,
+Wie die Kapitel zusammenhängen, So lernst du das):
+
+1. **Big picture** - one or two paragraphs: what it is, why it matters, how the chapters build
+   on each other; link each chapter with `[title](topic:<id>)`.
+2. **Concept map** - only when `contents.concept_map` is true, else leave the section out:
+   only `![Caption](fig:topic-map)`.
+3. **How the parts connect** - the thread through the chapters, in prose.
+4. **How to study this** - 3-6 concrete bullets: the reading order, when to use the flash
+   cards and the glossary if the topic has them, and what the student can do afterwards.
+
 ## Structure
 
-Exactly six H2 sections, in this order (titles in the course language; English: Big
+In a course: exactly six H2 sections, in this order (titles in the course language; English: Big
 picture, Topic map, How the topics connect, Exam at a glance, How to study this subject,
 Prerequisites). Lint checks them by position and count (SK-STRUCT-SECTIONS).
 

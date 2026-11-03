@@ -213,11 +213,32 @@ LAYOUT_HINT = {
     "summary": "summary/NN-<topic>.md",
     "exercises": "exercises/<topic>/<ex-id>.md",
     "mc": "mc/<topic>.md",
+    "cards": "cards/<topic>.md",
     "exams": "exams/<exam-id>/{exam.yaml, NN-<task-id>.md, mc.md}",
     "figures": "figures/<slug>.py",
     "analysis": "analysis/{exam-profile.yaml, notation.yaml}",
     "sources": "sources/{manifest.yaml, chunks.yaml, outline.md, notes/<chunk>.md}",
 }
+# What only a course has; a topic has none of it (§5.6). And the other way round.
+COURSE_ONLY_KINDS = {
+    "exercise",
+    "mc",
+    "exam",
+    "exam-mc",
+    "exam-task",
+    "cheatsheet",
+    "plan",
+    "exam-profile",
+    "notation",
+}
+TOPIC_ONLY_KINDS = {"cards"}
+
+
+def overview_sections(course: model.Course | None) -> int:
+    """How many `##` sections overview.md has (§2.12, for a topic §5.6)."""
+    if course is None or not course.is_topic:
+        return 6
+    return 4 if course.contents and course.contents.concept_map else 3
 
 
 @stage("Structure", "SK-STRUCT", 10, quick=True)
@@ -237,22 +258,50 @@ def check_structure(ctx: Context) -> None:
             )
             continue
         _check_names(ctx, doc)
+        _check_kind(ctx, doc)
     overview = tree.get("overview.md")
     if overview and overview in ctx.docs("overview") and overview.body and not overview.split.error:
         h2 = overview.body.headings(2)
-        if len(h2) != 6:
+        want = overview_sections(tree.model)
+        if len(h2) != want:
             ctx.at(
                 overview,
-                h2[6][0] if len(h2) > 6 else (h2[-1][0] if h2 else 1),
+                h2[want][0] if len(h2) > want else (h2[-1][0] if h2 else 1),
                 1,
                 "SK-STRUCT-SECTIONS",
-                f"overview.md has {len(h2)} '##' sections, expected 6",
-                "use the six sections of docs/architecture.md §2.12 in their order",
+                f"overview.md has {len(h2)} '##' sections, expected {want}",
+                f"use the {want} sections of docs/architecture.md "
+                f"{'§5.6' if tree.model and tree.model.is_topic else '§2.12'} in their order",
             )
     _check_required_files(ctx)
     _check_ids(ctx)
     _check_exams(ctx)
     _check_plan_dates(ctx)
+
+
+def _check_kind(ctx: Context, doc: Doc) -> None:
+    """A topic holds no exam material, and only a topic holds flash cards (§5.6)."""
+    course = ctx.tree.model
+    if course is None:
+        return
+    if course.is_topic and doc.kind in COURSE_ONLY_KINDS:
+        ctx.at(
+            doc,
+            1,
+            1,
+            "SK-STRUCT-KIND",
+            f"a topic has no {doc.kind} files: {doc.rel}",
+            "remove it; a topic is an explanation, flash cards, a glossary and a concept map",
+        )
+    elif not course.is_topic and doc.kind in TOPIC_ONLY_KINDS:
+        ctx.at(
+            doc,
+            1,
+            1,
+            "SK-STRUCT-KIND",
+            f"flash cards are only for kind: topic: {doc.rel}",
+            "remove it, or use an MC bank (mc/<topic>.md) in a course",
+        )
 
 
 def _check_required_files(ctx: Context) -> None:
@@ -263,10 +312,13 @@ def _check_required_files(ctx: Context) -> None:
     """
     tree = ctx.tree
     course = tree.model
-    required = [
-        ("overview.md", "author it with the six sections of docs/architecture.md §2.12"),
-        ("plan.yaml", "`studykit plan <course>`, then write the session goals"),
-    ]
+    if course is not None and course.is_topic:
+        required = [("overview.md", "author it with the sections of docs/architecture.md §5.6")]
+    else:
+        required = [
+            ("overview.md", "author it with the six sections of docs/architecture.md §2.12"),
+            ("plan.yaml", "`studykit plan <course>`, then write the session goals"),
+        ]
     if course is not None and course.cheatsheet.allowed:
         required.append(("cheatsheet.md", "`/regenerate <course> cheatsheet`, then fit it"))
     for rel, fix in required:
@@ -289,6 +341,8 @@ def _check_plan_dates(ctx: Context) -> None:
     different `exam_date` is a warning (the plan is stale)."""
     plan, course = ctx.tree.get("plan.yaml"), ctx.tree.model
     if plan is None or plan not in ctx.docs("plan") or plan.model is None or course is None:
+        return
+    if course.exam is None:
         return
     exam = course.exam.date
     fix = "replan with `studykit plan <course>` (done sessions and session goals are kept)"
@@ -354,13 +408,14 @@ def _check_names(ctx: Context, doc: Doc) -> None:
             f"course '{course_id}' does not match the directory '{ctx.tree.id}'",
             f"set course: {ctx.tree.id}",
         )
-    if doc.kind in {"summary", "exercise", "mc"} and isinstance(topic, str):
+    if doc.kind in {"summary", "exercise", "mc", "cards"} and isinstance(topic, str):
         expected = doc.parts.get("topic")
         if topic != expected:
             layout = {
                 "summary": f"summary/NN-{topic}.md",
                 "exercise": f"exercises/{topic}/{doc.path.name}",
                 "mc": f"mc/{topic}.md",
+                "cards": f"cards/{topic}.md",
             }[doc.kind]
             ctx.at_yaml(
                 doc,
@@ -384,7 +439,7 @@ def _check_ids(ctx: Context) -> None:
         if item.kind == "summary" and item.topic:
             summaries.setdefault(item.topic, []).append(item)
             continue
-        if item.kind not in {"exercise", "mc", "exam-task", "exam"}:
+        if item.kind not in {"exercise", "mc", "exam-task", "exam", "card"}:
             continue
         by_id.setdefault(item.id, []).append(item)
         if item.id in retired:
@@ -662,6 +717,98 @@ SOURCE_ATTR_RE = re.compile(rf"^{model.KEBAB}:[0-9]+$")
 def _plain(text: str) -> str:
     """Text with inline math removed, for wording checks."""
     return model.INLINE_MATH_RE.sub(" ", text)
+
+
+# --- Cards (SK-CARD) ------------------------------------------------------------------------
+
+
+@stage("Cards", "SK-CARD", 45, quick=True)
+def check_cards(ctx: Context) -> None:
+    for doc in ctx.docs("cards"):
+        body = doc.body
+        if body is None or doc.split.error:
+            continue
+        body.blocks  # noqa: B018 - runs the fence scanner
+        ctx.extend(f for f in body.findings if f.code.startswith("SK-CARD"))
+        for ln in body.outside_blocks():
+            if ln.text.strip():
+                ctx.at(
+                    doc,
+                    ln.no,
+                    1,
+                    "SK-CARD-FORMAT",
+                    "text outside a flashcard block",
+                    "a card file contains only :::: {.flashcard …} blocks",
+                )
+                break
+        for card in body.flashcards:
+            _check_card(ctx, doc, card)
+
+
+def _check_card(ctx: Context, doc: Doc, card) -> None:
+    m = model.CARD_ID_RE.match(card.id or "")
+    if not m:
+        ctx.at(
+            doc,
+            card.line,
+            1,
+            "SK-CARD-ID",
+            f"id '{card.id or ''}' does not match card-<topic>-NNN",
+            "write :::: {.flashcard #card-<topic>-NNN}, with three digits",
+        )
+    elif m["topic"] != doc.parts.get("topic"):
+        ctx.at(
+            doc,
+            card.line,
+            1,
+            "SK-CARD-ID",
+            f"card '{card.id}' names topic '{m['topic']}' in cards/{doc.parts.get('topic')}.md",
+            f"use the id card-{doc.parts.get('topic')}-NNN, or move the card to its file",
+        )
+    if not card.front:
+        ctx.at(
+            doc,
+            card.line,
+            1,
+            "SK-CARD-FRONT",
+            "flash card without a front",
+            "write the question or the term before ::: back",
+        )
+    if len(card.backs) != 1:
+        ctx.at(
+            doc,
+            card.line,
+            1,
+            "SK-CARD-BACK",
+            f"flash card has {len(card.backs)} back blocks, expected exactly 1",
+            "end the card with one ::: back block and the closing ::::",
+        )
+        return
+    back = card.backs[0]
+    if not any(ln.text.strip() for ln in doc.body.block_text(back)):
+        ctx.at(
+            doc,
+            doc.body.lines[back.open_line].no,
+            1,
+            "SK-CARD-BACK",
+            "the back of the flash card is empty",
+            "write the answer inside ::: back",
+        )
+    end = card.block.close_line if card.block.close_line is not None else len(doc.body.lines)
+    after = [
+        doc.body.lines[i]
+        for i in range((back.close_line or end) + 1, end)
+        if doc.body.lines[i].text.strip()
+    ]
+    if after:
+        ctx.at(
+            doc,
+            after[0].no,
+            1,
+            "SK-CARD-FORMAT",
+            "text after the back of the flash card",
+            "end the card with its ::: back block and the closing ::::",
+        )
 
 
 @stage("MC", "SK-MCQ", 40, quick=True)
@@ -2057,6 +2204,68 @@ def check_site(ctx: Context) -> None:
 
 # --- Coverage (SK-COV, --release only) -------------------------------------------------------
 
+MIN_CARDS_PER_CHAPTER = 5
+
+
+def _check_topic_coverage(ctx: Context, course, topics, at_topic) -> None:
+    """What a topic chose in `contents`: every chapter has its explanation, its flash cards
+    and titled definitions for the glossary, and a concept map has something to connect."""
+    tree = ctx.tree
+    contents = course.contents
+    summaries = {d.parts["topic"]: d for d in tree.of_kind("summary")}
+    cards = {d.parts["topic"]: d for d in tree.of_kind("cards")}
+    for topic in topics:
+        summary = summaries.get(topic.id)
+        if summary is None:
+            at_topic(
+                topic.id,
+                "SK-COV-SUMMARY",
+                f"topic '{topic.id}' has no summary chapter",
+                f"author summary/NN-{topic.id}.md",
+            )
+        elif contents.glossary and not _titled_definitions(summary):
+            at_topic(
+                topic.id,
+                "SK-COV-GLOSSARY",
+                f"chapter '{topic.id}' has no titled definition for the glossary",
+                "give each term a ::: definition box whose first paragraph is the bold term",
+            )
+        if contents.cards:
+            bank = cards.get(topic.id)
+            count = len(bank.body.flashcards) if bank and bank.body else 0
+            if count < MIN_CARDS_PER_CHAPTER:
+                at_topic(
+                    topic.id,
+                    "SK-COV-CARDS",
+                    f"chapter '{topic.id}' has {count} flash card(s), at least "
+                    f"{MIN_CARDS_PER_CHAPTER} are needed",
+                    f"author cards/{topic.id}.md",
+                )
+    if contents.concept_map and len(topics) < 2:
+        ctx.at_yaml(
+            tree.course_doc,
+            ["contents", "concept_map"],
+            "SK-COV-CONCEPT-MAP",
+            "a concept map needs at least two chapters to connect",
+            "split the topic into chapters, or set contents.concept_map: false",
+        )
+
+
+def _titled_definitions(doc: Doc) -> list[str]:
+    """The bold first paragraphs of a chapter's ::: definition boxes: its glossary terms."""
+    body = doc.body
+    if body is None:
+        return []
+    terms = []
+    for block in body.blocks:
+        if block.name != "definition":
+            continue
+        first = next((ln.text.strip() for ln in body.block_text(block) if ln.text.strip()), "")
+        if len(first) > 4 and first.startswith("**") and first.endswith("**"):
+            terms.append(first[2:-2])
+    return terms
+
+
 DEFAULT_MIX = {"single": 0.60, "multi": 0.25, "kprim": 0.15}
 
 
@@ -2089,6 +2298,10 @@ def check_coverage(ctx: Context) -> None:
                     f"overview.md never links topic '{topic.id}'",
                     f"link it once, e.g. [{topic.title}](topic:{topic.id})",
                 )
+
+    if course.is_topic:
+        _check_topic_coverage(ctx, course, topics, at_topic)
+        return
 
     summaries = {d.parts["topic"] for d in tree.of_kind("summary")}
     exercises: dict[str, list[Doc]] = {}

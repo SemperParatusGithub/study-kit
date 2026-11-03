@@ -10,7 +10,14 @@ interface Props {
 
 const { course, active } = Astro.props;
 const c = course.id;
-const tabs: { id: Tab; label: string; href: string }[] = [
+const contents = course.data.contents;
+const topicTabs: { id: Tab; label: string; href: string }[] = [
+  { id: 'overview', label: 'Overview', href: route.course(c) },
+  { id: 'summary', label: 'Explanation', href: route.summaries(c) },
+  ...(contents.cards ? [{ id: 'cards' as Tab, label: 'Cards', href: route.cards(c) }] : []),
+  ...(contents.glossary ? [{ id: 'glossary' as Tab, label: 'Glossary', href: route.glossary(c) }] : []),
+];
+const courseTabs: { id: Tab; label: string; href: string }[] = [
   { id: 'overview', label: 'Overview', href: route.course(c) },
   { id: 'plan', label: 'Plan', href: route.plan(c) },
   { id: 'summary', label: 'Summary', href: route.summaries(c) },
@@ -20,6 +27,7 @@ const tabs: { id: Tab; label: string; href: string }[] = [
   { id: 'exams', label: 'Exams', href: route.exams(c) },
   { id: 'progress', label: 'Progress', href: route.progress(c) },
 ];
+const tabs = course.isTopic ? topicTabs : courseTabs;
 ---
 
 <nav class="course-nav" aria-label="Course sections">

@@ -29,6 +29,14 @@ optional `--topic <t>`, `--add <n>`, `--replace` and a free-text note for the au
 4. **`--replace` (and `all`) needs a yes first:** list the files and item counts that will
    be rewritten and ask with AskUserQuestion; stop on no.
 
+**A topic** (`kind: topic` in `course.yaml`, docs/architecture.md §5.6): the part must be
+`overview`, `summary`, `cards`, `figures` or `all`; for any other, say that a topic has no such
+part and stop. `cards` is a per-chapter part like `mc`: one `author` per chapter, at most 6 in
+parallel. `all` runs overview, then summary, then cards. Downstream of `summary` come the
+chapter's `cards` when they changed; there is no verification and no plan, so after any part
+only validate and the PDFs follow. The glossary and the concept map need no run: the site
+builds them from the definitions and from `course.yaml`.
+
 ## 2. Save what will change
 
 Take a UTC timestamp (`date -u +%Y%m%dT%H%M%SZ`) and copy every content file this run may

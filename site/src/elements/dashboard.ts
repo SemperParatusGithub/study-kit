@@ -6,6 +6,7 @@
 // back from the back/forward cache.
 //
 //   [data-sk-due-count][data-course] [data-topic]   MC questions due today (of one topic)
+//   [data-sk-cards-due][data-course] [data-topic]   a topic's flash cards to review today
 //   [data-sk-accuracy][data-course][data-topic]     accuracy over the last 10 answers
 //   ol[data-sk-weakest][data-course]                the 3 weakest topics; the next
 //                                                   [data-sk-weakest-empty] hides itself
@@ -25,6 +26,7 @@
 // <sk-plan> fills its own "behind schedule" banner.
 
 import { isDay } from '../lib/leitner.ts';
+import { cardCounts } from '../lib/cards.ts';
 import { storeFor } from '../lib/store.ts';
 import {
   dueCount,
@@ -44,6 +46,7 @@ import { h, percent, pts, today } from './util.ts';
 
 const PLACEHOLDERS = [
   '[data-sk-due-count]',
+  '[data-sk-cards-due]',
   '[data-sk-accuracy]',
   '[data-sk-weakest]',
   '[data-sk-mastery]',
@@ -95,6 +98,16 @@ export function courseInfo(course: string, root: ParentNode = document): CourseI
 
 function setText(el: Element, text: string): void {
   if (el.textContent !== text) el.textContent = text;
+}
+
+/** A topic's flash cards to review today, new ones included (§5.6). */
+function fillCardsDue(el: HTMLElement, items: Items, info: CourseInfo, day: string): void {
+  const topic = el.dataset.topic;
+  const ids = info.topics.filter((t) => !topic || t.id === topic).flatMap((t) => t.cards ?? []);
+  const counts = cardCounts(ids, items, day);
+  const n = counts.due + counts.fresh;
+  setText(el, String(n));
+  el.dataset.value = String(n);
 }
 
 function fillDue(el: HTMLElement, items: Items, info: CourseInfo, day: string): void {
@@ -234,6 +247,7 @@ export function fillCourse(course: string, root: ParentNode = document): void {
   };
   for (const el of mine) {
     if (el.matches('[data-sk-due-count]')) fillDue(el, items, info, day);
+    else if (el.matches('[data-sk-cards-due]')) fillCardsDue(el, items, info, day);
     else if (el.matches('[data-sk-accuracy]')) {
       const st = statOf(el.dataset.topic ?? '');
       fillAccuracy(el, st?.accuracy ?? null, st?.recent.length ?? 0);

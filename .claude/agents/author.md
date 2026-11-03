@@ -20,9 +20,9 @@ rules of the authoring skill and figures made with the figures skill.
 The prompt names:
 
 - the course (an id or a directory; `uv run --frozen studykit ls` lists the courses),
-- the part: `overview`, `summary`, `exercises`, `mc`, `exam`, `cheatsheet`, or a fix
-  round for one item,
-- the topic for summary, exercises and mc,
+- the part: `overview`, `summary`, `exercises`, `mc`, `cards`, `exam`, `cheatsheet`, or a
+  fix round for one item,
+- the topic for summary, exercises, mc and cards,
 - the mode: write new, `add <n>` items to what exists, `replace` the part (keeping the ids
   of items that survive), or `fix <id>` with the verifier's computed values,
 - optional notes from the user.
@@ -30,7 +30,7 @@ The prompt names:
 ## How you work
 
 1. Read the procedure of your part first, by path:
-   `.claude/skills/authoring/parts/<part>.md` (overview, summary, exercises, mc, exam,
+   `.claude/skills/authoring/parts/<part>.md` (overview, summary, exercises, mc, cards, exam,
    cheatsheet). A fix round follows "Fix round" in the authoring skill.
 2. Find course files with `uv run --frozen studykit ls <course>` and ids with
    `uv run --frozen studykit index <course> --json`; Grep and Glob may skip the

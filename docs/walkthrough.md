@@ -6,6 +6,9 @@ the website and Claude Code. The examples come from a real run on the sample mat
 `opamp-grundlagen`. The specification behind every step is
 [architecture.md §5.4](architecture.md#54-register-new-subject-folder-course-id).
 
+For one subject without an exam, `/register-new-topic` is the shorter way: see
+[A single topic](#a-single-topic) at the end.
+
 Your course stays on your machine: everything under `courses/` is gitignored, and the
 hooks refuse to commit it (see the README).
 
@@ -255,3 +258,25 @@ A typical week: work through the plan's sessions on the website; export your pro
 run `/import-progress`; `/study-status` names the next step; `/examine <course> mc` for
 due reviews, `/tutor <course> <topic>` for the weakest topic. In the last weeks, write the
 mock exam under time on the website or with `/examine <course> exam probeklausur-1`.
+
+## A single topic
+
+When you want to understand something and there is no exam, a course is too much. Give
+`/register-new-topic` what you have:
+
+```
+/register-new-topic ~/Notes/bitcoin whitepaper.pdf chart.png
+```
+
+Folders and files work alike: PDFs, text (`.txt`, `.md`) and images (PNG, JPG, GIF, WebP). Text you
+paste in the chat counts too, so you can start with no file at all. The command shows an
+inventory, asks what the topic should have besides its explanation (flash cards, a glossary, a
+concept map), reads the material with agents, splits it into chapters and writes them.
+
+The result is a page with the tabs Overview, Explanation, Cards and Glossary, as you chose, in
+its own section on the home page. The flash cards bring a card back after a day when you did not
+know it and later and later when you did; the state stays in your browser. `/add-material`,
+`/regenerate <id> cards` and `/tutor <id>` work on a topic; there is no plan, no MC and no mock
+exam, and the flash cards are not checked by the blind verifier as a course's items are, so treat
+a surprising card as a question, not as a fact. `examples/how-bitcoin-works` shows a finished topic.
+

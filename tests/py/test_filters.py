@@ -481,6 +481,25 @@ def test_html_box_titles_and_defaults(workdir):
     assert len(first_box.find_all("p")) == 1
 
 
+def test_html_flashcard_contract(workdir):
+    body = pandoc.blank_frontmatter((OK / "cards/rc-filter.md").read_text(encoding="utf-8"))
+    tree = parse_html(pandoc.convert(body, document("cards/rc-filter.md", workdir), "html"))
+    cards = tree.find_all("sk-card")
+    assert [c.attrs["data-id"] for c in cards] == ["card-rc-filter-001", "card-rc-filter-002"]
+    assert {c.attrs["data-topic"] for c in cards} == {"rc-filter"}
+    for card in cards:
+        parts = [k.classes() for k in card.children if k.tag == "div"]
+        assert parts == [["sk-card-front"], ["sk-card-back"]]
+    assert [i["kind"] for i in sk_meta(tree)["items"]] == ["card", "card"]
+
+
+def test_flashcards_have_no_typst_output(workdir):
+    body = pandoc.blank_frontmatter((OK / "cards/rc-filter.md").read_text(encoding="utf-8"))
+    assert "Name the two parts" not in pandoc.convert(
+        body, document("cards/rc-filter.md", workdir), "typst"
+    )
+
+
 def test_english_labels(workdir):
     rel = "exercises/rc-filter/ex-rc-tp-grenzfrequenz.md"
     body = pandoc.blank_frontmatter((OK / rel).read_text(encoding="utf-8"))

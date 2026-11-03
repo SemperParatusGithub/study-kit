@@ -1,0 +1,122 @@
+---
+// The head of a topic's overview (docs/architecture.md §5.6): its chapters in teaching order,
+// and what to do next, in place of a course's exam, plan and reviews.
+import CourseData from './CourseData.astro';
+import { route, type Course } from '../lib/courses';
+import { plural } from '../lib/format';
+
+interface Props {
+  course: Course;
+}
+
+const { course } = Astro.props;
+const c = course.id;
+const en = course.lang === 'en' ? undefined : 'en';
+const contents = course.data.contents;
+const first = course.summaries[0];
+const total = course.cards.reduce((n, b) => n + b.data.cards.length, 0);
+---
+
+<section class="topic-today" aria-labelledby="chapters-title" lang={en}>
+  <div class="card">
+    <h2 id="chapters-title">Chapters</h2>
+    <ol class="topic-chapters">
+      {
+        course.summaries.map((s) => (
+          <li>
+            <a href={route.summary(c, s.data.topic ?? '')} lang={course.lang}>
+              {s.data.title}
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+    {
+      first && (
+        <a class="small" href={route.summary(c, first.data.topic ?? '')}>
+          Start reading →
+        </a>
+      )
+    }
+  </div>
+
+  {
+    contents.cards && (
+      <div class="card">
+        <h2>Flash cards</h2>
+        <p class="big">
+          <span data-sk-fill data-sk-cards-due data-course={c} />
+        </p>
+        <p class="muted small">to review today, of {plural(total, 'card')}.</p>
+        <a class="small" href={route.cards(c)}>
+          Start →
+        </a>
+      </div>
+    )
+  }
+
+  {
+    contents.glossary && (
+      <div class="card">
+        <h2>Glossary</h2>
+        <p class="muted small">Every term of the chapters, from A to Z.</p>
+        <a class="small" href={route.glossary(c)}>
+          Look up a term →
+        </a>
+      </div>
+    )
+  }
+</section>
+<CourseData course={course} />
+
+<style>
+  .topic-today {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    margin-bottom: var(--space-6);
+  }
+
+  .topic-today .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+  }
+
+  .topic-today h2 {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .topic-today p {
+    margin: 0;
+  }
+
+  .topic-today .card > a:last-child {
+    margin-top: auto;
+    padding-top: var(--space-2);
+  }
+
+  .topic-chapters {
+    margin: 0;
+    padding-left: 1.3rem;
+  }
+
+  .big {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 52rem) {
+    .topic-today {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>
