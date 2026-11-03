@@ -175,6 +175,12 @@ const today = todayIso();
     gap: var(--space-4);
   }
 
+  /* a long title breaks instead of pushing the mastery ring off a phone */
+  .course-card-head > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .course-card h2,
   .course-card h3 {
     margin: 0;
