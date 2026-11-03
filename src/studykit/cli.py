@@ -329,7 +329,12 @@ def _add_ingest_commands(sub) -> None:
     p_scan = ing_sub.add_parser(
         "scan", help="inventory a folder of lecture PDFs (pages, text layer, kind, duplicates)"
     )
-    p_scan.add_argument("folder", type=Path, help="the folder (or one file) to inventory")
+    p_scan.add_argument(
+        "folder", type=Path, nargs="+", help="the folder (or one file; with --topic several)"
+    )
+    p_scan.add_argument(
+        "--topic", action="store_true", help="for a topic (§5.6): text and images count too"
+    )
     p_scan.add_argument(
         "--dry-run", action="store_true", help="accepted for clarity: scan never writes"
     )
@@ -404,6 +409,25 @@ def _add_ingest_commands(sub) -> None:
     p_r2.add_argument("--today", type=_day, help="the day recorded (default: today)")
     p_r2.add_argument("--json", action="store_true", help="machine-readable output")
     p_r2.set_defaults(func=cmd_ingest_round2)
+
+    p_topic = ing_sub.add_parser(
+        "topic",
+        help="init for a topic (§5.6): folders and files, also text and images, no exam",
+    )
+    p_topic.add_argument("course", help="the new topic's id, e.g. how-bitcoin-works")
+    p_topic.add_argument("sources", type=Path, nargs="+", help="folders and files (only read)")
+    p_topic.add_argument("--title", help="the topic's title (default: its id)")
+    p_topic.add_argument("--short", help="short name")
+    p_topic.add_argument("--lang", choices=["de", "en"], help="content language (default: guessed)")
+    p_topic.add_argument(
+        "--contents",
+        default="cards,glossary,concept-map",
+        help="what it has besides its explanation: cards, glossary, concept-map, or none",
+    )
+    p_topic.add_argument("--today", type=_day, help="the day recorded (default: today)")
+    p_topic.add_argument("--dry-run", action="store_true", help="report, write nothing")
+    p_topic.add_argument("--json", action="store_true", help="machine-readable output")
+    p_topic.set_defaults(func=cmd_ingest_topic)
 
     p_page = ing_sub.add_parser(
         "page", help="render PDF pages to PNG in _build/pages for agents without a PDF reader"
@@ -512,7 +536,10 @@ def cmd_ingest_scan(args: argparse.Namespace) -> int:
     except ingest.IngestError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    sc = ingest.scan(args.folder, kinds=kinds, today=_date_arg(args.today))
+    if len(args.folder) > 1 and not args.topic:
+        print("error: only --topic takes several folders or files", file=sys.stderr)
+        return 2
+    sc = ingest.scan(args.folder, kinds=kinds, today=_date_arg(args.today), topic=args.topic)
     data = sc.to_json()
     errors = [f for f in sc.findings if f.is_error]
     if args.json:
@@ -554,6 +581,30 @@ def cmd_ingest_init(args: argparse.Namespace) -> int:
     if got is None:
         return 2
     return _ingest_out(*got, args.json, lambda r: ingest.format_result(r, "init"))
+
+
+def cmd_ingest_topic(args: argparse.Namespace) -> int:
+    from studykit import ingest
+
+    try:
+        contents = ingest.parse_contents(args.contents)
+    except ingest.IngestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    got = _ingest_call(
+        ingest.init_topic,
+        args.sources,
+        args.course,
+        title=args.title,
+        short=args.short,
+        lang=args.lang,
+        contents=contents,
+        today=_date_arg(args.today),
+        dry_run=args.dry_run,
+    )
+    if got is None:
+        return 2
+    return _ingest_out(*got, args.json, lambda r: ingest.format_result(r, "topic"))
 
 
 def cmd_ingest_extract(args: argparse.Namespace) -> int:

@@ -769,15 +769,17 @@ a left-out `score` is computed.
 warnings name files that are left out.
 
 ### `SK-INGEST-FOLDER`
-**error.** The folder does not exist, or it (or the file given) holds no PDF at all.
+**error.** The folder does not exist, or it (or the file given) holds no PDF at all; for a
+topic, a given path does not exist, or none of them holds a PDF, text file or image.
 Fix: give the folder with the lecture material; export slides, scripts, sheets and exams
 as PDF first.
 
 ### `SK-INGEST-UNSUPPORTED`
 **warning.** An office file (`.pptx`, `.docx`, `.odp`, `.key`, …) or an image (`.png`,
-`.jpg`, `.heic`, …) is not read.
-Fix: export the document as PDF (photos and scans: combine them into one PDF) and run
-`studykit ingest add <course> <file>`.
+`.jpg`, `.heic`, …) is not read. A topic (§5.6) reads `.txt` and `.md` files and PNG, JPG,
+GIF and WebP images too, so there this means an office file or another image format.
+Fix: export the document as PDF (photos and scans: combine them into one PDF; for a topic,
+export an image as PNG or JPG) and run `studykit ingest add <course> <file>`.
 
 ### `SK-INGEST-DUPLICATE`
 **warning.** The PDF has the same content (sha256) as another one in the folder or a
@@ -788,11 +790,18 @@ Fix: nothing to do; delete the copy from the folder if it is not needed.
 **warning.** pypdfium2 cannot open the PDF: it is encrypted, damaged or not a PDF.
 Fix: remove the password or print the document to a new PDF, then add it again.
 
+### `SK-INGEST-CONVERT`
+**warning.** Only for a topic (§5.6): a text file or image could not be turned into a PDF
+and is left out (not UTF-8, empty, a damaged image), or its PDF lost characters the embedded
+fonts do not have (emoji, CJK); the rest of that document is read.
+Fix: save text as UTF-8 and export a damaged image again; when lost characters matter, add
+the text as an image, which the ingester transcribes.
+
 ### `SK-INGEST-COURSE`
-**error.** The draft `course.yaml` that `ingest init` would write does not validate, for
-example because of an empty title or a non-positive exam duration.
+**error.** The draft `course.yaml` that `ingest init` or `ingest topic` would write does not
+validate, for example because of an empty title or a non-positive exam duration.
 Fix: correct the flag that feeds it (`--title`, `--exam-minutes`, `--exam-points`,
-`--hours-per-week`) and run `ingest init` again.
+`--hours-per-week`) and run the command again.
 
 ## Plan (SK-PLAN, `studykit plan`)
 

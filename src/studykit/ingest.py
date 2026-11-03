@@ -17,6 +17,10 @@
 - `add <course> <file|folder>` (/add-material) is init's copy for a course that exists,
   followed by extract: only new or changed documents are copied and read again.
 - `round2 <course>` records the answers of step 6 in the manifest.
+- `topic <id> <path>…` is init for a topic (`kind: topic`, §5.6): any number of folders and
+  files, no exam questions. For a topic, text files and images count as material too (`add`
+  as well): they become PDFs in `sources/raw/`, so everything after them is the same, and
+  `source_sha256` remembers the original.
 - `page <course> <doc> <pages>` renders PDF pages of `sources/raw/<doc>.pdf` to PNG in
   `_build/pages/<doc>/pNNNN.png`, for agents that cannot read a PDF page themselves (Codex,
   docs/architecture.md §5.5).
@@ -38,6 +42,8 @@ import math
 import os
 import re
 import shutil
+import subprocess
+import tempfile
 import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -60,6 +66,10 @@ DRAWING_SHAPES = 30  # this many drawn shapes make a figure (a circuit has 40 to
 OFFICE = {".ppt", ".pptx", ".pps", ".ppsx", ".key", ".odp", ".doc", ".docx", ".odt"}
 OFFICE |= {".pages", ".rtf", ".xls", ".xlsx", ".ods", ".numbers"}
 IMAGES = {".png", ".jpg", ".jpeg", ".heic", ".tif", ".tiff", ".gif", ".bmp", ".webp"}
+# What a topic also takes: text files, and the images the pinned Typst can place.
+TOPIC_TEXTS = {".txt", ".md", ".markdown"}
+TOPIC_IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+TOPIC_FILES = TOPIC_TEXTS | TOPIC_IMAGES | {".pdf"}
 ROUND1_FORMATS = ("written", "written-mc", "mc", "oral")
 
 # Kind rules over a normalised name or cover text (ASCII, lower case, umlauts spelled out),
@@ -234,14 +244,17 @@ class Page:
     shapes: int  # drawn shapes (see _graphics)
     landscape: bool
     text: str = ""
+    from_text: bool = False  # set from a text file: there is nothing to see, however short
 
     @property
     def scanned(self) -> bool:
-        return self.chars < TEXT_CHARS
+        return self.chars < TEXT_CHARS and not self.from_text
 
     @property
     def reasons(self) -> list[str]:
-        out = []
+        out: list[str] = []
+        if self.from_text:
+            return out
         if self.scanned:
             out.append("no text layer")
         elif self.chars < VISUAL_CHARS:
@@ -327,8 +340,9 @@ class PdfInfo:
         return sum(p.landscape for p in self.pages) * 2 > len(self.pages)
 
 
-def analyse_pdf(path: Path, *, keep_text: bool = False) -> PdfInfo:
-    """Pages of a PDF with their text-layer and graphics measures (pypdfium2)."""
+def analyse_pdf(path: Path, *, keep_text: bool = False, from_text: bool = False) -> PdfInfo:
+    """Pages of a PDF with their text-layer and graphics measures (pypdfium2). `from_text`:
+    a topic's PDF made from a text file, whose pages are never pictures."""
     import pypdfium2 as pdfium
 
     try:
@@ -357,6 +371,7 @@ def analyse_pdf(path: Path, *, keep_text: bool = False) -> PdfInfo:
                         shapes=shapes,
                         landscape=width > height,
                         text=text if keep_text or i == 0 else "",
+                        from_text=from_text,
                     )
                 )
             finally:
@@ -475,6 +490,13 @@ class Candidate:
     kind_from: str = "none"
     status: str = "new"  # new | known | changed | duplicate
     duplicate_of: str | None = None
+    source_sha256: str | None = None  # of the text or image a topic's PDF was made from
+    topic: bool = False
+
+    @property
+    def key(self) -> str:
+        """What tells this material from other material: the original file's hash."""
+        return self.source_sha256 or self.sha256
 
     def row(self) -> dict[str, Any]:
         pages = self.info.pages
@@ -488,7 +510,7 @@ class Candidate:
             "sha256": self.sha256,
             "kind": self.kind,
             "kind_from": self.kind_from,
-            "uncertain": self.kind_from not in ("filename", "user"),
+            "uncertain": not self.topic and self.kind_from not in ("filename", "user"),
             "text_share": round(self.info.text_share, 3),
             "landscape": self.info.landscape,
             "visual_pages": [p.n for p in pages if p.visual],
@@ -499,12 +521,14 @@ class Candidate:
 
 @dataclass
 class Scan:
-    folder: Path
+    folder: Path | None  # None: several sources, so no one folder to watch for changes
     candidates: list[Candidate] = field(default_factory=list)
     skipped: list[model.SkippedFile] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
     lang: str | None = None
     exam_dates: list[dict[str, Any]] = field(default_factory=list)
+    # holds a topic's converted PDFs until they are copied (removed with the Scan)
+    converted: tempfile.TemporaryDirectory | None = None
 
     @property
     def documents(self) -> list[Candidate]:
@@ -513,7 +537,7 @@ class Scan:
     def to_json(self) -> dict[str, Any]:
         docs = [c.row() for c in self.documents]
         return {
-            "folder": str(self.folder),
+            "folder": str(self.folder) if self.folder else None,
             "documents": docs,
             "skipped": [s.model_dump(mode="json", exclude_none=True) for s in self.skipped],
             "totals": {
@@ -539,6 +563,92 @@ def _files(folder: Path) -> list[Path]:
         dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
         out += [Path(dirpath) / f for f in sorted(filenames) if not f.startswith(".")]
     return out
+
+
+# --- a topic's text files and images become PDFs ----------------------------------------------
+
+
+def _convert_with_typst(work: Path, source: str, out: Path) -> str | None:
+    """Compile `source` in `work` to `out` with the pinned Typst; the problem, or None."""
+    typst = tools.bin_path(tools.repo_root(), "typst")
+    if not typst.exists():
+        raise IngestError("Typst is not installed: run `just setup`")
+    (work / "doc.typ").write_text(source, encoding="utf-8")
+    # as in the PDF build (§3.3): only embedded fonts, and the same bytes on every run
+    env = {k: v for k, v in os.environ.items() if not k.startswith("TYPST_")}
+    env["SOURCE_DATE_EPOCH"] = "0"
+    proc = subprocess.run(
+        [
+            str(typst),
+            "compile",
+            "--root",
+            str(work),
+            "--ignore-system-fonts",
+            "--diagnostic-format",
+            "short",
+            str(work / "doc.typ"),
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=120,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return (proc.stderr.strip().splitlines() or ["typst failed"])[0][:200]
+    return None
+
+
+def text_to_pdf(path: Path, out: Path) -> str | None:
+    """A text file as a PDF with a text layer; the problem, or None."""
+    try:
+        text = path.read_bytes().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return "it is not UTF-8 text"
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    if not text.strip():
+        return "it is empty"
+    with tempfile.TemporaryDirectory(prefix="sk-text-") as tmp:
+        work = Path(tmp)
+        (work / "source.txt").write_text(text, encoding="utf-8")
+        # read() keeps it a string: nothing in the text is Typst markup
+        doc = (
+            '#set page(paper: "a4", margin: 2.2cm)\n'
+            "#set par(justify: false)\n"
+            '#text(read("source.txt"))\n'
+        )
+        return _convert_with_typst(work, doc, out)
+
+
+def image_to_pdf(path: Path, out: Path) -> str | None:
+    """An image as a one-page PDF cut to its shape; the problem, or None."""
+    with tempfile.TemporaryDirectory(prefix="sk-image-") as tmp:
+        work = Path(tmp)
+        name = f"source{path.suffix.lower()}"
+        shutil.copyfile(path, work / name)
+        doc = (
+            f'#set page(width: auto, height: auto, margin: 0.5cm)\n#image("{name}", width: 18cm)\n'
+        )
+        return _convert_with_typst(work, doc, out)
+
+
+def missing_characters(path: Path, info: PdfInfo) -> list[str]:
+    """Characters of a text file that its PDF lost: the embedded fonts do not have them."""
+    text = path.read_bytes().decode("utf-8-sig", errors="ignore")
+    kept = {c for page in info.pages for c in page.text}
+    return sorted({c for c in text if not c.isspace()} - kept)
+
+
+def _unique_origin(origin: str, parent: str, used: set[str]) -> str:
+    """Files of different sources may share a path: tell them apart by their parent folder."""
+    candidate, n = origin, 2
+    if candidate in used:
+        candidate = f"{parent}/{origin}"
+    while candidate in used:
+        candidate, n = f"{parent}-{n}/{origin}", n + 1
+    used.add(candidate)
+    return candidate
 
 
 def _exam_dates(cands: list[Candidate], today: dt.date) -> list[dict[str, Any]]:
@@ -571,45 +681,96 @@ def _exam_dates(cands: list[Candidate], today: dt.date) -> list[dict[str, Any]]:
     return [found[k] for k in sorted(found)]
 
 
+def _sources_of(folder: Path | list[Path]) -> tuple[list[tuple[Path, Path]], Path | None]:
+    """((source, the directory its files' origins are relative to), the folder to record).
+    With several sources an origin keeps the source's own name, so `a/x.pdf` and `b/x.pdf`
+    stay two documents, and there is no one folder to watch."""
+    if isinstance(folder, Path):
+        folder = folder.resolve()
+        return [(folder, folder.parent if folder.is_file() else folder)], folder
+    paths = [p.resolve() for p in folder]
+    if len(paths) == 1:
+        return _sources_of(paths[0])
+    return [(p, p.parent) for p in paths], None
+
+
 def scan(
-    folder: Path,
+    folder: Path | list[Path],
     *,
     manifest: model.SourceManifest | None = None,
     kinds: dict[str, str] | None = None,
     today: dt.date | None = None,
+    topic: bool = False,
 ) -> Scan:
-    """Inventory `folder` (or one file); never writes. `manifest`: the course's sources, to
-    tell known, changed and new documents apart; `kinds`: kinds the user decided, by id or
-    by origin."""
+    """Inventory `folder` (or one file, or with `topic` several of them); never writes.
+    `manifest`: the course's sources, to tell known, changed and new documents apart;
+    `kinds`: kinds the user decided, by id or by origin; `topic`: text files and images count
+    too, as PDFs made from them, and every document's kind is `other`."""
     today = today or dt.date.today()
-    folder = folder.resolve()
-    result = Scan(folder)
-    if not folder.exists():
+    sources, recorded = _sources_of(folder)
+    result = Scan(recorded)
+    missing = [src for src, _ in sources if not src.exists()]
+    for src in missing:
         result.findings.append(
             _finding(
-                folder,
+                src,
                 "SK-INGEST-FOLDER",
-                "the folder does not exist",
-                "give the folder that holds the lecture PDFs",
+                "the path does not exist" if topic else "the folder does not exist",
+                "give the folders or files with the material"
+                if topic
+                else "give the folder that holds the lecture PDFs",
             )
         )
+    if missing:
         return result
-    base = folder.parent if folder.is_file() else folder
-    known = {d.sha256: d for d in manifest.documents} if manifest else {}
+    known = {(d.source_sha256 or d.sha256): d for d in manifest.documents} if manifest else {}
     by_origin = {d.origin: d for d in manifest.documents} if manifest else {}
     taken = {d.id for d in manifest.documents} if manifest else set()
     seen: dict[str, Candidate] = {}
     texts: list[str] = []
-    for path in _files(folder):
-        origin = path.relative_to(base).as_posix()
+    used_origins: set[str] = set()
+    files = [
+        (path, _unique_origin(path.relative_to(base).as_posix(), base.name, used_origins))
+        for src, base in sources
+        for path in _files(src)
+    ]
+    for path, origin in files:
         suffix = path.suffix.lower()
-        if suffix != ".pdf":
+        pdf_path, source_digest = path, None
+        if topic and suffix in TOPIC_FILES - {".pdf"}:
+            if result.converted is None:
+                result.converted = tempfile.TemporaryDirectory(prefix="sk-topic-")
+            source_digest = sha256_file(path)
+            pdf_path = Path(result.converted.name) / f"{len(seen)}-{source_digest[:12]}.pdf"
+            problem = (text_to_pdf if suffix in TOPIC_TEXTS else image_to_pdf)(path, pdf_path)
+            if problem:
+                result.skipped.append(
+                    model.SkippedFile(origin=origin, reason="unreadable", note=problem)
+                )
+                result.findings.append(
+                    _finding(
+                        path,
+                        "SK-INGEST-CONVERT",
+                        f"it could not be turned into a PDF: {problem}",
+                        "save text as UTF-8 and export a damaged image again, then add it",
+                        "warning",
+                    )
+                )
+                continue
+        elif suffix != ".pdf":
             if suffix in OFFICE:
                 reason, note = "unsupported", "export it as PDF and add the PDF"
             elif suffix in IMAGES:
-                reason, note = "image", "combine the photos or scans into one PDF and add that"
+                reason, note = (
+                    ("image", "export it as PNG or JPG and add that")
+                    if topic
+                    else ("image", "combine the photos or scans into one PDF and add that")
+                )
             else:
-                reason, note = "ignored", "not a PDF"
+                reason, note = (
+                    "ignored",
+                    "neither a PDF, text nor an image" if topic else "not a PDF",
+                )
             result.skipped.append(model.SkippedFile(origin=origin, reason=reason, note=note))
             if reason != "ignored":
                 result.findings.append(
@@ -622,19 +783,21 @@ def scan(
                     )
                 )
             continue
-        digest = sha256_file(path)
+        digest = source_digest or sha256_file(path)
         if digest in seen:
             first = seen[digest]
             result.candidates.append(
                 Candidate(
                     path,
                     origin,
-                    digest,
+                    first.sha256,
                     path.stat().st_size,
                     first.info,
                     id=first.id,
                     status="duplicate",
                     duplicate_of=first.id,
+                    source_sha256=source_digest,
+                    topic=topic,
                 )
             )
             result.skipped.append(
@@ -655,7 +818,9 @@ def scan(
                 )
             )
             continue
-        info = analyse_pdf(path, keep_text=True)
+        info = analyse_pdf(
+            pdf_path, keep_text=True, from_text=bool(source_digest and suffix in TOPIC_TEXTS)
+        )
         if info.error:
             result.skipped.append(
                 model.SkippedFile(origin=origin, reason="unreadable", note=info.error[:200])
@@ -670,7 +835,29 @@ def scan(
                 )
             )
             continue
-        cand = Candidate(path, origin, digest, path.stat().st_size, info)
+        if source_digest and suffix in TOPIC_TEXTS:
+            lost = missing_characters(path, info)
+            if lost:
+                result.findings.append(
+                    _finding(
+                        path,
+                        "SK-INGEST-CONVERT",
+                        f"{len(lost)} kind(s) of character are missing from its PDF: "
+                        + " ".join(lost[:10]),
+                        "the embedded fonts lack them; if they matter, add the text as an image",
+                        "warning",
+                    )
+                )
+        pdf_digest = sha256_file(pdf_path)
+        cand = Candidate(
+            pdf_path,
+            origin,
+            pdf_digest,
+            pdf_path.stat().st_size,
+            info,
+            source_sha256=source_digest,
+            topic=topic,
+        )
         if digest in known:
             old = known[digest]
             cand.id, cand.kind, cand.kind_from, cand.status = (
@@ -679,6 +866,8 @@ def scan(
                 old.kind_from,
                 "known",
             )
+            # the recorded PDF stays the truth, also if another Typst would set it differently
+            cand.sha256 = old.sha256
         elif origin in by_origin:
             old = by_origin[origin]
             cand.id, cand.kind, cand.kind_from, cand.status = (
@@ -691,7 +880,8 @@ def scan(
             cand.id = doc_id(origin, taken)
             taken.add(cand.id)
             cover = info.pages[0].text if info.pages else ""
-            cand.kind, cand.kind_from = guess_kind(origin, cover, info.landscape)
+            if not topic:
+                cand.kind, cand.kind_from = guess_kind(origin, cover, info.landscape)
         if cand.status == "known" and digest in known and known[digest].origin != origin:
             cand.status = "duplicate"
             cand.duplicate_of = known[digest].id
@@ -722,14 +912,19 @@ def scan(
     if not result.candidates:  # (duplicates of known documents are fine)
         result.findings.append(
             _finding(
-                folder,
+                sources[0][0],
                 "SK-INGEST-FOLDER",
-                "the folder holds no readable PDF",
-                "export slides, scripts, sheets and exams as PDF into the folder",
+                "there is no readable PDF, text file or image"
+                if topic
+                else "the folder holds no readable PDF",
+                "give PDFs, .txt or .md files, or PNG, JPG, GIF or WebP images"
+                if topic
+                else "export slides, scripts, sheets and exams as PDF into the folder",
             )
         )
     result.lang = guess_lang(texts)
-    result.exam_dates = _exam_dates(result.documents, today)
+    if not topic:
+        result.exam_dates = _exam_dates(result.documents, today)
     return result
 
 
@@ -797,6 +992,7 @@ def _apply(
             pages=len(cand.info.pages),
             kind=cand.kind,  # type: ignore[arg-type]
             kind_from=cand.kind_from,  # type: ignore[arg-type]
+            source_sha256=cand.source_sha256,
             text_share=cand.info.text_share,
             added=docs[cand.id].added if cand.id in docs else today,
             updated=today if cand.status == "changed" else None,
@@ -820,7 +1016,9 @@ def _apply(
             del skipped[origin]  # it was exported to PDF after all, or is readable now
     updated = manifest.model_copy(
         update={
-            "folder": str(sc.folder if sc.folder.is_dir() else sc.folder.parent),
+            "folder": None
+            if sc.folder is None
+            else str(sc.folder if sc.folder.is_dir() else sc.folder.parent),
             "documents": [docs[i] for i in order],
             "skipped": sorted(skipped.values(), key=lambda s: s.origin),
         }
@@ -895,6 +1093,131 @@ def course_yaml(
         "retired_ids: []",
     ]
     return "\n".join(lines) + "\n"
+
+
+def topic_yaml(
+    course_id: str,
+    *,
+    title: str,
+    short: str | None,
+    lang: str,
+    contents: model.TopicContents,
+    path: Path,
+) -> str:
+    """The draft course.yaml of a topic (§5.6): the chapters follow in its synthesis step."""
+    draft_title = {"de": "Kapitel folgen nach dem Einlesen", "en": "Chapters follow after reading"}
+    lines = []
+    ref = _schema_ref(path, "course.schema.json")
+    if ref:
+        lines.append(f"# yaml-language-server: $schema={ref}")
+    lines += [
+        "# Draft written by `studykit ingest topic`: the chapters follow in the synthesis step",
+        "# of /register-new-topic (docs/architecture.md §5.6); status turns ready at the end.",
+        "schema: 1",
+        "kind: topic",
+        f"id: {course_id}",
+        f"title: {_q(title)}",
+    ]
+    if short:
+        lines.append(f"short: {_q(short)}")
+    lines += [
+        f"lang: {lang}",
+        "status: draft",
+        f"contents: {_flow(contents.model_dump())}",
+        "topics:",
+        f"  - {{id: {model.DRAFT_TOPIC}, title: {_q(draft_title[lang])}, weight: 1, prereq: []}}",
+        "retired_ids: []",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+CONTENT_NAMES = {"cards": "cards", "glossary": "glossary", "concept-map": "concept_map"}
+
+
+def parse_contents(value: str) -> model.TopicContents:
+    """`--contents cards,glossary,concept-map` (or `none`) as the topic's contents."""
+    names = [] if value.strip() == "none" else [v.strip() for v in value.split(",") if v.strip()]
+    unknown = [n for n in names if n not in CONTENT_NAMES]
+    if unknown:
+        raise IngestError(
+            f"--contents {', '.join(unknown)}: choose from {', '.join(CONTENT_NAMES)}, or none"
+        )
+    chosen = {CONTENT_NAMES[n] for n in names}
+    return model.TopicContents(**{field: field in chosen for field in CONTENT_NAMES.values()})
+
+
+def init_topic(
+    sources: list[Path],
+    course_id: str,
+    *,
+    title: str | None = None,
+    short: str | None = None,
+    lang: str | None = None,
+    contents: model.TopicContents | None = None,
+    today: dt.date | None = None,
+    dry_run: bool = False,
+) -> tuple[dict[str, Any], list[Finding]]:
+    """Scaffold a topic (§5.6): turn the material into PDFs, copy it, write the manifest and a
+    draft course.yaml. On a topic that exists it resumes, and course.yaml is left alone."""
+    today = today or dt.date.today()
+    course = _course_dir(course_id)
+    manifest, found = read_manifest(course)
+    if found:
+        return {}, found
+    exists = (course / "course.yaml").is_file()
+    if exists:
+        have = content.CourseTree(course).model
+        if have is not None and not have.is_topic:
+            raise IngestError(f"{course_id} is a course: add material with `ingest add`")
+    sc = scan(sources, manifest=manifest, today=today, topic=True)
+    errors = [f for f in sc.findings if f.is_error]
+    if errors and manifest is None:
+        return {"scan": sc.to_json()}, sc.findings
+    manifest = manifest or model.SourceManifest.model_validate({"schema": 1, "course": course_id})
+    write = not dry_run
+    manifest, res = _apply(course, sc, manifest, today, {}, write)
+    course_text = None
+    if not exists:
+        course_text = topic_yaml(
+            course_id,
+            title=title or course_id,
+            short=short,
+            lang=lang or sc.lang or "en",
+            contents=contents or model.TopicContents(),
+            path=course / "course.yaml",
+        )
+        try:
+            model.validate_course(yamlio.safe_load(course_text))
+        except ValidationError as exc:
+            msg = exc.errors()[0]["msg"]
+            return {}, [
+                _finding(
+                    course / "course.yaml",
+                    "SK-INGEST-COURSE",
+                    f"the draft course.yaml does not validate: {msg}",
+                    "fix the flag that feeds it (--title, --short)",
+                )
+            ]
+    if write:
+        write_manifest(course, manifest)
+        if course_text is not None:
+            _write(course / "course.yaml", course_text)
+    found = list(sc.findings)
+    if write:
+        found += gate(course)
+    result = {
+        "course": course_id,
+        "dir": content.display_path(course),
+        "created": not exists,
+        "dry_run": dry_run,
+        "added": res.added,
+        "changed": res.changed,
+        "known": res.known,
+        "skipped": [s.model_dump(mode="json", exclude_none=True) for s in sc.skipped],
+        "scan": sc.to_json(),
+        "next": f"uv run --frozen studykit ingest extract {course_id}",
+    }
+    return result, found
 
 
 def _course_dir(course_id: str) -> Path:
@@ -1095,7 +1418,8 @@ def extracted(course: Path, d: model.SourceDocument) -> bool:
 
 def _extract_doc(course: Path, d: model.SourceDocument) -> tuple[list[dict[str, Any]], int]:
     """Write the page texts and index of one document; (page infos, stale files removed)."""
-    info = analyse_pdf(course / "sources" / "raw" / d.file, keep_text=True)
+    from_text = d.source_sha256 is not None and Path(d.origin).suffix.lower() in TOPIC_TEXTS
+    info = analyse_pdf(course / "sources" / "raw" / d.file, keep_text=True, from_text=from_text)
     if info.error:
         raise IngestError(f"{d.id}: pypdfium2 cannot read sources/raw/{d.file}: {info.error}")
     out = text_dir(course, d.id)
@@ -1256,7 +1580,9 @@ def add(
         return {}, found
     if manifest is None:
         raise IngestError(f"no sources/manifest.yaml in {content.display_path(course)}")
-    sc = scan(source, manifest=manifest, kinds=kinds, today=today)
+    have = content.CourseTree(course).model
+    topic = have is not None and have.is_topic
+    sc = scan(source, manifest=manifest, kinds=kinds, today=today, topic=topic)
     errors = [f for f in sc.findings if f.is_error]
     if errors:
         return {"scan": sc.to_json()}, sc.findings
@@ -1333,7 +1659,7 @@ def round2(
 
 def format_scan(data: dict[str, Any]) -> str:
     docs = data["documents"]
-    lines = [f"{len(docs)} PDF(s) in {data['folder']}"]
+    lines = [f"{len(docs)} PDF(s) in {data['folder'] or 'the given sources'}"]
     if docs:
         w = max(len(d["id"]) for d in docs)
         lines.append(f"  {'id':<{w}}  {'kind':<14} {'pages':>5} {'text':>5}  visual  origin")
