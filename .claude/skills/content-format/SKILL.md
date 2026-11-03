@@ -41,11 +41,17 @@ pydantic models in `src/studykit/model.py` are the schema; their JSON export is 
 
 Any other file in the course is SK-STRUCT-PATH.
 
+A **topic** (`kind: topic` in `course.yaml`, docs/architecture.md §5.6) is one subject without
+an exam: `course.yaml`, `overview.md`, `summary/`, `cards/<topic>.md` (its flash cards),
+`figures/` and `sources/`. Its "topics" are chapters. `exercises/`, `mc/`, `exams/`,
+`cheatsheet.md`, `plan.yaml`, `analysis/`, and the fields `exam` and `study`, are
+SK-STRUCT-KIND there; `cards/` and `contents` are SK-STRUCT-KIND in a course.
+
 ## Ids
 
 - Kebab-case ASCII, unique in the course: exercises `ex-…`, MC questions
   `mc-<topic>-NNN` (practice banks count from 001; exam MC uses its own range such as
-  101, 201), exam tasks `<prefix>-tN` (`pk1-t1` in `probeklausur-1`), exams
+  101, 201), flash cards `card-<topic>-NNN`, exam tasks `<prefix>-tN` (`pk1-t1` in `probeklausur-1`), exams
   `probeklausur-N`, figures `<slug>`.
 - Ids are never renamed. A deleted item's id goes into `course.yaml: retired_ids`, and a
   retired id is never used again (SK-STRUCT-RETIRED).
@@ -67,6 +73,7 @@ Any other file in the course is SK-STRUCT-PATH.
 | exercise | **id**, **title**, **topic**, **difficulty** 1-4, **kind** compute/derive/concept/sketch/code, **minutes**, source `{doc, page, relation}`, answers |
 | exam task | the exercise fields with **kind: exam-task**, **points**, **archetype**, **rubric** `[{points, criterion}]` summing to points; difficulty and minutes optional |
 | MC bank | **topic**, **title** |
+| flash cards | **topic**, **title** |
 | exam MC | **title**, topic optional |
 | cheat sheet | **title**, **max_pages** (≤ course limit ≤ 10), priority (topic ids) |
 | exam.yaml | **schema: 1**, **id**, **title**, **duration_min**, **points**, **pass_points**, aids (`inherit`), modeled_on, **tasks** (file names), mc `{file: mc.md, points_each}` |
@@ -96,8 +103,10 @@ pandoc `commonmark_x` without smart quotes, raw HTML or attributes. Write „…
 | hint | `::: hint` | exercise, exam task | 1-3, ordered principle → set-up → key intermediate result; no answer value in a hint (SK-MATH-HINT-LEAK) |
 | solution | `::: solution` | exercise, exam task | exactly one, the last block |
 | definition, theorem, example, note, warning, takeaways | `::: definition` … | summary (cheat sheet: definition, note, warning) | a first paragraph that is one bold span is the box title |
-| mcq | `:::: {.mcq #mc-<topic>-NNN type="single" difficulty="2"}` | `mc/*.md`, `exams/*/mc.md` | exactly 4 colons; the only block with attributes |
+| mcq | `:::: {.mcq #mc-<topic>-NNN type="single" difficulty="2"}` | `mc/*.md`, `exams/*/mc.md` | exactly 4 colons; with flashcard the only block with attributes |
 | explanation | `::: explanation` | inside mcq | exactly one |
+| flashcard | `:::: {.flashcard #card-<topic>-NNN}` | `cards/*.md` | exactly 4 colons; the front, then one back; the id and no other attribute |
+| back | `::: back` | inside flashcard | exactly one, the last thing in the card |
 
 **MC question** (§2.6): the stem, then a loose task list; every option has exactly two
 paragraphs, the option text and its `why` (indented two spaces), separated by blank lines:
@@ -167,6 +176,8 @@ course. Change ids, topics and values, keep the structure.
 | Template | File it becomes |
 |---|---|
 | [course.yaml](templates/course.yaml) | `course.yaml` |
+| [course-topic.yaml](templates/course-topic.yaml) | `course.yaml` of a topic |
+| [cards.md](templates/cards.md) | `cards/<topic>.md`, the flash cards of a topic's chapter |
 | [overview.md](templates/overview.md) | `overview.md` (the six H2 sections in this order) |
 | [summary.md](templates/summary.md) | `summary/<nn>-<topic>.md` |
 | [exercise.md](templates/exercise.md) | `exercises/<topic>/<ex-id>.md`, numeric answers |

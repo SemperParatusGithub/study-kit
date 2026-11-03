@@ -23,6 +23,21 @@ cite, `notation.yaml`, the chapters of the prerequisite topics (link, do not rep
   „(→ Quelle: Dokument, S. n)“ to every `src:` link, so keep it out of parentheses and give
   it short text (`[Folie 12](src:…)`, not `([Skript, S. 2](src:…))`).
 
+## In a topic
+
+In a topic (`kind: topic`, docs/architecture.md §5.6) the summary is the explanation, the heart
+of the page, and the subject need not be technical:
+
+- The inputs are the notes and `sources/outline.md`; there is no notation file and no MC bank
+  or exercise to serve. Teach from the start: assume only the chapter's prerequisites and say
+  what each new word means. A formula where it helps, not as the structure of every section.
+- Every new term gets a `::: definition` box whose first paragraph is the bold term alone
+  (`**Merkle tree**`): the glossary collects these (SK-COV-GLOSSARY), so use the term as a
+  reader would look it up. Define a term once, in the chapter that introduces it, and link
+  that chapter later (the glossary keeps only the first definition). An `example` box shows the idea on something concrete, with numbers
+  from `studykit calc` where there are any; `warning` boxes hold real misconceptions.
+- No links to exercises; the chapter page links the flash cards itself.
+
 ## Rules
 
 - Derive the important formulas briefly; the cheat sheet later condenses them.

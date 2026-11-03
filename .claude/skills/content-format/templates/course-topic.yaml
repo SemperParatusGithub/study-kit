@@ -1,0 +1,11 @@
+schema: 1
+kind: topic
+id: how-bitcoin-works
+title: How Bitcoin works
+lang: en
+status: draft
+contents: {cards: true, glossary: true, concept_map: true}
+topics:                         # the chapters; order = teaching order; prereq acyclic
+  - {id: why-bitcoin, title: Why Bitcoin exists, weight: 0.2, prereq: []}
+  - {id: blocks-and-mining, title: Blocks and mining, weight: 0.8, prereq: [why-bitcoin]}
+retired_ids: []

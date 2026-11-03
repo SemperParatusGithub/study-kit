@@ -38,8 +38,9 @@ for Codex, which uses these skills and agents too (§5.5); change both together.
 
 ## Claude Code layer (`.claude/`, docs/architecture.md §5)
 
-- Commands: `/register-new-subject`, `/add-material`, `/regenerate`, `/verify`, `/tutor`,
-  `/examine`, `/import-progress`, `/study-status` (`.claude/skills/<name>/SKILL.md`).
+- Commands: `/register-new-subject`, `/register-new-topic`, `/add-material`, `/regenerate`,
+  `/verify`, `/tutor`, `/examine`, `/import-progress`, `/study-status`
+  (`.claude/skills/<name>/SKILL.md`).
   Internal skills the agents preload: `ingest`, `content-format`, `authoring`, `figures`,
   `verify-protocol`.
 - Agents: `ingester`, `exam-analyst`, `author`, `verifier`, `tutor`, `examiner`
@@ -63,6 +64,11 @@ for Codex, which uses these skills and agents too (§5.5); change both together.
   texts are written only by `studykit ingest init|extract|add`; notes by the `ingester`,
   `analysis/` by the `exam-analyst`, `sources/outline.md` and the topics by the command's
   main thread.
+- `/register-new-topic <path…> [--id <id>]` builds a topic (`kind: topic`, docs/architecture.md
+  §5.6): one subject without an exam, from folders, files, also text and images, and pasted text,
+  with an explanation and, as chosen, flash cards (`cards/<topic>.md`), a glossary and a concept
+  map. Its `topics` are chapters; `studykit ingest topic` scaffolds it. A topic has no exercises,
+  MC, exams, cheat sheet, plan or `analysis/`, and its flash cards are not blind-verified.
 - When you change a skill or an agent, run `uv run --frozen studykit codex agents` (it
   regenerates `.codex/agents/` from `.claude/agents/`) and
   `uv run --frozen pytest -q tests/py/test_claude.py`: it checks frontmatter, referenced

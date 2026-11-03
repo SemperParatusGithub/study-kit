@@ -39,6 +39,7 @@ CODEX = REPO / ".codex"
 INTERNAL = {"content-format", "authoring", "figures", "verify-protocol", "ingest"}
 COMMANDS = {
     "register-new-subject",
+    "register-new-topic",
     "add-material",
     "regenerate",
     "verify",
@@ -49,7 +50,10 @@ COMMANDS = {
 }
 AGENT_NAMES = {"ingester", "exam-analyst", "author", "verifier", "tutor", "examiner"}
 # the first argument of each command's argument-hint (§5.2)
-FIRST_ARG = {name: "<course>" for name in COMMANDS} | {"register-new-subject": "<folder>"}
+FIRST_ARG = {name: "<course>" for name in COMMANDS} | {
+    "register-new-subject": "<folder>",
+    "register-new-topic": "<path>",
+}
 
 SKILL_KEYS = {
     "name",
@@ -152,6 +156,11 @@ TEMPLATES = {
     "plan.yaml": "plan.yaml",
     "exam-profile.yaml": "analysis/exam-profile.yaml",
     "figure.py": "figures/vorlage-bode.py",
+}
+# the same for a topic (§5.6)
+TOPIC_TEMPLATES = {
+    "course-topic.yaml": "course.yaml",
+    "cards.md": "cards/blocks-and-mining.md",
 }
 
 
@@ -489,9 +498,9 @@ def test_recipes_pass_the_verifier_guard(tmp_path: Path):
 def test_every_template_is_listed_and_mapped():
     base = SKILLS / "content-format" / "templates"
     present = {p.relative_to(base).as_posix() for p in base.rglob("*") if p.is_file()}
-    assert present == set(TEMPLATES)
+    assert present == set(TEMPLATES) | set(TOPIC_TEMPLATES)
     text = (SKILLS / "content-format" / "SKILL.md").read_text("utf-8")
-    for name in TEMPLATES:
+    for name in [*TEMPLATES, *TOPIC_TEMPLATES]:
         assert f"(templates/{name})" in text
 
 
@@ -510,6 +519,19 @@ def test_templates_pass_lint_in_the_sample_course(tmp_path: Path):
     assert "def build()" in (base / "figure.py").read_text("utf-8")
     report = lint.lint_files(targets)
     assert [f.format() for f in report.findings] == []
+
+
+def test_topic_templates_pass_lint_on_their_own(tmp_path: Path):
+    course = tmp_path / "how-bitcoin-works"
+    base = SKILLS / "content-format" / "templates"
+    targets = []
+    for name, rel in TOPIC_TEMPLATES.items():
+        dest = course / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(base / name, dest)
+        targets.append(dest)
+    report = lint.lint_files(targets)
+    assert [f.format() for f in report.findings if f.code != "SK-STRUCT-MISSING"] == []
 
 
 # --- ingest templates ---------------------------------------------------------------------
@@ -638,13 +660,16 @@ def test_register_command_asks_the_planned_questions():
         assert needle in round2
 
 
-@pytest.mark.parametrize("name", ["register-new-subject", "add-material"])
+@pytest.mark.parametrize("name", ["register-new-subject", "add-material", "register-new-topic"])
 def test_ingest_commands_cap_agents_and_judge_by_files(name: str):
     _, body = split(SKILLS / name / "SKILL.md")
-    assert "at most 6" in body
+    assert "at most 6" in body.lower()
     assert "pipeline status" in body
     assert "not from" in body or "never from" in body  # agents' reports are not the gate
-    for agent in ("ingester", "exam-analyst"):
+    agents = (
+        ("ingester", "author") if name == "register-new-topic" else ("ingester", "exam-analyst")
+    )
+    for agent in agents:
         assert f"`{agent}`" in body
     # the user's folder is read by studykit ingest only
     assert "Never Read, Write or list" in body

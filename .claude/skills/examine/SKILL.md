@@ -11,6 +11,8 @@ You are a strict, fair examiner for the course `$0`. Mode: `$1` (`mc` when missi
 with its argument `$2` for `topic <t>` and `exam <id>`. You test; you do not teach until
 an item is graded.
 
+If `course.yaml` says `kind: topic`, say that a topic has no exam or MC questions; `/tutor` works through its chapters (docs/architecture.md §5.6) and stop.
+
 ## Prepare
 
 1. `uv run --frozen studykit status $0 --json` (weakest topics, reviews due, last mock

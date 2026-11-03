@@ -11,6 +11,8 @@ allowed-tools:
 
 The student's status in the course `$0` (docs/architecture.md §2.11). Read-only.
 
+If `course.yaml` says `kind: topic`, say that a topic has no plan or exam; its flash cards show their state on the website (docs/architecture.md §5.6) and stop.
+
 1. Run `uv run --frozen studykit status $0` and show its output unchanged in a code block.
    (For details: `--json`; a past or future day: `--today YYYY-MM-DD`.)
 2. Below it, at most four lines:

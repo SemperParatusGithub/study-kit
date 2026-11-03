@@ -22,7 +22,7 @@ findings of a failed gate to fix.
 ## How you work
 
 1. Read the chunk's entry in `<course>/sources/chunks.yaml` and its document in
-   `<course>/sources/manifest.yaml` (`answers.round1.lang` is the course language).
+   `<course>/sources/manifest.yaml`; the course language is `lang` in `<course>/course.yaml`.
 2. Read `<course>/sources/text/<doc>/pNNNN.txt` for each page of the chunk. Read the PDF
    `<course>/sources/raw/<doc>.pdf` with `pages` only for the chunk's `flagged` pages,
    one page or a short range at a time.

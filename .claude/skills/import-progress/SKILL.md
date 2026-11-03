@@ -14,6 +14,8 @@ Bring the progress the student made on the website (stored in the browser) into 
 course, so that `studykit status`, `studykit plan` and the examiner see it
 (docs/architecture.md §2.11). Arguments: the course `$0`, optionally the export file `$1`.
 
+If `course.yaml` says `kind: topic`, say that a topic has no progress to import: its flash cards stay in the browser (docs/architecture.md §5.6) and stop.
+
 ## 1. Find the file
 
 1. `uv run --frozen studykit ls $0` must find the course; its id is the directory name.
