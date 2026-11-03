@@ -750,6 +750,13 @@ def cmd_status(args: argparse.Namespace) -> int:
     tree = _course_tree(args.course)
     if tree is None:
         return 1
+    if tree.model is not None and tree.model.is_topic:
+        print(
+            f"error: {tree.id} is a topic: it has no exam and no plan, and its flash cards show "
+            "their state on the website",
+            file=sys.stderr,
+        )
+        return 2
     try:
         result, found = status.study_status(tree.root, args.today)
     except ValueError as exc:

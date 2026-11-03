@@ -207,7 +207,7 @@ def today_local(tz: tzinfo | None = None) -> str:
 
 # --- lib/store.ts: entries and merge ------------------------------------------------------
 
-KEY_RE = re.compile(r"^(mc|ex|exam|plan):[a-z0-9][a-z0-9-]*$")
+KEY_RE = re.compile(r"^(mc|ex|exam|plan|card):[a-z0-9][a-z0-9-]*$")
 
 
 def kind_of(key: str) -> str | None:
@@ -258,6 +258,13 @@ def normalize_entry(key: str, value: dict) -> dict:
         }
     if kind == "plan":
         return {"done": value["done"]}
+    if kind == "card":
+        return {
+            "h": value["h"],
+            "box": value.get("box"),
+            "due": value.get("due"),
+            "reviews": value.get("reviews", 0),
+        }
     raise ValueError(f"invalid progress key: {key}")
 
 
@@ -321,6 +328,11 @@ def _merge_exam(a: dict, b: dict) -> dict:
     return {"attempts": sorted(seen.values(), key=lambda x: x["started"])}
 
 
+def _merge_card(a: dict, b: dict) -> dict:
+    """The entry with more reviews (lib/store.ts `mergeCard`); a tie keeps the later due day."""
+    return b if (b["reviews"], b["due"] or "") > (a["reviews"], a["due"] or "") else a
+
+
 def merge(local: dict, incoming: dict) -> tuple[dict, int, int]:
     """lib/store.ts `merge`: (merged document, entries added, entries merged)."""
     doc = copy.deepcopy(local)
@@ -341,6 +353,8 @@ def merge(local: dict, incoming: dict) -> tuple[dict, int, int]:
             doc["items"][key] = copy.deepcopy(_merge_exam(mine, entry))
         elif kind == "plan":
             doc["items"][key] = {"done": mine["done"] or entry["done"]}
+        elif kind == "card":
+            doc["items"][key] = copy.deepcopy(_merge_card(mine, entry))
     return doc, added, merged
 
 
@@ -1157,7 +1171,7 @@ def course_info(tree: content.CourseTree) -> CourseInfo:
         }
         for s in (plan.sessions if plan else [])
     ]
-    exam_date = course.exam.date or (plan.exam_date if plan else None)
+    exam_date = (course.exam.date if course.exam else None) or (plan.exam_date if plan else None)
     return CourseInfo(
         id=tree.id,
         title=course.title,

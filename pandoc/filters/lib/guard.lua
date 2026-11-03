@@ -2,9 +2,10 @@
 -- (docs/architecture.md §2.3). Fails on unknown classes, misplaced or nested blocks,
 -- paragraphs that start with ::: (a fence pandoc did not read as one) and, when the
 -- source text is available, on fence lines that are not exactly `::: name`,
--- `:::: {.mcq …}`, `:::` or `::::`. Also rejects raw HTML, which the reader still
--- produces although the dialect turns it off, and `{…}` attributes on anything but an
--- mcq: the HTML writer copies them onto the element, so `onclick` would reach the page.
+-- `:::: {.mcq …}`, `:::: {.flashcard …}`, `:::` or `::::`. Also rejects raw HTML, which the
+-- reader still produces although the dialect turns it off, and `{…}` attributes on anything
+-- but an mcq or a flashcard: the HTML writer copies them onto the element, so `onclick` would
+-- reach the page.
 
 local M = {}
 
@@ -21,8 +22,11 @@ local NAMES = {
   takeaways = true,
   mcq = true,
   explanation = true,
+  flashcard = true,
+  back = true,
 }
-local NAME_LIST = 'hint, solution, definition, theorem, example, note, warning, takeaways, mcq, explanation'
+local NAME_LIST =
+  'hint, solution, definition, theorem, example, note, warning, takeaways, mcq, explanation, flashcard, back'
 local CODE_LANGUAGES = {
   python = true,
   matlab = true,
@@ -53,6 +57,9 @@ local function fence_of(name)
   if name == 'mcq' then
     return '`:::: {.mcq #id type="…" difficulty="…"}`'
   end
+  if name == 'flashcard' then
+    return '`:::: {.flashcard #card-<topic>-NNN}`'
+  end
   return '`::: ' .. name .. '`'
 end
 
@@ -71,7 +78,7 @@ function M.div(el, ctx, parent)
   if #classes > 1 then
     ctx:fail('SK-BLOCK-FENCE', 'block `' .. name .. '` has more than one class', 'write the fence as ' .. fence_of(name))
   end
-  if name ~= 'mcq' and (el.identifier ~= '' or #M.user_attributes(el) > 0) then
+  if name ~= 'mcq' and name ~= 'flashcard' and (el.identifier ~= '' or #M.user_attributes(el) > 0) then
     ctx:fail('SK-BLOCK-FENCE', '`' .. name .. '` takes no id or attributes', 'write the fence as ' .. fence_of(name))
   end
 
@@ -83,11 +90,19 @@ function M.div(el, ctx, parent)
         'move it to the end of its `:::: {.mcq …}` block'
       )
     end
+  elseif name == 'back' then
+    if parent ~= 'flashcard' then
+      ctx:fail(
+        'SK-BLOCK-PLACEMENT',
+        '`::: back` is only allowed directly inside a flashcard',
+        'move it to the end of its `:::: {.flashcard …}` block'
+      )
+    end
   elseif parent ~= 'root' then
     ctx:fail(
       'SK-BLOCK-NESTING',
       '`' .. name .. '` cannot be nested in another block or a list',
-      'put it at the top level; only `::: explanation` nests, directly inside an mcq'
+      'put it at the top level; only `::: explanation` nests in an mcq and `::: back` in a flashcard'
     )
   end
 
@@ -100,6 +115,10 @@ function M.div(el, ctx, parent)
     elseif name == 'mcq' then
       if kind ~= 'mc' then
         ctx:fail('SK-BLOCK-PLACEMENT', 'mcq blocks are only allowed in mc/<topic>.md and exams/<exam>/mc.md', 'move the question')
+      end
+    elseif name == 'flashcard' then
+      if kind ~= 'cards' then
+        ctx:fail('SK-BLOCK-PLACEMENT', 'flashcard blocks are only allowed in cards/<topic>.md', 'move the card')
       end
     elseif M.BOXES[name] then
       if kind == 'cheatsheet' then
@@ -308,14 +327,17 @@ function M.scan_fences(text, ctx, first)
             if not name and rest:match('^ {%.mcq[%s}]') then
               name = 'mcq'
             end
+            if not name and rest:match('^ {%.flashcard[%s}]') then
+              name = 'flashcard'
+            end
             if not name then
               fail(
                 i,
                 'malformed fence `' .. line .. '`',
-                'write `::: name` or `:::: {.mcq #id type="…" difficulty="…"}`'
+                'write `::: name`, `:::: {.mcq #id type="…" difficulty="…"}` or `:::: {.flashcard #id}`'
               )
             else
-              local want = name == 'mcq' and 4 or 3
+              local want = (name == 'mcq' or name == 'flashcard') and 4 or 3
               if #colons ~= want then
                 fail(
                   i,

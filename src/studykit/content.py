@@ -33,6 +33,7 @@ PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("summary", re.compile(rf"^summary/(?P<nn>[0-9]{{2}})-(?P<topic>{K})\.md$")),
     ("exercise", re.compile(rf"^exercises/(?P<topic>{K})/(?P<id>ex-{K})\.md$")),
     ("mc", re.compile(rf"^mc/(?P<topic>{K})\.md$")),
+    ("cards", re.compile(rf"^cards/(?P<topic>{K})\.md$")),
     ("exam", re.compile(rf"^exams/(?P<exam>{K})/exam\.yaml$")),
     ("exam-mc", re.compile(rf"^exams/(?P<exam>{K})/mc\.md$")),
     (
@@ -53,6 +54,7 @@ LAYOUT = {
     "summary": "summary/NN-<topic>.md",
     "exercises": "exercises/<topic>/<ex-id>.md",
     "mc": "mc/<topic>.md",
+    "cards": "cards/<topic>.md",
     "exams": "exams/<exam-id>/{exam.yaml, NN-<task-id>.md, mc.md}",
     "figures": "figures/<slug>.py",
     "analysis": "analysis/{exam-profile.yaml, notation.yaml}",
@@ -68,6 +70,7 @@ MARKDOWN_KINDS = {
     "mc",
     "exam-mc",
     "exam-task",
+    "cards",
     "cheatsheet",
     "notes",
 }
@@ -81,6 +84,7 @@ ALLOWED_BLOCKS = {
     "cheatsheet": {"definition", "note", "warning"},
     "mc": {"mcq"},
     "exam-mc": {"mcq"},
+    "cards": {"flashcard"},
     "overview": set(),
     "notes": set(),
 }
@@ -254,6 +258,20 @@ class Question:
     @property
     def type(self) -> str | None:
         return self.block.attrs.get("type")
+
+
+@dataclass
+class Flashcard:
+    """`:::: {.flashcard #card-<topic>-NNN}` with a front and a `::: back` block (§5.6)."""
+
+    block: Block
+    line: int  # file line of the opening fence
+    front: list[str] = field(default_factory=list)
+    backs: list[Block] = field(default_factory=list)
+
+    @property
+    def id(self) -> str | None:
+        return self.block.ident
 
 
 @dataclass
@@ -660,7 +678,7 @@ class Body:
                         "SK-BLOCK-FENCE",
                         f"closing fence has {colons} colons, but '{block.name}' opened with "
                         f"{block.colons}",
-                        "close ::: blocks with ::: and the mcq block with ::::",
+                        "close ::: blocks with ::: and mcq and flashcard blocks with ::::",
                     )
                 self._check_blank_after(i)
                 continue
@@ -671,13 +689,17 @@ class Body:
                 parent = stack[-1]
                 block.parent = parent
                 parent.children.append(block)
-                if block.known and not (parent.name == "mcq" and block.name == "explanation"):
+                if block.known and not (
+                    (parent.name == "mcq" and block.name == "explanation")
+                    or (parent.name == "flashcard" and block.name == "back")
+                ):
                     self.finding(
                         ln.no,
                         1,
                         "SK-BLOCK-NESTING",
                         f"'{block.name}' is nested inside '{parent.name}'",
-                        "close the outer block first; only explanation may sit inside mcq",
+                        "close the outer block first; only explanation may sit inside mcq, "
+                        "and back inside flashcard",
                     )
             else:
                 top.append(block)
@@ -690,6 +712,14 @@ class Body:
                         "SK-BLOCK-PLACEMENT",
                         "explanation outside an mcq block",
                         "put ::: explanation inside the :::: {.mcq …} block, after the options",
+                    )
+                elif block.name == "back":
+                    self.finding(
+                        ln.no,
+                        1,
+                        "SK-BLOCK-PLACEMENT",
+                        "back outside a flashcard block",
+                        "put ::: back inside the :::: {.flashcard …} block, after the front",
                     )
                 elif block.name not in allowed:
                     where = ", ".join(sorted(allowed)) or "no blocks"
@@ -707,7 +737,7 @@ class Body:
                 1,
                 "SK-BLOCK-FENCE",
                 f"'{block.name}' block is never closed",
-                "add the closing fence (::: or :::: for mcq) after its content",
+                "add the closing fence (::: or :::: for mcq and flashcard) after its content",
             )
         return top
 
@@ -725,13 +755,22 @@ class Body:
                     'write :::: {.mcq #mc-<topic>-NNN type="single" difficulty="2"}',
                 )
                 return Block("mcq", colons, 0)
-            if name not in (*BLOCKS, "explanation"):
+            if name == "flashcard":
+                self.finding(
+                    ln.no,
+                    1,
+                    "SK-BLOCK-FENCE",
+                    "flashcard block without an id",
+                    "write :::: {.flashcard #card-<topic>-NNN}",
+                )
+                return Block("flashcard", colons, 0)
+            if name not in (*BLOCKS, "explanation", "back"):
                 self.finding(
                     ln.no,
                     1,
                     "SK-BLOCK-UNKNOWN",
                     f"unknown block '{name}'",
-                    f"use one of: {', '.join((*BLOCKS, 'explanation'))}",
+                    f"use one of: {', '.join((*BLOCKS, 'explanation', 'back'))}",
                 )
                 return Block(name, colons, 0, known=False)
             if colons != 3:
@@ -746,8 +785,26 @@ class Body:
         if attrs_m:
             classes, ident, pairs, error = parse_attrs(attrs_m["attrs"])
             name = classes[0] if classes else ""
+            if name == "flashcard":
+                if colons != 4:
+                    self.finding(
+                        ln.no,
+                        1,
+                        "SK-BLOCK-FENCE",
+                        f"flashcard fence has {colons} colons",
+                        "open and close flashcard blocks with exactly four colons (::::)",
+                    )
+                if error or pairs:
+                    self.finding(
+                        ln.no,
+                        1,
+                        "SK-CARD-ATTR",
+                        f"flashcard attributes: {error or ', '.join(pairs)}",
+                        "write :::: {.flashcard #card-<topic>-NNN}, with the id and nothing else",
+                    )
+                return Block("flashcard", colons, 0, ident=ident, classes=classes)
             if name != "mcq":
-                known = name in (*BLOCKS, "explanation")
+                known = name in (*BLOCKS, "explanation", "back")
                 self.finding(
                     ln.no,
                     1,
@@ -755,7 +812,7 @@ class Body:
                     f"block '{name or '{…}'}' with attributes",
                     f"write '::: {name}' without attributes"
                     if known
-                    else "only :::: {.mcq …} takes attributes",
+                    else "only :::: {.mcq …} and :::: {.flashcard …} take attributes",
                 )
                 return Block(name or "?", colons, 0, known=False)
             if colons != 4:
@@ -831,6 +888,20 @@ class Body:
             end = block.close_line if block.close_line is not None else len(self.lines) - 1
             inside.update(range(block.open_line, end + 1))
         return [ln for i, ln in enumerate(self.lines) if i not in inside]
+
+    # --- flash cards ---
+
+    @cached_property
+    def flashcards(self) -> list[Flashcard]:
+        out = []
+        for block in self.blocks:
+            if block.name != "flashcard":
+                continue
+            card = Flashcard(block, self.lines[block.open_line].no)
+            card.backs = [c for c in block.children if c.name == "back"]
+            card.front = [ln.text for ln in self.block_text(block) if ln.text.strip()]
+            out.append(card)
+        return out
 
     # --- multiple choice ---
 
@@ -1454,6 +1525,12 @@ class CourseTree:
                     if q.id:
                         stem = shorten(" ".join(s.strip() for s in q.stem))
                         out.append(Item(q.id, "mc", stem, model.mc_topic(q.id), doc.rel, q.line))
+            elif doc.kind == "cards" and doc.body is not None:
+                for card in doc.body.flashcards:
+                    if card.id:
+                        front = shorten(" ".join(s.strip() for s in card.front))
+                        topic = doc.parts.get("topic")
+                        out.append(Item(card.id, "card", front, topic, doc.rel, card.line))
             elif doc.kind == "summary":
                 topic = doc.parts.get("topic")
                 out.append(Item(f"summary-{topic}", "summary", title, topic, doc.rel, 1))

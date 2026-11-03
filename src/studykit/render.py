@@ -5,8 +5,8 @@ instead of assembling pandoc arguments itself, so the argv stays in one place
 (`studykit.pandoc`). One run:
 
 1. writes `_build/index.json` (`index.write`), which the filter resolves references against;
-2. picks the files: overview, summary, exercise, mc, exam-mc, exam-task and cheatsheet are
-   rendered to HTML, exam.yaml comes back as data only; `paths` narrows the selection;
+2. picks the files: overview, summary, exercise, mc, exam-mc, exam-task, cards and cheatsheet
+   are rendered to HTML, exam.yaml comes back as data only; `paths` narrows the selection;
 3. computes each file's digest: sha256 of a format tag, the pandoc version, the filter tree
    (`pandoc/` plus this module and the studykit modules it imports), the index, the
    frontmatter validation context (topics and limits from course.yaml) and the file
@@ -52,7 +52,16 @@ from studykit.findings import Finding
 
 RENDER_SCHEMA = 1
 FORMAT_TAG = b"studykit-render/1"
-HTML_KINDS = ("overview", "summary", "exercise", "mc", "exam-mc", "exam-task", "cheatsheet")
+HTML_KINDS = (
+    "overview",
+    "summary",
+    "exercise",
+    "mc",
+    "exam-mc",
+    "exam-task",
+    "cards",
+    "cheatsheet",
+)
 DATA_KINDS = ("exam",)
 KINDS = HTML_KINDS + DATA_KINDS
 PACKAGE = Path(__file__).parent

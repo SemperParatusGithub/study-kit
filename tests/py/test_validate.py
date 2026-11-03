@@ -99,7 +99,7 @@ def test_quick_skips_cross_file_stages(mini: Path, denylist: Path):
     report = run(mini, denylist, quick=True)
     assert report.findings == []
     names = [s.name for s in report.courses[0].stages]
-    assert names[:5] == ["Structure", "Schema", "Fences", "MC", "Math"]
+    assert names[:6] == ["Structure", "Schema", "Fences", "MC", "Cards", "Math"]
     assert "References" not in names and "Coverage" not in names
 
 

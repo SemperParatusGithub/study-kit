@@ -1,7 +1,7 @@
 -- study-kit pandoc filter: one entry point for every target (docs/architecture.md §3.1).
 --
 -- FORMAT decides what happens:
---   html*   the website contract: <aside>/<details> blocks, <sk-mc>, <sk-math>, sk-meta
+--   html*   the website contract: <aside>/<details> blocks, <sk-mc>, <sk-card>, <sk-math>, sk-meta
 --   typst   calls into the house library typst/studykit.typ
 --   other   (json, native, …) validation only; the AST is returned unchanged
 --
@@ -31,6 +31,7 @@ local i18n = require 'lib.i18n'
 local guard = require 'lib.guard'
 local blocks = require 'lib.blocks'
 local mcq = require 'lib.mcq'
+local flashcards = require 'lib.flashcards'
 local skmath = require 'lib.math'
 local figures = require 'lib.figures'
 local refs = require 'lib.refs'
@@ -80,6 +81,8 @@ function Ctx.file_kind(rel)
     return 'exercise'
   elseif rel:match('^mc/[^/]+%.md$') or rel:match('^exams/[^/]+/mc%.md$') then
     return 'mc'
+  elseif rel:match('^cards/[^/]+%.md$') then
+    return 'cards'
   elseif rel:match('^exams/[^/]+/[^/]+%.md$') then
     return 'exam-task'
   end
@@ -178,9 +181,9 @@ function Ctx:load_index()
       data.quarantine_set[id] = true
     end
   end
-  data.by_path = {} -- one item per file; MC banks hold many questions and have none
+  data.by_path = {} -- one item per file; MC banks and card files hold many and have none
   for id, item in pairs(data.items) do
-    if type(item) == 'table' and type(item.path) == 'string' and item.kind ~= 'mc' then
+    if type(item) == 'table' and type(item.path) == 'string' and item.kind ~= 'mc' and item.kind ~= 'card' then
       data.by_path[item.path] = id
     end
   end
@@ -458,11 +461,16 @@ function W.blocks(blks, ctx, parent)
   return out
 end
 
---- guard.div for a Div directly inside an mcq.
-function W.guard_div(el, ctx, pos)
+--- guard.div for a Div directly inside an mcq or a flashcard.
+function W.guard_div(el, ctx, pos, parent)
   return W.with_pos(ctx, pos, function()
-    return guard.div(el, ctx, 'mcq')
+    return guard.div(el, ctx, parent or 'mcq')
   end)
+end
+
+--- Attribute keys an author wrote on an element.
+function W.guard_attributes(el)
+  return guard.user_attributes(el)
 end
 
 --- Walk nested block and inline lists of an element we do not handle specially
@@ -485,6 +493,8 @@ function W.block(el, ctx, parent)
     local name = guard.div(el, ctx, parent)
     if name == 'mcq' then
       return mcq.render(el, ctx, W)
+    elseif name == 'flashcard' then
+      return flashcards.render(el, ctx, W)
     elseif name == 'hint' or name == 'solution' then
       return blocks.exercise_block(name, el, ctx, W)
     elseif name and guard.BOXES[name] then

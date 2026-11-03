@@ -841,6 +841,17 @@ def run(
             Finding(cpath, 1, 1, "SK-PLAN-STUDY", "course.yaml does not validate", "run validate")
         ]
         return {}, found
+    if course.is_topic:
+        return {}, [
+            Finding(
+                cpath,
+                1,
+                1,
+                "SK-PLAN-STUDY",
+                f"{tree.id} is a topic: a topic has no exam and no study plan",
+                "learn it with its explanation and flash cards on the website",
+            )
+        ]
     if course.study is None:
         return {}, [
             Finding(

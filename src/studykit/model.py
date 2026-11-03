@@ -66,6 +66,7 @@ EXAMPLES = {
     "task-file": "01-pk1-t1.md",
 }
 MC_ID_RE = re.compile(rf"^mc-(?P<topic>{KEBAB})-(?P<num>[0-9]{{3}})$")
+CARD_ID_RE = re.compile(rf"^card-(?P<topic>{KEBAB})-(?P<num>[0-9]{{3}})$")
 # Patterns that end up in schemas/*.json must also be valid ECMA-262 regexes (editors and
 # JS validators read them), so they use plain groups, never Python's (?P<name>…).
 REF_RE = re.compile(r"^(ex|mc|topic|exam|src|fig):(\S+)$")
@@ -274,6 +275,14 @@ class Targets(Strict):
     mock_exams: int = Field(2, ge=0, le=MAX_MOCK_EXAMS)
 
 
+class TopicContents(Strict):
+    """What a topic has besides its explanation; chosen when it is registered (§5.6)."""
+
+    cards: bool = True
+    glossary: bool = True
+    concept_map: bool = True
+
+
 def _cycle(topics: list[Topic]) -> list[str] | None:
     graph = {t.id: list(t.prereq) for t in topics}
     state: dict[str, int] = {}
@@ -298,16 +307,19 @@ def _cycle(topics: list[Topic]) -> list[str] | None:
 
 
 class Course(Strict):
-    """`course.yaml`: one per course directory."""
+    """`course.yaml`: one per course directory. `kind: topic` is a single subject to
+    understand, without an exam: its `topics` are chapters (§5.6)."""
 
     schema_version: Literal[1] = Field(alias="schema")
+    kind: Literal["course", "topic"] = "course"
     id: CourseId
     title: Text
     short: Text | None = None
     lang: Literal["de", "en"] = Field(description="language of generated content")
     semester: Text | None = None
     status: Literal["draft", "ready"] = "draft"
-    exam: CourseExam
+    exam: CourseExam | None = Field(None, description="required unless kind is topic")
+    contents: TopicContents | None = Field(None, description="only with kind: topic")
     cheatsheet: CheatsheetPolicy = CheatsheetPolicy(allowed=False)
     study: Study | None = None
     topics: list[Topic] = Field(min_length=1, description="order = teaching order")
@@ -346,6 +358,41 @@ class Course(Strict):
         return topics
 
     @model_validator(mode="after")
+    def _fields_of_the_kind(self) -> Course:
+        if self.kind == "course":
+            if self.exam is None:
+                raise sk_error(
+                    "SK-SCHEMA-MISSING",
+                    "missing required field 'exam'",
+                    "add it; only kind: topic has no exam",
+                )
+            if self.contents is not None:
+                raise sk_error(
+                    "SK-STRUCT-KIND",
+                    "contents is only for kind: topic",
+                    "remove contents, or set kind: topic for a single topic without an exam",
+                )
+            return self
+        extras = [
+            name
+            for name, value in (
+                ("exam", self.exam),
+                ("study", self.study),
+                ("cheatsheet", self.cheatsheet.allowed or None),
+            )
+            if value is not None
+        ]
+        if extras:
+            raise sk_error(
+                "SK-STRUCT-KIND",
+                f"a topic has no {', '.join(extras)}",
+                "remove it, or register a course with an exam (/register-new-subject)",
+            )
+        if self.contents is None:
+            self.contents = TopicContents()
+        return self
+
+    @model_validator(mode="after")
     def _focus_and_skip(self, info: ValidationInfo) -> Course:
         ids = [t.id for t in self.topics]
         if (info.context or {}).get("topics") is None:
@@ -368,6 +415,10 @@ class Course(Strict):
     @property
     def topic_ids(self) -> list[str]:
         return [t.id for t in self.topics]
+
+    @property
+    def is_topic(self) -> bool:
+        return self.kind == "topic"
 
 
 def course_context(course: Course | None) -> dict[str, Any]:
@@ -520,6 +571,13 @@ class ExamTask(Strict):
 
 class McBank(Strict):
     """Frontmatter of a practice bank `mc/<topic>.md`."""
+
+    topic: TopicRef
+    title: Text
+
+
+class CardBank(Strict):
+    """Frontmatter of the flash cards `cards/<topic>.md` of a topic's chapter (§5.6)."""
 
     topic: TopicRef
     title: Text
@@ -776,12 +834,22 @@ class PlanProgress(Strict):
     done: bool
 
 
-ITEM_KEY_RE = r"^(mc|ex|exam|plan):[a-z0-9][a-z0-9-]*$"
+class CardProgress(Strict):
+    """A flash card's Leitner state in the browser (§5.6)."""
+
+    h: Hash
+    box: Box | None = None
+    due: IsoDate | None = None
+    reviews: int = Field(0, ge=0)
+
+
+ITEM_KEY_RE = r"^(mc|ex|exam|plan|card):[a-z0-9][a-z0-9-]*$"
 PROGRESS_KINDS: dict[str, type[Strict]] = {
     "mc": McProgress,
     "ex": ExerciseProgress,
     "exam": ExamProgress,
     "plan": PlanProgress,
+    "card": CardProgress,
 }
 
 
@@ -793,13 +861,14 @@ class Progress(Strict):
     exported_at: IsoDateTime
     items: dict[
         Annotated[str, Field(pattern=ITEM_KEY_RE)],
-        McProgress | ExerciseProgress | ExamProgress | PlanProgress,
+        McProgress | ExerciseProgress | ExamProgress | PlanProgress | CardProgress,
     ] = {}
 
     @field_validator("items", mode="before")
     @classmethod
     def _by_key_prefix(cls, items: Any) -> Any:
-        """Validate each entry with the model its key prefix names (mc:, ex:, exam:, plan:)."""
+        """Validate each entry with the model its key prefix names (mc:, ex:, exam:, plan:,
+        card:)."""
         if not isinstance(items, dict):
             return items
         validated: dict[str, Any] = {}
@@ -1059,6 +1128,9 @@ class SourceDocument(Strict):
     )
     origin: Text = Field(description="path in the user's folder, relative to it")
     sha256: Sha256
+    source_sha256: Sha256 | None = Field(
+        None, description="of the original file when a topic's text or image became this PDF"
+    )
     bytes: int = Field(ge=0)
     pages: PositiveInt
     kind: DocKind
@@ -1283,6 +1355,7 @@ MODELS: dict[str, type[Strict]] = {
     "exam-task": ExamTask,
     "mc": McBank,
     "exam-mc": ExamMcBank,
+    "cards": CardBank,
     "cheatsheet": Cheatsheet,
     "exam": Exam,
     "plan": Plan,
@@ -1302,6 +1375,7 @@ SCHEMAS: dict[str, type[Strict]] = {
     "exam-task": ExamTask,
     "mc-bank": McBank,
     "exam-mc-bank": ExamMcBank,
+    "cards": CardBank,
     "cheatsheet": Cheatsheet,
     "exam": Exam,
     "plan": Plan,

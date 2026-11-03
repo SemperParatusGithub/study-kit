@@ -1,6 +1,55 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "CardProgress": {
+      "additionalProperties": false,
+      "description": "A flash card's Leitner state in the browser (§5.6).",
+      "properties": {
+        "h": {
+          "pattern": "^[0-9a-f]{8,64}$",
+          "title": "H",
+          "type": "string"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "due": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Due"
+        },
+        "reviews": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Reviews",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "h"
+      ],
+      "title": "CardProgress",
+      "type": "object"
+    },
     "ExamAttempt": {
       "additionalProperties": false,
       "properties": {
@@ -260,7 +309,7 @@
     "items": {
       "default": {},
       "patternProperties": {
-        "^(mc|ex|exam|plan):[a-z0-9][a-z0-9-]*$": {
+        "^(mc|ex|exam|plan|card):[a-z0-9][a-z0-9-]*$": {
           "anyOf": [
             {
               "$ref": "#/$defs/McProgress"
@@ -273,6 +322,9 @@
             },
             {
               "$ref": "#/$defs/PlanProgress"
+            },
+            {
+              "$ref": "#/$defs/CardProgress"
             }
           ]
         }
