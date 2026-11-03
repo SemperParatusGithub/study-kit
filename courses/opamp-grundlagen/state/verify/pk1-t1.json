@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "item": "pk1-t1",
+  "kind": "exam-task",
+  "path": "exams/probeklausur-1/01-pk1-t1.md",
+  "content_sha256": "e4a628577f5ab3d633b1f36b73e00928ebc5a409b3a27018f8c8dc15b976441c",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/pk1-t1.py",
+  "check_sha256": "d18f13ecbcbe5f39e64266c5debf6c30b79d2f0166a05942b6f5b67e5f61c870",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "V",
+      "expected": -6.6667,
+      "computed": -6.666666666666667,
+      "abs_err": 3.333333333266353e-05,
+      "rel_err": 4.99997500002453e-06,
+      "tol": 0.0333335,
+      "ok": true
+    },
+    {
+      "key": "Ua1",
+      "expected": -2.6667,
+      "computed": -2.666666666666667,
+      "unit": "V",
+      "abs_err": 3.333333333310762e-05,
+      "rel_err": 1.2499843751868458e-05,
+      "tol": 0.0133335,
+      "ok": true
+    },
+    {
+      "key": "Ua2",
+      "expected": 11.0,
+      "computed": 11.0,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.055,
+      "ok": true
+    },
+    {
+      "key": "Uemax",
+      "expected": 1.65,
+      "computed": 1.65,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.00825,
+      "ok": true
+    },
+    {
+      "key": "VU0",
+      "expected": -5.5276,
+      "computed": -5.527638190954774,
+      "abs_err": 3.819095477464174e-05,
+      "rel_err": 6.909138645097645e-06,
+      "tol": 0.027638,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:19:48Z",
+  "verified_at": "2026-10-29T18:19:48Z"
+}

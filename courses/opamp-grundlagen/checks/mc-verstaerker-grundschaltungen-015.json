@@ -1,0 +1,1 @@
+{"answer": ["C"], "confidence": "high", "ambiguous": false, "reason": "negative feedback drives Ud = Ua/V0 -> 0 and Up = 0, so Un = 0; no internal ground connection"}

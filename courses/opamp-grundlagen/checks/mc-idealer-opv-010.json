@@ -1,0 +1,1 @@
+{"answer": ["B", "D"], "confidence": "high", "ambiguous": false, "reason": "B: kV0 >> 1 gives 1/k; D: 1 - V k = 1/(1 + k V0); A false (V barely changes); C false (k = R1/(R1+R2) with R1 to ground)"}

@@ -1,0 +1,1 @@
+{"answer": ["C"], "confidence": "high", "ambiguous": false, "reason": "the ideal op amp has an infinite open-loop gain; 1e5 is a real device"}

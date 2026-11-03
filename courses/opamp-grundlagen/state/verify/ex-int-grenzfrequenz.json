@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "item": "ex-int-grenzfrequenz",
+  "kind": "exercise",
+  "path": "exercises/integrierer/ex-int-grenzfrequenz.md",
+  "content_sha256": "5c8685d87bec0e2fa659a1e0c1eaece16d07fc3a3ebf27aa95861de44b8920dd",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-int-grenzfrequenz.py",
+  "check_sha256": "bc4d40f6a85399f4baf7a807e33172145a04cd1a09fe3c713f64755365abd714",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "RC",
+      "expected": 1.551,
+      "computed": 1.551,
+      "unit": "ms",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.007755,
+      "ok": true
+    },
+    {
+      "key": "f1",
+      "expected": 102.61,
+      "computed": 102.6144056040589,
+      "unit": "Hz",
+      "abs_err": 0.004405604058902668,
+      "rel_err": 4.293542597117891e-05,
+      "tol": 0.51305,
+      "ok": true
+    },
+    {
+      "key": "H500",
+      "expected": 0.20523,
+      "computed": 0.20522881120811784,
+      "abs_err": 1.1887918821562593e-06,
+      "rel_err": 5.792485904381715e-06,
+      "tol": 0.00102615,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

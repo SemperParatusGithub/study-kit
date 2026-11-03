@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "item": "ex-int-herleitung",
+  "kind": "exercise",
+  "path": "exercises/integrierer/ex-int-herleitung.md",
+  "content_sha256": "2a450ab24b3a48cd4aa0d667b5ab8cdc3ffb89cf980c10940ef7908198227f8a",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-int-herleitung.py",
+  "check_sha256": "aacaec9973fb927e1c99d54bac93941754922aaaa54cb0f1becf314bb4060340",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "Ua",
+      "expected": "Ua0 - Ue*t/(R*C)",
+      "computed": "Ua0 - Ue*t/(C*R)",
+      "ok": true
+    },
+    {
+      "key": "tsat",
+      "expected": "R*C*(Usat + Ua0)/Ue",
+      "computed": "C*R*(Ua0 + Usat)/Ue",
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

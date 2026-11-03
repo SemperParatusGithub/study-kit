@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "item": "ex-iopv-offener-betrieb",
+  "kind": "exercise",
+  "path": "exercises/idealer-opv/ex-iopv-offener-betrieb.md",
+  "content_sha256": "41a42a4c897f5f13acb2179696378c0e65d96570794e5099484e028efde9a422",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-iopv-offener-betrieb.py",
+  "check_sha256": "30acc1ed2cb730411fcd17f97b1f24060173ec9f7917e6bbee5d579ed1817c27",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "Ud",
+      "expected": 30.0,
+      "computed": 29.999999999998778,
+      "unit": "µV",
+      "abs_err": 1.2221335055073723e-12,
+      "rel_err": 4.073778351691241e-14,
+      "tol": 0.15,
+      "ok": true
+    },
+    {
+      "key": "Ua",
+      "expected": 6.0,
+      "computed": 5.999999999999756,
+      "unit": "V",
+      "abs_err": 2.4424906541753444e-13,
+      "rel_err": 4.0708177569589075e-14,
+      "tol": 0.03,
+      "ok": true
+    },
+    {
+      "key": "Udmax",
+      "expected": 67.5,
+      "computed": 67.5,
+      "unit": "µV",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.3375,
+      "ok": true
+    },
+    {
+      "key": "Ua2",
+      "expected": 13.5,
+      "computed": 13.5,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.0675,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

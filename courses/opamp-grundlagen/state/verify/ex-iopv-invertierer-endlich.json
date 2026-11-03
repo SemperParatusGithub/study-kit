@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "item": "ex-iopv-invertierer-endlich",
+  "kind": "exercise",
+  "path": "exercises/idealer-opv/ex-iopv-invertierer-endlich.md",
+  "content_sha256": "828f2a762e20cbf8d46f413987dea8e5e218c77d411eecd8cfc9ceb12838befc",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-iopv-invertierer-endlich.py",
+  "check_sha256": "977d8b06e66130800be2e9f17cc4979ccf4e31e73cea83e169499290a8c4cde4",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "Vexpr",
+      "expected": "-R2*V0/(R1*V0 + R1 + R2)",
+      "computed": "-R2*V0/(R1*V0 + R1 + R2)",
+      "ok": true
+    },
+    {
+      "key": "V",
+      "expected": -20.813,
+      "computed": -20.812953982558746,
+      "abs_err": 4.601744125309892e-05,
+      "rel_err": 2.210995111377453e-06,
+      "tol": 0.10406499999999999,
+      "ok": true
+    },
+    {
+      "key": "dev",
+      "expected": 2.1791,
+      "computed": 2.179116281973893,
+      "unit": "%",
+      "abs_err": 1.628197389313968e-05,
+      "rel_err": 7.471880084961534e-06,
+      "tol": 0.0108955,
+      "ok": true
+    },
+    {
+      "key": "Un",
+      "expected": 4.1626,
+      "computed": 4.162590796511749,
+      "unit": "mV",
+      "abs_err": 9.203488251507963e-06,
+      "rel_err": 2.2109951115908235e-06,
+      "tol": 0.020813,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

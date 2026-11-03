@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "item": "ex-vg-summierer-dimensionieren",
+  "kind": "exercise",
+  "path": "exercises/verstaerker-grundschaltungen/ex-vg-summierer-dimensionieren.md",
+  "content_sha256": "049dc1ef79e2d0c1ac86180f6367b4f8dedadd5a8c64087ace1d48b6e5319435",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-vg-summierer-dimensionieren.py",
+  "check_sha256": "188b14920077cffb5bb95aac355c00145fbf95418659b336b796284079e96df3",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "R1",
+      "expected": 10.0,
+      "computed": 10.0,
+      "unit": "kΩ",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.05,
+      "ok": true
+    },
+    {
+      "key": "R2",
+      "expected": 40.0,
+      "computed": 40.0,
+      "unit": "kΩ",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.2,
+      "ok": true
+    },
+    {
+      "key": "Ua1",
+      "expected": -0.9,
+      "computed": -0.8999999999999999,
+      "unit": "V",
+      "abs_err": 1.1102230246251565e-16,
+      "rel_err": 1.2335811384723962e-16,
+      "tol": 0.0045000000000000005,
+      "ok": true
+    },
+    {
+      "key": "Ua2",
+      "expected": -10.0,
+      "computed": -10.0,
+      "unit": "V",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.05,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:20Z",
+  "verified_at": "2026-10-29T18:16:20Z"
+}

@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "item": "ex-int-zwei-abschnitte",
+  "kind": "exercise",
+  "path": "exercises/integrierer/ex-int-zwei-abschnitte.md",
+  "content_sha256": "092961f277cf4e79c2bb58aa00c977539e3b09bd0d8df84807527a1b34f66083",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-int-zwei-abschnitte.py",
+  "check_sha256": "1b080583e0b4ae2f6695b677a36e07889ee9488ee32ad7e1995a056490aee371",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "t0a",
+      "expected": 5.0,
+      "computed": 5.0,
+      "unit": "ms",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.025,
+      "ok": true
+    },
+    {
+      "key": "Ua8",
+      "expected": -0.9,
+      "computed": -0.8999999999999999,
+      "unit": "V",
+      "abs_err": 1.1102230246251565e-16,
+      "rel_err": 1.2335811384723962e-16,
+      "tol": 0.0045000000000000005,
+      "ok": true
+    },
+    {
+      "key": "Ua20",
+      "expected": 0.6,
+      "computed": 0.6000000000000001,
+      "unit": "V",
+      "abs_err": 1.1102230246251565e-16,
+      "rel_err": 1.8503717077085943e-16,
+      "tol": 0.003,
+      "ok": true
+    },
+    {
+      "key": "t0b",
+      "expected": 15.2,
+      "computed": 15.199999999999998,
+      "unit": "ms",
+      "abs_err": 1.7763568394002505e-15,
+      "rel_err": 1.1686558153949016e-16,
+      "tol": 0.076,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

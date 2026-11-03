@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "item": "ex-int-rampe",
+  "kind": "exercise",
+  "path": "exercises/integrierer/ex-int-rampe.md",
+  "content_sha256": "0cecdd0b81fa50bfb20512cd9312ecd6cee10a54687e89e58221b801f16767cd",
+  "status": "verified",
+  "method": "script",
+  "check": "checks/ex-int-rampe.py",
+  "check_sha256": "ffdd6cc9dfdb293457be059232579a719e17fab8102489d105a2056acbeefeeb",
+  "rounds": 0,
+  "results": [
+    {
+      "key": "I",
+      "expected": 20.0,
+      "computed": 20.0,
+      "unit": "µA",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.1,
+      "ok": true
+    },
+    {
+      "key": "slope",
+      "expected": -90.909,
+      "computed": -90.9090909090909,
+      "unit": "V/s",
+      "abs_err": 9.090909090048171e-05,
+      "rel_err": 1.0000009999062987e-06,
+      "tol": 0.45454500000000003,
+      "ok": true
+    },
+    {
+      "key": "Ua20",
+      "expected": -1.8182,
+      "computed": -1.8181818181818181,
+      "unit": "V",
+      "abs_err": 1.818181818191711e-05,
+      "rel_err": 9.999900001054399e-06,
+      "tol": 0.009091,
+      "ok": true
+    },
+    {
+      "key": "tsat",
+      "expected": 132.0,
+      "computed": 132.0,
+      "unit": "ms",
+      "abs_err": 0.0,
+      "rel_err": 0.0,
+      "tol": 0.66,
+      "ok": true
+    }
+  ],
+  "problems": [],
+  "warnings": [],
+  "confirmations": [],
+  "disputes": [],
+  "checked_at": "2026-10-29T18:16:19Z",
+  "verified_at": "2026-10-29T18:16:19Z"
+}

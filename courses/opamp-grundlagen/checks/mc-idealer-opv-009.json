@@ -1,0 +1,1 @@
+{"answer": ["A", "C"], "confidence": "high", "ambiguous": false, "reason": "A: V = 1/k set by the network; C: Ud = Ua/V0 -> 0; B false (rules fail in saturation); D false (inputs are high impedance, not connected); E false (no input current)"}
