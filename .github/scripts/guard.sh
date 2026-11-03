@@ -4,7 +4,8 @@
 #   commits  every commit of the push or pull request passes .githooks/commit-msg; reads
 #            EVENT, PR_BASE, PR_HEAD, PUSH_BEFORE, PUSH_REF and DEFAULT_BRANCH from the
 #            environment
-#   courses  only courses/README.md is tracked under courses/
+#   courses  under courses/ only what starter-courses.txt lists is tracked: the README and the
+#            two starter courses, which one commit added once; they may go, nothing may join
 #   pdfs     no PDFs are tracked outside tests/fixtures/
 set -euo pipefail
 # The pathspec settings from the environment would change what the patterns below mean.
@@ -49,11 +50,13 @@ commits() {
 }
 
 courses() {
-  local tracked
-  tracked=$(git ls-files courses)
-  if [ "$tracked" != "courses/README.md" ]; then
-    echo "::error::only courses/README.md may be tracked under courses/"
-    printf '%s\n' "$tracked"
+  local allowed extra
+  allowed="$(dirname "$0")/starter-courses.txt"
+  extra=$(LC_ALL=C comm -23 <(git -c core.quotePath=false ls-files courses | LC_ALL=C sort) \
+    <(LC_ALL=C sort "$allowed"))
+  if [ -n "$extra" ]; then
+    echo "::error::only the files of .github/scripts/starter-courses.txt may be tracked under courses/"
+    printf '%s\n' "$extra"
     return 1
   fi
 }

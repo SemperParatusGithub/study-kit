@@ -327,6 +327,20 @@ def test_pre_git_sees_absolute_course_paths(repo: Path):
     assert decide("pre-git", event("Bash", repo, command=readme)) is None
 
 
+def test_pre_git_lets_course_files_be_removed(repo: Path):
+    # a starter course goes with `git rm`, as the pre-commit hook allows too
+    path = repo / "courses" / "get2" / "course.yaml"
+    subprocess.run(["git", "add", "-f", str(path)], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@e.invalid", "commit", "-qm", "x"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "rm", "-q", "--cached", str(path)], cwd=repo, check=True)
+    assert decide("pre-git", event("Bash", repo, command="git commit -m 'chore: drop it'")) is None
+
+
 def test_pre_git_sees_course_files_already_staged(repo: Path):
     subprocess.run(["git", "-C", str(repo), "add", "-f", f"{C}/course.yaml"], check=True)
     reason = decide("pre-git", event("Bash", repo, command="git commit -m 'chore: x'"))
