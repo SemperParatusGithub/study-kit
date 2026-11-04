@@ -10,6 +10,9 @@ afterwards.
    `--from YYYY-MM-DD` (default today, never before `study.start`). Findings such as
    SK-PLAN-DATE (unknown exam date), SK-PLAN-STUDY or SK-PLAN-BUDGET (missing or too small
    weekly budget) go to the user; they are fixed in `course.yaml`, not in the plan.
+   A plan never starts with a mock exam. Only when the student asks for a test first, they
+   take it before planning (`/examine <course> exam <id>`); the plan then counts it as
+   taken.
 2. Write it: `uv run --frozen studykit plan <course>` (add `--json` to read
    `goals_missing`, `kept`, `dropped`, `goals_kept`). Replanning keeps every session marked
    done in `progress/` and the goals of unchanged sessions.
