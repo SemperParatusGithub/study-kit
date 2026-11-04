@@ -373,6 +373,24 @@ def test_unknown_exam_date_plans_twelve_weeks(course: Path):
     assert result["end"] == "2027-01-24"
 
 
+@pytest.mark.parametrize(
+    ("blocked", "last"),
+    [
+        ("'2027-02-15'", "2027-02-14"),  # Monday blocked: Sunday, not a session weekday
+        ("'2027-02-13..2027-02-15'", "2027-02-12"),  # Saturday to Monday blocked: Friday
+    ],
+)
+def test_a_blocked_day_before_the_exam_moves_the_last_day(course: Path, blocked: str, last: str):
+    set_exam(course, date(2027, 2, 16))  # a Tuesday
+    set_study(course, f"study: {{start: 2026-11-02, hours_per_week: 40, blocked: [{blocked}]}}")
+    result = make(course)
+    assert result["weekdays"] == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    assert result["end"] == last
+    p = check_constraints(course, "2026-10-29")
+    assert p.sessions[-1].date.isoformat() == last
+    assert p.sessions[-1].kind == "cheatsheet"
+
+
 def test_refuses_to_plan_after_the_exam(course: Path, capsys):
     assert cli.main(["plan", str(course), "--from", "2027-02-15"]) == 1
     assert "SK-PLAN-DATE" in capsys.readouterr().err

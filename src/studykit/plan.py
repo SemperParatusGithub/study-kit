@@ -10,9 +10,10 @@ How sessions are placed:
    day before the exam. `study.hours_per_week` gives the weekly budget; it is split into
    n = round(budget / 120 min) sessions (1 to 6) on fixed weekdays (1: Sat; 2: Mon, Thu;
    3: Mon, Wed, Sat; 4: Mon, Tue, Thu, Sat; 5: Mon to Fri; 6: Mon to Sat) of
-   budget / n minutes, rounded down to 15. Blocked periods have no sessions. The day
-   before the exam always has one.
-2. **The last 14 days.** The day before the exam is for the cheat sheet (a review of every
+   budget / n minutes, rounded down to 15. Blocked periods have no sessions. The last
+   study day always has one: the day before the exam, or, when that is blocked, the last
+   day before it that is not.
+2. **The last 14 days.** The last study day is for the cheat sheet (a review of every
    topic when the exam allows none). Mock exams (`targets.mock_exams`, at most the mock
    exams the course has and that were not taken yet) take exam duration + 30 minutes and are
    spread over the last 14 days, the last one at least 4 days before the exam; the session
@@ -311,9 +312,12 @@ def schedule(inp: Inputs) -> tuple[list[dict], dict, list[Finding]]:
     start = max(inp.start, study.start.isoformat()) if study.start else inp.start
     placeholder = info.exam_date is None
     end = info.exam_date or progress.add_days(start, PLACEHOLDER_DAYS)
-    last_day = progress.add_days(end, -1)
     final_start = progress.add_days(end, -FINAL_DAYS)
     blocked = _ranges(study.blocked)
+    # the last study day: the day before the exam, or the last one before it not blocked
+    last_day = progress.add_days(end, -1)
+    while last_day >= start and last_day in blocked:
+        last_day = progress.add_days(last_day, -1)
     occupied = {s["date"] for s in inp.kept}
     skipped = {t.id for t in info.topics if t.skip}
     topics = [t for t in info.topics if not t.skip]

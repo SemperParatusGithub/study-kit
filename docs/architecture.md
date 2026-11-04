@@ -666,7 +666,9 @@ How the scheduler places sessions:
 - Days run from `--from` (default today, never before `study.start`) to the day before the
   exam, outside `study.blocked`. `study.hours_per_week` is the weekly budget, split into
   n = round(budget / 120 min) sessions (1–6) on fixed weekdays, each budget / n minutes
-  rounded down to 15; the day before the exam always has a session:
+  rounded down to 15; the last day always has a session, whatever its weekday: the day
+  before the exam, or, when `study.blocked` covers it, the last day before it that is not
+  blocked (an exam on Tuesday with Monday blocked ends on Sunday):
 
   | n | Weekdays |
   |---|---|
