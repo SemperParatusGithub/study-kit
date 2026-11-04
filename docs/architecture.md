@@ -666,7 +666,9 @@ How the scheduler places sessions:
 - Days run from `--from` (default today, never before `study.start`) to the day before the
   exam, outside `study.blocked`. `study.hours_per_week` is the weekly budget, split into
   n = round(budget / 120 min) sessions (1–6) on fixed weekdays, each budget / n minutes
-  rounded down to 15; the day before the exam always has a session:
+  rounded down to 15; the last day always has a session, whatever its weekday: the day
+  before the exam, or, when `study.blocked` covers it, the last day before it that is not
+  blocked (an exam on Tuesday with Monday blocked ends on Sunday):
 
   | n | Weekdays |
   |---|---|
@@ -687,7 +689,10 @@ How the scheduler places sessions:
   4 days before the exam; the next session reviews each. A week takes a mock exam only if it
   stays within the budget with 45 minutes left for each review and the last day in it. When
   they do not all fit this way, they go as late as they do, each after the previous one's
-  review, and SK-PLAN-BUDGET names those before the 14 days. A 120-minute exam fits four
+  review, and SK-PLAN-BUDGET names those before the 14 days. A plan starts with studying:
+  its first session never holds a mock exam, unless a session `progress/` marks done lies
+  before it. A student who wants a test first takes it before planning (`/examine <c> exam
+  <id>` or on the site); the plan counts it as taken. A 120-minute exam fits four
   times from 9 hours a week and five times from 11; six never fit, since the 14 days do not
   have enough sessions. The session before the last day is a final MC round over every
   topic; the last session before the final 14 days is a buffer when at least four sessions

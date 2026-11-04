@@ -76,6 +76,8 @@ def check_constraints(course: Path, start: str) -> model.Plan:
         for pre in t.prereq:
             if t.id in learn and pre in learn:
                 assert max(learn[pre]) < min(learn[t.id]), (pre, t.id)
+    # a plan starts with studying, never with a mock exam
+    assert sessions[0].kind != "mock-exam"
     # mock exams in the last 14 days, at least 4 days before the exam, then reviewed
     for i, s in enumerate(sessions):
         if s.kind == "mock-exam":
@@ -308,7 +310,7 @@ def test_a_small_budget_keeps_the_review_of_a_mock_exam(course: Path, day: date)
 def test_a_late_start_warns_about_the_mock_exams_left_out(course: Path):
     add_mock_exams(course, 4)
     set_study(course, "study: {start: 2026-11-02, hours_per_week: 6, blocked: []}")
-    result, found = plan.run(course, start="2027-02-05")
+    result, found = plan.run(course, start="2027-02-03")
     assert [m["exam"] for m in result["mock_exams"]] == ["probeklausur-1", "probeklausur-2"]
     assert [f.message for f in found if "no session is left" in f.message] == [
         "no session is left for mock exam probeklausur-3 before the exam",
@@ -319,7 +321,7 @@ def test_a_late_start_warns_about_the_mock_exams_left_out(course: Path):
 def test_a_mock_exam_without_a_later_session_warns_about_its_review(course: Path):
     set_exam(course, date(2027, 2, 18))
     set_study(course, "study: {start: 2026-11-02, hours_per_week: 2, blocked: []}")
-    result, found = plan.run(course, start="2027-02-12")
+    result, found = plan.run(course, start="2027-02-05")
     assert result["mock_exams"] == [{"exam": "probeklausur-1", "date": "2027-02-13"}]
     assert any("probeklausur-1 on 2027-02-13 has no review" in f.message for f in found)
 
@@ -371,6 +373,24 @@ def test_unknown_exam_date_plans_twelve_weeks(course: Path):
     p = load(course)
     assert p.exam_date is None
     assert result["end"] == "2027-01-24"
+
+
+@pytest.mark.parametrize(
+    ("blocked", "last"),
+    [
+        ("'2027-02-15'", "2027-02-14"),  # Monday blocked: Sunday, not a session weekday
+        ("'2027-02-13..2027-02-15'", "2027-02-12"),  # Saturday to Monday blocked: Friday
+    ],
+)
+def test_a_blocked_day_before_the_exam_moves_the_last_day(course: Path, blocked: str, last: str):
+    set_exam(course, date(2027, 2, 16))  # a Tuesday
+    set_study(course, f"study: {{start: 2026-11-02, hours_per_week: 40, blocked: [{blocked}]}}")
+    result = make(course)
+    assert result["weekdays"] == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    assert result["end"] == last
+    p = check_constraints(course, "2026-10-29")
+    assert p.sessions[-1].date.isoformat() == last
+    assert p.sessions[-1].kind == "cheatsheet"
 
 
 def test_refuses_to_plan_after_the_exam(course: Path, capsys):
@@ -444,6 +464,30 @@ def test_replanning_keeps_done_sessions(course: Path):
     text = (course / "plan.yaml").read_bytes()
     make(course, start="2026-12-01")
     assert (course / "plan.yaml").read_bytes() == text
+
+
+def short_plan(course: Path) -> None:
+    """Two mock exams and an exam on Tuesday, with the Monday before it blocked."""
+    add_mock_exams(course, 2)
+    set_exam(course, date(2027, 2, 16))
+    set_study(course, "study: {start: 2026-11-02, hours_per_week: 40, blocked: ['2027-02-15']}")
+
+
+def test_a_short_plan_starts_with_studying(course: Path):
+    short_plan(course)
+    result = make(course, start="2027-02-10")
+    p = check_constraints(course, "2027-02-10")
+    assert p.sessions[0].date.isoformat() == "2027-02-10"
+    assert p.sessions[0].kind != "mock-exam"
+    assert result["mock_exams"][0]["date"] == "2027-02-11"
+
+
+def test_a_done_session_lets_the_next_one_be_a_mock_exam(course: Path):
+    short_plan(course)
+    assert make(course, start="2027-02-11")["mock_exams"][0]["date"] == "2027-02-12"
+    make(course, start="2027-02-10")
+    done(course, ["s-2027-02-10-a"])
+    assert make(course, start="2027-02-11")["mock_exams"][0]["date"] == "2027-02-11"
 
 
 def test_replanning_skips_solved_exercises(course: Path):

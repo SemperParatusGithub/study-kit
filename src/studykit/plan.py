@@ -10,17 +10,20 @@ How sessions are placed:
    day before the exam. `study.hours_per_week` gives the weekly budget; it is split into
    n = round(budget / 120 min) sessions (1 to 6) on fixed weekdays (1: Sat; 2: Mon, Thu;
    3: Mon, Wed, Sat; 4: Mon, Tue, Thu, Sat; 5: Mon to Fri; 6: Mon to Sat) of
-   budget / n minutes, rounded down to 15. Blocked periods have no sessions. The day
-   before the exam always has one.
-2. **The last 14 days.** The day before the exam is for the cheat sheet (a review of every
+   budget / n minutes, rounded down to 15. Blocked periods have no sessions. The last
+   study day always has one: the day before the exam, or, when that is blocked, the last
+   day before it that is not.
+2. **The last 14 days.** The last study day is for the cheat sheet (a review of every
    topic when the exam allows none). Mock exams (`targets.mock_exams`, at most the mock
    exams the course has and that were not taken yet) take exam duration + 30 minutes and are
    spread over the last 14 days, the last one at least 4 days before the exam; the session
    after each one reviews it. A week takes a mock exam only if it stays within the budget
    with 45 minutes left for each review and the cheat-sheet day in it. When they do not all
    fit this way, they go as late as they do, each after the previous one's review, and may
-   start before the 14 days (a warning names them). The session before the cheat-sheet day
-   is a final MC round over every topic. The last session before these 14 days is a buffer.
+   start before the 14 days (a warning names them). A plan starts with studying: its first
+   session never holds a mock exam, unless a done session lies before it. The session
+   before the cheat-sheet day is a final MC round over every topic. The last session before
+   these 14 days is a buffer.
 3. **Budget.** No calendar week (Monday to Sunday) has more minutes than the weekly budget:
    in a week with a mock exam, a done session or the extra cheat-sheet day the other
    sessions get shorter, down to 45 minutes; below that the least important one is dropped
@@ -229,14 +232,15 @@ def _fit_mocks(
     last_mock: str,
     *,
     reviewed: bool,
+    after: str = "",
 ) -> list[Placed]:
-    """In date order, each exam in the first session on or after its day whose week has room
-    for it, then its review in the next session whose week has room for the shortest session.
-    Stops at the first exam that does not fit; with `reviewed`, one without a review does not
-    fit either."""
+    """In date order, each exam in the first session after `after` and on or after its day
+    whose week has room for it, then its review in the next session whose week has room for
+    the shortest session. Stops at the first exam that does not fit; with `reviewed`, one
+    without a review does not fit either."""
     used = dict(load)
     placed: list[Placed] = []
-    floor = ""
+    floor = after
 
     def has_room(s: Slot, minutes: int) -> bool:
         return used.get(_week(s.date), 0) + minutes <= budget
@@ -311,9 +315,12 @@ def schedule(inp: Inputs) -> tuple[list[dict], dict, list[Finding]]:
     start = max(inp.start, study.start.isoformat()) if study.start else inp.start
     placeholder = info.exam_date is None
     end = info.exam_date or progress.add_days(start, PLACEHOLDER_DAYS)
-    last_day = progress.add_days(end, -1)
     final_start = progress.add_days(end, -FINAL_DAYS)
     blocked = _ranges(study.blocked)
+    # the last study day: the day before the exam, or the last one before it not blocked
+    last_day = progress.add_days(end, -1)
+    while last_day >= start and last_day in blocked:
+        last_day = progress.add_days(last_day, -1)
     occupied = {s["date"] for s in inp.kept}
     skipped = {t.id for t in info.topics if t.skip}
     topics = [t for t in info.topics if not t.skip]
@@ -373,9 +380,14 @@ def schedule(inp: Inputs) -> tuple[list[dict], dict, list[Finding]]:
     load = dict(kept_minutes)
     load[_week(slots[-1].date)] = load.get(_week(slots[-1].date), 0) + MIN_MINUTES
     free = slots[:-1]
+    # a plan starts with studying: its first session is never a mock exam
+    studied = any(s["date"] < slots[0].date for s in inp.kept)
+    after = free[0].date if free and not studied else ""
 
     def fit(days: list[str], reviewed: bool = True) -> list[Placed]:
-        return _fit_mocks(exams, days, free, load, budget, last_mock, reviewed=reviewed)
+        return _fit_mocks(
+            exams, days, free, load, budget, last_mock, reviewed=reviewed, after=after
+        )
 
     # spread out if they fit that way, else as late as they fit, else without every review
     latest_first = [s.date for s in reversed(free) if s.date <= last_mock]
